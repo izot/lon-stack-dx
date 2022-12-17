@@ -1,7 +1,7 @@
 //
 // lcs.h
 //
-// Copyright (C) 2022 Dialog Semiconductor
+// Copyright (C) 2022 EnOcean
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in 
@@ -28,5 +28,6 @@
 // Public APIs for the LonTalk C Stack
 //
 
-Status LCS_Init(void);
-void LCS_Service(void);
+Status LCS_Init(IzotResetCause cause);
+extern void LCS_Service(void);
+
