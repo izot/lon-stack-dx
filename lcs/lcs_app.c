@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Dialog Semiconductor
+// Copyright (C) 2022 EnOcean
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in 
@@ -110,22 +110,27 @@
 /*------------------------------------------------------------------------------
 Section: Includes
 ------------------------------------------------------------------------------*/
-#include <stdio.h>
 #include <string.h>
-
-#include <lcs_eia709_1.h>
-#include <lcs_node.h>
-#include <lcs_queue.h>
-#include <lcs_app.h>
-#include <lcs_api.h>
-#include <lcs_netmgmt.h>
-#include <lcs_proxy.h>
+#include "IzotApi.h"
+#include "lcs_eia709_1.h"
+#include "lcs_node.h"
+#include "lcs_queue.h"
+#include "lcs_app.h"
+#include "lcs_api.h"
+#include "lcs_netmgmt.h"
+#include "iup.h"
+#include "lcs_proxy.h"
+#include "IzotApi.h"
+#include "endian.h"
 
 /*------------------------------------------------------------------------------
 Section: Constant and Macro Definitions
 ------------------------------------------------------------------------------*/
 #define MAX_NV_SELF_DOC_LENGTH 1023
-
+#define MAX_NV_LEN_SUPPORTED   228
+#define MAX_STOP_OFFSET        0xFFFF
+#define IBOL_FINISH            0xFF
+                               
 /*------------------------------------------------------------------------------
 Section: Type Definitions
 ------------------------------------------------------------------------------*/
@@ -134,43 +139,46 @@ Section: Type Definitions
 /*------------------------------------------------------------------------------
 Section: Globals
 ------------------------------------------------------------------------------*/
-/* None */
+IzotByte NmAuth = FALSE;
+extern IzotByte AliasTableCount;
+extern uint16_t BindableMTagCount;
+/*------------------------------------------------------------------------------
+Section: Global function prototypes
+------------------------------------------------------------------------------*/
+extern void IzotDatapointUpdateCompleted(const unsigned index, 
+const IzotBool success);
+extern void IzotDatapointUpdateOccurred(const unsigned index, 
+const IzotReceiveAddress* const pSourceAddress);
+extern void IzotOffline(void);
+
+/*------------------------------------------------------------------------------
+Section: Static
+------------------------------------------------------------------------------*/
+static int dpPropInitCount;
 
 /*------------------------------------------------------------------------------
 Section: Local Function Prototypes
 ------------------------------------------------------------------------------*/
-static void ProcessNV(APPReceiveParam *appReceiveParamPtr,
-                      APDU            *apduPtr);
-static void ProcessNVUpdate(APPReceiveParam *appReceiveParamPtr,
-                            APDU            *apduPtr);
-static void ProcessNVPoll(APPReceiveParam *appReceiveParamPtr,
-                          APDU            *apduPtr);
-
-static void HandleMsgCompletion(APPReceiveParam *appReceiveParamPtr,
-                                APDU            *apduPtr);
-static void HandleResponse(APPReceiveParam *appReceiveParamPtr,
-                           APDU            *apduPtr);
-static void HandleNormal(APPReceiveParam *appReceiveParamPtr,
-                         APDU *apduPtr);
-
-static Status  TryMsgSend(APPSendParam *appSendParamPtr,
-                          APDU *apduPtr,
-                          Queue   *tsaOutQPtr,
-                          Queue   *nwOutQPtr);
+static void ProcessNV(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr);
+static void ProcessNVUpdate(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr);
+static void ProcessNVPoll(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr);
+static void HandleMsgCompletion(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr);
+static void HandleResponse(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr);
+static void HandleNormal(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr);
+static Status  TryMsgSend(IzotByte priority, APPSendParam *appSendParamPtr, APDU *apduPtr);
 
 static void ReinitMsgOut();
 static void ReinitRespOut();
 
-static Status PropagateThisIndex(int16 nvIndexIn, int16 primaryIndex);
-static void   PropagateThisPrimary(int16 nvIndexIn);
+static Status PropagateThisIndex(IzotBits16 nvIndexIn, IzotBits16 primaryIndex);
+static void   PropagateThisPrimary(IzotBits16 nvIndexIn);
 static void   SendVar(void);
 
-static Status PollThisIndex(int16 nvIndexIn);
-static void   PollThisPrimary(int16 nvIndexIn);
+static Status PollThisIndex(IzotBits16 nvIndexIn);
+static void   PollThisPrimary(IzotBits16 nvIndexIn);
 static void   PollVar(void);
 
-static Boolean IsArrayNV(int16 nvIndexIn,
-                         uint16 *dimOut, int16 *indexOut);
+static IzotByte IsArrayNV(IzotBits16 nvIndexIn, IzotUbits16 *dimOut, IzotBits16 *indexOut);
 
 static void ReinitMsgOut(void);
 static void ReinitRespOut(void);
@@ -179,29 +187,71 @@ Section: Function Definitions
 ------------------------------------------------------------------------------*/
 
 /*******************************************************************************
+Function:  AllocSendUnackd
+Returns:   Status
+Reference: None
+Purpose:   Allocate and send an unackd message.
+Comments:  None.
+*******************************************************************************/
+Status AllocSendUnackd(PktCtrl ctrl, MsgTag tag, IzotSendAddress* pSrc, 
+DestinType code, IzotByte data0, int len, IzotByte *pData)
+{
+	Queue	*nwOutQPtr = (ctrl&PKT_PRIORITY) ? &gp->nwOutPriQ : &gp->nwOutQ;
+	Status   sts = QueueFull(nwOutQPtr) ? FAILURE : SUCCESS;
+
+	if (sts == SUCCESS && len+1 > gp->nwOutBufSize) {
+		DBG_vPrintf(TRUE, "AllocSendUnackd: FAILURE\n");
+		sts = FAILURE;
+	}
+
+	if (sts == SUCCESS)	{
+		NWSendParam *nwSendParamPtr = QueueTail(nwOutQPtr);
+		nwSendParamPtr->dropIfUnconfigured = TRUE;
+		nwSendParamPtr->tag = tag;
+		sts = TSA_AddressConversion(pSrc, &nwSendParamPtr->destAddr);
+		if (sts == SUCCESS) {
+			APDU *apduPtr               = (APDU *)(nwSendParamPtr + 1);
+			nwSendParamPtr->pduType     = APDU_TYPE;
+			nwSendParamPtr->deltaBL     = 0; // No ack generated
+			nwSendParamPtr->altPath     = (ctrl&PKT_ALTPATH)?true:false;
+			nwSendParamPtr->pduSize     = len+1;	// Add 1 for code
+			nwSendParamPtr->proxy		= (ctrl&PKT_PROXY)?true:false;
+			nwSendParamPtr->version		= 
+            (IZOT_GET_ATTRIBUTE(eep->domainTable[0], IZOT_LS_MODE) == 0) ? 0:2;
+			apduPtr->code		 		= code;
+			apduPtr->data[0] 			= data0;
+			if (len>1) {
+				memcpy(&apduPtr->data[1], pData, len-1);
+			}
+			EnQueue(nwOutQPtr);
+		}
+	}
+	return sts;
+}
+
+/*******************************************************************************
 Function:  AllocSendResponse
 Returns:   Status
 Reference: None
-Purpose:   Allocate and send a response.  
+Purpose:   Allocate and send a response.
 Comments:  None.
 *******************************************************************************/
-Status AllocSendResponse(RequestId reqId, Boolean nullResponse, Byte code, int len, Byte *pData)
+Status AllocSendResponse(RequestId reqId, IzotByte nullResponse, IzotByte code, 
+int len, IzotByte *pData)
 {
 	Status sts = FAILURE;
-    if (!QueueFull(&gp->tsaRespQ))
-	{
+    if (!QueueFull(&gp->tsaRespQ)) {
 		TSASendParam *tsaSendParamPtr = QueueTail(&gp->tsaRespQ);
 		APDU         *apduRespPtr     = (APDU *)(tsaSendParamPtr + 1);
         tsaSendParamPtr->altPathOverride = FALSE;
-        tsaSendParamPtr->service      = RESPONSE;
+        tsaSendParamPtr->service      = IzotServiceResponse;
         tsaSendParamPtr->reqId        = reqId;
         tsaSendParamPtr->apduSize     = len+1;
         tsaSendParamPtr->nullResponse = nullResponse;
 		tsaSendParamPtr->flexResponse = FALSE;
         apduRespPtr->code.allBits     = code;
 		// If the response doesn't fit, we just drop it (no error log for this).
-        if (tsaSendParamPtr->apduSize <= gp->tsaRespBufSize)
-        {
+        if (tsaSendParamPtr->apduSize <= gp->tsaRespBufSize) {
             memcpy((char *)apduRespPtr + 1, pData, len);
             EnQueue(&gp->tsaRespQ);
         }
@@ -217,7 +267,7 @@ Reference: None
 Purpose:   Send a response
 Comments:  None.
 *******************************************************************************/
-Status SendResponse(RequestId reqId, Byte code, int len, Byte *pData)
+Status SendResponse(RequestId reqId, IzotByte code, int len, IzotByte *pData)
 {
 	return AllocSendResponse(reqId, FALSE, code, len, pData);
 }
@@ -243,26 +293,39 @@ Purpose:   To perform initializations that should be done only
            done during node reset.
 Comments:  None.
 *******************************************************************************/
-void APPInit(void)
+Status APPInit(void)
 {
-    uint16  len;
-    uint16  sizeNeeded;
+    IzotUbits16  len;
+    IzotUbits16  sizeNeeded;
 
-    gp->unboundSelector       = 0x3FFF;  /* Countdown as we assign */
+	if (gp->initialized) {
+		return SUCCESS;
+	}
+
+    gp->resetOk = TRUE;
+    nmp->resetCause = IzotPowerUpReset;
+    NodeReset(TRUE);
+
+    if (!gp->resetOk) {
+		DBG_vPrintf(TRUE, "APPInit: Reset failure");
+        return FAILURE;
+    }
+
+    gp->unboundSelector       = 0x3FFF;  // Countdown as we assign
     gp->nvArrayTblSize        = 0;
     gp->nextBindableMsgTag    = 0;
     gp->nextNonbindableMsgTag = NUM_ADDR_TBL_ENTRIES;
 
-    /****************************************************************************
+    /***************************************************************************
       The SNVT area has the following layout (as expected by Network
       management tools):
 
       Header:
-      uint16 length;
-      uint8  numNetvars;
-      uint8  version;
-      uint8  msbNumNetvars;
-      uint8  mtagCount;
+      IzotUbits16 length;
+      IzotByte  numNetvars;
+      IzotByte  version;
+      IzotByte  msbNumNetvars;
+      IzotByte  mtagCount;
 
       SNVT Desc:
       SNVTdescStruct[];   One struct (2 bytes) per var
@@ -295,39 +358,35 @@ void APPInit(void)
       5. The Alias Field is restored (placed after the last
       extension record, and pointed to by aliasPtr).
 
-      **************************************************************************/
+      *************************************************************************/
 
-    /* Initialize SNVT area */
+    // Initialize SNVT area
     nmp->snvt.version       = 1;
     nmp->snvt.numNetvars    = 0;
     nmp->snvt.msbNumNetvars = 0;
-    nmp->snvt.mtagCount     = 0;
-
-    /* Copy NODE_DOC info if there is sufficient space */
-    /* If not, init to null string. */
-    len = strlen(NODE_DOC) + 1;
-    if (len <= SNVT_SIZE - sizeof(AliasField))
-    {
-        strcpy((char *)&nmp->snvt.sb[0], NODE_DOC);
-    }
-    else
-    {
+    nmp->snvt.mtagCount     = BindableMTagCount;
+    
+    // Copy self doc info if there is sufficient space
+    // If not, init to null string.
+    len = strlen(cp->szSelfDoc) + 1;
+    if (len <= GetSiDataLength() - sizeof(AliasField)) {
+        strcpy((char *)&nmp->snvt.sb[0], cp->szSelfDoc);
+    } else {
         nmp->snvt.sb[0] = '\0';
         len = 1;
     }
-
-    /* Initially, there is no network var related info */
+    // Initially, there is no network var related info
     sizeNeeded = 6 + len + sizeof(AliasField);
-
     nmp->snvt.length = hton16(sizeNeeded);
     nmp->snvt.descPtr  = (SNVTdescStruct *)&nmp->snvt.sb[0];
     nmp->snvt.aliasPtr = (AliasField *)&nmp->snvt.sb[len];
     nmp->snvt.aliasPtr->bindingII  = TRUE;
     nmp->snvt.aliasPtr->queryStats = TRUE;
-    nmp->snvt.aliasPtr->aliasCount = 0x3F;  /* host based node */
-    nmp->snvt.aliasPtr->hostAlias  = hton16(NV_ALIAS_TABLE_SIZE);
-
+    nmp->snvt.aliasPtr->aliasCount = 0x3F;  // host based node
+    nmp->snvt.aliasPtr->hostAlias  = hton16(AliasTableCount);
     nmp->nvTableSize  = 0;
+	gp->initialized = true;
+    return AppInit();
 }
 
 /*******************************************************************************
@@ -340,94 +399,89 @@ Comments:  None.
 *******************************************************************************/
 void APPReset(void)
 {
-    uint16 queueItemSize;
+    IzotUbits16 queueItemSize;
 
-    /* Allocate and Initialize Input Queue */
-    gp->appInBufSize  =
-        DecodeBufferSize((uint8)eep->readOnlyData.appInBufSize);
-    gp->appInQCnt     = DecodeBufferCnt((uint8)eep->readOnlyData.appInBufCnt);
+    // Allocate and Initialize Input Queue
+    gp->appInBufSize  = DecodeBufferSize(IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_INBUF_SIZE)); // 1280
+    gp->appInQCnt     = DecodeBufferCnt((IzotByte)IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_INBUF_CNT));
     queueItemSize    = gp->appInBufSize + sizeof(APPReceiveParam);
 
     if (QueueInit(&gp->appInQ, queueItemSize, gp->appInQCnt)
-            != SUCCESS)
-    {
-        ErrorMsg("APPReset: Unable to init Input Queue.\n");
+    != SUCCESS || QueueInit(&gp->appCeRspInQ, queueItemSize, gp->appInQCnt)
+	!= SUCCESS) {
+    	DBG_vPrintf(TRUE, "APPReset: Unable to init Input Queues.\n");
         gp->resetOk = FALSE;
         return;
     }
-
-    /* Allocate and Initialize Output Queue */
-    gp->appOutBufSize =
-        DecodeBufferSize((uint8)eep->readOnlyData.appOutBufSize);
-    gp->appOutQCnt    =
-        DecodeBufferCnt((uint8)eep->readOnlyData.appOutBufCnt);
+    
+    // Allocate and Initialize Output Queue
+    gp->appOutBufSize = DecodeBufferSize((IzotByte)IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_OUTBUF_SIZE)) + 1;
+    gp->appOutQCnt    = DecodeBufferCnt((IzotByte)IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_OUTBUF_CNT));
     queueItemSize    = gp->appOutBufSize + sizeof(APPSendParam);
 
-    if (QueueInit(&gp->appOutQ, queueItemSize, gp->appOutQCnt)
-            != SUCCESS)
-    {
-        ErrorMsg("APPReset: Unable to init Output Queue.\n");
+    if (QueueInit(&gp->appOutQ, queueItemSize, gp->appOutQCnt) != SUCCESS) {
+    	DBG_vPrintf(TRUE, "APPReset: Unable to init Output Queue.\n");
         gp->resetOk = FALSE;
         return;
     }
 
-    /* Allocate and Initialize Pri Output Queue */
+    // Allocate and Initialize Pri Output Queue
     gp->appOutPriBufSize = gp->appOutBufSize;
-    gp->appOutPriQCnt =
-        DecodeBufferCnt((uint8)eep->readOnlyData.appOutBufPriCnt);
+    gp->appOutPriQCnt = DecodeBufferCnt((IzotByte)IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_OUT_PRICNT));
     queueItemSize    = gp->appOutPriBufSize + sizeof(APPSendParam);
 
     if (QueueInit(&gp->appOutPriQ, queueItemSize, gp->appOutPriQCnt)
-            != SUCCESS)
-    {
-        ErrorMsg("APPReset: Unable to init Priority Output Queue.\n");
+    != SUCCESS) {
+    	DBG_vPrintf(TRUE, "APPReset: Unable to init Priority Output Queue.\n");
         gp->resetOk = FALSE;
         return;
     }
 
-    /* Allocate Queue for NV output variable scheduling */
+    // Allocate Queue for NV output variable scheduling
     gp->nvOutIndexQCnt    = MAX_NV_OUT;
     gp->nvOutIndexBufSize = 2 + MAX_NV_LENGTH;
     if (QueueInit(&gp->nvOutIndexQ, gp->nvOutIndexBufSize,
-                  gp->nvOutIndexQCnt)  != SUCCESS)
-    {
-        ErrorMsg("APPReset: Unable to init NV Out Index Queue.\n");
+    gp->nvOutIndexQCnt)  != SUCCESS) {
+    	DBG_vPrintf(TRUE, "APPReset: Unable to init NV Out Index Queue.\n");
         gp->resetOk = FALSE;
         return;
     }
-    gp->nvOutStatus      = SUCCESS; /* Propagate succeeds if all the scheduled
-                                      transactions complete successfully. */
+    gp->nvOutStatus      = SUCCESS; // Propagate succeeds if all the scheduled
+                                    //  transactions complete successfully.
     gp->nvOutCanSchedule = TRUE;
-    gp->nvOutIndex       = 0; /* Not relevant initially */
+    gp->nvOutIndex       = 0; // Not relevant initially
 
-    /* Allocate Queue for NV input variable scheduling */
+    // Allocate Queue for NV input variable scheduling
     gp->nvInIndexQCnt = MAX_NV_IN;
     if (QueueInit(&gp->nvInIndexQ, 2, gp->nvInIndexQCnt)
             != SUCCESS)
     {
-        ErrorMsg("APPReset: Unable to init NV In Index Queue.\n");
+    	DBG_vPrintf(TRUE, "APPReset: Unable to init NV In Index Queue.\n");
         gp->resetOk = FALSE;
         return;
     }
-    gp->nvInDataStatus  = FAILURE; /* See node.h for usage */
-    gp->nvInTranStatus  = SUCCESS; /* See node.h for usage */
+    gp->nvInDataStatus  = FAILURE; // See node.h for usage
+    gp->nvInTranStatus  = SUCCESS; // See node.h for usage
     gp->nvInCanSchedule = TRUE;
-    gp->nvInIndex       = 0; /* Not relevant initially */
+    gp->nvInIndex       = 0; // Not relevant initially
 
-    /* Set flags to correct state */
-    gp->msgReceive      = FALSE;       /* TRUE if data is in gp->msgIn  */
-    gp->respReceive     = FALSE;       /* TRUE if data is in gp->respIn */
+    // Set flags to correct state
+    gp->msgReceive      = FALSE;       // TRUE if data is in gp->msgIn
+    gp->respReceive     = FALSE;       // TRUE if data is in gp->respIn
     gp->callMsgFree     = FALSE;
     gp->callRespFree    = FALSE;
-    gp->selectQueryFlag = FALSE;       /* FALSE until selected          */
+    gp->selectQueryFlag = FALSE;       // FALSE until selected
 
-    /* Init msg and resp */
+    // Init msg and resp
     memset(&gp->msgIn,   0, sizeof(gp->msgIn));
     memset(&gp->msgOut,  0, sizeof(gp->msgOut));
     memset(&gp->respIn,  0, sizeof(gp->respIn));
     memset(&gp->respOut, 0, sizeof(gp->respOut));
     memset(&gp->nvInAddr, 0, sizeof(gp->nvInAddr));
     gp->nvArrayIndex = 0;
+
+	// And init NM module
+	NM_Init();
 }
 
 /*******************************************************************************
@@ -437,125 +491,104 @@ Reference: None
 Purpose:   Pass a message completion event to the application
 Comments:  None.
 *******************************************************************************/
-static void HandleMsgCompletion(APPReceiveParam *appReceiveParamPtr,
-                                APDU            *apduPtr)
+static void HandleMsgCompletion(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
 {
     Status stat;
-    int16 primaryIndex, baseIndex;
-    uint16 dim;
+    IzotBits16 primaryIndex, baseIndex;
+    IzotUbits16 dim;
 
-    if (appReceiveParamPtr->success)
-    {
+    if (appReceiveParamPtr->success) {
         stat = SUCCESS;
-    }
-    else
-    {
+    } else {
         stat = FAILURE;
     }
 
-	if (appReceiveParamPtr->proxy)
-	{
-		if (ProcessLtepCompletion(appReceiveParamPtr, apduPtr, stat) != SUCCESS)
-		{
+#ifdef IZOT_PROXY
+	if (appReceiveParamPtr->proxy) {
+		if (ProcessLtepCompletion(appReceiveParamPtr, apduPtr, stat) 
+        != SUCCESS) {
 			// We'll try this again later...
+		    DBG_vPrintf(TRUE, "HandleMsgCompletion: " 
+            "Couldn't deliver proxy completion event");
 			return;
 		}
 	}
-    /* Since App Layer sends messages for NV update
-       we may also get completion indication for these.
-       See app.h for tag usage. */
-    else if (appReceiveParamPtr->tag < 0)
-    {
-        /* Negative tags belong to application layer. */
-        /* See app.h for explanation on how the tag is used. */
+
+    // Since App Layer sends messages for NV update
+    // we may also get completion indication for these.
+    // See app.h for tag usage.
+    else 
+#endif
+	if (appReceiveParamPtr->tag < 0) {
+        // Negative tags belong to application layer.
+        // See app.h for explanation on how the tag is used.
         if (MANUAL_SERVICE_REQUEST_TAG(appReceiveParamPtr->tag))
         {
-            ; /* Ignore. Nothing to do. */
-        }
-        else
-        {
-            /* Must be a tag for NV message generated by application layer. */
-            if (NV_POLL_TAG(appReceiveParamPtr->tag))
-            {
-                /* A network variable poll for an input variable will
-                   succeed if both gp->nvInDataStatus and gp->nvInTranStatus succeed.
-                   The gp->nvInDataStatus flag is updated by ProcessNVUpdate
-                   function. */
-                if (NV_LAST_TAG(appReceiveParamPtr->tag))
-                {
+            ; // Ignore. Nothing to do.
+        } else {
+            // Must be a tag for NV message generated by application layer.
+            if (NV_POLL_TAG(appReceiveParamPtr->tag)) {
+                // A network variable poll for an input variable will succeed
+                // if both gp->nvInDataStatus and gp->nvInTranStatus succeed.
+                // The gp->nvInDataStatus flag is updated by ProcessNVUpdate
+                // function.
+                if (NV_LAST_TAG(appReceiveParamPtr->tag)) {
                     primaryIndex   = gp->nvInIndex;
                     IsArrayNV(primaryIndex, &dim, &baseIndex);
                     gp->nvArrayIndex = primaryIndex - baseIndex;
-                    /* Set poll completion status */
-                    if ( (gp->nvInDataStatus == SUCCESS) &&
-                            (gp->nvInTranStatus == SUCCESS)
-                       )
-                    {
+                    // Set poll completion status */
+                    if ((gp->nvInDataStatus == SUCCESS) 
+                    && (gp->nvInTranStatus == SUCCESS)) {
                         stat = SUCCESS;
-                    }
-                    else
-                    {
+                    } else {
                         stat = FAILURE;
-                    } /* poll completion status */
-                    gp->nvInDataStatus = FAILURE; /* Reinit */
+                    } // poll completion status
+                    gp->nvInDataStatus = FAILURE; // Reinit
                     gp->nvInTranStatus = SUCCESS;
-                    if (AppPgmRuns())
-                    {
-                        NVUpdateCompletes(stat, baseIndex, gp->nvArrayIndex);
+                    if (AppPgmRuns()) {
+                        IzotDatapointUpdateCompleted(baseIndex, stat);
                     }
-                }
-                else
-                {
-                    /* Update the index. Since the last tag does not have the
-                       index, we need to save it. */
+                } else {
+                    // Update the index. Since the last tag does not have the
+                    //   index, we need to save it.
                     gp->nvInIndex = NV_INDEX_OF_TAG(appReceiveParamPtr->tag);
-                    if (stat == FAILURE)
-                    {
-                        /* Set the flag to FAILURE as this transaction failed. */
+                    if (stat == FAILURE) {
+                        // Set the flag to FAILURE as this transaction failed.
                         gp->nvInTranStatus = FAILURE;
                     }
                 }
-                gp->nvInCanSchedule = TRUE; /* Resume scheduling */
-            }
-            else
-            {
-                /* NV_UPDATE_TAG */
-                /* A network variable update for an output variable will
-                   succeed if all the transactions scheduled for that
-                   variable succeed. So, we need to update status flag. */
-                if (NV_LAST_TAG(appReceiveParamPtr->tag))
-                {
+                gp->nvInCanSchedule = TRUE; // Resume scheduling
+            } else {
+                // NV_UPDATE_TAG
+                // A network variable update for an output variable will
+                // succeed if all the transactions scheduled for that
+                // variable succeed. So, we need to update status flag.
+                if (NV_LAST_TAG(appReceiveParamPtr->tag)) {
                     primaryIndex   = gp->nvOutIndex;
                     IsArrayNV(primaryIndex, &dim, &baseIndex);
                     gp->nvArrayIndex = primaryIndex - baseIndex;
                     stat = gp->nvOutStatus;
-                    gp->nvOutStatus = SUCCESS; /* Reinit */
-                    if (AppPgmRuns())
-                    {
-                        NVUpdateCompletes(stat, baseIndex, gp->nvArrayIndex);
+                    gp->nvOutStatus = SUCCESS; // Reinit
+                    if (AppPgmRuns()) {
+                        IzotDatapointUpdateCompleted(baseIndex, stat);
                     }
-                }
-                else
-                {
-                    /* Set index. Update gp->nvOutStatus */
+                } else {
+                    // Set index. Update gp->nvOutStatus
                     gp->nvOutIndex = NV_INDEX_OF_TAG(appReceiveParamPtr->tag);
-                    if (stat == FAILURE)
-                    {
+                    if (stat == FAILURE) {
                         gp->nvOutStatus = FAILURE;
                     }
                 }
-                gp->nvOutCanSchedule = TRUE; /* Resume scheduling */
+                gp->nvOutCanSchedule = TRUE; // Resume scheduling
             }
         }
-    }
-    else
-    {
-        /* Non-negative tags belong to application. */
-        MsgCompletes(stat, appReceiveParamPtr->tag);
+    } else {
+        // Non-negative tags belong to application.
+		MsgCompletes(stat, appReceiveParamPtr->tag);
     }
 
-    /* Message processing completed - remove it from queue */
-    DeQueue(&gp->appInQ);
+    // Message processing completed - remove it from queue
+    DeQueue(&gp->appCeRspInQ);
 }
 
 /*******************************************************************************
@@ -566,27 +599,27 @@ Purpose:   Handle incoming response message, passing it to the
            application via the gp->respIn global.
 Comments:  None.
 *******************************************************************************/
-static void HandleResponse(APPReceiveParam *appReceiveParamPtr,
-                           APDU            *apduPtr)
+static void HandleResponse(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
 {
-    /* Discard responses received when the node is not CNFG_ONLINE.
-       In CNFG_ONLINE, the application can be either running (online)
+    /* Discard responses received when the node is not IzotConfigOnLine.
+       In IzotConfigOnLine, the application can be either running (online)
        or not running (soft-offline). In either of these cases,
        we receive the response and store it in resp_in. Note that
        one reponse can be received at a time from resp_in. If the
        application is offline, then at most one response can be
        stored in resp_in */
-    if (eep->readOnlyData.nodeState != CNFG_ONLINE)
-    {
-        DeQueue(&gp->appInQ); /* Discard response, nothing to do */
+    if (IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NODE_STATE) 
+    != IzotConfigOnLine) {
+    	DBG_vPrintf(TRUE, "APPRspReceive: HandleResponse: "
+        "DeQueue(&gp->appCeRspInQ)\n");
+        DeQueue(&gp->appCeRspInQ); /* Discard response, nothing to do */
         return;
     }
 
     /* If the application has not processed the previous
      * response, then do nothing, we'll try again next time
      */
-    if (gp->respReceive)
-    {
+    if (gp->respReceive) {
         return;
     }
 
@@ -599,29 +632,25 @@ static void HandleResponse(APPReceiveParam *appReceiveParamPtr,
 
     /* Copy domainIndex even if it is 2. respIn.domainIndex is
        only one bit anyway, so the result is 0 or 1 */
-    gp->respIn.addr.domain = appReceiveParamPtr->srcAddr.dmn.domainIndex;
-    gp->respIn.addr.flexDomain =
-        (appReceiveParamPtr->srcAddr.dmn.domainIndex == 2);
-    memcpy(&gp->respIn.addr.srcAddr,
-           &appReceiveParamPtr->srcAddr.subnetAddr,
-           sizeof(appReceiveParamPtr->srcAddr.subnetAddr));
-    gp->respIn.addr.srcAddr.snodeFlag =
-        appReceiveParamPtr->srcAddr.addressMode != MULTICAST_ACK;
-    if (gp->respIn.addr.srcAddr.snodeFlag == 0)
-    {
-        memcpy(&gp->respIn.addr.destAddr.group,
-               &appReceiveParamPtr->srcAddr.ackNode,
-               sizeof(appReceiveParamPtr->srcAddr.ackNode));
+    IZOT_SET_ATTRIBUTE(gp->respIn.addr, IZOT_RESPONSEADDRESS_DOMAIN, 
+    appReceiveParamPtr->srcAddr.dmn.domainIndex);
+    IZOT_SET_ATTRIBUTE(gp->respIn.addr, IZOT_RESPONSEADDRESS_FLEX, (appReceiveParamPtr->srcAddr.dmn.domainIndex == 2));
+    memcpy(&gp->respIn.addr.Source, &appReceiveParamPtr->srcAddr.subnetAddr,
+    sizeof(appReceiveParamPtr->srcAddr.subnetAddr));
+    IZOT_SET_ATTRIBUTE(gp->respIn.addr.Source, IZOT_RESPONSESOURCE_IS_SUBNETNODE, 
+    appReceiveParamPtr->srcAddr.addressMode != MULTICAST_ACK);
+    if (IZOT_GET_ATTRIBUTE(gp->respIn.addr.Source, 
+    IZOT_RESPONSESOURCE_IS_SUBNETNODE) == 0) {
+        memcpy(&gp->respIn.addr.Destination.Group, &appReceiveParamPtr->srcAddr.ackNode,
+        sizeof(appReceiveParamPtr->srcAddr.ackNode));
     }
-    else if (!gp->respIn.addr.flexDomain)
+    else if (!IZOT_GET_ATTRIBUTE(gp->respIn.addr, IZOT_RESPONSEADDRESS_FLEX))
     {
         /* Fill snode entry only for non-flex domain response */
-        gp->respIn.addr.destAddr.snode.subnet =
-            eep->domainTable[appReceiveParamPtr->
-                             srcAddr.dmn.domainIndex].subnet;
-        gp->respIn.addr.destAddr.snode.node   =
-            eep->domainTable[appReceiveParamPtr->
-                             srcAddr.dmn.domainIndex].node;
+        gp->respIn.addr.Destination.SubnetNode.Subnet =
+        eep->domainTable[appReceiveParamPtr->srcAddr.dmn.domainIndex].Subnet;
+        IZOT_SET_ATTRIBUTE(gp->respIn.addr.Destination.SubnetNode, IZOT_RESPONSESN_NODE, 
+        IZOT_GET_ATTRIBUTE(eep->domainTable[appReceiveParamPtr->srcAddr.dmn.domainIndex], IZOT_DOMAIN_NODE));
     }
     if (gp->respIn.len <= gp->appInBufSize)
     {
@@ -630,10 +659,12 @@ static void HandleResponse(APPReceiveParam *appReceiveParamPtr,
     }
     else
     {
-        LCS_RecordError(WRITE_PAST_END_OF_APPL_BUFFER);
+        LCS_RecordError(IzotWritePastEndOfApplBuffer);
     }
     /* Message processing completed - remove it from queue */
-    DeQueue(&gp->appInQ);
+    DBG_vPrintf(TRUE, "APPRspReceive: HandleResponse: "
+    "DeQueue(&gp->appCeRspInQ)\n");
+    DeQueue(&gp->appCeRspInQ);
 }
 
 /*******************************************************************************
@@ -646,16 +677,14 @@ Comments:  If the application program is not running and a request message
            message. Note that the node state could be unconfigured or
            soft off-line.
 *******************************************************************************/
-static void HandleNormal(APPReceiveParam *appReceiveParamPtr,
-                         APDU            *apduPtr)
+static void HandleNormal(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
 {
     if (!AppPgmRuns())
     {
-        if (appReceiveParamPtr->service == REQUEST)
+        if (appReceiveParamPtr->service == IzotServiceRequest)
         {
-			Byte code = apduPtr->code.ff.ffFlag == 0x4 ? FOREIGN_FRAME_OFFLINE : APPL_MSG_OFFLINE;
-			if (SendResponse(appReceiveParamPtr->reqId, code, 0, NULL) == FAILURE)
-			{
+			IzotByte code = apduPtr->code.ff.ffFlag == 0x4 ? FOREIGN_FRAME_OFFLINE : APPL_MSG_OFFLINE;
+			if (SendResponse(appReceiveParamPtr->reqId, code, 0, NULL) == FAILURE) {
 				// Try again later
 				return;
 			}
@@ -669,6 +698,7 @@ static void HandleNormal(APPReceiveParam *appReceiveParamPtr,
      */
     if (gp->msgReceive)
     {
+		DBG_vPrintf(TRUE, "HandleNormal blocked");
         return;
     }
 
@@ -683,60 +713,60 @@ static void HandleNormal(APPReceiveParam *appReceiveParamPtr,
     }
     else
     {
-        LCS_RecordError(WRITE_PAST_END_OF_APPL_BUFFER);
+        LCS_RecordError(IzotWritePastEndOfApplBuffer);
         DeQueue(&gp->appInQ);
         return;
-
     }
 
     gp->msgIn.authenticated = appReceiveParamPtr->auth;
     gp->msgIn.service = appReceiveParamPtr->service;
     gp->msgIn.reqId = appReceiveParamPtr->reqId;
+    
     /* Fill in addr structure */
-    gp->msgIn.addr.domain  = appReceiveParamPtr->srcAddr.dmn.domainIndex;
-    gp->msgIn.addr.flexDomain =
-        (appReceiveParamPtr->srcAddr.dmn.domainIndex == 2);
+    IZOT_SET_ATTRIBUTE(gp->msgIn.addr, IZOT_RECEIVEADDRESS_DOMAIN, appReceiveParamPtr->srcAddr.dmn.domainIndex);
+    IZOT_SET_ATTRIBUTE(gp->msgIn.addr, IZOT_RECEIVEADDRESS_FLEX, (appReceiveParamPtr->srcAddr.dmn.domainIndex == 2));
+    
     /* Copy Source Address */
-    memcpy(&gp->msgIn.addr.srcAddr,
-           &appReceiveParamPtr->srcAddr.subnetAddr,
-           sizeof(gp->msgIn.addr.srcAddr));
-	// REMINDER - the whole point of msgInAddr is that it is really just a copy of the L3 addressing format.
+    memcpy(&gp->msgIn.addr.Source, &appReceiveParamPtr->srcAddr.subnetAddr, sizeof(gp->msgIn.addr.Source));
+           
+	// REMINDER - the whole point of msgInAddr is that it is really just 
+    // a copy of the L3 addressing format.
 	// Could reduce this code footprint by taking advantage of that fact.
     switch (appReceiveParamPtr->srcAddr.addressMode)
     {
     case BROADCAST:
-        gp->msgIn.addr.format  = 0;
-        gp->msgIn.addr.destAddr.bcastSubnet =
-            appReceiveParamPtr->srcAddr.broadcastSubnet;
+        IZOT_SET_ATTRIBUTE(gp->msgIn.addr, IZOT_RECEIVEADDRESS_FORMAT, 0);
+        gp->msgIn.addr.Destination.Broadcast.SubnetId = appReceiveParamPtr->srcAddr.broadcastSubnet;
         break;
     case MULTICAST:
-        gp->msgIn.addr.format  = 1;
-        gp->msgIn.addr.destAddr.group =
-            appReceiveParamPtr->srcAddr.group;
+        IZOT_SET_ATTRIBUTE(gp->msgIn.addr, IZOT_RECEIVEADDRESS_FORMAT, 1);
+        gp->msgIn.addr.Destination.Group.GroupId = appReceiveParamPtr->srcAddr.group.GroupId;
         break;
     case SUBNET_NODE:
-        gp->msgIn.addr.format  = 2;
-        if (!gp->msgIn.addr.flexDomain)
+        IZOT_SET_ATTRIBUTE(gp->msgIn.addr, IZOT_RECEIVEADDRESS_FORMAT, 2);
+        if (!IZOT_GET_ATTRIBUTE(gp->msgIn.addr, IZOT_RECEIVEADDRESS_FLEX))
         {
-            gp->msgIn.addr.destAddr.snode.subnet =
-                eep->domainTable[gp->msgIn.addr.domain].subnet;
-            gp->msgIn.addr.destAddr.snode.node  =
-                eep->domainTable[gp->msgIn.addr.domain].node;
+            gp->msgIn.addr.Destination.SubnetNode.Subnet =
+            eep->domainTable[IZOT_GET_ATTRIBUTE(gp->msgIn.addr, IZOT_RECEIVEADDRESS_DOMAIN)].Subnet;
+            
+            IZOT_SET_ATTRIBUTE(gp->msgIn.addr.Destination.SubnetNode, IZOT_RECEIVESN_NODE, IZOT_GET_ATTRIBUTE(
+            eep->domainTable[IZOT_GET_ATTRIBUTE(gp->msgIn.addr, IZOT_RECEIVEADDRESS_DOMAIN)], IZOT_DOMAIN_NODE));
         }
         break;
     case UNIQUE_NODE_ID:
-        gp->msgIn.addr.format  = 3;
-        gp->msgIn.addr.destAddr.uniqueNodeId.subnet = 0; /* Not stored */
-        memcpy(gp->msgIn.addr.destAddr.uniqueNodeId.uniqueId,
-               eep->readOnlyData.uniqueNodeId,
-               UNIQUE_NODE_ID_LEN);
+        IZOT_SET_ATTRIBUTE(gp->msgIn.addr, IZOT_RECEIVEADDRESS_FORMAT, 3);
+        gp->msgIn.addr.Destination.UniqueId.Subnet = 0; /* Not stored */
+        memcpy(gp->msgIn.addr.Destination.UniqueId.UniqueId, eep->readOnlyData.UniqueNodeId, IZOT_UNIQUE_ID_LENGTH);
         break;
     default:
         /* should not come here */
-        gp->msgIn.addr.format  = 5; /* unknown. arbitrary 5 */
+        IZOT_SET_ATTRIBUTE(gp->msgIn.addr, IZOT_RECEIVEADDRESS_FORMAT, 5);/* unknown. arbitrary 5 */
     }
 
     gp->msgReceive = TRUE;
+    if (gp->msgReceive){
+    	DBG_vPrintf(TRUE, "\n HandleNormal: TRUE");
+    }
     /* Message processing completed - remove it from queue */
     DeQueue(&gp->appInQ);
 }
@@ -754,8 +784,6 @@ Comments:  Called by scheduler loop.
 void APPSend(void)
 {
     Queue         *appOutQPtr;
-    Queue         *tsaOutQPtr;
-    Queue         *nwOutQPtr;
     APPSendParam  *appSendParamPtr;
     APDU          *apduPtr;
     Status        status;
@@ -766,7 +794,7 @@ void APPSend(void)
         gp->manualServiceRequest = FALSE;
     }
 
-    /* Call MsgFree or RespFree implicitely if needed. */
+    /* Call MsgFree or RespFree implicitly if needed. */
     if (gp->callMsgFree)
     {
         MsgFree();
@@ -780,12 +808,9 @@ void APPSend(void)
     if (!QueueEmpty(&gp->appOutPriQ))
     {
         appOutQPtr      = &gp->appOutPriQ;
-        tsaOutQPtr      = &gp->tsaOutPriQ;
-        nwOutQPtr       = &gp->nwOutPriQ;
         appSendParamPtr = QueueHead(appOutQPtr);
         apduPtr         = (APDU *)(appSendParamPtr + 1);
-        status           = TryMsgSend(appSendParamPtr, apduPtr,
-                                      tsaOutQPtr, nwOutQPtr);
+        status           = TryMsgSend(true, appSendParamPtr, apduPtr);
         if (status == SUCCESS)
         {
             /* We have moved this message. Discard it */
@@ -803,12 +828,9 @@ void APPSend(void)
     if (!QueueEmpty(&gp->appOutQ))
     {
         appOutQPtr      = &gp->appOutQ;
-        tsaOutQPtr      = &gp->tsaOutQ;
-        nwOutQPtr       = &gp->nwOutQ;
         appSendParamPtr = QueueHead(appOutQPtr);
         apduPtr         = (APDU *)(appSendParamPtr + 1);
-        status          = TryMsgSend(appSendParamPtr, apduPtr,
-                                     tsaOutQPtr, nwOutQPtr);
+        status          = TryMsgSend(false, appSendParamPtr, apduPtr);
         if (status == SUCCESS)
         {
             /* We have moved this message. Discard it */
@@ -820,13 +842,67 @@ void APPSend(void)
 
 
 /*******************************************************************************
-Function:  APPReceive
+Function:  APPRspReceive
 Returns:   None
 Reference: None
-Purpose:   Process receive side of the application layer.
-Comments:  Called by scheduler loop.
+Purpose:   Process response receive side of the application layer.
+Comments:  Called by APPReceive().
 *******************************************************************************/
-void APPReceive(void)
+void APPRspReceive(void)
+{
+    APPReceiveParam     *appReceiveParamPtr;
+    APDU                *apduPtr;    /* ptr to APDU being received  */
+
+    /* Check if anything to process */
+    if (QueueEmpty(&gp->appCeRspInQ))
+    {
+        return; /* Nothing to process */
+    }
+
+	/* Set the pointer to APDU in appInQ */
+    appReceiveParamPtr = QueueHead(&gp->appCeRspInQ);
+    apduPtr            = (APDU *)(appReceiveParamPtr + 1);
+
+    if (appReceiveParamPtr->indication == COMPLETION)
+    {
+		HandleMsgCompletion(appReceiveParamPtr,apduPtr);
+    }
+	else if (appReceiveParamPtr->proxy)
+	{
+		// A proxy response
+		HandleProxyResponse(appReceiveParamPtr, apduPtr);
+	}
+    else if (appReceiveParamPtr->tag >= 0)
+    {
+        /* The response belongs to the application program.
+           Deliver it to the application irrespective of
+           what type of message it is. If the application
+           sends network management/diagnostic messages,
+           it is its responsibility to handle them */
+		HandleResponse(appReceiveParamPtr, apduPtr);
+    }
+    else if (apduPtr->code.nv.nvFlag == 0x1)
+    {
+        /* Network variable update/poll messages */
+		ProcessNV(appReceiveParamPtr, apduPtr);
+    }
+    else
+    {
+        /* Unknown combination - just discard */
+		DBG_vPrintf(TRUE, "Unexpected entry in appCeRspInQ");
+        DeQueue(&gp->appCeRspInQ);
+    }
+}
+
+
+/*******************************************************************************
+Function:  APPMsgReceive
+Returns:   None
+Reference: None
+Purpose:   Process incoming message receive side of the application layer.
+Comments:  Called by APPReceive().
+*******************************************************************************/
+void APPMsgReceive(void)
 {
     APPReceiveParam     *appReceiveParamPtr;
     APDU                *apduPtr;    /* ptr to APDU being received  */
@@ -837,48 +913,37 @@ void APPReceive(void)
         return; /* Nothing to process */
     }
 
-    /* Set the pointer to APDU in appInQ */
+	/* Set the pointer to APDU in appInQ */
     appReceiveParamPtr = QueueHead(&gp->appInQ);
-    apduPtr            = (APDU *)(appReceiveParamPtr + 1);
 
-    if (appReceiveParamPtr->indication == COMPLETION)
+    apduPtr            = (APDU *)(appReceiveParamPtr + 1);
+    DBG_vPrintf(TRUE, "APPMsgReceive: App.code - %x\n", apduPtr->code);
+
+    if (appReceiveParamPtr->service == IzotServiceRequest 
+    && QueueFull(&gp->tsaRespQ))
     {
-        HandleMsgCompletion(appReceiveParamPtr,apduPtr);
-    }
-	else if (appReceiveParamPtr->proxy)
-	{
-		// A proxy response
-        HandleProxyResponse(appReceiveParamPtr, apduPtr);
-	}
-    else if (appReceiveParamPtr->service == RESPONSE &&
-             appReceiveParamPtr->tag >= 0)
-    {
-        /* The response belongs to the application program.
-           Deliver it to the application irrespective of
-           what type of message it is. If the application
-           sends network management/diagnostic messages,
-           it is its responsibility to handle them */
-        HandleResponse(appReceiveParamPtr, apduPtr);
-    }
-    else if (appReceiveParamPtr->service == REQUEST && QueueFull(&gp->tsaRespQ))
-    {
+		DBG_vPrintf(TRUE, "No room for response");
         // No room for a response so we'll get this later...
     }
     else if (apduPtr->code.nm.nmFlag == 0x3)
     {
+    	DBG_vPrintf(TRUE, "APPMsgReceive: Network management\n");
         /* Network management messages */
-        HandleNM(appReceiveParamPtr,apduPtr);
+		HandleNM(appReceiveParamPtr,apduPtr);
     }
     else if (apduPtr->code.nd.ndFlag == 0x5)
     {
+    	DBG_vPrintf(TRUE, "APPMsgReceive: Network diagnostic\n");
         /* Network diagnostic messages */
-        HandleND(appReceiveParamPtr,apduPtr);
+		HandleND(appReceiveParamPtr,apduPtr);
     }
     else if (apduPtr->code.nv.nvFlag == 0x1)
     {
+    	DBG_vPrintf(TRUE, "APPMsgReceive: Network variable\n");
         /* Network variable update/poll messages */
-        ProcessNV(appReceiveParamPtr,apduPtr);
+		ProcessNV(appReceiveParamPtr,apduPtr);
     }
+#ifdef IZOT_PROXY
 	else if (apduPtr->code.allBits == LT_APDU_ENHANCED_PROXY)
 	{
 		if (ProcessLTEP(appReceiveParamPtr, apduPtr) == SUCCESS)
@@ -886,18 +951,57 @@ void APPReceive(void)
 			DeQueue(&gp->appInQ);
 		}
 	}
+#endif
     else if (apduPtr->code.ap.apFlag == 0x0 || apduPtr->code.ff.ffFlag == 0x4)
     {
-        /* Messages bound to the application program. App Msg or Foriegn Frames. */
-        HandleNormal(appReceiveParamPtr,apduPtr);
+    	DBG_vPrintf(TRUE, "APPMsgReceive: App Msg or Foriegn Frames\n");
+        /* Messages bound to the application program. 
+        // App Msg or Foriegn Frames. */
+		HandleNormal(appReceiveParamPtr,apduPtr);
     }
     else
     {
+    	DBG_vPrintf(TRUE, "APPMsgReceive: Discard - Not Supported\r\n");
         /* Not supported - just discard */
         DeQueue(&gp->appInQ);
     }
-
 }
+
+/*******************************************************************************
+Function:  APPReceive
+Returns:   None
+Reference: None
+Purpose:   Process receive side of the application layer.
+Comments:  Called by scheduler loop.
+*******************************************************************************/
+void APPReceive(void)
+{
+    APPRspReceive();
+	APPMsgReceive();
+	
+	if (MsTimerExpired(&iupInitFirmwareTimer)) {
+		InitUpdateProcess();
+	}
+	
+	if (MsTimerExpired(&iupValidateFirmwareTimer)) {
+        ComputeMD5Digest();
+    }
+    
+    if (MsTimerExpired(&iupMd5EventTimer)) {
+        CalculateMD5();
+	}
+	
+	if (MsTimerExpired(&iupSwitchOverTimer)) {
+		if (iupImageValidated) {
+			SwitchOverImage();
+        }
+	}
+	
+	if (MsTimerExpired(&iupCommitFirmwareTimer)) {
+		CommitImage();
+	}
+}
+
 
 /*******************************************************************************
 Function:  TryMsgSend
@@ -907,100 +1011,41 @@ Purpose:   If room is available, move message from app queue to
            to tsa or nw output queue.
 Comments:  None.
 *******************************************************************************/
-static Status TryMsgSend(APPSendParam *appSendParamPtr,
-                         APDU *apduPtr,
-                         Queue   *tsaOutQPtr,
-                         Queue   *nwOutQPtr)
+static Status TryMsgSend(IzotByte priority,
+						 APPSendParam *appSendParamPtr,
+                         APDU *apduPtr)
 {
     TSASendParam  *tsaSendParamPtr;
-    NWSendParam   *nwSendParamPtr;
     APDU          *apduSendPtr;
+	Queue         *tsaOutQPtr;
+	PktCtrl		   ctrl = priority ? PKT_PRIORITY : 0;
 
     /* If the address is bad, don't even bother sending it */
-    if (appSendParamPtr->addr.noAddress == UNBOUND)
+    if (appSendParamPtr->addr.Unassigned.Type == IzotAddressUnassigned)
     {
-        /* TurnAround is not possible with MsgOutAddr */
-        MsgCompletes(SUCCESS, appSendParamPtr->tag);
+        /* TurnAround is not possible with IzotSendAddress */
+		MsgCompletes(SUCCESS, appSendParamPtr->tag);
         return(SUCCESS);
     }
 
     /* Simple unacknowledged messages go to network layer */
-    if (appSendParamPtr->service == UNACKD)
+    if (appSendParamPtr->service == IzotServiceUnacknowledged)
     {
-        if (QueueFull(nwOutQPtr))
-        {
-            return(FAILURE); /* Can't send message yet - try later */
-        }
-
-        nwSendParamPtr = QueueTail(nwOutQPtr);
-
-        nwSendParamPtr->dropIfUnconfigured = TRUE;
-
-        switch (appSendParamPtr->addr.noAddress)
-        {
-        case UNBOUND:
-            /* Can't happen. We took care above */
-            return(SUCCESS); /* doesn't matter what we return */
-        case SUBNET_NODE:
-            nwSendParamPtr->destAddr.addressMode = SUBNET_NODE;
-            nwSendParamPtr->destAddr.dmn.domainIndex =
-                appSendParamPtr->addr.snode.domainIndex;
-            nwSendParamPtr->destAddr.addr.addr2a.subnet =
-                appSendParamPtr->addr.snode.subnetID;
-            nwSendParamPtr->destAddr.addr.addr2a.node   =
-                appSendParamPtr->addr.snode.node;
-            break;
-
-        case UNIQUE_NODE_ID:
-            nwSendParamPtr->destAddr.addressMode = UNIQUE_NODE_ID;
-            nwSendParamPtr->destAddr.dmn.domainIndex =
-                appSendParamPtr->addr.uniqueNodeId.domainIndex;
-            nwSendParamPtr->destAddr.addr.addr3.subnet =
-                appSendParamPtr->addr.uniqueNodeId.subnetID;
-            memcpy(nwSendParamPtr->destAddr.addr.addr3.uniqueId,
-                   appSendParamPtr->addr.uniqueNodeId.uniqueId, UNIQUE_NODE_ID_LEN);
-            break;
-
-        case BROADCAST:
-            nwSendParamPtr->destAddr.addressMode = BROADCAST;
-            nwSendParamPtr->destAddr.dmn.domainIndex =
-                appSendParamPtr->addr.bcast.domainIndex;
-            nwSendParamPtr->destAddr.addr.addr0 =
-                appSendParamPtr->addr.bcast.subnetID;
-            break;
-
-        default: /* MUST BE GROUP FORMAT */
-            nwSendParamPtr->destAddr.addressMode = MULTICAST;
-            nwSendParamPtr->destAddr.dmn.domainIndex =
-                appSendParamPtr->addr.group.domainIndex;
-            nwSendParamPtr->destAddr.addr.addr1 =
-                appSendParamPtr->addr.group.groupID;
-            break;
-        } /* switch */
-
-        nwSendParamPtr->tag     = appSendParamPtr->tag;
-        nwSendParamPtr->pduType = APDU_TYPE;
-        nwSendParamPtr->deltaBL = 0;
-        /* unacknowledged messages do not use alternate path */
-        nwSendParamPtr->altPath = FALSE;
-        nwSendParamPtr->pduSize = appSendParamPtr->len + 1;
-
-        apduSendPtr = (APDU *)(nwSendParamPtr + 1);
-        if (nwSendParamPtr->pduSize <= gp->nwOutBufSize)
-        {
-            memcpy(apduSendPtr, apduPtr, appSendParamPtr->len + 1);
-            EnQueue(nwOutQPtr);
-            /* Don't give completion yet. The network layer will send the
-               completion indication in gp->appInQ */
-        }
-        else
-        {
+        if (appSendParamPtr->len+1 > gp->nwOutBufSize)
+		{
             /* Losing this packet as it is too large */
-            MsgCompletes(FAILURE, appSendParamPtr->tag);
-        }
-
-        return(SUCCESS);
+			MsgCompletes(FAILURE, appSendParamPtr->tag);
+			return SUCCESS;
+		}
+		else
+		{
+			return AllocSendUnackd(ctrl, appSendParamPtr->tag, 
+            &appSendParamPtr->addr, apduPtr->code, apduPtr->data[0], 
+            appSendParamPtr->len, &apduPtr->data[1]);
+		}
     }
+
+	tsaOutQPtr = priority ? &gp->tsaOutPriQ : &gp->tsaOutQ;
 
     if (QueueFull(tsaOutQPtr))
     {
@@ -1031,7 +1076,7 @@ static Status TryMsgSend(APPSendParam *appSendParamPtr,
     else
     {
         /* Losing this message */
-        MsgCompletes(FAILURE, appSendParamPtr->tag);
+		MsgCompletes(FAILURE, appSendParamPtr->tag);
     }
 
     return(SUCCESS);
@@ -1056,15 +1101,17 @@ Reference: None
 Purpose:   Determines if there is room for a message to be sent.
 Comments:  None.
 *******************************************************************************/
-Boolean MsgAlloc(void)
+IzotByte MsgAlloc(MsgOut **p)
 {
-    return(!QueueFull(&gp->appOutQ));
-}
-
-/* For nc compatibility */
-Boolean msg_alloc(void)
-{
-    return(!QueueFull(&gp->appOutQ));
+    if (!QueueFull(&gp->appOutQ))
+    {
+		if (p)
+		{
+			*p = &gp->msgOut;
+		}
+        return(TRUE);
+    }
+    return(FALSE);
 }
 
 /*******************************************************************************
@@ -1074,15 +1121,17 @@ Reference: None
 Purpose:   Determines if there is room for a pri message to be sent.
 Comments:  None.
 *******************************************************************************/
-Boolean MsgAllocPriority(void)
+IzotByte MsgAllocPriority(MsgOut **p)
 {
-    return(!QueueFull(&gp->appOutPriQ));
-}
-
-/* For nc compatibility */
-Boolean msg_alloc_priority(void)
-{
-    return(!QueueFull(&gp->appOutPriQ));
+    if (!QueueFull(&gp->appOutPriQ))
+    {
+		if (p)
+		{
+			*p = &gp->msgOut;
+		}
+        return(TRUE);
+    }
+    return(FALSE);
 }
 
 /*******************************************************************************
@@ -1099,8 +1148,8 @@ void MsgSend(void)
     Queue           *outQptr;
     APPSendParam    *appSendParamPtr;
     APDU            *apduPtr;
-    AddrTableEntry  *ap;
-    uint16           addrIndex;
+    IzotAddress     *ap;
+    IzotByte         addrIndex;
 
     if (gp->msgOut.priorityOn)
     {
@@ -1114,14 +1163,14 @@ void MsgSend(void)
     /* Negative tags are reserved for application layer.
        Applications are not allowed to use negative tags */
     if (QueueFull(outQptr) || gp->msgOut.tag < 0 ||
-            (gp->msgOut.service >= RESPONSE))
+            (gp->msgOut.service >= IzotServiceResponse))
     {
         /* Bad Tag  OR
            Bad Service OR
            No place to put the message - discard it. This should
            not happen if application called MsgAlloc or
            MsgPriorityAlloc before forming the message */
-        MsgCompletes(FAILURE, gp->msgOut.tag);
+		MsgCompletes(FAILURE, gp->msgOut.tag);
         ReinitMsgOut();
         return;
     }
@@ -1134,6 +1183,20 @@ void MsgSend(void)
     appSendParamPtr->addr          = gp->msgOut.addr;
     apduPtr                        = (APDU *)(appSendParamPtr + 1);
     apduPtr->code.allBits          = gp->msgOut.code;
+
+    /*************************************************************************/
+    /*************************** NEW ADD *************************************/
+    DBG_vPrintf(TRUE, "MsgSend: apduPtr->code.allBits = %x\n", 
+    apduPtr->code.allBits);
+    if (gp->msgOut.code == 0x3D)
+    {
+       	apduPtr->code.nv.nvFlag = 0;
+    }
+    DBG_vPrintf(TRUE, "MsgSend: apduPtr->code.allBits = %x\n", 
+    apduPtr->code.allBits);
+    /*************************************************************************/
+    /*************************************************************************/
+
     if (appSendParamPtr->len + 1 <= gp->appOutBufSize)
     {
         /* There is space in the queue item to copy data */
@@ -1144,7 +1207,7 @@ void MsgSend(void)
     else
     {
         /* We are losing this message as it is too big. */
-        MsgCompletes(FAILURE, appSendParamPtr->tag);
+		MsgCompletes(FAILURE, appSendParamPtr->tag);
         ReinitMsgOut();
         return;
     }
@@ -1154,31 +1217,25 @@ void MsgSend(void)
        Thus explicit address can be used to override implicit addressing.
        Note that turnaround is not allowed with explicit messages. */
     if (appSendParamPtr->tag < NUM_ADDR_TBL_ENTRIES &&
-            gp->msgOut.addr.noAddress == UNBOUND)
+            gp->msgOut.addr.Unassigned.Type == IzotAddressUnassigned)
     {
         addrIndex = appSendParamPtr->tag;
         ap = AccessAddress(addrIndex); /* ap cannot be NULL */
-        if (ap == NULL || ap->addrFormat == UNBOUND)
+        if (ap == NULL || ap->SubnetNode.Type == IzotAddressUnassigned)
         {
             /* ap cannot be NULL, but we can be safe in checking it anyway.
                We lose this message as the address table entry is unbound
                or turnaround. */
-            MsgCompletes(FAILURE, appSendParamPtr->tag);
+			MsgCompletes(FAILURE, appSendParamPtr->tag);
             ReinitMsgOut();
             return;
         }
         memcpy(&appSendParamPtr->addr,
                ap,
-               sizeof(MsgOutAddr));
+               sizeof(IzotSendAddress));
     }
     EnQueue(outQptr);
     ReinitMsgOut();
-}
-
-/* For nc compatibility */
-void msg_send(void)
-{
-    MsgSend();
 }
 
 /*******************************************************************************
@@ -1192,11 +1249,6 @@ Comments:  None.
 void MsgCancel(void)
 {
     /* Nothing to do */
-}
-
-/* For nc compatibility */
-void msg_cancel()
-{
 }
 
 /*******************************************************************************
@@ -1213,31 +1265,22 @@ void MsgFree(void)
     gp->callMsgFree = FALSE;
 }
 
-/* For nc compatibility */
-void msg_free(void)
-{
-    gp->msgReceive = FALSE;
-    gp->callMsgFree = FALSE;
-}
-
-/* TRUE if there is msg to be received */
-Boolean  msgReceive(void)
+/*******************************************************************************
+Function:  MsgFree
+Returns:   TRUE if there is msg to be received
+Reference: None
+Comments:  None.
+*******************************************************************************/
+IzotByte  MsgReceive(MsgIn **p)
 {
     if (gp->msgReceive)
     {
         /* There is a message to be received. Need to call msg_free() */
         gp->callMsgFree = TRUE;
-    }
-    return(gp->msgReceive);
-}
-
-/* For nc compatibility */
-Boolean  msg_receive(void)
-{
-    if (gp->msgReceive)
-    {
-        /* There is a message to be received. Need to call msg_free() */
-        gp->callMsgFree = TRUE;
+		if (p)
+		{
+			*p = &gp->msgIn;
+		}
     }
     return(gp->msgReceive);
 }
@@ -1249,19 +1292,17 @@ Reference: None
 Purpose:   Check if there is space for sending a response.
 Comments:  None.
 *******************************************************************************/
-Boolean RespAlloc(void)
+IzotByte RespAlloc(RespOut **p)
 {
     if (!QueueFull(&gp->tsaRespQ))
     {
+		if (p)
+		{
+			*p = &gp->respOut;
+		}
         return(TRUE);
     }
     return(FALSE);
-}
-
-/* For nc compatibility */
-Boolean resp_alloc(void)
-{
-    return(RespAlloc());
 }
 
 /*******************************************************************************
@@ -1280,16 +1321,12 @@ void RespSend(void)
         gp->respOut.reqId = gp->msgIn.reqId;
     }
 
-    /* If we can't send the response, we just discard it.  There should be space if application called
+    /* If we can't send the response, we just discard it.  
+    // There should be space if application called
        RespAlloc before forming the response */
-	AllocSendResponse(gp->respOut.reqId, gp->respOut.nullResponse, gp->respOut.code, gp->respOut.len, gp->respOut.data);
+	AllocSendResponse(gp->respOut.reqId, gp->respOut.nullResponse, 
+    gp->respOut.code, gp->respOut.len, gp->respOut.data);
     ReinitRespOut();
-}
-
-/* For nc compatibility */
-void resp_send(void)
-{
-    RespSend();
 }
 
 /*******************************************************************************
@@ -1305,12 +1342,6 @@ void RespCancel(void)
     /* Nothing to do */
 }
 
-/* For nc compatibility */
-void resp_cancel(void)
-{
-}
-
-
 /*******************************************************************************
 Function:  RespFree
 Returns:   None
@@ -1325,35 +1356,25 @@ void RespFree(void)
     gp->callRespFree = FALSE;
 }
 
-/* For nc compatibility */
-void resp_free(void)
-{
-    gp->respReceive = FALSE;
-    gp->callRespFree = FALSE;
-}
-
-/* Returns TRUE if there is resp to be received */
-Boolean RespReceive(void)
+/*******************************************************************************
+Function:  RespReceive
+Returns:   TRUE if there is resp to be received 
+Reference: None
+Comments:  None.
+*******************************************************************************/
+IzotByte RespReceive(RespIn **p)
 {
     if (gp->respReceive)
     {
         /* There is a response to be received. Need to call resp_free() */
         gp->callRespFree = TRUE;
+		if (p)
+		{
+			*p = &gp->respIn;
+		}
     }
     return(gp->respReceive);
 }
-
-/* For nc comptability */
-Boolean resp_receive(void)
-{
-    if (gp->respReceive)
-    {
-        /* There is a response to be received. Need to call resp_free() */
-        gp->callRespFree = TRUE;
-    }
-    return(gp->respReceive);
-}
-
 
 /*******************************************************************************
 Function:  AddNV
@@ -1374,16 +1395,16 @@ Comments:  Format of the snvt.sb space is as follows:
       (SNVTExtension & variable part)
    Self-Id for binding and status (AliasField)
 *******************************************************************************/
-int16 AddNV(NVDefinition *dp)
+IzotBits16 AddNV(NVDefinition *dp)
 {
-    uint16          i, nvSelfIdCnt;
-    uint16          nvNameLen; /* Length for name of network variable. */
-    uint16          docLen;    /* Length for self-doc for network var. */
-    uint16          selectorVal;
-    uint16          sizeNeeded;
-    uint16          dim;
-    uint16          jumpBy;    /* Number of bytes by which we shift sb array. */
-    uint8           remainder,quotient;
+    IzotUbits16     i, nvSelfIdCnt;
+    IzotUbits16     nvNameLen; /* Length for name of network variable. */
+    IzotUbits16     docLen;    /* Length for self-doc for network var. */
+    IzotUbits16     selectorVal;
+    IzotUbits16     sizeNeeded;
+    IzotUbits16     dim;
+    IzotUbits16     jumpBy;    /* Number of bytes by which we shift sb array. */
+    IzotByte        remainder,quotient;
     SNVTextension  *se;
     SNVTdescStruct *sd;
     AliasField      saveAlias; /* To save old alias field. */
@@ -1394,6 +1415,7 @@ int16 AddNV(NVDefinition *dp)
     /* Initialize local pointers for structure information in dp so that
        we can use field names in these structures instead of explicit
        bit operations */
+
     se = (SNVTextension *)  &dp->snvtExt;
     /* snvtType info is not part of the snvtDesc. We only want to access the
        first byte of the structure, anyway. */
@@ -1417,6 +1439,7 @@ int16 AddNV(NVDefinition *dp)
     if (nmp->nvTableSize + dim >  NV_TABLE_SIZE)
     {
         /* Not enough space in network variable table. */
+		DBG_vPrintf(TRUE, "Not enough NV space");
         return(-1);
     }
 
@@ -1425,7 +1448,8 @@ int16 AddNV(NVDefinition *dp)
 
     /* Make endOfSb point to last element of sb array. We never want to go
        past this element */
-    endOfSb = (char *)&nmp->snvt.sb[SNVT_SIZE - 1];
+
+    endOfSb = (char *)&nmp->snvt.sb[GetSiDataLength() - 1];
 
     /* Compute the size needed for this variable in SNVT structure. */
     if (dp->arrayCnt > 0 && dp->explodeArray)
@@ -1447,7 +1471,8 @@ int16 AddNV(NVDefinition *dp)
         sizeNeeded = sizeNeeded + sizeof(SNVTextension) * nvSelfIdCnt;
     }
 
-    /* Variable Part of Extension Record. One for each entry in self id desc part. */
+    /* Variable Part of Extension Record. 
+    // One for each entry in self id desc part. */
     /* See Page 9-23 of Technology Device Data Book Rev 3 */
     if (sd->extRec && se->mre)
     {
@@ -1466,16 +1491,19 @@ int16 AddNV(NVDefinition *dp)
             nvNameLen += 5;
             if (nvNameLen > 22)
             {
+				DBG_vPrintf(TRUE, "NV array name too long");
                 return(-1);
             }
         }
-        else if (nvNameLen > 17)
+        else if (nvNameLen > 20)
         {
+			DBG_vPrintf(TRUE, "NV name too long");
             return(-1); /* Only up to 17 bytes supported */
         }
 
         sizeNeeded += (nvNameLen * nvSelfIdCnt);
     }
+
     if (sd->extRec && se->sd)
     {
         if (dp->nvSdoc)
@@ -1488,6 +1516,7 @@ int16 AddNV(NVDefinition *dp)
         }
         if (docLen > MAX_NV_SELF_DOC_LENGTH)
         {
+			DBG_vPrintf(TRUE, "Self doc too long");
             return(-1);
         }
         sizeNeeded += (docLen * nvSelfIdCnt);
@@ -1504,6 +1533,7 @@ int16 AddNV(NVDefinition *dp)
             > endOfSb)
     {
         /* No Space for the new snvt_desc_struct and extension rec. */
+    	DBG_vPrintf(TRUE, "SNVT space exhausted");
         return(-1);
     }
 
@@ -1511,10 +1541,11 @@ int16 AddNV(NVDefinition *dp)
     if (dp->arrayCnt > 0 && gp->nvArrayTblSize == MAX_NV_ARRAYS)
     {
         /* No more space to save array information */
+		DBG_vPrintf(TRUE, "Array space exhausted");
         return(-1);
     }
 
-    /****************************************************************************
+    /***************************************************************************
        dp->bind = TRUE ==> the network variable is bindable. Bindable
        variables are automatically given selector numbers in the range
        0x3000-0x3FFF (unbound network variables). bindable means they
@@ -1528,7 +1559,7 @@ int16 AddNV(NVDefinition *dp)
        application program indicates the selector for the first element
        and the other elements automatically get the previous selector
        numbers. The selector numbers count down.
-    ****************************************************************************/
+    ***************************************************************************/
 
     /* We need dim many selectors. dim can be 1. */
     /* bindable variables use unboundSelectors   */
@@ -1536,6 +1567,7 @@ int16 AddNV(NVDefinition *dp)
     if (dp->bind && gp->unboundSelector - dim + 1 < 0x3000)
     {
         /* Not enough selector numbers available for assigning */
+		DBG_vPrintf(TRUE, "Not enough selectors");
         return(-1);
     }
     else if (!dp->bind)
@@ -1550,6 +1582,7 @@ int16 AddNV(NVDefinition *dp)
         if (selectorVal + dim - 1 > 0x2FFF)
         {
             /* Nonbindable variables should have value in 0-0x2FFF */
+			DBG_vPrintf(TRUE, "Invalid selector");
             return(-1);
         }
     }
@@ -1567,27 +1600,44 @@ int16 AddNV(NVDefinition *dp)
        is exploded or not. */
     for (i = nmp->nvTableSize; i < nmp->nvTableSize + dim; i++)
     {
-        /* nv config table */
-        eep->nvConfigTable[i].nvPriority   = dp->priority;
-        eep->nvConfigTable[i].nvDirection  = dp->direction;
-        eep->nvConfigTable[i].nvSelectorHi = selectorVal >> 8;
-        eep->nvConfigTable[i].nvSelectorLo = selectorVal & 0xFF;
+		// nv config table is updated only once for a given NV.
+		if (i >= eep->nvInitCount)
+		{
+			IzotDatapointConfig	 *p = &eep->nvConfigTable[i];
+			IZOT_SET_ATTRIBUTE_P(p, IZOT_DATAPOINT_PRIORITY, dp->priority);
+			IZOT_SET_ATTRIBUTE_P(p, IZOT_DATAPOINT_DIRECTION, dp->direction);
+			IZOT_SET_ATTRIBUTE_P(p, IZOT_DATAPOINT_SELHIGH, selectorVal >> 8);
+			p->SelectorLow = selectorVal & 0xFF;
+	        IZOT_SET_ATTRIBUTE_P(p, IZOT_DATAPOINT_TURNAROUND, dp->turnaround);
+    	    IZOT_SET_ATTRIBUTE_P(p, IZOT_DATAPOINT_SERVICE, dp->service);
+        	IZOT_SET_ATTRIBUTE_P(p, IZOT_DATAPOINT_AUTHENTICATION, dp->auth);
+        	IZOT_SET_ATTRIBUTE_P(p, IZOT_DATAPOINT_ADDRESS_LOW, 0xF);
+        	IZOT_SET_ATTRIBUTE_P(p, IZOT_DATAPOINT_ADDRESS_HIGH, 0xF);
+        	IZOT_SET_ATTRIBUTE_P(p, IZOT_DATAPOINT_AES, 0);
+			eep->nvInitCount = i + 1;
+		}
         selectorVal--; /* automatic countdown - for both bind & non-bind */
         if (dp->bind)
         {
             gp->unboundSelector--; /* Update this as we just used up one */
         }
-        eep->nvConfigTable[i].nvTurnaround = dp->turnaround;
-        eep->nvConfigTable[i].nvService    = dp->service;
-        eep->nvConfigTable[i].nvAuth       = dp->auth;
-        eep->nvConfigTable[i].nvAddrIndex  = 0xF;
 
         /* nv fixed table */
-        nmp->nvFixedTable[i].nvSync     = sd->nvSync;
+		if (dp->nvLength > MAX_NV_LEN_SUPPORTED)
+		{
+			DBG_vPrintf(TRUE, "Invalid Length");
+			return(-1);
+		}
+
         nmp->nvFixedTable[i].nvLength   = dp->nvLength;
         /* For arrays, make sure we compute the address of each item. */
         nmp->nvFixedTable[i].nvAddress  = (char *) dp->varAddr +
                                           (i - nmp->nvTableSize) * dp->nvLength;
+                                          
+        if(dp->auth)
+        {
+            NmAuth = TRUE;
+        }
     }
 
     /* If we are adding an array, save this info in gp->nvArrayTbl */
@@ -1598,7 +1648,7 @@ int16 AddNV(NVDefinition *dp)
         gp->nvArrayTbl[gp->nvArrayTblSize++].dim   = dim;
     }
 
-    /****************************************************************************
+    /***************************************************************************
     Format of the SNVT structure: (See APPReset for more info).
        snvtheader nv-self-id-desc node-self-doc nv-self-doc alias-field
 
@@ -1608,7 +1658,7 @@ int16 AddNV(NVDefinition *dp)
        nmp->snvt.descPtr points to beginning address of node-self-doc.
              i.e the address where the nv-self-id-desc for new network
              variable should be placed.
-    ****************************************************************************/
+    ***************************************************************************/
 
     /* Add data to snvt structure */
 
@@ -1655,7 +1705,7 @@ int16 AddNV(NVDefinition *dp)
         {
             /* extPtr has already been set to point to the right place    */
             /* se has already been set to point to dp->snvtExt            */
-            /* extPtr is of type (Byte *)                                 */
+            /* extPtr is of type (IzotByte *)                                 */
             *extPtr = dp->snvtExt;
             extPtr += sizeof(SNVTextension);
             if (se->mre)
@@ -1673,28 +1723,26 @@ int16 AddNV(NVDefinition *dp)
 
             if (se->nm)
             {
-                /* We need to store the name of the variable. null terminated. */
+                // We need to store the name of the variable. null terminated.
                 nvNameLen = strlen(dp->nvName) + 1;
                 if (dp->arrayCnt > 0 && dp->explodeArray)
                 {
                     int index = i + 1;
                     /* We support maximum of 999 array items */
-                    /* 999 is the maximum index we can represent with 3 digits */
-                    sprintf(extPtr, "%s_", dp->nvName);
-                    extPtr += nvNameLen; /* Should now point to null character */
+                    // 999 is the maximum index we can represent with 3 digits
+
+
+                    extPtr += nvNameLen; // Should now point to null character
                     if (index < 10)
                     {
-                        sprintf(extPtr, "%1d", index); /* Single digit index */
                         extPtr++;
                     }
                     else if (index < 100)
                     {
-                        sprintf(extPtr, "%2d", index); /* Double digit index */
                         extPtr += 2;
                     }
                     else
                     {
-                        sprintf(extPtr, "%3d", index); /* Triple digit index */
                         extPtr += 3;
                     }
                     *extPtr = '\0';
@@ -1749,7 +1797,178 @@ int16 AddNV(NVDefinition *dp)
 
     nmp->nvTableSize += dim;
 
+    for(i = 0; i < dim; i++)
+    {
+        if (dp->ibol) 
+        {
+            izot_dp_prop[dpPropInitCount].ibolSeq = dp->ibol;
+        }
+        IZOT_SET_ATTRIBUTE(
+        izot_dp_prop[dpPropInitCount], IZOT_DATAPOINT_PERSIST, dp->persist);
+        IZOT_SET_ATTRIBUTE(izot_dp_prop[dpPropInitCount], 
+        IZOT_DATAPOINT_CHANGEABLE_TYPE, dp->changeable);
+        dpPropInitCount++;
+    }
+
     return(nmp->nvTableSize - dim); /* Base index for arrays. */
+}
+
+/*******************************************************************************
+Function:  SwapByte
+Returns:   None
+Reference: None
+Purpose:   Swap the bytes
+Comments:  None.
+*******************************************************************************/
+static void SwapByte(void *dst, const void *src, uint16_t srcSize)
+{
+    const unsigned char *s = src;
+    unsigned char *d = dst;
+    int i = 0;
+    int j = srcSize - 1;
+    
+    for (i = 0; i < srcSize; i++, j--) {
+        d[i] = s[j];
+    }
+}
+
+/*******************************************************************************
+Function:  IzotNdiToHdi
+Returns:   IzotApiError
+Reference: None
+Purpose:   Convert the incoming network data into host data
+Comments:  None.
+*******************************************************************************/
+IzotApiError IzotNdiToHdi(const IzotByte *ndi, IzotByte *hdi, const IzotByte *ibol)
+{
+    int i = 0;
+    IzotApiError error = IzotApiNoError;
+    uint16_t hdo = 0;
+    uint16_t ndo = 0;
+    uint16_t size = 0;
+    uint16_t elements = 0;
+
+    while (ibol[i] != IBOL_FINISH) {
+        if(ibol[i] & 0x80) {
+            ndo = ((ibol[i++] & 0x7F) << 8) | ibol[i++] ;
+        } else {
+            ndo = ibol[i++];
+        }
+        size = ibol[i++];
+        elements = ibol[i++];
+
+        DBG_vPrintf(TRUE, "Sequence %d %d %d\r\n", ndo, size, elements);
+        
+        if (size == 1) {
+            DBG_vPrintf(TRUE, "hdo: %d ndo: %d size: %d\r\n", 
+            hdo, ndo, size*elements);
+            
+            memcpy(&hdi[hdo], &ndi[ndo], size*elements);
+            hdo += size*elements;
+        } else {
+            while (elements--) {
+                DBG_vPrintf(TRUE, "hdo: %d ndo: %d size: %d\r\n", 
+                hdo, ndo, size);
+                
+                SwapByte(&hdi[hdo], &ndi[ndo], size);
+                hdo += size;
+                ndo += size;
+            }
+        }
+    }
+    
+    return error;
+}
+
+/*******************************************************************************
+Function:  IzotHdiToNdi
+Returns:   None
+Reference: None
+Purpose:   Convert the outgoing host data into network data
+Comments:  None.
+*******************************************************************************/
+static void IzotHdiToNdi(const IzotByte *ibol_seq, IzotByte *src, IzotByte *dst, uint16_t stop)
+{
+    int i = 0;
+    uint16_t hdo = 0;
+    uint16_t ndo = 0;
+    uint16_t size = 0;
+    uint16_t elements = 0;
+    
+    while (ibol_seq[i] != IBOL_FINISH) {
+        if(ibol_seq[i] & 0x80) {
+            ndo = ((ibol_seq[i++] & 0x7F) << 8) | ibol_seq[i++] ;
+        } else {
+            ndo = ibol_seq[i++];
+        }
+        size = ibol_seq[i++];
+        elements = ibol_seq[i++];
+
+        DBG_vPrintf(TRUE, "Sequence %d %d %d\r\n", ndo, size, elements);
+        
+        if (size == 1) {
+            DBG_vPrintf(TRUE, "ndo: %d, hdo:%d size: %d\r\n", 
+            ndo, hdo, size*elements);
+            
+            memcpy(&dst[ndo], &src[hdo], size*elements);
+            hdo += size*elements;
+        } else {
+            while (elements--) {
+                DBG_vPrintf(TRUE, "ndo: %d, hdo:%d size: %d\r\n", 
+                ndo, hdo, size);
+                
+                SwapByte(&dst[ndo], &src[hdo], size);
+                hdo += size;
+                ndo += size;
+            }
+        }
+
+        if (hdo >= stop) {
+            break;
+        }
+    }
+}
+
+/*******************************************************************************
+Function:  IzotPrepareNetworkData
+Returns:   None
+Reference: None
+Purpose:   Called when output datapoint is propagated to network, datapoint 
+           value is fetched
+Comments:  None.
+*******************************************************************************/
+void IzotPrepareNetworkData(IzotByte *ndi, IzotUbits16 dpIndex, IzotUbits16 dpLen, IzotByte *hdi)
+{
+    memcpy(ndi, hdi, dpLen);
+    if (izot_dp_prop[dpIndex].ibolSeq)
+    {
+        IzotHdiToNdi(izot_dp_prop[dpIndex].ibolSeq, hdi, ndi, MAX_STOP_OFFSET);
+    }
+}
+
+/*******************************************************************************
+Function:  IzotUpdateUnion
+Returns:   None
+Reference: None
+Purpose:   Called when union datapoint is updated by user
+Comments:  None.
+*******************************************************************************/
+void IzotUpdateUnion(IzotByte *data, IzotByte offset, uint16_t len, signed index)
+{
+    IzotByte ndi[MAX_NV_LEN_SUPPORTED];
+    const IzotByte *ibol = NULL;
+    
+    if(index < 0) {
+        //TODO IBOL Sequence for properties in files
+    } else {
+        ibol = izot_dp_prop[index].ibolSeq;
+    }
+    
+    DBG_vPrintf(TRUE, "offset: %d size: %d\r\n\n", offset, len);
+    
+    IzotHdiToNdi(ibol, data, ndi, MAX_STOP_OFFSET);
+    IzotHdiToNdi(ibol, data, ndi, offset + len);
+    IzotNdiToHdi(ndi, data, ibol);
 }
 
 /*******************************************************************************
@@ -1757,14 +1976,15 @@ Function:  ProcessNV
 Returns:   None
 Purpose:   To process an incoming network variable message.
            The message can be
-            1. NV Update Message (ACKD, UNACKD, UNACKD_RPT)
-            2. NV Poll Message. (REQUEST)
+            1. NV Update Message (IzotServiceAcknowledged, 
+                IzotServiceUnacknowledged, UNACKD_RPT)
+            2. NV Poll Message. (IzotServiceRequest)
 Comments:  In either case, the msg should have at least 2 bytes.
 *******************************************************************************/
 static void ProcessNV(APPReceiveParam *appReceiveParamPtr,
                       APDU            *apduPtr)
 {
-    if (appReceiveParamPtr->service == REQUEST)
+    if (appReceiveParamPtr->service == IzotServiceRequest)
     {
         ProcessNVPoll(appReceiveParamPtr, apduPtr);
     }
@@ -1819,22 +2039,22 @@ Comments:  The message should have 2 bytes.
 static void ProcessNVPoll(APPReceiveParam *appReceiveParamPtr,
                           APDU            *apduPtr)
 {
-    int16          i;
-    uint8          nvDirection;
-    uint16         selector, thisSelector;
-    int16          matchingIndex;
-    uint16         matchingPrimaryIndex;
-    Queue         *tsaOutQPtr;
-    TSASendParam  *tsaSendParamPtr;
-    APDU          *apduRespPtr;
-    NVStruct      *thisNVStrPtr, *matchingNVStrPtr;
-    Boolean        authOK;
-    Boolean        noData; /* Should data go out? */
+    IzotBits16           i;
+    IzotByte             nvDirection;
+    IzotUbits16          selector, thisSelector;
+    IzotBits16           matchingIndex;
+    IzotUbits16          matchingPrimaryIndex;
+    Queue               *tsaOutQPtr;
+    TSASendParam        *tsaSendParamPtr;
+    APDU                *apduRespPtr;
+    IzotDatapointConfig	*thisNVStrPtr, *matchingNVStrPtr;
+    IzotByte             authOK;
+    IzotByte             noData; /* Should data go out? */
 
     if (appReceiveParamPtr->pduSize != 2)
     {
         /* The message does not have correct size */
-        LCS_RecordError(NV_MSG_TOO_SHORT);
+        LCS_RecordError(IzotDatapointMsgTooShort);
         DeQueue(&gp->appInQ);
         return;
     }
@@ -1870,11 +2090,13 @@ static void ProcessNVPoll(APPReceiveParam *appReceiveParamPtr,
            and alias entries */
         for (i = 0; i < nmp->nvTableSize+NV_ALIAS_TABLE_SIZE; i++)
         {
-            thisNVStrPtr     = GetNVStructPtr(i);
-            thisSelector =
-                (thisNVStrPtr->nvSelectorHi << 8) | thisNVStrPtr->nvSelectorLo;
-            if (thisNVStrPtr->nvDirection == nvDirection &&
-                    thisSelector              == selector)
+            thisNVStrPtr = GetNVStructPtr(i);
+            thisSelector = (IZOT_GET_ATTRIBUTE_P(
+            thisNVStrPtr, IZOT_DATAPOINT_SELHIGH) << 8) | 
+            thisNVStrPtr->SelectorLow;
+                
+            if (IZOT_GET_ATTRIBUTE_P(thisNVStrPtr, IZOT_DATAPOINT_DIRECTION) == 
+            nvDirection && thisSelector == selector)
             {
                 if (matchingIndex == -1)
                 {
@@ -1900,7 +2122,7 @@ static void ProcessNVPoll(APPReceiveParam *appReceiveParamPtr,
     /* Send the response with either data or nodata. */
     tsaSendParamPtr               = QueueTail(tsaOutQPtr);
     tsaSendParamPtr->altPathOverride = FALSE;
-    tsaSendParamPtr->service      = RESPONSE;
+    tsaSendParamPtr->service      = IzotServiceResponse;
     tsaSendParamPtr->nullResponse = FALSE;
 	tsaSendParamPtr->flexResponse = FALSE;
     tsaSendParamPtr->reqId        = appReceiveParamPtr->reqId;
@@ -1918,9 +2140,8 @@ static void ProcessNVPoll(APPReceiveParam *appReceiveParamPtr,
         matchingNVStrPtr     = GetNVStructPtr(matchingIndex);
     }
 
-    if (appReceiveParamPtr->auth ||
-            matchingIndex == -1      ||
-            !matchingNVStrPtr->nvAuth)
+    if (appReceiveParamPtr->auth || matchingIndex == -1 ||
+       !IZOT_GET_ATTRIBUTE_P(matchingNVStrPtr, IZOT_DATAPOINT_AUTHENTICATION))
     {
         authOK = TRUE;
     }
@@ -1933,16 +2154,24 @@ static void ProcessNVPoll(APPReceiveParam *appReceiveParamPtr,
     {
         /* Send a response with no data */
         tsaSendParamPtr->apduSize = 2;
+        DBG_vPrintf(TRUE, "ProcessNVPoll: Send a response with no data\n");
     }
     else
     {
         /* Send a response with data */
         if (NV_LENGTH(matchingPrimaryIndex) + 2 <= gp->tsaRespBufSize)
         {
-            memcpy(&apduRespPtr->data[1],
-                   NV_ADDRESS(matchingPrimaryIndex),
-                   NV_LENGTH(matchingPrimaryIndex));
-            tsaSendParamPtr->apduSize = 2 + NV_LENGTH(matchingPrimaryIndex);
+            uint16_t len = NV_LENGTH(matchingPrimaryIndex);
+            IzotByte ndi[len];
+            memcpy(ndi, NV_ADDRESS(matchingPrimaryIndex), len);
+            if (izot_dp_prop[matchingPrimaryIndex].ibolSeq) 
+            {
+                IzotHdiToNdi(izot_dp_prop[matchingPrimaryIndex].ibolSeq, NV_ADDRESS(matchingPrimaryIndex), ndi, 
+                MAX_STOP_OFFSET);
+            }
+        
+            memcpy(&apduRespPtr->data[1], ndi, len);
+            tsaSendParamPtr->apduSize = 2 + len;
         }
         else
         {
@@ -1960,7 +2189,8 @@ static void ProcessNVPoll(APPReceiveParam *appReceiveParamPtr,
 Function:  ProcessNVUpdate
 Returns:   None
 Purpose:   To process an incoming network variable update message.
-           The service can be ACKD, UNACKD, UNACKD_RPT.
+           The service can be IzotServiceAcknowledged, 
+           IzotServiceUnacknowledged, UNACKD_RPT.
            The service can be RESPONSE too for poll responses.
 Reference: The Technology Device Data Book Rev 3. Page 9-53
 Comments:  The message should have > 2 bytes.
@@ -1979,43 +2209,43 @@ Comments:  The message should have > 2 bytes.
            The prefix 'this' is used for local variables of this function
            related to information regarding network variables searched.
 *******************************************************************************/
-static void ProcessNVUpdate(APPReceiveParam *appReceiveParamPtr,
-                            APDU            *apduPtr)
+static void ProcessNVUpdate(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
 {
-    int16          i;
-    uint16         dataLength, matchingDataLength;
-    uint8          nvDirection;
-    uint16         selector, thisSelector;
-    int16          matchingIndex;
-    uint16         matchingPrimaryIndex;
-    NVStruct      *thisNVStrPtr, *matchingNVStrPtr;
-    Boolean        authOK;
-    uint16         thisDim;
-    int16          thisBaseIndex;
+    IzotBits16           i;
+    IzotUbits16          dataLength, matchingDataLength;
+    IzotByte             nvDirection;
+    IzotUbits16          selector, thisSelector;
+    IzotBits16           matchingIndex;
+    IzotUbits16          matchingPrimaryIndex;
+    IzotDatapointConfig	*thisNVStrPtr, *matchingNVStrPtr;
+    IzotByte             authOK;
+    IzotUbits16          thisDim;
+    IzotBits16           thisBaseIndex;
+	Queue		        *q = (appReceiveParamPtr->service == IzotServiceResponse) ? &gp->appCeRspInQ : &gp->appInQ;
 
     if (appReceiveParamPtr->pduSize <= 2)
     {
         /* The message does not have any correct size or data field. */
-        LCS_RecordError(NV_MSG_TOO_SHORT);
-        DeQueue(&gp->appInQ);
+        LCS_RecordError(IzotDatapointMsgTooShort);
+        DeQueue(q);
         return;
     }
 
-    if (eep->readOnlyData.nodeState == APPL_UNCNFG)
+    if (IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NODE_STATE) == IzotApplicationUnconfig)
     {
         /* Ignore this message in this state. See Tech Data Book Rev 3 p9-47. */
-        DeQueue(&gp->appInQ);
+        DeQueue(q);
         return;
     }
 
     /* Determine selector and nvDirection for variable in the update message. */
     selector    = (apduPtr->code.nv.nvCode << 8) | apduPtr->data[0];
     nvDirection = apduPtr->code.nv.nvDir;
-    if (nvDirection == NV_OUTPUT)
+    if (nvDirection == IzotDatapointDirectionIsOutput)
     {
         /* Ignore this message */
-        LCS_RecordError(NV_UPDATE_ON_OUTPUT_NV);
-        DeQueue(&gp->appInQ);
+        LCS_RecordError(IzotDatapointUpdateOnOutput);
+        DeQueue(q);
         return;
     }
 
@@ -2027,9 +2257,9 @@ static void ProcessNVUpdate(APPReceiveParam *appReceiveParamPtr,
     for (i = 0; i < nmp->nvTableSize + NV_ALIAS_TABLE_SIZE; i++)
     {
         thisNVStrPtr = GetNVStructPtr(i);
-        thisSelector =
-            (thisNVStrPtr->nvSelectorHi << 8) | thisNVStrPtr->nvSelectorLo;
-        if (thisNVStrPtr->nvDirection == NV_OUTPUT)
+        thisSelector = (IZOT_GET_ATTRIBUTE_P(thisNVStrPtr, IZOT_DATAPOINT_SELHIGH) << 8) | thisNVStrPtr->SelectorLow;
+        
+        if (IZOT_GET_ATTRIBUTE_P(thisNVStrPtr, IZOT_DATAPOINT_DIRECTION) == IzotDatapointDirectionIsOutput)
         {
             continue; /* Skip network output variables */
         }
@@ -2039,7 +2269,6 @@ static void ProcessNVUpdate(APPReceiveParam *appReceiveParamPtr,
             break;
         }
     }
-
     if (matchingIndex != -1)
     {
         /* Need to update the network input variable   */
@@ -2048,15 +2277,20 @@ static void ProcessNVUpdate(APPReceiveParam *appReceiveParamPtr,
         matchingDataLength   = NV_LENGTH(matchingPrimaryIndex);
         matchingNVStrPtr     = GetNVStructPtr(matchingPrimaryIndex);
 
+        IzotByte hdi[MAX_NV_LEN_SUPPORTED];
+        uint16_t dplength = dataLength;    // Length of Datapoint defined in IzotDev.h file.
+                                           // Union datapoint have length differ than actually defined.
+
         /* If the data size does not match, don't update. ignore. */
         if (dataLength != matchingDataLength)
         {
-            LCS_RecordError(NV_LENGTH_MISMATCH);
-            DeQueue(&gp->appInQ);
+            LCS_RecordError(IzotDatapointLengthMismatch);
+            DeQueue(q);
             return;
         }
 
-        if (appReceiveParamPtr->auth || !matchingNVStrPtr->nvAuth)
+        if (appReceiveParamPtr->auth || !IZOT_GET_ATTRIBUTE_P(matchingNVStrPtr, 
+        IZOT_DATAPOINT_AUTHENTICATION))
         {
             authOK = TRUE;
         }
@@ -2067,56 +2301,85 @@ static void ProcessNVUpdate(APPReceiveParam *appReceiveParamPtr,
 
         if (!authOK)
         {
-            DeQueue(&gp->appInQ);
+            DeQueue(q);
+            LCS_RecordError(IzotAuthenticationMismatch);
             return; /* Skip the update as authentication did not succeed. */
         }
 
         /* Update the variable */
-        if (dataLength > 0 && appReceiveParamPtr->service == RESPONSE)
+        if (dataLength > 0 && appReceiveParamPtr->service == IzotServiceResponse)
         {
-            /* We have a response to poll message. Update gp->nvInDataStatus flag. */
+            // We have a response to poll message. 
+            // Update gp->nvInDataStatus flag.
             gp->nvInDataStatus = SUCCESS;
         }
-        memcpy(NV_ADDRESS(matchingPrimaryIndex),
-               &apduPtr->data[1],
-               dataLength);
+        
+        if (izot_dp_prop[matchingPrimaryIndex].ibolSeq) 
+        {
+            int byte_index = 0;
+            const IzotByte *ibol_seq = izot_dp_prop[matchingPrimaryIndex].ibolSeq;
+            
+            IzotNdiToHdi(&apduPtr->data[1], hdi, ibol_seq);
+            dplength = 0; //Back to zero , updating as per original structured size
+            while(ibol_seq[byte_index] != IBOL_FINISH)
+            {
+                if(ibol_seq[byte_index] & 0x80)
+                {
+                    byte_index++;
+                }
+                byte_index++;
+                dplength += ibol_seq[byte_index++] * ibol_seq[byte_index++];
+            }
+
+            memcpy(&apduPtr->data[1], &hdi, dplength);
+        }
+        
+        memcpy(NV_ADDRESS(matchingPrimaryIndex), &apduPtr->data[1], dplength);
+               
         if (AppPgmRuns())
         {
+        	DBG_vPrintf(TRUE, "ProcessNVUpdate: Notify Application Program\n");
             /* Notify application program only if it is running. */
-            gp->nvInAddr.domain = appReceiveParamPtr->srcAddr.dmn.domainIndex;
-            gp->nvInAddr.flexDomain =
-                (appReceiveParamPtr->srcAddr.dmn.domainIndex == FLEX_DOMAIN);
-            memcpy(&gp->nvInAddr.srcAddr,
-                   &appReceiveParamPtr->srcAddr.subnetAddr,
-                   sizeof(gp->nvInAddr.srcAddr));
+            IZOT_SET_ATTRIBUTE(gp->nvInAddr, IZOT_RECEIVEADDRESS_DOMAIN, 
+            appReceiveParamPtr->srcAddr.dmn.domainIndex);
+            
+            IZOT_SET_ATTRIBUTE(gp->nvInAddr, IZOT_RECEIVEADDRESS_FLEX, 
+            (appReceiveParamPtr->srcAddr.dmn.domainIndex == FLEX_DOMAIN));
+            
+            memcpy(&gp->nvInAddr.Source, &appReceiveParamPtr->srcAddr.subnetAddr, sizeof(gp->nvInAddr.Source));
 
             switch (appReceiveParamPtr->srcAddr.addressMode)
             {
             case BROADCAST:
-                gp->nvInAddr.format  = 0;
+                IZOT_SET_ATTRIBUTE(gp->nvInAddr, IZOT_RECEIVEADDRESS_FORMAT, 0);
                 break;
             case MULTICAST:
-                gp->nvInAddr.format  = 1;
-                gp->nvInAddr.destAddr.group =
-                    appReceiveParamPtr->srcAddr.group;
+				IZOT_SET_ATTRIBUTE(gp->nvInAddr, IZOT_RECEIVEADDRESS_FORMAT, 1);
+                gp->nvInAddr.Destination.Group.GroupId = 
+                appReceiveParamPtr->srcAddr.group.GroupId;
                 break;
             case SUBNET_NODE:
-                gp->nvInAddr.format  = 2;
+				IZOT_SET_ATTRIBUTE(gp->nvInAddr, IZOT_RECEIVEADDRESS_FORMAT, 2);
                 break;
             case UNIQUE_NODE_ID:
-                gp->nvInAddr.format  = 3;
+				IZOT_SET_ATTRIBUTE(gp->nvInAddr, IZOT_RECEIVEADDRESS_FORMAT, 3);
                 break;
             default:
                 /* should not come here */
-                gp->nvInAddr.format  = 5; /* unknown */
+                IZOT_SET_ATTRIBUTE(gp->nvInAddr, 
+                IZOT_RECEIVEADDRESS_FORMAT, 5); /* unknown */
             }
             IsArrayNV(matchingPrimaryIndex, &thisDim, &thisBaseIndex);
             gp->nvArrayIndex = matchingPrimaryIndex - thisBaseIndex;
-            NVUpdateOccurs(thisBaseIndex, gp->nvArrayIndex);
+            IzotDatapointUpdateOccurred(thisBaseIndex, &(gp->nvInAddr));
+			
+			if (IZOT_GET_ATTRIBUTE(izot_dp_prop[thisBaseIndex], IZOT_DATAPOINT_PERSIST))
+			{
+				LCS_WriteNvs();
+			}
         }
     }
-
-    DeQueue(&gp->appInQ);
+    DeQueue(q);
     return;
 }
 
@@ -2127,30 +2390,32 @@ Returns:  SUCCESS if the index is scheduled.
           FAILURE if the queue is full and hence not scheduled
                   or for sync network output variables, the queue
                   buffer size is not sufficient for this variable.
-          INVALID if the index does not correspond to NV_OUTPUT
+          INVALID if the index does not correspond to 
+          IzotDatapointDirectionIsOutput
 Purpose:  To schedule a specific index of a network variable
           (primary or alias), polled or not.
 Comment:
           This function is local to this file and used by API functions
           Propagate, PropagateNV, and PropagateArrayNV.
-          The address table entry for NV_OUTPUT can be turnarouud.
-          So, if it is UNBOUND, then we check for turnaround field too.
+          The address table entry for IzotDatapointDirectionIsOutput can be 
+          turnarouud. So, if it is IzotAddressUnassigned, then we check for 
+          turnaround field too.
 
           primaryIndex is passed for efficiency to avoid recomputation.
           nvIndexIn is always valid.
 *******************************************************************************/
-static Status PropagateThisIndex(int16 nvIndexIn, int16 primaryIndex)
+static Status PropagateThisIndex(IzotBits16 nvIndexIn, IzotBits16 primaryIndex)
 {
-    int16    *indexPtr;
-    Queue    *indexQPtr;
-    NVStruct *nvStructPtr;
-    char     *valPtr;
-    uint16    bufSize;
+    IzotBits16          *indexPtr;
+    Queue               *indexQPtr;
+    IzotDatapointConfig	*nvStructPtr;
+    IzotByte            *valPtr;
+    IzotUbits16	         bufSize;
 
     nvStructPtr      = GetNVStructPtr(nvIndexIn);
- 
+
     /* If the variable is not output, then we can't propagate. */
-    if (nvStructPtr->nvDirection != NV_OUTPUT)
+    if (IZOT_GET_ATTRIBUTE_P(nvStructPtr, IZOT_DATAPOINT_DIRECTION) != IzotDatapointDirectionIsOutput)
     {
         return(INVALID);
     }
@@ -2169,7 +2434,7 @@ static Status PropagateThisIndex(int16 nvIndexIn, int16 primaryIndex)
     {
         /* Copy current value for synchronous variables */
         /* In the queue, the 2 byte index should follow the value */
-        valPtr = (char *)(indexPtr + 1);
+        valPtr = (IzotByte *)(indexPtr + 1);
         if (NV_LENGTH(primaryIndex) <= bufSize - 2)
         {
             memcpy(valPtr, NV_ADDRESS(primaryIndex), NV_LENGTH(primaryIndex));
@@ -2204,14 +2469,14 @@ Purpose:  To schedule a specific primary network variable.
 Comment:  After scheduling the primary and all related alias entries,
           this function will add -1 to the queue to indicate end.
 *******************************************************************************/
-void  PropagateThisPrimary(int16 nvIndexIn)
+void  PropagateThisPrimary(IzotBits16 nvIndexIn)
 {
-    int16    *indexPtr;
-    Queue    *indexQPtr;
-    uint16    count, dim;
-    int16     baseIndex;
-    int16     j;
-    uint16    queueSpace;
+    IzotBits16    *indexPtr;
+    Queue         *indexQPtr;
+    IzotUbits16    count, dim;
+    IzotBits16     baseIndex;
+    IzotBits16     j;
+    IzotUbits16    queueSpace;
 
     indexQPtr = &gp->nvOutIndexQ;
 
@@ -2222,7 +2487,6 @@ void  PropagateThisPrimary(int16 nvIndexIn)
     {
         /* We need space for at least 2 entries to schedule.
            i.e we need to reserve one space for -1 at the end. */
-
         count = 0;
         if (queueSpace > 1 && PropagateThisIndex(nvIndexIn, nvIndexIn) == SUCCESS)
         {
@@ -2231,9 +2495,8 @@ void  PropagateThisPrimary(int16 nvIndexIn)
         }
         /* Schedule all alias entries that map to this primary entry.
            If queue does not have much space, stop scheduling rest. */
-        for (j = nmp->nvTableSize;
-                j < nmp->nvTableSize + NV_ALIAS_TABLE_SIZE && queueSpace > 1;
-                j++)
+
+        for (j = nmp->nvTableSize; j < nmp->nvTableSize + NV_ALIAS_TABLE_SIZE && queueSpace > 1; j++)
         {
             if (GetPrimaryIndex(j) != nvIndexIn)
             {
@@ -2249,7 +2512,7 @@ void  PropagateThisPrimary(int16 nvIndexIn)
         {
             IsArrayNV(nvIndexIn, &dim, &baseIndex);
             gp->nvArrayIndex = nvIndexIn - baseIndex;
-            NVUpdateCompletes(FAILURE, baseIndex, gp->nvArrayIndex);
+            IzotDatapointUpdateCompleted(baseIndex, FAILURE);
         }
         else
         {
@@ -2264,7 +2527,7 @@ void  PropagateThisPrimary(int16 nvIndexIn)
     {
         IsArrayNV(nvIndexIn, &dim, &baseIndex);
         gp->nvArrayIndex = nvIndexIn - baseIndex;
-        NVUpdateCompletes(SUCCESS, baseIndex, gp->nvArrayIndex); /* Not bound. */
+        IzotDatapointUpdateCompleted(baseIndex, SUCCESS);
     }
 }
 
@@ -2276,8 +2539,8 @@ Purpose:    To propagate all output network variables.
 Comment:    This function is called by the application program to propagate
             all output network variables (declared as polled or not).
 
-            Schedule all NV_OUTPUT indices with a valid address table
-            entry regardless of whether it is primary or alias.
+            Schedule all IzotDatapointDirectionIsOutput indices with a valid 
+            address table entry regardless of whether it is primary or alias.
 
             This function only schedules these variables by placing
             them in a queue for later processing by APPSend function.
@@ -2297,10 +2560,10 @@ Comment:    This function is called by the application program to propagate
 *******************************************************************************/
 void  Propagate(void)
 {
-    int16     i;
+    IzotBits16     i;
 
     /* Schedule primary network output variables. */
-    for (i = 0; i < nmp->nvTableSize;  i++)
+    for (i = 0; i < nmp->nvTableSize; i++)
     {
         PropagateThisPrimary(i);
     }
@@ -2338,13 +2601,13 @@ Comment:    This function is called by the application program to propagate
             entry, then it can't be scheduled as we don't know how to
             generate the destination address.
 *******************************************************************************/
-void  PropagateNV(int16 nvIndexIn)
+void  PropagateNV(IzotBits16 nvIndexIn)
 {
-    uint16    dim;
-    int16     baseIndex;
-    int16     i;
+    IzotUbits16    dim;
+    IzotBits16     baseIndex;
+    IzotBits16     i;
 
-    if (nvIndexIn < 0 || nvIndexIn >= nmp->nvTableSize )
+    if (nvIndexIn < 0 || nvIndexIn >= nmp->nvTableSize)
     {
         return; /* Must be a valid primary index. */
     }
@@ -2394,11 +2657,11 @@ Comment:    This function is called by the application program to propagate
             function will propagate the given index only (a specific array
             item or a simple network variable).
 *******************************************************************************/
-void  PropagateArrayNV(int16 arrayNVIndexIn, int16 indexIn)
+void  PropagateArrayNV(IzotBits16 arrayNVIndexIn, IzotBits16 indexIn)
 {
-    uint16    dim;
-    int16     baseIndex;
-    int16     nvIndex;
+    IzotUbits16    dim;
+    IzotBits16     baseIndex;
+    IzotBits16     nvIndex;
 
     if (arrayNVIndexIn < 0 || arrayNVIndexIn >= nmp->nvTableSize)
     {
@@ -2407,7 +2670,7 @@ void  PropagateArrayNV(int16 arrayNVIndexIn, int16 indexIn)
 
     /* if arrayNVIndexIn is not an array variable, then dim is set to 1
        and baseIndex is set to arrayNVIndexIn by IsArrayNV function */
-    if (!IsArrayNV(arrayNVIndexIn, &dim, &baseIndex) )
+    if (!IsArrayNV(arrayNVIndexIn, &dim, &baseIndex))
     {
         indexIn = 0; /* Simple network variable */
     }
@@ -2465,32 +2728,35 @@ Comments:
 static void SendVar()
 {
     Queue          *indexQPtr;
-    int16           i;           /* For loop. */
-    uint16          bufSize;        /* bufSize for the target queue */
-    int16           nvIndex;
-    int16           primaryIndex;   /* For nvIndex. */
-    uint16          nvLength;       /* For nvIndex. */
-    uint16          selector;       /* For nvIndex. */
-    Byte           *nvPtr;          /* For nvIndex. Points to storage. */
-    uint16          dimIn;          /* For input network variable */
-    int16           primaryIndexIn; /* For input network variable */
-    int16           baseIndexIn;    /* For input network variable */
-    uint16          nvLengthIn;     /* For input network variable */
-    Byte           *nvPtrIn;        /* For input network variable */
-    uint16          selectorIn;     /* For input network variable */
-    Queue          *nwOutQPtr, *tsaOutQPtr;
+    IzotBits16      i;           		/* For loop. */
+    IzotUbits16     bufSize = 0;        /* bufSize for the target queue */
+    IzotBits16      nvIndex;
+    IzotBits16      primaryIndex = 0;   /* For nvIndex. */
+    IzotUbits16     nvLength = 0;       /* For nvIndex. */
+    IzotUbits16     selector = 0;       /* For nvIndex. */
+    IzotByte       *nvPtr = NULL;       /* For nvIndex. Points to storage. */
+    IzotUbits16     dimIn;          	/* For input network variable */
+    IzotBits16      primaryIndexIn; 	/* For input network variable */
+    IzotBits16      baseIndexIn;    	/* For input network variable */
+    IzotUbits16     nvLengthIn;     	/* For input network variable */
+    IzotByte       *nvPtrIn;        	/* For input network variable */
+    IzotUbits16     selectorIn;     	/* For input network variable */
+	Queue	 	   *nwOutQPtr = NULL;
+	Queue          *tsaOutQPtr;
     TSASendParam   *tsaSendParamPtr;
-    NWSendParam    *nwSendParamPtr;
     APDU           *apduPtr;
-    NVStruct       *nvStrPtr, *nvStrPtrIn;
-    uint16          addrIndex;
-    AddrTableEntry *ap;
-    Boolean         turnAroundOnly; /* does not mean turnaround for sure. Means that
-                                      the variable does not have addr table entry
-                                      or the address table entry is unbound or
-                                      it is turnaround entry. */
-    int16          *indexPtr;
-    char           *valPtr;
+    IzotDatapointConfig *nvStrPtr = NULL, *nvStrPtrIn;
+    IzotByte             addrIndex = 0;
+    IzotAddress         *ap;
+    IzotByte             turnAroundOnly = 0; 
+                               /* does not mean turnaround for sure. Means that
+                                  the variable does not have addr table entry
+                                  or the address table entry is unbound or
+                                  it is turnaround entry. */
+    IzotBits16          *indexPtr;
+    IzotByte            *valPtr;
+	DestinType 		     code;
+	PktCtrl			     ctrl = 0;
 
     indexQPtr = &gp->nvOutIndexQ;
 
@@ -2500,12 +2766,11 @@ static void SendVar()
     }
     indexPtr  = QueueHead(indexQPtr);
     nvIndex   = *indexPtr;
-    valPtr    = (char *)(indexPtr + 1);
 
     /* If the node enters unconfigued state before processing this nv update
        we do not want to schedule these indices. We simply do nothing and wait
        for the node to go configured. */
-    if (eep->readOnlyData.nodeState == APPL_UNCNFG)
+    if (IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NODE_STATE) == IzotApplicationUnconfig)
     {
         return;
     }
@@ -2518,8 +2783,10 @@ static void SendVar()
         primaryIndex = GetPrimaryIndex(nvIndex);
         nvPtr        = NV_ADDRESS(primaryIndex);
         nvLength     = NV_LENGTH(primaryIndex);
-        selector     = (nvStrPtr->nvSelectorHi << 8) | nvStrPtr->nvSelectorLo;
-        addrIndex    = nvStrPtr->nvAddrIndex;
+        selector     = (IZOT_GET_ATTRIBUTE_P(nvStrPtr, IZOT_DATAPOINT_SELHIGH) << 8) | nvStrPtr->SelectorLow;
+        
+        addrIndex    = ADDR_INDEX(IZOT_GET_ATTRIBUTE_P(nvStrPtr, IZOT_DATAPOINT_ADDRESS_HIGH), 
+        IZOT_GET_ATTRIBUTE_P(nvStrPtr, IZOT_DATAPOINT_ADDRESS_LOW));
         /* The variable is turnaround only if addrIndex is 0xF or the address
            table entry is unbound (turnaround or not). */
         /* *** START INFORMATIVE - Unbound Network Variable */
@@ -2529,14 +2796,14 @@ static void SendVar()
          * as input buffer inavailability.  Network management tools are expected
          * to assign an address table entry even if using unackd service. */
         /* *** END INFORMATIVE - Unbound Network Variable */
-        turnAroundOnly  = addrIndex == 0xF ||
-                          eep->addrTable[addrIndex].addrFormat == UNBOUND;
+        turnAroundOnly  = addrIndex == 0xFF || eep->addrTable[addrIndex].SubnetNode.Type == IzotAddressUnassigned;
 
-        if (nvStrPtr->nvPriority)
+        if (IZOT_GET_ATTRIBUTE_P(nvStrPtr, IZOT_DATAPOINT_PRIORITY))
         {
+			ctrl = PKT_PRIORITY;
             tsaOutQPtr = &gp->tsaOutPriQ;
-            nwOutQPtr  = &gp->nwOutPriQ;
-            if (nvStrPtr->nvService == UNACKD)
+			nwOutQPtr = &gp->nwOutPriQ;
+			if (IZOT_GET_ATTRIBUTE_P(nvStrPtr, IZOT_DATAPOINT_SERVICE) == IzotServiceUnacknowledged)
             {
                 bufSize = gp->nwOutPriBufSize;
             }
@@ -2548,8 +2815,8 @@ static void SendVar()
         else
         {
             tsaOutQPtr = &gp->tsaOutQ;
-            nwOutQPtr  = &gp->nwOutQ;
-            if (nvStrPtr->nvService == UNACKD)
+			nwOutQPtr = &gp->nwOutQ;
+            if (IZOT_GET_ATTRIBUTE_P(nvStrPtr, IZOT_DATAPOINT_SERVICE) == IzotServiceUnacknowledged)
             {
                 bufSize = gp->nwOutBufSize;
             }
@@ -2578,11 +2845,13 @@ static void SendVar()
                 return;
             }
         }
-        else if (nvStrPtr->nvService == UNACKD && QueueFull(nwOutQPtr))
+        else if (IZOT_GET_ATTRIBUTE_P(nvStrPtr, IZOT_DATAPOINT_SERVICE) == IzotServiceUnacknowledged && 
+        QueueFull(nwOutQPtr))
         {
             return;
         }
-        else if (nvStrPtr->nvService != UNACKD && QueueFull(tsaOutQPtr))
+        else if (IZOT_GET_ATTRIBUTE_P(nvStrPtr, IZOT_DATAPOINT_SERVICE) != IzotServiceUnacknowledged && 
+        QueueFull(tsaOutQPtr))
         {
             return;
         }
@@ -2593,9 +2862,9 @@ static void SendVar()
         /* Form a message with a special tag to transport layer. */
         tsaSendParamPtr              = QueueTail(tsaOutQPtr);
         tsaSendParamPtr->altPathOverride = FALSE;
-        tsaSendParamPtr->service     = ACKD;
-        tsaSendParamPtr->tag         = NV_UPDATE_LAST_TAG_VALUE;
         tsaSendParamPtr->apduSize    = 0;
+        tsaSendParamPtr->tag         = NV_UPDATE_LAST_TAG_VALUE;
+        tsaSendParamPtr->service     = IzotServiceAcknowledged;
 		tsaSendParamPtr->priority	 = tsaOutQPtr == &gp->tsaOutPriQ;
         EnQueue(tsaOutQPtr);
         gp->nvOutCanSchedule = FALSE; /* Only one at a time. */
@@ -2603,22 +2872,25 @@ static void SendVar()
         return;
     }
 
+	// For SYNC NVs, 
+    // we use the queued value otherwise just use the current value
+	valPtr = NV_SYNC(primaryIndex) ? (IzotByte *)(indexPtr + 1) : nvPtr;
 
     /* If the variable is flagged as turnaround, then we look for first
        network input variable with matching selector number. Once found,
        we update that input variable, and then send NVUpdateOccurs event
        to the application program. We break as soon as first match is found. */
-    if (nvStrPtr->nvTurnaround)
+    if (IZOT_GET_ATTRIBUTE_P(nvStrPtr, IZOT_DATAPOINT_TURNAROUND))
     {
          for (i = 0; i < nmp->nvTableSize+NV_ALIAS_TABLE_SIZE; i++)
         {
             nvStrPtrIn  = GetNVStructPtr(i);
-            selectorIn  =
-                (nvStrPtrIn->nvSelectorHi << 8) | nvStrPtrIn->nvSelectorLo;
+            selectorIn  = (IZOT_GET_ATTRIBUTE_P(
+            nvStrPtrIn, IZOT_DATAPOINT_SELHIGH) << 8) | nvStrPtrIn->SelectorLow;
             /* If this variable is not input or does not have matching selector,
                then skip this entry */
-            if (nvStrPtrIn->nvDirection != NV_INPUT ||
-                    selector != selectorIn)
+            if (IZOT_GET_ATTRIBUTE_P(nvStrPtrIn, IZOT_DATAPOINT_DIRECTION) != IzotDatapointDirectionIsInput || 
+            selector != selectorIn)
             {
                 continue; /* Not a matching entry */
             }
@@ -2636,11 +2908,13 @@ static void SendVar()
             {
                 IsArrayNV(primaryIndexIn, &dimIn, &baseIndexIn);
 
-                gp->nvInAddr.format = 4; /* TURNAROUND */
-                memset(&gp->nvInAddr.srcAddr, 0, sizeof(SubnetAddress));
-                gp->nvInAddr.domain = 0; /* Not relevant */
+				IZOT_SET_ATTRIBUTE(gp->nvInAddr, 
+                IZOT_RECEIVEADDRESS_FORMAT, 4); /* TURNAROUND */
+                memset(&gp->nvInAddr.Source, 0, sizeof(IzotReceiveSubnetNode));
+                IZOT_SET_ATTRIBUTE(gp->nvInAddr, 
+                IZOT_RECEIVEADDRESS_DOMAIN, 0); /* Not relevant */
                 gp->nvArrayIndex    = primaryIndexIn - baseIndexIn;
-                NVUpdateOccurs(baseIndexIn, gp->nvArrayIndex);
+                IzotDatapointUpdateOccurred(baseIndexIn, &(gp->nvInAddr));
             }
 
             break; /* break after first match */
@@ -2675,101 +2949,53 @@ static void SendVar()
         return;
     }
 
-    if (nvStrPtr->nvService != UNACKD)
+	code.nv.nvFlag = 0x01;
+	code.nv.nvDir = IzotDatapointDirectionIsInput;
+	code.nv.nvCode = IZOT_GET_ATTRIBUTE_P(nvStrPtr, IZOT_DATAPOINT_SELHIGH);
+
+    if (IZOT_GET_ATTRIBUTE_P(nvStrPtr, IZOT_DATAPOINT_SERVICE) != IzotServiceUnacknowledged)
     {
+        IzotByte ndi[nvLength];
         /* The message should go to the transport layer */
         tsaSendParamPtr              = QueueTail(tsaOutQPtr);
         tsaSendParamPtr->altPathOverride = FALSE;
         tsaSendParamPtr->dmn.domainIndex = COMPUTE_DOMAIN_INDEX;
-        *(AddrTableEntry *)(&tsaSendParamPtr->destAddr) = *ap;
-        tsaSendParamPtr->service     = (ServiceType)nvStrPtr->nvService;
-        tsaSendParamPtr->auth        = nvStrPtr->nvAuth;
+        *(IzotAddress *)(&tsaSendParamPtr->destAddr) = *ap;
+        tsaSendParamPtr->service     = (IzotServiceType)IZOT_GET_ATTRIBUTE_P(nvStrPtr, IZOT_DATAPOINT_SERVICE);
+        tsaSendParamPtr->auth        = IZOT_GET_ATTRIBUTE_P(nvStrPtr, 
+        IZOT_DATAPOINT_AUTHENTICATION);
         /* See app.h for information on tag usage. */
         tsaSendParamPtr->tag         = GET_NV_UPDATE_TAG(primaryIndex);
         apduPtr                      = (APDU *)(tsaSendParamPtr + 1);
-        apduPtr->code.nv.nvFlag      = 0x1;
-        apduPtr->code.nv.nvDir       = NV_INPUT;
-        apduPtr->code.nv.nvCode      = nvStrPtr->nvSelectorHi;
-        apduPtr->data[0]             = nvStrPtr->nvSelectorLo;
+		apduPtr->code				 = code;
+        apduPtr->data[0]             = nvStrPtr->SelectorLow;
         tsaSendParamPtr->apduSize    = 2 + nvLength;
-        if (NV_SYNC(primaryIndex))
-        {
-            /* Send value given */
-            memcpy(&apduPtr->data[1], valPtr, nvLength);
-        }
-        else
-        {
-            /* Send the most current value */
-            memcpy(&apduPtr->data[1], nvPtr, nvLength);
-        }
-
+		tsaSendParamPtr->priority	 = 
+        tsaOutQPtr == &gp->tsaOutPriQ; // new addition
+        
+        IzotPrepareNetworkData(ndi, primaryIndex, nvLength, valPtr);
+        memcpy(&apduPtr->data[1], ndi, nvLength);
+        
         EnQueue(tsaOutQPtr);
         return;
     }
+    IzotByte ndi[nvLength];
+    IzotPrepareNetworkData(ndi, primaryIndex, nvLength, valPtr);
 
-    /* The message is for the network layer */
-    nwSendParamPtr = QueueTail(nwOutQPtr);
-    nwSendParamPtr->dropIfUnconfigured = TRUE;
-    nwSendParamPtr->tag = GET_NV_UPDATE_TAG(primaryIndex);
-
-    switch (ap->addrFormat)
-    {
-    case SUBNET_NODE:
-        nwSendParamPtr->destAddr.addressMode = SUBNET_NODE;
-        nwSendParamPtr->destAddr.dmn.domainIndex =
-            ap->snodeEntry.domainIndex;
-        nwSendParamPtr->destAddr.addr.addr2a.subnet =
-            ap->snodeEntry.subnetID;
-        nwSendParamPtr->destAddr.addr.addr2a.node   =
-            ap->snodeEntry.node;
-        break;
-    case BROADCAST:
-        nwSendParamPtr->destAddr.addressMode = BROADCAST;
-        nwSendParamPtr->destAddr.dmn.domainIndex =
-            ap->bcastEntry.domainIndex;
-        nwSendParamPtr->destAddr.addr.addr0 =
-            ap->bcastEntry.subnetID;
-        break;
-
-    default:
-        /* Since the address table entry can't be unbound or turnaround,
-           we must have group entry */
-        nwSendParamPtr->destAddr.addressMode = MULTICAST;
-        nwSendParamPtr->destAddr.dmn.domainIndex =
-            ap->groupEntry.domainIndex;
-        nwSendParamPtr->destAddr.addr.addr1 =
-            ap->groupEntry.groupID;
-    } /* switch */
-
-    nwSendParamPtr->pduType     = APDU_TYPE;
-    nwSendParamPtr->deltaBL     = 0; /* No ack generated */
-    nwSendParamPtr->altPath     = FALSE;
-    nwSendParamPtr->pduSize     = 2 + nvLength;
-    apduPtr                     = (APDU *)(nwSendParamPtr + 1);
-    apduPtr->code.nv.nvFlag     = 0x1;
-    apduPtr->code.nv.nvDir      = NV_INPUT;
-    apduPtr->code.nv.nvCode     = nvStrPtr->nvSelectorHi;
-    apduPtr->data[0]            = nvStrPtr->nvSelectorLo;
-    if (NV_SYNC(primaryIndex))
-    {
-        /* Send value given. */
-        memcpy(&apduPtr->data[1], valPtr, nvLength);
-    }
-    else
-    {
-        /* Send the most current value. */
-        memcpy(&apduPtr->data[1], NV_ADDRESS(primaryIndex), nvLength);
-    }
-    EnQueue(nwOutQPtr);
-
-    return;
+    /* The message is for the network layer.  
+    // We already check buffer availability above 
+    // so this should never fail for that reason. */
+	AllocSendUnackd(ctrl, GET_NV_UPDATE_TAG(primaryIndex), 
+    (IzotSendAddress*)ap, code, nvStrPtr->SelectorLow, nvLength + 1, ndi);
+	return;
 }
 
 /*******************************************************************************
 Function: PollThisIndex
 Returns:  SUCCESS if the index is scheduled.
           FAILURE if the queue is full and hence not scheduled.
-          INVALID if the index does not correspond to NV_INPUT.
+          INVALID if the index does not correspond to 
+          IzotDatapointDirectionIsInput.
 Purpose:  To schedule a specific index of a network variable
           (primary or alias).
 Comment:
@@ -2777,14 +3003,14 @@ Comment:
           Poll, PollNV, and PollArrayNV.
           nvIndexIn is always valid.
 *******************************************************************************/
-static Status PollThisIndex(int16 nvIndexIn)
+static Status PollThisIndex(IzotBits16 nvIndexIn)
 {
-    int16    *indexPtr;
-    Queue    *indexQPtr;
-    NVStruct *nvStructPtr;
+    IzotBits16          *indexPtr;
+    Queue               *indexQPtr;
+    IzotDatapointConfig *nvStructPtr;
 
     nvStructPtr      = GetNVStructPtr(nvIndexIn);
-    if (nvStructPtr->nvDirection != NV_INPUT)
+    if (IZOT_GET_ATTRIBUTE_P(nvStructPtr, IZOT_DATAPOINT_DIRECTION) != IzotDatapointDirectionIsInput)
     {
         return(INVALID);
     }
@@ -2816,14 +3042,14 @@ Purpose:  To schedule a specific primary network variable.
             generate success completion event.
 Comment:  None.
 *******************************************************************************/
-void  PollThisPrimary(int16 nvIndexIn)
+void  PollThisPrimary(IzotBits16 nvIndexIn)
 {
-    int16    *indexPtr;
-    Queue    *indexQPtr;
-    uint16    count, dim;
-    int16     baseIndex;
-    int16     j;
-    uint16    queueSpace;
+    IzotBits16    *indexPtr;
+    Queue         *indexQPtr;
+    IzotUbits16    count, dim;
+    IzotBits16     baseIndex;
+    IzotBits16     j;
+    IzotUbits16    queueSpace;
 
     indexQPtr = &gp->nvInIndexQ;
 
@@ -2842,9 +3068,7 @@ void  PollThisPrimary(int16 nvIndexIn)
         }
         /* Schedule all alias entries that map to this primary entry.
            If queue does not have much space, stop scheduling rest. */
-        for (j = nmp->nvTableSize;
-                j < nmp->nvTableSize + NV_ALIAS_TABLE_SIZE && queueSpace > 1;
-                j++)
+        for (j = nmp->nvTableSize; j < nmp->nvTableSize + NV_ALIAS_TABLE_SIZE && queueSpace > 1; j++)
         {
             if (GetPrimaryIndex(j) != nvIndexIn)
             {
@@ -2860,7 +3084,7 @@ void  PollThisPrimary(int16 nvIndexIn)
         {
             IsArrayNV(nvIndexIn, &dim, &baseIndex);
             gp->nvArrayIndex = nvIndexIn - baseIndex;
-            NVUpdateCompletes(FAILURE, baseIndex, gp->nvArrayIndex);
+            IzotDatapointUpdateCompleted(baseIndex, FAILURE);
         }
         else
         {
@@ -2875,7 +3099,7 @@ void  PollThisPrimary(int16 nvIndexIn)
     {
         IsArrayNV(nvIndexIn, &dim, &baseIndex);
         gp->nvArrayIndex = nvIndexIn - baseIndex;
-        NVUpdateCompletes(SUCCESS, baseIndex, gp->nvArrayIndex); /* Not bound. */
+        IzotDatapointUpdateCompleted(baseIndex, SUCCESS);
     }
 }
 
@@ -2886,8 +3110,9 @@ Purpose:    To poll all input network variables.
 Comment:    This function is called by the application program to poll
             all network input variables.
 
-            Schedule all NV_INPUT indices with a valid address table
-            entry regardless of whether it is primary or alias.
+            Schedule all IzotDatapointDirectionIsInput indices with a 
+            valid address table entry regardless of whether it is primary or 
+            alias.
 
             This function only schedules these variables by placing
             them in a queue for later processing by APPSend function.
@@ -2904,7 +3129,7 @@ Comment:    This function is called by the application program to poll
 *******************************************************************************/
 void  Poll(void)
 {
-    int16     i;
+    IzotBits16     i;
 
     /* Schedule primary network input variables for poll */
     for (i = 0; i < nmp->nvTableSize;  i++)
@@ -2946,13 +3171,13 @@ Comment:    This function is called by the application program to poll
             NVUpdateCompletes for input variables means that they
             are completion indication of corresponding poll requests.
 *******************************************************************************/
-void  PollNV(int16 nvIndexIn)
+void  PollNV(IzotBits16 nvIndexIn)
 {
-    uint16    dim;
-    int16     baseIndex;
-    int16     i;
+    IzotUbits16    dim;
+    IzotBits16     baseIndex;
+    IzotBits16     i;
 
-    if (nvIndexIn < 0 || nvIndexIn >= nmp->nvTableSize )
+    if (nvIndexIn < 0 || nvIndexIn >= nmp->nvTableSize)
     {
         return; /* Must be a valid primary index. */
     }
@@ -3003,11 +3228,11 @@ Comment:    This function is called by the application program to poll
             NVUpdateCompletes for input variables means that they
             are completion indication of corresponding poll requests.
 *******************************************************************************/
-void  PollArrayNV(int16 arrayNVIndexIn, int16 indexIn)
+void  PollArrayNV(IzotBits16 arrayNVIndexIn, IzotBits16 indexIn)
 {
-    uint16    dim;
-    int16     baseIndex;
-    int16     nvIndex;
+    IzotUbits16    dim;
+    IzotBits16     baseIndex;
+    IzotBits16     nvIndex;
 
 
     if (arrayNVIndexIn < 0 || arrayNVIndexIn >= nmp->nvTableSize)
@@ -3066,31 +3291,32 @@ Comments:  Note that this return value does not mean that the
 *******************************************************************************/
 static void PollVar(void)
 {
-    Queue          *indexQPtr;
-    int16           nvIndex;
-    int16          *indexPtr;
-    int16           i;         /* For loop. */
-    int16           primaryIndex; /* For nvIndex. */
-    uint16          nvLength;     /* For nvIndex. */
-    uint16          dim;          /* For nvIndex, if it is array */
-    int16           baseIndex;    /* For nvIndex, if it is array */
-    uint16          selector;     /* For nvIndex. */
-    Byte           *nvPtr;        /* For nvIndex. Points to storage. */
-    int16           primaryIndexOut; /* For output network variable */
-    uint16          nvLengthOut;     /* For output network variable */
-    Byte           *nvPtrOut;        /* For output network variable */
-    uint16          selectorOut;     /* For output network variable */
-    Queue          *tsaOutQPtr;
-    TSASendParam   *tsaSendParamPtr;
-    APDU           *apduPtr;
-    NVStruct       *nvStrPtr, *nvStrPtrOut;
-    uint16          addrIndex;
-    AddrTableEntry *ap;
-    Boolean         turnAroundOnly; /* does not mean turnaround for sure. Means that
-                                      the variable does not have addr table entry
-                                      or the address table entry is unbound or
-                                      it is turnaround entry. */
-    int16           matchingIndexOut;
+    Queue               *indexQPtr;
+    IzotBits16           nvIndex;
+    IzotBits16          *indexPtr;
+    IzotBits16           i;         /* For loop. */
+    IzotBits16           primaryIndex = 0; 	/* For nvIndex. */
+    IzotUbits16          nvLength = 0;     	/* For nvIndex. */
+    IzotUbits16          dim;          		/* For nvIndex, if it is array */
+    IzotBits16           baseIndex;    		/* For nvIndex, if it is array */
+    IzotUbits16          selector = 0;     	/* For nvIndex. */
+    IzotByte            *nvPtr = NULL;    /* For nvIndex. Points to storage. */
+    IzotBits16           primaryIndexOut; /* For output network variable */
+    IzotUbits16          nvLengthOut;     /* For output network variable */
+    IzotByte            *nvPtrOut;        /* For output network variable */
+    IzotUbits16          selectorOut;     /* For output network variable */
+    Queue               *tsaOutQPtr;
+    TSASendParam        *tsaSendParamPtr;
+    APDU                *apduPtr;
+    IzotDatapointConfig *nvStrPtr = NULL, *nvStrPtrOut;
+    IzotByte             addrIndex = 0;
+    IzotAddress         *ap;
+    IzotByte             turnAroundOnly = 0; 
+                                /* does not mean turnaround for sure. Means that
+                                   the variable does not have addr table entry
+                                   or the address table entry is unbound or
+                                   it is turnaround entry. */
+    IzotBits16           matchingIndexOut = 0;
 
     indexQPtr = &gp->nvInIndexQ;
 
@@ -3104,7 +3330,7 @@ static void PollVar(void)
     /* If the node enters unconfigued state before processing this nv poll
        we do not want to schedule these indices. We simply do nothing and wait
        for the node to go configured. */
-    if (eep->readOnlyData.nodeState == APPL_UNCNFG)
+    if (IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NODE_STATE) == IzotApplicationUnconfig)
     {
         return;
     }
@@ -3114,12 +3340,13 @@ static void PollVar(void)
         /* Make nvStrPtr point to the right NVStruct for nvIndex */
         nvStrPtr     = GetNVStructPtr(nvIndex);
         /* START INFORMATIVE - Network Variable Alias Priority */
-        /* The bracketed code in conjunction with other code in this implementation
-         * is structured in a way which allows network variable aliases
-         * to have a different priority attribute than the primary and for that
-         * difference in priority to be honored.  It is acceptable, however, to send
-         * all aliases using the same priority attribute as that of the primary. */
-        if (nvStrPtr->nvPriority)
+        /* The bracketed code in conjunction with other code in this 
+         * implementation is structured in a way which allows network variable 
+         * aliases to have a different priority attribute than the primary and 
+         * for that difference in priority to be honored.  It is acceptable, 
+         * however, to send all aliases using the same priority attribute as 
+         * that of the primary. */
+        if (IZOT_GET_ATTRIBUTE_P(nvStrPtr, IZOT_DATAPOINT_PRIORITY))
         {
             tsaOutQPtr = &gp->tsaOutPriQ;
         }
@@ -3132,12 +3359,12 @@ static void PollVar(void)
         primaryIndex = GetPrimaryIndex(nvIndex);
         nvPtr        = NV_ADDRESS(primaryIndex);
         nvLength     = NV_LENGTH(primaryIndex);
-        selector     = (nvStrPtr->nvSelectorHi << 8) | nvStrPtr->nvSelectorLo;
-        addrIndex    = nvStrPtr->nvAddrIndex;
+        selector     = (IZOT_GET_ATTRIBUTE_P(nvStrPtr, IZOT_DATAPOINT_SELHIGH) << 8) | nvStrPtr->SelectorLow;
+        addrIndex    = ADDR_INDEX(IZOT_GET_ATTRIBUTE_P(nvStrPtr, IZOT_DATAPOINT_ADDRESS_HIGH), 
+        IZOT_GET_ATTRIBUTE_P(nvStrPtr, IZOT_DATAPOINT_ADDRESS_LOW));
         /* The variable is turnaround only if addrIndex is 0xF or it is unbound
            (turnaround or not) */
-        turnAroundOnly  = (addrIndex == 0xF) ||
-                          (eep->addrTable[addrIndex].addrFormat == UNBOUND);
+        turnAroundOnly  = (addrIndex == 0xFF) || (eep->addrTable[addrIndex].SubnetNode.Type == IzotAddressUnassigned);
     }
     else
     {
@@ -3160,7 +3387,7 @@ static void PollVar(void)
         /* Form a message with a special tag to transport layer. */
         tsaSendParamPtr              = QueueTail(tsaOutQPtr);
         tsaSendParamPtr->altPathOverride = FALSE;
-        tsaSendParamPtr->service     = ACKD;
+        tsaSendParamPtr->service     = IzotServiceAcknowledged;
         tsaSendParamPtr->tag         = NV_POLL_LAST_TAG_VALUE;
         tsaSendParamPtr->apduSize    = 0;
         EnQueue(tsaOutQPtr);
@@ -3180,20 +3407,20 @@ static void PollVar(void)
        network output variables with matching selector number. Once found,
        we update this input variable, and then send NVUpdateOccurs event
        to the application program. */
-    if (nvStrPtr->nvTurnaround)
+    if (IZOT_GET_ATTRIBUTE_P(nvStrPtr, IZOT_DATAPOINT_TURNAROUND))
     {
         matchingIndexOut = -1;
         for (i = 0; i < nmp->nvTableSize+NV_ALIAS_TABLE_SIZE; i++)
         {
             nvStrPtrOut  = GetNVStructPtr(i);
             /* Skip input network variables */
-            if (nvStrPtrOut->nvDirection == NV_INPUT)
+            if (IZOT_GET_ATTRIBUTE_P(nvStrPtrOut, IZOT_DATAPOINT_DIRECTION) == IzotDatapointDirectionIsInput)
             {
                 continue;
             }
             /* It is a network output variable. Match selector */
-            selectorOut =
-                (nvStrPtrOut->nvSelectorHi << 8) | nvStrPtrOut->nvSelectorLo;
+            selectorOut = (IZOT_GET_ATTRIBUTE_P(nvStrPtrOut, IZOT_DATAPOINT_SELHIGH) << 8) | nvStrPtrOut->SelectorLow;
+            
             if (selector != selectorOut)
             {
                 continue; /* Selector does not match */
@@ -3222,13 +3449,16 @@ static void PollVar(void)
                 /* Notify application program if it is running. */
                 if (AppPgmRuns())
                 {
-                    gp->nvInAddr.format = 4; /* TURNAROUND */
-                    memset(&gp->nvInAddr.srcAddr, 0, sizeof(SubnetAddress));
-                    gp->nvInAddr.domain = 0; /* Not relevant */
+					IZOT_SET_ATTRIBUTE(gp->nvInAddr, 
+                    IZOT_RECEIVEADDRESS_FORMAT, 4); /* TURNAROUND */
+                    memset(&gp->nvInAddr.Source, 0, 
+                    sizeof(IzotReceiveSubnetNode));
+                    IZOT_SET_ATTRIBUTE(gp->nvInAddr, 
+                    IZOT_RECEIVEADDRESS_DOMAIN, 0); /* Not relevant */
                     /* gp->nvArrayIndex is 0 for simple var */
                     gp->nvArrayIndex    = primaryIndex - baseIndex;
                     /* same as primaryIndex for simple var */
-                    NVUpdateOccurs(baseIndex, gp->nvArrayIndex);
+                    IzotDatapointUpdateOccurred(baseIndex, &(gp->nvInAddr));
                 }
             }
         }
@@ -3240,12 +3470,13 @@ static void PollVar(void)
         /* Don't clear the nvInCanSchedule flag as we can continue */
         /* Since this index does not go through HandleMsgCompletion, we need
            to set gp->nvInIndex here. This is to take care of the case when
-           a variable is turndaround only with no alias. In this case, this index
-           is followed by -1 in the queue. Hence, the gp->nvInIndex would never
-           be initialized when HandleMsgCompletion gets NV_POLL_LAST_TAG_VALUE.
-           Explicit initialization here will fix the problem. */
+           a variable is turndaround only with no alias. In this case, 
+           this index is followed by -1 in the queue. Hence, the gp->nvInIndex 
+           would never be initialized when HandleMsgCompletion gets 
+           NV_POLL_LAST_TAG_VALUE. Explicit initialization here will fix the 
+           problem. */
         gp->nvInIndex = GetPrimaryIndex(nvIndex);
-        if (nvStrPtr->nvTurnaround && matchingIndexOut != -1)
+        if (IZOT_GET_ATTRIBUTE_P(nvStrPtr, IZOT_DATAPOINT_TURNAROUND) && matchingIndexOut != -1)
         {
             /* We did find a matching output variable and updated the polled variable */
             /* Note that even if one of the indices (primary or alias) is turnaround
@@ -3259,25 +3490,28 @@ static void PollVar(void)
     gp->nvInCanSchedule = FALSE;
     DeQueue(indexQPtr);
 
-    /* Build and send netvar poll message. It is a REQUEST message. */
+    // Build and send netvar poll message. It is a IzotServiceRequest message.
     ap = AccessAddress(addrIndex); /* ap can't be null */
 
     tsaSendParamPtr              = QueueTail(tsaOutQPtr);
     tsaSendParamPtr->altPathOverride = FALSE;
     tsaSendParamPtr->dmn.domainIndex = COMPUTE_DOMAIN_INDEX;
-    *(AddrTableEntry *)(&tsaSendParamPtr->destAddr) = *ap;
-    tsaSendParamPtr->service     = REQUEST; /* Poll Message */
-    tsaSendParamPtr->auth        = nvStrPtr->nvAuth;
+	tsaSendParamPtr->priority	 = 
+    tsaOutQPtr == &gp->tsaOutPriQ; // new addition
+    *(IzotAddress *)(&tsaSendParamPtr->destAddr) = *ap;
+    tsaSendParamPtr->service     = IzotServiceRequest; /* Poll Message */
+    tsaSendParamPtr->auth        = IZOT_GET_ATTRIBUTE_P(nvStrPtr, IZOT_DATAPOINT_AUTHENTICATION);
     /* See app.h for details on tag usage. */
     tsaSendParamPtr->tag         = GET_NV_POLL_TAG(primaryIndex);
     apduPtr                      = (APDU *)(tsaSendParamPtr + 1);
     apduPtr->code.nv.nvFlag      = 0x1;
-    apduPtr->code.nv.nvDir       = NV_OUTPUT;
-    apduPtr->code.nv.nvCode      = nvStrPtr->nvSelectorHi;
-    apduPtr->data[0]             = nvStrPtr->nvSelectorLo;
+    apduPtr->code.nv.nvDir       = IzotDatapointDirectionIsOutput;
+    apduPtr->code.nv.nvCode      = IZOT_GET_ATTRIBUTE_P(nvStrPtr, IZOT_DATAPOINT_SELHIGH);
+    apduPtr->data[0]             = nvStrPtr->SelectorLow;
     tsaSendParamPtr->apduSize    = 2;
 
     EnQueue(tsaOutQPtr);
+
     return;
 }
 
@@ -3287,13 +3521,12 @@ Returns:  A new message tag of the requested type (bindable or non-bindable).
 Purpose:  To allocate message tags for use by application program.
 Comment:  Reference implementation does not support rate information
           for tags.
-********************************************************************************/
+*******************************************************************************/
 MsgTag NewMsgTag(BindNoBind bindStatusIn)
 {
     if (bindStatusIn == BIND)
     {
-        if (gp->nextBindableMsgTag < NUM_ADDR_TBL_ENTRIES &&
-                nmp->snvt.mtagCount < 0xFF)
+        if (gp->nextBindableMsgTag < NUM_ADDR_TBL_ENTRIES && nmp->snvt.mtagCount < 0xFF)
         {
             nmp->snvt.mtagCount++;
             return(gp->nextBindableMsgTag++);
@@ -3334,10 +3567,10 @@ Comments:  gp->nvArrayTbl is an array of structures with two
            For array variables, dim (dimension of array) and array
            base index passed back if provided with non-null addresses.
 *******************************************************************************/
-static Boolean IsArrayNV(int16 nvIndexIn,
-                         uint16 *dimOut, int16 *baseIndexOut)
+static IzotByte IsArrayNV(IzotBits16 nvIndexIn,
+                         IzotUbits16 *dimOut, IzotBits16 *baseIndexOut)
 {
-    int16 i;
+    IzotBits16 i;
 
     if (dimOut)
     {
@@ -3354,8 +3587,7 @@ static Boolean IsArrayNV(int16 nvIndexIn,
     }
     for (i = 0; i < gp->nvArrayTblSize; i++)
     {
-        if (nvIndexIn >= gp->nvArrayTbl[i].nvIndex &&
-                nvIndexIn <  gp->nvArrayTbl[i].nvIndex + gp->nvArrayTbl[i].dim)
+        if (nvIndexIn >= gp->nvArrayTbl[i].nvIndex && nvIndexIn <  gp->nvArrayTbl[i].nvIndex + gp->nvArrayTbl[i].dim)
         {
             /* Lies in the range for this array variable */
             if (dimOut)
@@ -3375,7 +3607,7 @@ static Boolean IsArrayNV(int16 nvIndexIn,
 /* Application can call this fn to put itself offline */
 void GoOffline(void)
 {
-    OfflineEvent();
+    IzotOffline();
     gp->appPgmMode = OFF_LINE;
 }
 
@@ -3384,12 +3616,12 @@ void GoUnconfigured(void)
 {
     int i, numDomains;
 
-    eep->readOnlyData.nodeState = APPL_UNCNFG;
+    IZOT_SET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NODE_STATE, IzotApplicationUnconfig);
     /* Set appPgmMode to OFF_LINE so that when we configured again, the
        application program will be soft-off-line.
        See P9-47 of Tech Device Data Book Rev 3 */
     gp->appPgmMode              = OFF_LINE;
-    if (eep->readOnlyData.twoDomains)
+    if (IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_TWO_DOMAINS))
     {
         numDomains = 2;
     }
@@ -3402,11 +3634,11 @@ void GoUnconfigured(void)
     for (i = 0; i < numDomains; i++)
     {
 	    memset(&eep->domainTable[i], 0xFF, sizeof(eep->domainTable[0]));
-        memcpy(eep->domainTable[i].domainId, "gmrdwf", DOMAIN_ID_LEN);
-        eep->domainTable[i].subnet = 0;
-        eep->domainTable[i].cloneDomain = 0;
-        eep->domainTable[i].node = 0;
-     }
+        memcpy(eep->domainTable[i].Id, "gmrdwf", DOMAIN_ID_LEN);
+        eep->domainTable[i].Subnet = 0;
+        IZOT_SET_ATTRIBUTE(eep->domainTable[i], IZOT_DOMAIN_NONCLONE, 0);
+		IZOT_SET_ATTRIBUTE(eep->domainTable[i], IZOT_DOMAIN_NODE, 0);
+    }
 }
 
 /*-----------------------------------End of app.c-----------------------------*/
