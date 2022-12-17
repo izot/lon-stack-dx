@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Dialog Semiconductor
+// Copyright (C) 2022 EnOcean
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in 
@@ -41,9 +41,10 @@ Section: Includes
 ------------------------------------------------------------------------------*/
 #include <lcs_eia709_1.h>
 #include <lcs_queue.h>
-#include <lcs_tsa.h>
 #include <lcs_network.h>
 #include <lcs_api.h>
+#include <lcs_tsa.h>
+#include <lcs_node.h>
 
 /*------------------------------------------------------------------------------
 Section: Constant Definitions
@@ -104,11 +105,12 @@ Section: Globals
 /*------------------------------------------------------------------------------
 Section: Function Prototypes
 ------------------------------------------------------------------------------*/
-void APPInit(void);
+Status APPInit(void);
 void APPReset(void);
 void APPSend(void);
 void APPReceive(void);
-Status SendResponse(RequestId reqId, Byte code, int len, Byte *pData);
+Status SendResponse(RequestId reqId, IzotByte code, int len, IzotByte *pData);
 Status SendNullResponse(RequestId reqId);
+Status AllocSendUnackd(PktCtrl ctrl, MsgTag tag, IzotSendAddress* pSrc, DestinType code, IzotByte data0, int len, IzotByte *pData);
 
 #endif  // _LCS_APP_H
