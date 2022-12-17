@@ -1,7 +1,7 @@
 //
 // EchelonStandardDefinitions.h
 //
-// Copyright (C) 2022 Dialog Semiconductor
+// Copyright (C) 2022 EnOcean
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in 
@@ -21,6 +21,18 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+/*
+ * File: EchelonStandardDefinitions.h
+ * Title: Echelon Standard Definitions header file
+ *
+ * $Revision: #2 $
+ *
+ * Abstract:
+ * This file contains the macros for common error conditions and macros that are generic;
+ * typedefs for various datatypes; and macros that are used for accessing bits in a bit 
+ * array that is made up of an array of bytes; and macros for malloc library extraction.
+ *
+ */
 #ifdef SUPPORT_PRAGMA_ONCE
 #pragma once
 #endif
@@ -29,7 +41,7 @@
 #define __EchelonStandardDefinitions_h
 
 /*
- * Product/platform/processor conditional compiliation  macros
+ * Product/platform/processor/transport conditional compiliation  macros
  *
  * Use the xxx_IS(yyy) macros to control conditional compilation
  * For example:
@@ -50,20 +62,28 @@
  *
  * This technique will only work if all the options are linkable when they are not optimized away.
  *
- * The actual product/platform/processor IDs must be defined in a separate global project header file.
- * They must use the form xxx_ID_yyy N
+ * The actual product/platform/processor/transport IDs must be defined in a separate global project
+ * header file.  They must use the form xxx_ID_yyy N
  * For example:
  *
  * #define PRODUCT_ID_SLB 1
+ *
  * For safety, do not use zero as an ID definition, since any undefined macro will evaluate to zero.
  */
+#define PRODUCT_ID 0
+#define PLATFORM_ID 0
+#define PROCESSOR_ID 0
+#define TRANSPORT_ID 0
+
 #define PRODUCT_IS(prodid) (PRODUCT_ID == PRODUCT_ID_ ## prodid)
 #define PLATFORM_IS(platid) (PLATFORM_ID == PLATFORM_ID_ ## platid)
 #define PROCESSOR_IS(procid) (PROCESSOR_ID == PROCESSOR_ID_ ## procid)
+#define TRANSPORT_IS(tranid) (TRANSPORT_ID == TRANSPORT_ID_ ## tranid)
+
 // Include the actual ID definitions
 #include "module_platform.h"
 
-typedef int  				Bool;
+typedef int  		Bool;
 
 #ifndef FALSE
 #define FALSE		0
@@ -132,7 +152,7 @@ typedef UInt64				UInt64om;
 typedef UInt16om						EchErr;
 
 #define ECHERR_OK						0
-#define ECHERR_OUT_OF_RANGE				1   
+#define ECHERR_OUT_OF_RANGE				1
 #define ECHERR_TIMEOUT					2
 #define ECHERR_INVALID_PARAM			3
 #define ECHERR_NO_MEMORY				4
@@ -141,7 +161,7 @@ typedef UInt16om						EchErr;
 #define ECHERR_DATA_INTEGRITY			7
 #define ECHERR_NOT_FOUND				8
 #define ECHERR_ALREADY_OPEN				9
-#define ECHERR_NOT_OPEN					10	
+#define ECHERR_NOT_OPEN					10
 #define ECHERR_DEVICE_ERR				11
 #define ECHERR_INVALID_DEVICE_ID		12
 #define ECHERR_NO_MSG_AVAILABLE			13
@@ -152,13 +172,21 @@ typedef UInt16om						EchErr;
 #define ECHERR_SECURITY_VIOLATION		18
 #define ECHERR_CREATE_FAILURE			19
 #define ECHERR_REMOVE_FAILURE			20
+#define ECHERR_INVALID_OPERATION		21
+
+#define ECHERR_END_GLOBAL_ERRORS		127
+#define ECHERR_START_AREA_ERRORS		128
 
 // Echelon Error Areas
 #define ECHERR_AREA_GLOBAL				0   // use global error codes above
 #define ECHERR_AREA_SMPL				1   // simplicity error codes
 #define ECHERR_AREA_PAL					2   // see pal.h
-#define ECHERR_AREA_RF                  3   // see rtp.h
+#define ECHERR_AREA_RTP                 3   // see rtp.h
 #define ECHERR_AREA_SLBM                4   // see slbm.h
+#define ECHERR_AREA_UPGRADE				5	// see upgrd.h
+#define ECHERR_AREA_RFM                 6   // see rfm.h
+#define ECHERR_AREA_RAL					7   // see ral.h
+#define ECHERR_AREA_AES					8	// see aes.h
 
 #define ECHERR_GET_ERROR(e)				((e) & 0xFF)
 #define ECHERR_GET_AREA(e)				(((e)>>8) & 0xFF)
@@ -211,5 +239,8 @@ typedef UInt16om						EchErr;
 #define BITS_BYTE_OFFSET(bitIndex)	((bitIndex)/BITS_PER_BYTE)
 #define BITS_MASK(bitIndex)			(1<<((bitIndex)%BITS_PER_BYTE))
 
+#ifndef LITTLE_ENDIAN
+#define LITTLE_ENDIAN
+#endif
 
 #endif		// __EchelonStandardDefinitions_h
