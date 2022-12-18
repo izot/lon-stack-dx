@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Dialog Semiconductor
+// Copyright (C) 2022 EnOcean
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in 
@@ -21,31 +21,28 @@
 /*******************************************************************************
           File:        lcs_eeprom.c
 
-       Version:        1
-
-     Reference:        None
-
-       Purpose:        To place data structures that are placed
-                       in eeprom.
-
-          Note:        eeprom is actually stored in RAM in reference
-                       implementation. Some rewriting is needed to
-                       handle actual EEPROM usage.
-
-         To Do:        None
-
+       Purpose:        Access and store non-volatile data.
 *******************************************************************************/
+
 /*------------------------------------------------------------------------------
 Section: Includes
 ------------------------------------------------------------------------------*/
-#include <lcs_eia709_1.h>
-#include <lcs_node.h>
-#include "pal_platform.h"
+#include <stdio.h>
+#include <string.h>
+#include <stddef.h>
+#include "IzotTypes.h"
+#include "lcs_eia709_1.h"
+#include "lcs_node.h"
+#include "IzotApi.h"
+#include "Persistent.h"
 
 /*------------------------------------------------------------------------------
 Section: Constant Definitions
 ------------------------------------------------------------------------------*/
-/* None */
+#define NVM_START	(&eep->configData)
+#define NVM_SIZE 	(sizeof(*eep)-sizeof(eep->readOnlyData))
+#define MISC_START  (&gp->nvm)
+#define MISC_SIZE	(sizeof(gp->nvm))
 
 /*------------------------------------------------------------------------------
 Section: Type Definitions
@@ -58,7 +55,7 @@ Section: Globals
 EEPROM eeprom[NUM_STACKS];
 
 /*------------------------------------------------------------------------------
-Section: Local Function Prototypes
+Section: Function Prototypes
 ------------------------------------------------------------------------------*/
 /* None */
 
@@ -66,19 +63,54 @@ Section: Local Function Prototypes
 Section: Function Definitions
 ------------------------------------------------------------------------------*/
 /*******************************************************************************
-Function: Persist
+Function: LCW_WriteNvm
 Returns:  void
 Purpose:  Record all data to NVM.  Note we currently use a very simple model
 that everything fits in 256 bytes.
 *******************************************************************************/
 void LCS_WriteNvm(void)
 {
-	PAL_ExtWriteNvmBlockByType(eep, sizeof(*eep), PAL_BLOCK_TYPE_LCS_EEPROM);
+	eep->nodeState = IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NODE_STATE);
+	SetPersistentDataType(IzotPersistentSegNetworkImage);
+	IzotPersistentAppSegmentHasBeenUpdated();
 }
 
+/*******************************************************************************
+Function: LCW_ReadNvm
+Returns:  void
+Purpose:  Read all data from NVM.  Note we currently use a very simple model
+that everything fits in 256 bytes.
+*******************************************************************************/
 EchErr LCS_ReadNvm(void)
 {
-	return PAL_ExtReadNvmBlockByType(eep, sizeof(*eep), PAL_BLOCK_TYPE_LCS_EEPROM);
+	IzotBits16 ret;
+	ret = restore(IzotPersistentSegNetworkImage);
+	return ((ret == 0) ? ECHERR_OK : ECHERR_NOT_FOUND);
+}
+
+/*******************************************************************************
+Function: LCW_WriteNvs
+Returns:  void
+Purpose:  Record all persistent NV data to NVM.  Note we currently use a very simple model
+that everything fits in 256 bytes.
+*******************************************************************************/
+void LCS_WriteNvs(void)
+{
+	SetPersistentDataType(IzotPersistentSegApplicationData);
+	IzotPersistentAppSegmentHasBeenUpdated();
+}
+
+/*******************************************************************************
+Function: LCS_ReadNvs
+Returns:  void
+Purpose:  Read all NV data from NVM.  Note we currently use a very simple model
+that everything fits in 256 bytes.
+*******************************************************************************/
+EchErr LCS_ReadNvs(void)
+{
+	IzotUbits16 ret;
+	ret = restore(IzotPersistentSegApplicationData);
+	return ((ret == 0) ? ECHERR_OK : ECHERR_NOT_FOUND);
 }
 
 /*******************************End of eeprom.c *******************************/
