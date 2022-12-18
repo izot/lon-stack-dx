@@ -1,3 +1,6 @@
+//
+// lcs_app.c
+//
 // Copyright (C) 2022 EnOcean
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -19,11 +22,9 @@
 // SOFTWARE.
 
 /*******************************************************************************
-          File:        lcs_app.c
+     Reference:        ISO/IEC 14908-1, Section 10
 
-     Reference:        Section 10, ISO/IEC 14908-1
-
-       Purpose:        To implement the LON application layer.
+       Purpose:        Implement the LON application layer.
  *******************************************************************************/
 
 /*******************************************************************************

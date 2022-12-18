@@ -1,3 +1,6 @@
+//
+// lcs_app.h
+//
 // Copyright (C) 2022 EnOcean
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
@@ -19,13 +22,9 @@
 // SOFTWARE.
 
 /*******************************************************************************
+       Reference:      ISO/IEC 14908-1, Section 10
 
-          File:        lcs_app.h
-
-       Reference:      Section 10, ISO/IEC 14908-1
-
-       Purpose:        App Layer
-                       Data Structures for the LON App Layer.
+       Purpose:        Interfaces for the LON application layer.
                        (See app.c for more information.)
 *******************************************************************************/
 #ifndef _LCS_APP_H

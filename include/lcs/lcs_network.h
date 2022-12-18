@@ -1,4 +1,7 @@
-// Copyright (C) 2022 Dialog Semiconductor
+//
+// lcs_network.h
+//
+// Copyright (C) 2022 EnOcean
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in 
@@ -19,44 +22,32 @@
 // SOFTWARE.
 
 /*******************************************************************************
-          File:        network.h
+     Reference:        ISO/IEC 14908-6, Section 6.
 
-       Version:        1.7
-
-     Reference:        Section 6. Network Layer
-
-       Purpose:        This is the interface file for network layer.
-
-          Note:        Ref. Impl. does not support Router Nodes.
-
-         To Do:        None.
+       Purpose:        Interfaces for the LON network layer.
 *******************************************************************************/
 #ifndef _NETWRK_H
 #define _NETWRK_H
 
 /*------------------------------------------------------------------------------
-Section: Includes
-------------------------------------------------------------------------------*/
-/* None */
+  Section: Includes
+  ------------------------------------------------------------------------------*/
 
 /*------------------------------------------------------------------------------
-Section: Constant Definitions
-------------------------------------------------------------------------------*/
-/* None */
+  Section: Constant Definitions
+  ------------------------------------------------------------------------------*/
 
 /*------------------------------------------------------------------------------
-Section: Type Definitions
-------------------------------------------------------------------------------*/
-/* None */
+  Section: Type Definitions
+  ------------------------------------------------------------------------------*/
 
 /*------------------------------------------------------------------------------
-Section: Globals
-------------------------------------------------------------------------------*/
-/* None */
+  Section: Globals
+  ------------------------------------------------------------------------------*/
 
 /*------------------------------------------------------------------------------
-Section: Function Prototypes
-------------------------------------------------------------------------------*/
+  Section: Function Prototypes
+  ------------------------------------------------------------------------------*/
 void   NWReset(void);
 void   NWSend(void);
 void   NWReceive(void);
