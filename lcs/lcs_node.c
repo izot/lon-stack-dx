@@ -1,4 +1,7 @@
-// Copyright (C) 2022 Dialog Semiconductor
+//
+// lcs_node.c
+//
+// Copyright (C) 2022 EnOcean
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in 
@@ -19,17 +22,11 @@
 // SOFTWARE.
 
 /*******************************************************************************
-          File:  lcs_node.c
+     Reference:  ISO/IEC 14908-1
 
-       Version:  1
+       Purpose:  Configuration data strutures and type definitions.
 
-     Reference:  Technology Device Data Book.
-
-       Purpose:  Configuration Data Strutures that contain
-                 information about this node.
-                 Also, define all type defintions needed.
-
-          Note:  cStack supports any number of stacks.
+          Note:  The LON DX Stack supports any number of stacks.
                  A global structure called ProtocolStackData
                  is defined in node.h. An array of such
                  structures is used so that each stack has
@@ -41,75 +38,76 @@
                  The support for multiple-stacks does not include support
                  for mac layer to handle multiple stacks or multiple application
                  programs. A true multi-stack system needs some extra coding.
-         To Do:  None
 *******************************************************************************/
+
 /*------------------------------------------------------------------------------
-Section: Includes
-------------------------------------------------------------------------------*/
+  Section: Includes
+  ------------------------------------------------------------------------------*/
 #include <stdio.h>
 #include <string.h>
-#include <stdlib.h>
-#include <assert.h>
-
+#include <stddef.h>
+#include "IzotTypes.h"
 #include "lcs_eia709_1.h"
 #include "lcs_custom.h"
 #include "lcs_node.h"
+#include "endian.h"
 #include "lcs_timer.h"
+#include "IzotPlatform.h"
 
 /*-------------------------------------------------------------------
-Section: Constant Definitions
--------------------------------------------------------------------*/
-/* None */
+  Section: Constant Definitions
+  -------------------------------------------------------------------*/
+static const Dimensions dimensions =
+{
+    MAX_DOMAINS,
+    NUM_ADDR_TBL_ENTRIES,
+    NV_TABLE_SIZE,
+    NV_ALIAS_TABLE_SIZE
+};
 
 /*-------------------------------------------------------------------
-Section: Type Definitions
--------------------------------------------------------------------*/
-/* None */
+  Section: Type Definitions
+  -------------------------------------------------------------------*/
 
 /*-------------------------------------------------------------------
-Section: Globals
--------------------------------------------------------------------*/
+  Section: Globals
+  -------------------------------------------------------------------*/
 EEPROM            *eep; /* actual structure is in eeprom.c */
 NmMap             *nmp;
-NmMap              nm[NUM_STACKS] = {{0}};
+NmMap              nm[NUM_STACKS];
 ProtocolStackData *gp;
 ProtocolStackData  protocolStackDataGbl[NUM_STACKS];
 
-/*-------------------------------------------------------------------
-Section: Local Globals
--------------------------------------------------------------------*/
-/* See Tech Device Data Book for the tables with these values */
+SNVTCapabilityInfo *snvt_capability_info;
+SIHeaderExt        *si_header_ext;
+SNVTCapabilityInfo  capability_info;
+SIHeaderExt         header_ext;
+IzotDpProperty      izot_dp_prop[NV_TABLE_SIZE];
 
-/* Table on page 9-9. Field Value 1 is missing.
-   We assume the value 20 for 1 */
-static uint16 bufSizeCodeLGbl[16] =
-{
-    255,20,20,21,22,24,26,30,34,42,50,66,82,114,146,210
-};
-/* Table is on page 9-10. Field value 1 is missing.
-   We assume the value 1 for 1 */
-static uint16 bufCntCodeLGbl[16] =
-{
-    0,1,1,2,3,5,7,11,15,23,31,47,63,95,127,191
-};
-static uint16 rptTimerCodeLGbl[16] =
-{
-    16,24,32,48,64,96,128,192,256,384,512,768,1024,1536,2048,3072
-};
-static uint16 rcvTimerCodeLGbl[16] =
-{
-    128,192,256,384,512,768,1024,1536,2048,3072,4096,6144,8192,12288,
-    16384,24576
-};
+extern IzotByte DataPointCount;
+extern IzotByte AliasTableCount;
+extern uint16_t BindableMTagCount;
+extern IzotByte NmAuth;
 
 /*-------------------------------------------------------------------
-Section: Local Function Prototypes
+  Section: Local Globals
+  -------------------------------------------------------------------*/
+static const IzotUbits16 bufSizeCodeLGbl[16] = {255, 20, 20, 21, 22, 24, 26, 30, 34, 42, 50, 66, 82, 114, 146, 210};
+static const IzotUbits16 bufCntCodeLGbl[16] = {0, 1, 1, 2, 3, 5, 7, 11, 15, 23, 31, 47, 63, 95, 127, 191};
+static const IzotUbits16 rptTimerCodeLGbl[16] = 
+{16, 24, 32, 48, 64, 96, 128, 192, 256, 384, 512, 768, 1024, 1536, 2048, 3072};
+static const IzotUbits16 rcvTimerCodeLGbl[16] = 
+{128, 192, 256, 384, 512, 768, 1024, 1536, 2048, 3072, 4096, 6144, 8192, 12288, 16384, 24576};
+static IzotBool do_reset = FALSE;
+
+/*-------------------------------------------------------------------
+Section: Function Prototypes
 -------------------------------------------------------------------*/
-/* None */
 
 /*-------------------------------------------------------------------
 Section: Function Definitions
 -------------------------------------------------------------------*/
+
 /*****************************************************************
 Function:  AccessDomain
 Returns:   Address of structure corresponding to given index
@@ -118,15 +116,13 @@ Purpose:   To return the address of the structure that has domain
 Comments:  If an invalid index is given, log error message.
 ******************************************************************/
 
-DomainStruct *AccessDomain(uint8 indexIn)
+IzotDomain *AccessDomain(IzotByte indexIn)
 {
-    if (indexIn <= eep->readOnlyData.twoDomains)
-    {
+    if (indexIn <= IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_TWO_DOMAINS)) {
         return(&eep->domainTable[indexIn]);
     }
     return(NULL);
 }
-
 
 /*****************************************************************
 Function:  UpdateDomain
@@ -134,16 +130,15 @@ Returns:   Status
 Purpose:   To Change the domain table entry with given structure.
 Comments:  If an invalid index is given, log error message.
 ******************************************************************/
-Status UpdateDomain(DomainStruct *domainInp, uint8 indexIn, Boolean includeKey)
+Status UpdateDomain(const IzotDomain *domainInp, IzotByte indexIn, 
+IzotByte includeKey)
 {
     Status sts = SUCCESS;
-    int nDomains = eep->readOnlyData.twoDomains ? MAX_DOMAINS : 1;
-    if (indexIn < nDomains)
-    {
-		memcpy(&eep->domainTable[indexIn], domainInp, includeKey ? sizeof(DomainStruct) : sizeof(DomainStruct) - AUTH_KEY_LEN);
-    }
-    else
-    {
+    int nDomains = IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_TWO_DOMAINS) ? MAX_DOMAINS : 1;
+    if (indexIn < nDomains) {
+        memcpy(&eep->domainTable[indexIn], domainInp, includeKey ? sizeof(IzotDomain) : 
+        sizeof(IzotDomain) - IZOT_AUTHENTICATION_KEY_LENGTH);
+    } else {
         sts = FAILURE;
     }
     return sts;
@@ -156,10 +151,9 @@ Reference: Tech Device Data Book Rev 1 p.9-12
 Purpose:   To access address table entry
 Comments:  None
 ******************************************************************/
-AddrTableEntry *AccessAddress(uint16 indexIn)
+IzotAddress *AccessAddress(IzotUbits16 indexIn)
 {
-    if (indexIn < NUM_ADDR_TBL_ENTRIES)
-    {
+    if (indexIn < eep->readOnlyData.Extended) {
         return(&eep->addrTable[indexIn]);
     }
     return(NULL);
@@ -172,18 +166,17 @@ Reference: Tech Device Data Rev 1 p.9-12
 Purpose:   To update an address table entry.
 Comments:  None
 ******************************************************************/
-Status UpdateAddress(AddrTableEntry *addrEntryInp, uint16 indexIn)
+Status UpdateAddress(const IzotAddress *addrEntryInp, IzotUbits16 indexIn)
 {
     Status sts = SUCCESS;
-    if (indexIn < NUM_ADDR_TBL_ENTRIES)
-    {
+
+    if (indexIn < eep->readOnlyData.Extended) {
         eep->addrTable[indexIn] = *addrEntryInp;
-    }
-    else
-    {
-        LCS_RecordError(INVALID_ADDR_TABLE_INDEX);
+    } else {
+        LCS_RecordError(IzotInvalidAddrTableIndex);
         sts = FAILURE;
     }
+
     return sts;
 }
 
@@ -195,30 +188,27 @@ Purpose:   To check if a node belongs to a given group in the
            given domain. If it does, also get the member number.
 Comments:  If groupMemberOut is NULL, then it is not used.
 ******************************************************************/
-Boolean IsGroupMember(Byte domainIndexIn, uint8 groupIn,
-                      uint8 *groupMemberOut)
+IzotByte IsGroupMember(IzotByte domainIndexIn, IzotByte groupIn,
+                      IzotByte *groupMemberOut)
 {
-    uint16 i;
+    IzotUbits16 i;
 
     for (i = 0; i < NUM_ADDR_TBL_ENTRIES; i++)
     {
-        if (eep->addrTable[i].addrFormat >= 128)
-        {
+        if (IZOT_GET_ATTRIBUTE(eep->addrTable[i].Group, IZOT_ADDRESS_GROUP_TYPE) == 1) {
+
             /* Group Format */
-            if (eep->addrTable[i].groupEntry.groupID == groupIn &&
-                    eep->addrTable[i].groupEntry.domainIndex == domainIndexIn)
-            {
+            if (eep->addrTable[i].Group.Group == groupIn && IZOT_GET_ATTRIBUTE(eep->addrTable[i].Group, 
+            IZOT_ADDRESS_GROUP_DOMAIN) == domainIndexIn) {
                 break;
             }
         }
     }
-    if (i == NUM_ADDR_TBL_ENTRIES)
-    {
+    if (i == NUM_ADDR_TBL_ENTRIES) {
         return(FALSE); /* Not Found */
     }
-    if (groupMemberOut)
-    {
-        *groupMemberOut = eep->addrTable[i].groupEntry.member;
+    if (groupMemberOut) {
+        *groupMemberOut = IZOT_GET_ATTRIBUTE(eep->addrTable[i].Group, IZOT_ADDRESS_GROUP_MEMBER);
     }
     return(TRUE); /* Found */
 }
@@ -232,18 +222,15 @@ Purpose:   To get the addr table index for a given group and domain.
            If there is no such entry in the addr table, return 0xff.
 Comments:  None
 ******************************************************************/
-uint16 AddrTableIndex(uint8 domainIndexIn, uint8 groupIn)
+IzotUbits16 AddrTableIndex(IzotByte domainIndexIn, IzotByte groupIn)
 {
-    uint16 i;
+    IzotUbits16 i;
 
-    for (i = 0; i < NUM_ADDR_TBL_ENTRIES; i++)
-    {
-        if (eep->addrTable[i].addrFormat >= 128)
-        {
+    for (i = 0; i < NUM_ADDR_TBL_ENTRIES; i++) {
+        if (IZOT_GET_ATTRIBUTE(eep->addrTable[i].Group, IZOT_ADDRESS_GROUP_TYPE) == 1) {
             /* Group Format */
-            if (eep->addrTable[i].groupEntry.groupID == groupIn &&
-                    eep->addrTable[i].groupEntry.domainIndex == domainIndexIn)
-            {
+            if (eep->addrTable[i].Group.Group == groupIn && IZOT_GET_ATTRIBUTE(eep->addrTable[i].Group, 
+            IZOT_ADDRESS_GROUP_DOMAIN) == domainIndexIn) {
                 return(i);
             }
         }
@@ -260,13 +247,13 @@ Reference: Tech Device Data Rev 1 p9-9
 Purpose:   To compute the actual buffer size from code
 Comments:  None
 ******************************************************************/
-uint16  DecodeBufferSize(uint8 bufSizeIn)
+IzotUbits16  DecodeBufferSize(IzotByte bufSizeIn)
 {
     if (bufSizeIn <= 15)
     {
         return(bufSizeCodeLGbl[bufSizeIn]);
     }
-    ErrorMsg("DecodeBufferSize: Invalid code.\n");
+    DBG_vPrintf(TRUE, "DecodeBufferSize: Invalid code.\n");
     return(0);
 }
 
@@ -277,13 +264,13 @@ Reference: Tech Device Data Rev 1 p.9-10
 Purpose:   To compute the actual buffer count from code
 Comments:  None
 ******************************************************************/
-uint16  DecodeBufferCnt(uint8 bufCntIn)
+IzotUbits16  DecodeBufferCnt(IzotByte bufCntIn)
 {
     if (bufCntIn <= 15)
     {
         return(bufCntCodeLGbl[bufCntIn]);
     }
-    ErrorMsg("DecodeBufferCnt: Invalid code.\n");
+    DBG_vPrintf(TRUE, "DecodeBufferCnt: Invalid code.\n");
     return(0);
 }
 
@@ -294,13 +281,13 @@ Reference: Tech Device Data Rev 1 p.9-17
 Purpose:   To compute the actual rpt timer value from code
 Comments:  None
 ******************************************************************/
-uint16 DecodeRptTimer(uint8 rptTimerIn)
+IzotUbits16 DecodeRptTimer(IzotByte rptTimerIn)
 {
     if (rptTimerIn <= 15)
     {
         return(rptTimerCodeLGbl[rptTimerIn]);
     }
-    ErrorMsg("DecodeRptTimer: Invalid code.\n");
+    DBG_vPrintf(TRUE, "DecodeRptTimer: Invalid code.\n");
     return(0);
 }
 
@@ -311,13 +298,13 @@ Reference: Tech Device Data Rev 1 p.9-17
 Purpose:   To compute the actual rcv timer value in ms from code
 Comments:  None
 ******************************************************************/
-uint16 DecodeRcvTimer(uint8 rcvTimerIn)
+IzotUbits16 DecodeRcvTimer(IzotByte rcvTimerIn)
 {
     if (rcvTimerIn <= 15)
     {
         return(rcvTimerCodeLGbl[rcvTimerIn]);
     }
-    ErrorMsg("DecodeRcvTimer: Invalid code.\n");
+    DBG_vPrintf(TRUE, "DecodeRcvTimer: Invalid code.\n");
     return(0);
 }
 
@@ -328,19 +315,25 @@ Reference: Tech Device Data Rev 1 p.9-17
 Purpose:   To compute the actual transmit timer value from code
 Comments:  None
 ******************************************************************/
-uint16 DecodeTxTimer(uint8  txTimerIn, Boolean longTimer)
+IzotUbits16 DecodeTxTimer(IzotByte  txTimerIn
+#ifdef IZOT_PROXY
+, IzotByte longTimer
+#endif
+)
 {
-	int v = 16;
-	if (longTimer)
-	{
-		txTimerIn += 16;
-	}
-	v <<= txTimerIn/2;
-	if (txTimerIn&1)
-	{
-		v += v/2;
-	}
-	return v;
+    int v = 16;
+#ifdef IZOT_PROXY
+    if (longTimer)
+    {
+        txTimerIn += 16;
+    }
+#endif
+    v <<= txTimerIn/2;
+    if (txTimerIn&1)
+    {
+        v += v/2;
+    }
+    return v;
 }
 
 
@@ -351,13 +344,30 @@ Reference: Tech Device Data Rev 1 p.9-18
 Purpose:   To Access the NV Config Table Entry given the index
 Comments:  None
 ******************************************************************/
-NVStruct *AccessNV(uint16 indexIn)
+IzotDatapointConfig *AccessNV(IzotUbits16 indexIn)
 {
     if (indexIn < nmp->nvTableSize)
     {
         return(&eep->nvConfigTable[indexIn]);
     }
-    ErrorMsg("AccessNV: Invalid index.\n");
+    DBG_vPrintf(TRUE, "AccessNV: Invalid index.\n");
+    return(NULL);
+}
+
+/*****************************************************************
+Function:  AccessAlias
+Returns:   Address of Alias conf table entry
+Reference:
+Purpose:   To Access the Alias Config Table Entry given the index
+Comments:  None
+******************************************************************/
+IzotAliasConfig *AccessAlias(IzotUbits16 indexIn)
+{
+    if (indexIn < NV_ALIAS_TABLE_SIZE)
+    {
+        return(&eep->nvAliasTable[indexIn]);
+    }
+    DBG_vPrintf(TRUE, "AccessAlias: Invalid index.\n");
     return(NULL);
 }
 
@@ -368,7 +378,7 @@ Reference: Tech Device Data Rev 1 p.9-18
 Purpose:   To update an entry in NV Config Table
 Comments:  None
 ******************************************************************/
-void UpdateNV(NVStruct *nvStructInp, uint16 indexIn)
+void UpdateNV(IzotDatapointConfig *nvStructInp, IzotUbits16 indexIn)
 {
     if (nvStructInp && indexIn < nmp->nvTableSize)
     {
@@ -377,25 +387,36 @@ void UpdateNV(NVStruct *nvStructInp, uint16 indexIn)
     }
     if (nvStructInp)
     {
-        ErrorMsg("UpdateNV: Invalid index.\n");
+        DBG_vPrintf(TRUE, "UpdateNV: Invalid index.\n");
     }
     else
     {
-        ErrorMsg("UpdateNV: NULL nvStructInp.\n");
+        DBG_vPrintf(TRUE, "UpdateNV: NULL nvStructInp.\n");
     }
 }
 
 /*****************************************************************
-Function:  NVTableIndex
-Returns:   index of NV Config Table
-Reference: Tech Device Data Rev 1 p.9-18.
-Purpose:   To retrieve the index corresponding to a network varname.
-Comments:  We don't need this fn for Ref Imp. as the app pgm already
-           has the index for all variables.
+Function:  UpdateAlias
+Returns:   None
+Reference:
+Purpose:   To update an entry in Alias Config Table
+Comments:  None
 ******************************************************************/
-uint16 NVTableIndex(char varNameIn[])
+void UpdateAlias(IzotAliasConfig *aliasStructInp, IzotUbits16 indexIn)
 {
-    return(0);
+    if (aliasStructInp && indexIn < NV_ALIAS_TABLE_SIZE)
+    {
+        eep->nvAliasTable[indexIn] = *aliasStructInp;
+        return;
+    }
+    if (aliasStructInp)
+    {
+        DBG_vPrintf(TRUE, "UpdateAlias: Invalid index.\n");
+    }
+    else
+    {
+        DBG_vPrintf(TRUE, "UpdateAlias: NULL aliasStructInp.\n");
+    }
 }
 
 /*****************************************************************
@@ -410,10 +431,11 @@ Comments:  It is just a sequence of Bytes that is large.
            Each Log is automatically given a number.
            The output has log number followed by message.
 ******************************************************************/
-#ifdef _DEBUG_LCS
+#if DEBUG_LCS
 void ErrorMsg(char errMessageIn[])
 {
     printf(errMessageIn);
+    printf("\n\r");
 }
 
 /*****************************************************************
@@ -428,6 +450,7 @@ Comments:  Actually not recorded anywhere. One needs to set
 void DebugMsg(char debugMsgIn[])
 {
     printf(debugMsgIn);
+    printf("\n\r");
 }
 #endif
 
@@ -441,20 +464,18 @@ Purpose:   A Simple version of storage allocator similar to malloc.
 Comments:  There is no function similar to free. There is no need
            for such a funcion in the Reference Implementation.
 ******************************************************************/
-void *AllocateStorage(uint16 sizeIn)
+void *AllocateStorage(IzotUbits16 sizeIn)
 {
-    Byte *ptr;
+    IzotByte *ptr;
 
     if (gp->mallocUsedSize + sizeIn > MALLOC_SIZE)
     {
-	    assert(0);
-        LCS_RecordError(MEMORY_ALLOC_FAILURE);
+        LCS_RecordError(IzotMemoryAllocFailure);
         return(NULL); /* No space for requested size */
     }
 
     ptr = gp->mallocStorage + gp->mallocUsedSize;
     gp->mallocUsedSize += sizeIn;
-
     return(ptr);
 }
 
@@ -465,28 +486,28 @@ Reference:
 Purpose:   Initialization of node data structures.
 Comments:
 ******************************************************************/
-void NodeReset(Boolean firstReset)
+void NodeReset(IzotByte firstReset)
 {
-    void APPReset(void), TCSReset(void), TSAReset(void),
-    NWReset(void),  LKReset(void),  AppReset(void);
 
-    void (*resetFns[])(void) =
-        {APPReset, TCSReset, TSAReset, NWReset, LKReset, AppReset};
-    uint8 fnNum, fnsCnt;
+    void APPReset(void), TCSReset(void), TSAReset(void), NWReset(void), LsUDPReset(void);
 
-#ifdef INCLUDE_PHYSICAL
+    void (*resetFns[])(void) = {APPReset, TCSReset, TSAReset, NWReset,  LsUDPReset};
+
+    IzotByte fnNum, fnsCnt;
+
     if (!firstReset)
     {
-        PHYDisableSPMIsr();
+        // Just do an actual reset of the device.
     }
-#endif
 
     /* Init variables that are not in EEPROM */
     memset(&nmp->stats, 0, sizeof(StatsStruct));
-    gp->prevPinState[0]  = 0;
+    gp->prevServiceLedState  = 0xFF;
+    gp->preServiceLedPhysical = 0xFF;
 
     /* A node in soft off-line state should go on-line state */
-    if (eep->readOnlyData.nodeState == CNFG_ONLINE && gp->appPgmMode == OFF_LINE)
+    if (IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NODE_STATE) == IzotConfigOnLine && 
+    gp->appPgmMode == OFF_LINE)
     {
         gp->appPgmMode = ON_LINE; /* Normal state. on-line. */
     }
@@ -509,6 +530,7 @@ void NodeReset(Boolean firstReset)
         resetFns[fnNum](); /* Call the Reset function. */
         if (!gp->resetOk)
         {
+            DBG_vPrintf(TRUE, "NodeReset: Failure");
             return;
         }
     }
@@ -522,16 +544,18 @@ void NodeReset(Boolean firstReset)
         memset(gp->prevChallenge, 0, sizeof(gp->prevChallenge));
     }
 
-    if (nmp->resetCause == EXTERNAL_RESET || nmp->resetCause == POWER_UP_RESET)
+    if (nmp->resetCause == IzotExternalReset || nmp->resetCause == IzotPowerUpReset)
     {
         MsTimerSet(&gp->tsDelayTimer, TS_RESET_DELAY_TIME);
     }
     gp->resetNode        = FALSE;
+    
+    IzotReset(NULL);
 }
 
 /*****************************************************************
 Function:  InitEEPROM
-Returns:   None
+Returns:   Status
 Reference: None
 Purpose:   To initialize the EEPROM data items based on constants
            in custom.h and values set in custom.c
@@ -539,135 +563,171 @@ Comments:  Incomplete Initialization. Make sure it has the var you
            want or else add it here or in custom.h or custom.c
                 depending on where it fits.
 ******************************************************************/
-void    InitEEPROM(void)
+Status    InitEEPROM(uint32_t signature)
 {
+    Status sts = SUCCESS;
     int i;
-    char *p;
 
-	// We first get the persistent data from NVM.
-	if (LCS_ReadNvm() != ECHERR_OK)
-	{
-	  	/* Init the entire readOnlyData to 0 first. */
-		memset(&eep->readOnlyData, 0, sizeof(eep->readOnlyData));
-		/* Init the entire configData to 0 first. */
-		memset(&eep->configData, 0, sizeof(eep->configData));
+    // We first get the persistent data from NVM.
+    if (!gp->initialized)
+    {
+        EchErr err;
 
-		/* Init Based on custom.h and default values */
-		eep->readOnlyData.modelNum         = MODEL_NUM;
-		eep->readOnlyData.minorModelNum    = MINOR_MODEL_NUM;
-		eep->readOnlyData.checkSum         = 0;
+        // Init all of NVM
+        memset(eep, 0, sizeof(*eep));
 
-		eep->readOnlyData.nvFixed[0] = 0xFF; /* not useful */
-		eep->readOnlyData.nvFixed[1] = 0xFF;
+        err = LCS_ReadNvm();
+        if (err == ECHERR_INVALID_PARAM)
+        {
+            // This can occur if the NVM image has grown too large for the max PAL size
+            sts = FAILURE;
+        }
+        else if (err != ECHERR_OK || 
+        memcmp(&eep->dimensions, &dimensions, sizeof(dimensions)) || eep->signature != signature)
+        {
+            // Re-init all of NVM
+            memset(eep, 0, sizeof(*eep));
 
-		eep->readOnlyData.runWhenUnconf    = RUN_WHEN_UNCONF;
-		eep->readOnlyData.nvCount          = 0;
-		/* MIP uses 0xFFFF for snvtStruct field. p 9-8 */
-		eep->readOnlyData.snvtStruct[0]    = 0xFF;
-		eep->readOnlyData.snvtStruct[1]    = 0xFF;
-		eep->readOnlyData.nodeState        = CNFG_ONLINE;
-		/* NUM_ADDR_TBL_ENTRIES can be larger than 15, but
-		   addressCnt is set to min(15, NUM_ADDR_TBL_ENTRIES).
-		   The remaining entries are not seen by the lonbuilder tool */
-		eep->readOnlyData.addressCnt       =
-			(NUM_ADDR_TBL_ENTRIES <= 15)?NUM_ADDR_TBL_ENTRIES:15;
-		eep->readOnlyData.receiveTransCnt  =
-			(RECEIVE_TRANS_COUNT < 16)?RECEIVE_TRANS_COUNT-1:15;
-		eep->readOnlyData.appOutBufSize    = APP_OUT_BUF_SIZE;
-		eep->readOnlyData.appInBufSize     = APP_IN_BUF_SIZE;
-		eep->readOnlyData.nwOutBufSize     = NW_OUT_BUF_SIZE;
-		eep->readOnlyData.nwInBufSize      = NW_IN_BUF_SIZE;
-		eep->readOnlyData.nwOutBufPriCnt   = NW_OUT_PRI_Q_CNT;
-		eep->readOnlyData.appOutBufPriCnt  = APP_OUT_PRI_Q_CNT;
-		eep->readOnlyData.appOutBufCnt     = APP_OUT_Q_CNT;
-		eep->readOnlyData.appInBufCnt      = APP_IN_Q_CNT;
-		eep->readOnlyData.nwOutBufCnt      = NW_OUT_Q_CNT;
-		eep->readOnlyData.nwInBufCnt       = NW_IN_Q_CNT;
-		eep->readOnlyData.msgTagCnt        = 0;
+            IZOT_SET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NODE_STATE, 
+            IzotApplicationUnconfig);
 
-		eep->readOnlyData.readWriteProtect = READ_WRITE_PROTECT;
-		eep->readOnlyData.txByAddress      = 0;
-		eep->readOnlyData.aliasCnt         = 0; /* Host based node */
+            /* Initialize configData */
+            IZOT_SET_UNSIGNED_WORD(eep->configData.ChannelId, 0);
+            IZOT_SET_ATTRIBUTE(eep->configData, IZOT_CONFIG_COMM_CLOCK, 3);
+            IZOT_SET_ATTRIBUTE(eep->configData, IZOT_CONFIG_COMM_TYPE, 
+            SPECIAL_PURPOSE);
+            IZOT_SET_ATTRIBUTE(eep->configData, IZOT_CONFIG_COMM_PINDIR, 0x1E); /* 0x17 if wake-up pin is input */
+            eep->configData.PreambleLength      = 0x00; /* for special purpose mode. */
+            eep->configData.PacketCycle         = 0x3F; /* packet_cycle */
+            eep->configData.Beta2Control        = 0xA6; /* beta2 control */
+            eep->configData.TransmitInterpacket = 0x77; /* xmit_interpacket */
+            eep->configData.ReceiveInterpacket  = 0x67; /* recv_interpacket */
+            eep->configData.NodePriority        = 1; /* 0-255. 0 => no priority slot. */
+            eep->configData.ChannelPriorities   = 8; /* 0-255 */
+            eep->configData.CommunicationParameters.TransceiverParameters[0] = 0x0e;
+            eep->configData.CommunicationParameters.TransceiverParameters[1] = 0x01;
+            eep->configData.CommunicationParameters.TransceiverParameters[2] = 0;
+            eep->configData.CommunicationParameters.TransceiverParameters[3] = 0;
+            eep->configData.CommunicationParameters.TransceiverParameters[4] = 0;
+            eep->configData.CommunicationParameters.TransceiverParameters[5] = 0;
+            eep->configData.CommunicationParameters.TransceiverParameters[6] = 0;
+            /* dirParams only used for direct mode not special purpose mode */
+            /* eep->configData.param.dirParams.bitSyncThreshHold = 1; */
+            IZOT_SET_ATTRIBUTE(eep->configData, IZOT_CONFIG_NONGRPRCV, NON_GROUP_TIMER);
+            IZOT_SET_ATTRIBUTE(eep->configData, IZOT_CONFIG_NMAUTH, NmAuth);
+            IZOT_SET_ATTRIBUTE(eep->configData, IZOT_CONFIG_PREEMPT, 0);
 
-		/* Initialize configData */
-		eep->configData.channelId          = 0;
-		eep->configData.commClock          = 3;
-		eep->configData.inputClock         = 5;
-		eep->configData.commType           = SPECIAL_PURPOSE;
-		eep->configData.commPinDir         = 0x1E; /* 0x17 if wake-up pin is input */
-		eep->configData.reserved[0]        = 0x00; /* for special purpose mode. */
-		eep->configData.reserved[1]        = 0x3F; /* packet_cycle */
-		eep->configData.reserved[2]        = 0xA6; /* beta2 control */
-		eep->configData.reserved[3]        = 0x77; /* xmit_interpacket */
-		eep->configData.reserved[4]        = 0x67; /* recv_interpacket */
-		eep->configData.nodePriority       = 1; /* 0-255. 0 => no priority slot. */
-		eep->configData.channelPriorities  = 8; /* 0-255 */
-		eep->configData.param.xcvrParams[0] = 0x0e;
-		eep->configData.param.xcvrParams[1] = 0x01;
-		eep->configData.param.xcvrParams[2] = 0;
-		eep->configData.param.xcvrParams[3] = 0;
-		eep->configData.param.xcvrParams[4] = 0;
-		eep->configData.param.xcvrParams[5] = 0;
-		eep->configData.param.xcvrParams[6] = 0;
-		/* dirParams only used for direct mode not special purpose mode */
-		/* eep->configData.param.dirParams.bitSyncThreshHold = 1; */
-		eep->configData.nonGroupTimer       = NON_GROUP_TIMER;
-		eep->configData.nmAuth              = NM_AUTH;
-		eep->configData.preemptionTimeout   = 0;
+            /* Initialization based on custom.c */
+            memcpy(eep->configData.Location, cp->location, LOCATION_LEN);
+            for (i = 0; i <= cp->twoDomains; i++)
+            {
+                IZOT_SET_ATTRIBUTE(eep->domainTable[i], IZOT_DOMAIN_ID_LENGTH, cp->len[i]);
+                memcpy(eep->domainTable[i].Id, cp->domainId[i], cp->len[i]);
+                eep->domainTable[i].Subnet = cp->subnet[i];
+                IZOT_SET_ATTRIBUTE(eep->domainTable[i], IZOT_DOMAIN_NODE, cp->node[i]);
+                IZOT_SET_ATTRIBUTE(eep->domainTable[i], IZOT_DOMAIN_NONCLONE, cp->clone[i]);
+                memcpy(eep->domainTable[i].Key, cp->key[i], IZOT_AUTHENTICATION_KEY_LENGTH);
+            }
+            LCS_InitAddress();
+            nmp->nvTableSize  = 0;
+            LCS_InitAlias();
+            LCS_WriteNvm();
+        }
+        else
+        {
+            IZOT_SET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NODE_STATE, eep->nodeState);
+        }
 
-		/* Initialization based on custom.c */
-		memcpy(eep->readOnlyData.uniqueNodeId, cp->uniqueNodeId, UNIQUE_NODE_ID_LEN);
-		eep->readOnlyData.twoDomains = cp->twoDomains;
-		memcpy(eep->readOnlyData.progId, cp->progId, ID_STR_LEN);
-		memcpy(eep->configData.location, cp->location, LOCATION_LEN);
-		for (i = 0; i <= cp->twoDomains; i++)
-		{
-			eep->domainTable[i].len = cp->len[i];
-			memcpy(eep->domainTable[i].domainId, cp->domainId[i],
-				   cp->len[i]);
-			eep->domainTable[i].subnet = cp->subnet[i];
-			eep->domainTable[i].node   = cp->node[i];
-			eep->domainTable[i].cloneDomain = 1;
-			memcpy(eep->domainTable[i].key, cp->key[i], AUTH_KEY_LEN);
-		}
-		/* Init Address Table based on custom.c */
-		for (i = 0; i < NUM_ADDR_TBL_ENTRIES; i++)
-		{
-			memcpy(&eep->addrTable[i], &cp->addrTbl[i], 5);
-		}
+        // Record the signature in case the application interface changes.
+        eep->signature = signature;
 
-		/* Init Alias Table based in custom.c */
-		/* Since C initializes missing elements with 0 we use
-		   any non-zero value for hostPrimary field to indicate that
-		   we did initialize an entry. We don't need 0 anyway for
-		   hostPrimary as we can use primary for such entries. */
+        // Read only data we always set.  Note that this means if you modify these things
+        // over the network, they'll get wiped out after a reset.  The reason for this is
+        // to ensure they get updated on an upgrade.
+        // First set stuff from the custom.c values.
+        IZOT_SET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_TWO_DOMAINS, cp->twoDomains);
+        IZOT_SET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_ADDRESS_CNT ,cp->addressCnt);
+        IzotGetUniqueId(&eep->readOnlyData.UniqueNodeId);
+        memcpy(eep->readOnlyData.ProgramId, cp->progId, IZOT_PROGRAM_ID_LENGTH);
+        
+        /* Init remainder based on custom.h and default values */
+        eep->readOnlyData.ModelNum         = MODEL_NUM;
+        IZOT_SET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_MINORNUM, 
+        MINOR_MODEL_NUM);
+        IZOT_SET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_CHECKSUM,0);
 
-		for (i = 0; i < NV_ALIAS_TABLE_SIZE; i++)
-		{
-			memcpy(&eep->nvAliasTable[i], &cp->aliasTbl[i], 6);
-		}
+        eep->readOnlyData.DatapointFixed[0] = 0xFF; /* not useful */
+        eep->readOnlyData.DatapointFixed[1] = 0xFF;
 
-		nmp->nvTableSize  = 0;
-
-		/* Initialize Alias Tables that are not initialized in custom.h */
-		for (i = 0; i < NV_ALIAS_TABLE_SIZE; i++)
-		{
-			/* Init only those that are not given meaningful values
-			   in custom.h */
-			if (eep->nvAliasTable[i].hostPrimary != 0)
-			{
-				continue; /* Skip this as it was initialized in custom.c */
-			}
-
-			p = (char *)&eep->nvAliasTable[i];
-			*p        = (char) 0x70;
-			*(p + 1)  = (char) 0x00;
-			*(p + 2)  = (char) 0x0F;
-			*(p + 3)  = (char) 0xFF;
-			*(p + 4)  = (char) 0xFF;
-			*(p + 5)  = (char) 0xFF;
-		}
-	}
+        // Must be one for NodeUtil to conclude this is a host node
+        IZOT_SET_ATTRIBUTE(eep->readOnlyData, 
+        IZOT_READONLY_DATAPOINT_PROCESSINGOFF, 0);
+        // Just say this is true.  
+        // Not sure why it needs to be in the XIF but ok...
+        IZOT_SET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_MSG_PROCESS,1); 
+        IZOT_SET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_RUN_UNCONFIG, 
+        RUN_WHEN_UNCONF);
+        IZOT_SET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_DATAPOINT_COUNT, 0);
+        /* MIP uses 0xFFFF for snvtStruct field. p 9-8 */
+        eep->readOnlyData.SnvtStruct[0]    = 0xFF;
+        eep->readOnlyData.SnvtStruct[1]    = 0xFF;
+        /* NUM_ADDR_TBL_ENTRIES can be larger than 15, but
+           addressCnt is set to min(15, NUM_ADDR_TBL_ENTRIES).
+           The remaining entries are not seen by the lonbuilder tool */
+        IZOT_SET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_ADDRESS_CNT , 
+        (cp->addressCnt <= 15) ? cp->addressCnt : 15);
+        IZOT_SET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_REC_TRANSCNT, 
+        (RECEIVE_TRANS_COUNT < 16) ? RECEIVE_TRANS_COUNT - 1 : 15);
+        IZOT_SET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_OUTBUF_SIZE, APP_OUT_BUF_SIZE);
+        IZOT_SET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_INBUF_SIZE, APP_IN_BUF_SIZE);
+        IZOT_SET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NW_OUTBUF_SIZE, NW_OUT_BUF_SIZE);
+        IZOT_SET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NW_INBUF_SIZE, NW_IN_BUF_SIZE);
+        IZOT_SET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NW_OUT_PRICNT, NW_OUT_PRI_Q_CNT);
+        IZOT_SET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_OUT_PRICNT, APP_OUT_PRI_Q_CNT);
+        IZOT_SET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_OUTBUF_CNT, APP_OUT_Q_CNT);
+        IZOT_SET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_INBUF_CNT, APP_IN_Q_CNT);
+        IZOT_SET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NW_OUTBUF_CNT, NW_OUT_Q_CNT);
+        IZOT_SET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NW_INBUF_CNT, NW_IN_Q_CNT);
+        IZOT_SET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_MSG_TAG_CNT, BindableMTagCount);
+        IZOT_SET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_RESERVED10, 0x8);
+        
+        IZOT_SET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_RW_PROTECT, READ_WRITE_PROTECT);
+        IZOT_SET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_TX_BY_ADDRESS ,0);
+        IZOT_SET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_ALIAS_CNT, 0); /* Host based node */
+        eep->readOnlyData.AliasCount      = AliasTableCount; /* Host based node */
+        eep->readOnlyData.DatapointCount  = DataPointCount;
+        eep->readOnlyData.Extended          = cp->addressCnt;
+        // Record the dimensions uses for NVM.  If these change, we'll reset all the NVM
+        #if LON_DMF_ENABLED
+        IZOT_SET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_DMF, 1);
+        #endif
+        #ifdef SECURITY_II
+        IZOT_SET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_SEC_II, 1);
+		#endif
+        eep->dimensions = dimensions;
+        
+        si_header_ext->node_sd_text_length = hton16(strlen(cp->szSelfDoc) + 1);
+        si_header_ext->static_nv_count = hton16(DataPointCount);
+        
+        snvt_capability_info->length = hton16(sizeof(capability_info));
+        snvt_capability_info->ver_struct = 1;
+        snvt_capability_info->ver_nm_min = 0;
+        snvt_capability_info->ver_nm_max = 0;
+        snvt_capability_info->ver_binding = 0;
+        memset(snvt_capability_info->ext_cap_flags, 0, NUM_EXTCAP_BYTES);
+        snvt_capability_info->domain_capacity = hton16(cp->twoDomains + 1);
+        snvt_capability_info->address_capacity = (cp->addressCnt <= 15) ? hton16(cp->addressCnt) : hton16(15);
+        snvt_capability_info->static_mtag_capacity = hton16(BindableMTagCount);
+        snvt_capability_info->mcnv_capacity = 0;
+        snvt_capability_info->mcp_capacity = 0;
+        snvt_capability_info->mcs_capacity = 0;
+        snvt_capability_info->max_mc_desc_length = 0;
+        snvt_capability_info->mcnv_current_count = 0;
+        snvt_capability_info->mcnv_max_index = 0;
+        snvt_capability_info->dyn_fb_capacity = 0;
+        snvt_capability_info->eat_address_capacity = cp->addressCnt;
+    }
+    return sts;
 }
 
 /*****************************************************************
@@ -677,9 +737,9 @@ Reference: None
 Purpose:   To compute the primary index
 Comments:  Given index can be either primary or alias.
 ******************************************************************/
-int16 GetPrimaryIndex(int16 nvIndex)
+IzotBits16 GetPrimaryIndex(IzotBits16 nvIndex)
 {
-    int16   primaryIndex;
+    IzotBits16   primaryIndex;
 
     if (nvIndex < 0 || nvIndex >= nmp->nvTableSize + NV_ALIAS_TABLE_SIZE)
     {
@@ -694,11 +754,8 @@ int16 GetPrimaryIndex(int16 nvIndex)
     {
         nvIndex = nvIndex - nmp->nvTableSize; /* Get alias table index. */
         /* Compute the primary index. */
-        primaryIndex = eep->nvAliasTable[nvIndex].primary;
-        if (primaryIndex == 0xFF)
-        {
-            primaryIndex = eep->nvAliasTable[nvIndex].hostPrimary;
-        }
+        primaryIndex = eep->nvAliasTable[nvIndex].Primary; 
+
         if (primaryIndex >= nmp->nvTableSize)
         {
             return(-1); /* Bad index in alias structure. */
@@ -714,7 +771,7 @@ Reference: None
 Purpose:   To compute the pointer to the network variable structure.
 Comments:  The given index can be either primary or alias.
 ******************************************************************/
-NVStruct *GetNVStructPtr(int16 nvIndexIn)
+IzotDatapointConfig *GetNVStructPtr(IzotBits16 nvIndexIn)
 {
     if (nvIndexIn < 0 || nvIndexIn >= nmp->nvTableSize + NV_ALIAS_TABLE_SIZE)
     {
@@ -726,33 +783,7 @@ NVStruct *GetNVStructPtr(int16 nvIndexIn)
         return(&eep->nvConfigTable[nvIndexIn]);
     }
 
-    return(&eep->nvAliasTable[nvIndexIn - nmp->nvTableSize].nvConfig);
-}
-
-/*****************************************************************
-Function:  CheckSum4
-Returns:   4 bit checksum of a given data.
-Reference: None
-Purpose:   To Compute the checksum of an array of bytes of
-           a given length. The check sum is the successive
-           application of exclusive or of successive 4 bits.
-Comments:  None
-******************************************************************/
-uint8   CheckSum4(void *dataIn, uint16 lengthIn)
-{
-    unsigned char *p;
-    uint16 i;
-    uint8 result = 0; /* Final checksum in low order 4 bits. */
-
-    p = dataIn;
-    for (i = 0; i < lengthIn; i++)
-    {
-        result = result ^ (*p >> 4); /* exclusive or with high order
-                                      4 bits */
-        result = result ^ (*p & 0x0F); /* With low order 4 bits */
-        p++;
-    }
-    return(result);
+    return(&eep->nvAliasTable[nvIndexIn - nmp->nvTableSize].Alias);
 }
 
 /*****************************************************************
@@ -764,11 +795,11 @@ Purpose:   To compute the checksum of an array of bytes of
            application of exclusive or of successive 4 bits.
 Comments:  None
 ******************************************************************/
-uint8   CheckSum8(void *dataIn, uint16 lengthIn)
+IzotByte CheckSum8(void *dataIn, IzotUbits16 lengthIn)
 {
     unsigned char *p;
-    uint16 i;
-    uint8 result = 0; /* Final checksum */
+    IzotUbits16 i;
+    IzotByte result = 0; /* Final checksum */
 
     p = dataIn;
     for (i = 0; i < lengthIn; i++)
@@ -785,51 +816,28 @@ Returns:   The configuration checksum.
 Reference: None
 Purpose:   To compute the configuration checksum.
 ******************************************************************/
-uint8 ComputeConfigCheckSum(void)
+IzotByte ComputeConfigCheckSum(void)
 {
-    uint8 checkSum;
-    uint16 size;
+    IzotByte checkSum;
+    IzotUbits16 size;
 
     size = (char*)&eep->configCheckSum - (char *)&eep->configData;
     checkSum = CheckSum8((char *)&eep->configData, size);
     return(checkSum);
 }
 
-/*****************************************************************
-Function:  IOChanges
-Returns:   TRUE if the state of input pin changed.
-Reference: None
-Purpose:   To determine whether there is a state change in input
-           Pin 0.
-Comments:  None
-******************************************************************/
-Boolean IOChanges(uint8 pinNumberIn)
+/****************************************************************
+Function: IsTagBound
+Returns:  TRUE if the tag is bound. FALSE otherwise.
+Purpose:  To determine if a tag is bound or not.
+Comment:  A tag is bound if its address index is not 0xF
+          or there is an alias attached to it whose address
+          index is not 0xF.
+****************************************************************/
+IzotByte IsTagBound(IzotByte tagIn)
 {
-    if (pinNumberIn != 0)
-    {
-        return(FALSE); /* Only Input Pin 0 is supported for now */
-    }
-
-    if (gp->prevPinState[0] == 0 && gp->ioInputPin0)
-    {
-        /* Prev state = released  curstate = pressed */
-        gp->prevPinState[0] = 1;
-        return(TRUE);
-    }
-    if (gp->prevPinState[0] == 1 && !gp->ioInputPin0)
-    {
-        /* prevstate = pressed and curstate = released */
-        gp->prevPinState[0] = 0;
-        return(TRUE);
-    }
-    return(FALSE);
-}
-
-Boolean IsTagBound(uint8 tagIn)
-{
-    return(tagIn < nmp->snvt.mtagCount &&
-           tagIn < NUM_ADDR_TBL_ENTRIES &&
-           eep->addrTable[tagIn].addrFormat != UNBOUND);
+    return(tagIn < nmp->snvt.mtagCount && tagIn < NUM_ADDR_TBL_ENTRIES &&
+    eep->addrTable[tagIn].SubnetNode.Type != IzotAddressUnassigned);
 }
 
 /****************************************************************
@@ -840,11 +848,11 @@ Comment:  A variable is bound if its address index is not 0xF
           or there is an alias attached to it whose address
           index is not 0xF.
 ****************************************************************/
-Boolean IsNVBound(int16 nvIndexIn)
+IzotByte IsNVBound(IzotBits16 nvIndexIn)
 {
-    uint16 i;
-    int16 primaryIndex;
-    uint16 addrIndex;
+    IzotUbits16 i;
+    IzotBits16 primaryIndex;
+    IzotByte addrIndex;
 
     if (nvIndexIn < 0 || nvIndexIn >= nmp->nvTableSize)
     {
@@ -853,10 +861,11 @@ Boolean IsNVBound(int16 nvIndexIn)
 
     /* If the primary has a valid address table index and the address
        table entry is not unbound, then the variable is bound */
-    addrIndex = eep->nvConfigTable[nvIndexIn].nvAddrIndex;
-    if ( addrIndex != 0x0F &&
-            (eep->addrTable[addrIndex].addrFormat != UNBOUND ||
-             eep->addrTable[addrIndex].turnaEntry.turnaround == 1) )
+    addrIndex = ADDR_INDEX(IZOT_GET_ATTRIBUTE(eep->nvConfigTable[nvIndexIn], IZOT_DATAPOINT_ADDRESS_HIGH), 
+    IZOT_GET_ATTRIBUTE(eep->nvConfigTable[nvIndexIn], IZOT_DATAPOINT_ADDRESS_LOW));
+    //Changed as per Extended Address table doc requirement
+    if ( addrIndex != 0xFF && (eep->addrTable[addrIndex].SubnetNode.Type != IzotAddressUnassigned ||
+    eep->addrTable[addrIndex].Turnaround.Turnaround == 1))
     {
         return(TRUE);
     }
@@ -865,15 +874,15 @@ Boolean IsNVBound(int16 nvIndexIn)
        that is bound. */
     for (i = 0; i < NV_ALIAS_TABLE_SIZE; i++)
     {
-        primaryIndex = GetPrimaryIndex((int16)(i + nmp->nvTableSize));
-        addrIndex    = eep->nvAliasTable[i].nvConfig.nvAddrIndex;
+        primaryIndex = GetPrimaryIndex((IzotBits16)(i + nmp->nvTableSize));
+        addrIndex    = ADDR_INDEX(IZOT_GET_ATTRIBUTE(eep->nvAliasTable[i].Alias, IZOT_DATAPOINT_ADDRESS_HIGH), 
+        IZOT_GET_ATTRIBUTE(eep->nvAliasTable[i].Alias, IZOT_DATAPOINT_ADDRESS_LOW));
         /* If the alias matches the primary, has a valid address table
-           index and the address table entry is not UNBOUND, then
+           index and the address table entry is not IzotAddressUnassigned, then
            the primary variable is bound */
-        if (primaryIndex == nvIndexIn &&
-                addrIndex != 0x0F         &&
-                (eep->addrTable[addrIndex].addrFormat != UNBOUND ||
-                 eep->addrTable[addrIndex].turnaEntry.turnaround == 1) )
+        if (primaryIndex == nvIndexIn && addrIndex != 0xFF &&
+        (eep->addrTable[addrIndex].SubnetNode.Type != IzotAddressUnassigned ||
+        eep->addrTable[addrIndex].Turnaround.Turnaround == 1) )
         {
             return(TRUE);
         }
@@ -890,19 +899,19 @@ Purpose:  To determine whether the application program is running or not.
           and events to the application. Also used to determine whether
           to call DoApp or not.
 *******************************************************************************/
-Boolean AppPgmRuns(void)
+IzotByte AppPgmRuns(void)
 {
     /* Normal Mode. Configured and running. */
-    if (eep->readOnlyData.nodeState == CNFG_ONLINE &&
-            gp->appPgmMode == ON_LINE)
+    if (IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NODE_STATE) == IzotConfigOnLine && 
+    gp->appPgmMode == ON_LINE)
     {
         return(TRUE);
     }
 
     /* Unconfigured and running. */
-    if (eep->readOnlyData.nodeState == APPL_UNCNFG &&
-            eep->readOnlyData.runWhenUnconf            &&
-            gp->appPgmMode == ON_LINE)
+    if (IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NODE_STATE) == 
+    IzotApplicationUnconfig && IZOT_GET_ATTRIBUTE(eep->readOnlyData, 
+    IZOT_READONLY_RUN_UNCONFIG) && gp->appPgmMode == ON_LINE)
     {
         return(TRUE);
     }
@@ -912,24 +921,27 @@ Boolean AppPgmRuns(void)
 
 /*******************************************************************************
 Function: NodeConfigured
-Returns:  TRUE if the node configured is valid.
+Returns:  TRUE if the node configuration is valid.
 Purpose:  To determine whether currently the node is configured.
 *******************************************************************************/
-Boolean NodeConfigured(void)
+IzotByte NodeConfigured(void)
 {
-    return(eep->readOnlyData.nodeState == CNFG_ONLINE  ||
-           eep->readOnlyData.nodeState == CNFG_OFFLINE);
+    return (IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NODE_STATE) & IS_CONFIGURED) ? true:false;
 }
 
 /*******************************************************************************
 Function: NodeUnConfigured
 Returns:  TRUE if the node is configured.
 Purpose:  To determine whether currently node is unconfigured.
+### WARNING ###
+NodeUnConfigured() is not just !NodeConfigured() and vice versa.  The reason
+is that we support certain hybrid states where the device's configuration is
+considered valid but the application must not run.
+### WARNING ###
 *******************************************************************************/
-Boolean NodeUnConfigured(void)
+IzotByte NodeUnConfigured(void)
 {
-    return(eep->readOnlyData.nodeState == APPL_UNCNFG  ||
-           eep->readOnlyData.nodeState == NO_APPL_UNCNFG);
+    return IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NODE_STATE) != IzotConfigOnLine;
 }
 
 /*******************************************************************************
@@ -937,15 +949,210 @@ Function: RecordError
 Returns:  void
 Purpose:  Log an error to the error log.
 *******************************************************************************/
-void LCS_RecordError(LcsErrorLog err)
+void LCS_RecordError(IzotSystemError err)
 {
-  	// To avoid wearing out the NVM in case there is repeated logging of the same
-    // error, check for a change first.
-	if (eep->errorLog != err)
-	{
-    	eep->errorLog = err;
-		LCS_WriteNvm();
-	}
+      // To avoid wearing out the NVM in case there is repeated logging of 
+    // the same error, check for a change first.
+    if (eep->errorLog != err)
+    {
+        eep->errorLog = err;
+        LCS_WriteNvm();
+    }
+}
+
+/*******************************************************************************
+Function: LCS_LogRxStat
+Returns:  void
+Purpose:  Log an RX stat.  See above.
+*******************************************************************************/
+void    LCS_LogRxStat(AltPathFlags altPath, RxStatType type)
+{
+    int channel = (altPath&ALT_CHANNEL) ? 1 : 0;
+    nmp->rxStat.rx[channel][altPath&ALT_PATH][type&1]++;
+}
+
+/*******************************************************************************
+Function: LCS_InitAddress
+Returns:  void
+Purpose:  Clear out address table.
+*******************************************************************************/
+void LCS_InitAddress(void)
+{
+    int i;
+
+    /* Init Address Table based on custom.c */
+    for (i = 0; i < NUM_ADDR_TBL_ENTRIES; i++)
+    {
+        memset(&eep->addrTable[i], 0, 5);
+    }
+}
+
+/*******************************************************************************
+Function: LCS_InitAlias
+Returns:  void
+Purpose:  Clear out alias table.
+*******************************************************************************/
+void LCS_InitAlias(void)
+{
+    int i;
+    /* Init Alias Table based in custom.c */
+    /* Since C initializes missing elements with 0 we use
+       any non-zero value for hostPrimary field to indicate that
+       we did initialize an entry. We don't need 0 anyway for
+       hostPrimary as we can use primary for such entries. */
+
+    for (i = 0; i < NV_ALIAS_TABLE_SIZE; i++)
+    {
+        memset(&eep->nvAliasTable[i], 0, 6);
+    }
+
+    /* Initialize Alias Tables that are not initialized in custom.h */
+    for (i = 0; i < NV_ALIAS_TABLE_SIZE; i++)
+    {
+        char *p;
+        /* Init only those that are not given meaningful values
+           in custom.h */
+
+        p = (char *)&eep->nvAliasTable[i];
+        *p        = (char) 0x7F;
+        *(p + 1)  = (char) 0xFF;
+        *(p + 2)  = (char) 0x0F;
+        *(p + 3)  = (char) 0xFF;
+        *(p + 4)  = (char) 0xFF;
+        *(p + 5)  = (char) 0xFF;
+    }
+}
+
+/****************************************************************************
+ *
+ * NAME: AppInit
+ *
+ * DESCRIPTION: Called by LCS init to init Application layer
+ *
+ * PARAMETERS: None
+ *
+ ****************************************************************************/
+Status AppInit(void) 
+{
+#ifdef SECURITY_II
+	LtSecurityII_Init();
+#endif
+    return(SUCCESS);
+};
+
+/****************************************************************************
+ *
+ * NAME: MsgCompletes
+ *
+ * DESCRIPTION: You can call this function when Message successfully sent
+ *              or failed.
+ *
+ ****************************************************************************/
+void MsgCompletes(Status status, MsgTag tag)
+{
+    IzotBool stat = status ? FALSE : TRUE;
+    unsigned Tag =  (unsigned)tag;
+    
+    if (!IzotFilterMsgCompleted(Tag, stat))
+    {
+        IzotMsgCompleted(Tag, stat);
+    }
+}
+
+void DoApp(Bool isOnline) 
+{
+    MsgIn* msg_in = NULL;
+    RespIn* rsp_in = NULL;
+    
+    if (MsgReceive(&msg_in))
+    {
+        if (!IzotFilterMsgArrived(&msg_in->addr, (IzotCorrelator)&msg_in->reqId, 0, msg_in->service, 
+        msg_in->authenticated, msg_in->code, msg_in->data, msg_in->len))
+        {
+            IzotMsgArrived(&msg_in->addr, (IzotCorrelator)&msg_in->reqId, 0, msg_in->service, msg_in->authenticated, 
+            msg_in->code, msg_in->data, msg_in->len); 
+        }
+        MsgFree();
+    }
+    if (RespReceive(&rsp_in))
+    {
+        if (!IzotFilterResponseArrived(&rsp_in->addr, rsp_in->tag, rsp_in->code, rsp_in->data, rsp_in->len))
+        {
+            IzotResponseArrived(&rsp_in->addr, rsp_in->tag, rsp_in->code, rsp_in->data, rsp_in->len);
+        }
+        RespFree();
+    }
+}
+
+/****************************************************************************
+ *
+ * NAME: izot_get_device_state
+ *
+ * DESCRIPTION: This function is for informing the webpages of the current
+ *              state.
+ *
+ ****************************************************************************/
+uint8_t izot_get_device_state(void)
+{
+    return IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NODE_STATE);
+}
+
+/****************************************************************************
+ *
+ * NAME: izot_get_device_mode
+ *
+ ****************************************************************************/
+uint8_t izot_get_device_mode(void)
+{
+    return gp->appPgmMode;
+}
+
+/****************************************************************************
+ *
+ * NAME: izot_get_program_id
+ *
+ ****************************************************************************/
+void izot_get_program_id(uint8_t *pId)
+{
+	memcpy(pId, cp->progId, IZOT_PROGRAM_ID_LENGTH);
+}
+
+/****************************************************************************
+ *
+ * NAME: izot_send_service_pin_wrapper
+ *
+ ****************************************************************************/
+void izot_send_service_pin_wrapper(void)
+{
+    ManualServiceRequestMessage();
+}
+
+/****************************************************************************
+ *
+ * NAME: izot_device_reset
+ *
+ ****************************************************************************/
+void izot_device_reset(void)
+{
+    gp->resetNode = TRUE;
+    nmp->resetCause = IzotSoftwareReset; /* Software reset. */
+}
+
+void izot_get_cpm_sdk_version(char *cpm_sdk_version)
+{
+    char version[10];
+    snprintf(version, 10, "%d.%d.%02d", FIRMWARE_VERSION, FIRMWARE_MINOR_VERSION, FIRMWARE_BUILD);
+    strcpy(cpm_sdk_version, version);
+}
+
+IzotBool IsPhysicalResetRequested(void)
+{
+    return do_reset;
+}
+
+void PhysicalResetRequested(void)
+{
+	do_reset = TRUE;
 }
 
 /*************************End of node.c*************************/
