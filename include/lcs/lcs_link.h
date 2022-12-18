@@ -1,4 +1,7 @@
-// Copyright (C) 2022 Dialog Semiconductor
+//
+// lcs_link.h
+//
+// Copyright (C) 2022 EnOcean
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in 
@@ -19,41 +22,31 @@
 // SOFTWARE.
 
 /*******************************************************************************
-          File:        link.h
+     Reference:        ISO/IEC 14908-1, Link Layer
 
-       Version:        1.7
-
-     Reference:        Protocol Specification: Link Layer
-
-       Purpose:        Prototypes for link layer functions.
-
-          Note:        None
-
-         To Do:        None
-
+       Purpose:        Prototypes for the LON link layer when using a MIP
+                       transport.  These interfaces are not used with an IP
+                       transport.
 *******************************************************************************/
 #ifndef _LINK_H
 #define _LINK_H
 
 /*------------------------------------------------------------------------------
-Section: Includes
-------------------------------------------------------------------------------*/
-/* None */
+  Section: Includes
+  ------------------------------------------------------------------------------*/
 
 /*------------------------------------------------------------------------------
-Section: Constant Definitions
-------------------------------------------------------------------------------*/
-/* None */
+  Section: Constant Definitions
+  ------------------------------------------------------------------------------*/
 
 /*------------------------------------------------------------------------------
-Section: Type Definitions
-------------------------------------------------------------------------------*/
+  Section: Type Definitions
+  ------------------------------------------------------------------------------*/
 typedef short LinkHandle;
 
 /*------------------------------------------------------------------------------
-Section: Globals
-------------------------------------------------------------------------------*/
-/* None */
+  Section: Globals
+  ------------------------------------------------------------------------------*/
 
 /*------------------------------------------------------------------------------
 Section: Function Prototypes
@@ -62,7 +55,8 @@ void LKReset(void);
 void LKSend(void);
 void LKReceive(void);
 
-void CRC16(Byte bufInOut[], uint16 sizein);
+void LK_UpdateCommParams(CpWrite cpWrite);
+void LK_RefreshNeuron(IzotUbits16 offset, IzotByte count, IzotByte offchip);
 #endif
 
 /******************************* End of link.h ********************************/
