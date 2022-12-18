@@ -1,4 +1,7 @@
-// Copyright (C) 2022 Dialog Semiconductor
+//
+// lcs_timer.c
+//
+// Copyright (C) 2022 EnOcean
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in 
@@ -19,15 +22,13 @@
 // SOFTWARE.
 
 /*******************************************************************************
-          File:  lsc_timer.c
-
-       Purpose:  Timer APIs
+       Purpose:  Implement timer APIs.
 *******************************************************************************/
-
+#include <stddef.h>
+#include "IzotTypes.h"
 #include "lcs_eia709_1.h"
 #include "lcs_timer.h"
 #include "lcs_node.h"
-
 
 /*****************************************************************
 Function:  GetCurrentMsTime
@@ -36,7 +37,7 @@ Reference:
 Purpose:   To get the current time.
 Comments:  None
 ******************************************************************/
-uint32 GetCurrentMsTime(void)
+IzotUbits32 GetCurrentMsTime(void)
 {
     return TMR_GetCurrentTime();
 }
@@ -51,33 +52,28 @@ Comments:  The timer is set to given value. The lastUpdateTime is
            update the timer value.  Setting a timer to 0 means it
 		   is stopped (no expiration will occur).
 ******************************************************************/
-void MsTimerSet(MsTimer *timerOut, uint16 initValueIn)
+void MsTimerSet(MsTimer *timerOut, IzotUbits16 initValueIn)
 {
-	if (initValueIn)
-	{
+	if (initValueIn) {
 		TMR_Start(timerOut, initValueIn);
-	}
-	else
-	{
+	} else {
 		TMR_Stop(timerOut);
 	}
 }
 
-
 /*****************************************************************
 Function:  MsTimerExpired
 Returns:   TRUE if the timer has expired. FALSE if the timer has
-            not expired or it has expired but has already been
-            reported as expired.
+           not expired or it has expired but has already been
+           reported as expired.
 Reference: None
 Purpose:   To update given timer and test if it expired.
 Comments:  None
 ******************************************************************/
-Boolean MsTimerExpired(MsTimer *timerInOut)
+IzotByte MsTimerExpired(MsTimer *timerInOut)
 {
 	return TMR_Expired(timerInOut);
 }
-
 
 /*****************************************************************
 Function:  MsTimerRunning
@@ -85,7 +81,7 @@ Purpose:   To see if a timer is still running.  Different from MsTimerExpired()
            in that it will return true once timer expires whereas MsTimerExpired() only
 		   returns true once.
 ******************************************************************/
-Boolean MsTimerRunning(MsTimer *timerInOut)
+IzotByte MsTimerRunning(MsTimer *timerInOut)
 {
 	return TMR_Running(timerInOut);
 }

@@ -1,4 +1,7 @@
-// Copyright (C) 2022 Dialog Semiconductor
+//
+// lcs_timer.h
+//
+// Copyright (C) 2022 EnOcean
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in 
@@ -19,9 +22,7 @@
 // SOFTWARE.
 
 /*******************************************************************************
-          File:  Timer.h
-
-       Purpose:  Timer APIs
+       Purpose:  Interfaces for timer APIs.
 *******************************************************************************/
 
 #ifndef _TIMER_H
@@ -31,11 +32,11 @@
 
 typedef TmrTimer MsTimer;
 
-uint32  GetCurrentMsTime(void);
-void    MsTimerSet(MsTimer *timerOut, uint16 initValueIn);
+IzotUbits32  GetCurrentMsTime(void);
+void    MsTimerSet(MsTimer *timerOut, IzotUbits16 initValueIn);
 // Returns true once upon expiration.
-Boolean MsTimerExpired(MsTimer *timerInOut);
+IzotByte MsTimerExpired(MsTimer *timerInOut);
 // Returns true as long as timer is running.
-Boolean MsTimerRunning(MsTimer *timerInOut);
+IzotByte MsTimerRunning(MsTimer *timerInOut);
 
 #endif // _TIMER_H
