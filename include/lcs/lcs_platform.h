@@ -1,4 +1,7 @@
-// Copyright (C) 2022 Dialog Semiconductor
+//
+// lcs_platform.h
+//
+// Copyright (C) 2022 EnOcean
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in 
@@ -19,46 +22,34 @@
 // SOFTWARE.
 
 /*********************************************************************
-  File:           Platform.h
-
-  Purpose:        Contains platform dependent definitions.
+  Purpose:        Platform-dependent definitions.
 *********************************************************************/
 
 #ifndef _PLATFORM_H
 #define _PLATFORM_H
 
-#include "EchVersion.h"
+#include "echversion.h"
 
 // The base Neuron firmware version on which this implementation is based.
 #define BASE_FIRMWARE_VERSION   16
+
 // The version number of this firmware
-#define FIRMWARE_VERSION        (0x80 + VER_MAJOR_D)
-#define FIRMWARE_BUILD			VER_BUILD_D
+#define FIRMWARE_VERSION        VERSION_MAJOR
+#define FIRMWARE_MINOR_VERSION  VERSION_MINOR
+#define FIRMWARE_BUILD			VERSION_BUILD
 
 // The model number of this platform
-#define MODEL_NUMBER            0xD0
+#define MODEL_NUMBER            0x73
 
-/* The following type definitions need to be changed based on the
-   compiler used. The rest of the files should use only int8,
-   int16, uint8 etc. Application programs should use
-   nint (8-bit int), nlong etc as much as possible. */
-typedef signed char         int8;
-typedef short int           int16;
-typedef long int            int32;
-typedef unsigned char       uint8;
-typedef unsigned short int  uint16;
-typedef unsigned long int   uint32;
+/* Data type definitions */
+typedef IzotBits8		nshort;
+typedef IzotBits8		nint;
+typedef IzotByte		nuint;
+typedef IzotByte		nushort;
+typedef IzotBits16	nlong;
+typedef IzotUbits16	nulong;
 
-/* Typical 709.1 definitions for int long etc. */
-typedef int8                nshort;
-typedef int8                nint;
-typedef uint8               nuint;
-typedef uint8               nushort;
-typedef int16               nlong;
-typedef uint16              nulong;
-
-typedef unsigned char		Boolean;
-typedef unsigned char		BitField;
+typedef IzotByte		BitField;
 
 // Turn on packing so that structures are packed on byte boundaries.  This should be done globally via a compiler switch.  Otherwise, try using
 // a pragma such as #pragma pack
@@ -66,33 +57,24 @@ typedef unsigned char		BitField;
 // Number of stacks on this platform
 #define NUM_STACKS 1
 
-// Define code to toggle the service LED
-#ifdef WIN32
-#define TOGGLE_SERVICE_LED
-#else
-#define TOGGLE_SERVICE_LED            gp->ioOutputPin1 = 1 - gp->ioOutputPin1; /* Toggle. */
-#endif
-
 // This macro takes a C enum type and turns it into a Byte type that will fit into C data structures that are sent on the network.
-#define NetEnum(enumType) Byte
+#define NetEnum(enumType) IzotByte
 
-// C stack defines bitfields MSB first.  
+// C stack defines bitfields MSB first.
 #define BITF_DECLARED_BIG_ENDIAN
 // Target compiler expects bitfields LSB first.
 #define BITF_LITTLE_ENDIAN
 
 #include "bitfield.h"
 
+#ifndef LITTLE_ENDIAN
 #define LITTLE_ENDIAN
-#include "endian.h"
+#endif
 
 // Specify a way for the application program to suspend so that other apps can run and we don't consume all the CPU
 #ifdef WIN32
 #include "windows.h"
 #define TAKE_A_BREAK Sleep(1);
-#else
-#include "smip_ldv.h"
-#define TAKE_A_BREAK SMP_Service();
 #endif
 
 #endif   /* _PLATFORM_H */
