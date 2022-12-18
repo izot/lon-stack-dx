@@ -33,13 +33,12 @@
 /*****************************************************************
 Function:  SetLonTimer
 Returns:   None
-Reference: None
-Purpose:   To set a timer value to a given value in ms.
-Comments:  The timer is set to given value. The lastUpdateTime is
-           set to current time. UpdateTimer is called later to
-           update the timer value.  Setting a timer to 0 means it
-		   is stopped (no expiration will occur).  V1 used
-		   TMR_Start() and TMR_Stop() using TmrTimer pointers.
+Purpose:   Sets a timer value to a given value in milliseconds.
+Comments:  Sets the timer to the specified value. The interval
+		   can be up to about 24 days.  Set the value to 0 to stop 
+		   the current time interval, but does not terminate a
+		   repeating timer.  Use SetLonRepeatTimer() to stop
+		   any repeats.
 ******************************************************************/
 void SetLonTimer(LonTimer *timerOut, IzotUbits16 initValueIn)
 {
@@ -53,6 +52,25 @@ void SetLonTimer(LonTimer *timerOut, IzotUbits16 initValueIn)
 		}
 	} else {
 		timerOut->expiration = 0;
+	}
+}
+
+/*****************************************************************
+Function:  SetLonRepeatTimer
+Returns:   None
+Purpose:   Sets a repeating timer value to a given value in
+		   milliseconds and repeating at the same interval.
+Comments:  Sets the timer to the specified value. The interval
+		   can be up to about 24 days.  Set the value to 0 to stop 
+		   the current time interval and any repeats.
+******************************************************************/
+void SetLonRepeatTimer(LonTimer *timerOut, IzotUbits16 initValueIn)
+{
+	SetLonTimer(timerOut, initValueIn);
+	if (initValueIn) {
+    	timerOut->repeatTimeout = initValueIn;
+ 	} else {
+		timerOut->repeatTimeout = 0;
 	}
 }
 
@@ -87,6 +105,7 @@ IzotByte LonTimerExpired(LonTimer *timerInOut)
 
 /*****************************************************************
 Function:  LonTimerRunning
+Returns:   TRUE if the timer is still running.
 Purpose:   Check if a timer is still running.  Returns true only
            if the timer was ever started and has not expired yet.  
            Different from LonTimerExpired() in that it will return 
@@ -97,5 +116,20 @@ Comments:  V1 used TMR_Running().
 IzotByte LonTimerRunning(LonTimer *timerInOut)
 {
 	return timerInOut->expiration && !LonTimerExpired(timerInOut);
+}
+
+/*****************************************************************
+Function:  LonTimerRemaining
+Returns:   Number of milliseconds left on the timer.
+Purpose:   Return the number of milliseconds left on a timer, or
+		   return 0 if the timer is not running or expired.
+******************************************************************/
+IzotUbits16 LonTimerRemaining(LonTimer *timerInOut)
+{
+	IzotUbits16 remaining = 0;
+	if (LonTimerRunning(timerInOut)) {
+		remaining = timerInOut->expiration - IzotGetTickCount();
+	}
+	return remaining;
 }
 

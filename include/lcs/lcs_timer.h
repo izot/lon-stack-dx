@@ -44,9 +44,11 @@ typedef struct
 } LonWatch;
 
 void    SetLonTimer(LonTimer *timerOut, IzotUbits16 initValueIn);
+void    SetLonRepeatTimer(LonTimer *timerOut, IzotUbits16 initValueIn);
 // Returns true once upon expiration.
 IzotByte LonTimerExpired(LonTimer *timerInOut);
 // Returns true as long as timer is running.
 IzotByte LonTimerRunning(LonTimer *timerInOut);
+IzotUbits16 LonTimerRemaining(LonTimer *timerInOut);
 
 #endif // _TIMER_H
