@@ -546,7 +546,7 @@ void NodeReset(IzotByte firstReset)
 
     if (nmp->resetCause == IzotExternalReset || nmp->resetCause == IzotPowerUpReset)
     {
-        MsTimerSet(&gp->tsDelayTimer, TS_RESET_DELAY_TIME);
+        SetLonTimer(&gp->tsDelayTimer, TS_RESET_DELAY_TIME);
     }
     gp->resetNode        = FALSE;
     

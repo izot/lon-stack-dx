@@ -282,13 +282,13 @@ typedef IZOT_ENUM_BEGIN(TransferAckResponse)
 /*------------------------------------------------------------------------------
   Section: Globals
   ------------------------------------------------------------------------------*/
-extern MsTimer  iupInitFirmwareTimer;
+extern LonTimer  iupInitFirmwareTimer;
 extern IzotByte	iupImageValidated;
-extern MsTimer  iupValidateFirmwareTimer;
-extern MsTimer	iupSwitchOverTimer;
+extern LonTimer  iupValidateFirmwareTimer;
+extern LonTimer	iupSwitchOverTimer;
 extern IzotByte	iupImageCommited;
-extern MsTimer	iupCommitFirmwareTimer;
-extern MsTimer  iupMd5EventTimer;
+extern LonTimer	iupCommitFirmwareTimer;
+extern LonTimer  iupMd5EventTimer;
 
 /*------------------------------------------------------------------------------
   Section: Function Prototypes

@@ -89,8 +89,8 @@ Section: Statics
 ------------------------------------------------------------------------------*/
 // Encoded domain length
 static const IzotByte domainLengthTable[4] = { 0, 1, 3, 6 }; 
-static MsTimer        AnnouncementTimer;
-static MsTimer        AgingTimer;
+static LonTimer        AnnouncementTimer;
+static LonTimer        AgingTimer;
 
 /*
  * SECTION: FUNCTIONS
@@ -735,8 +735,8 @@ IzotByte *pNpdu, uint16_t *pLtVxLen
         pLsUdpPayload[0] == IPV4_EXP_MSG_CODE && pduLen >= 12 && pLsUdpPayload[1] == 
         IPV4_EXP_SET_LS_ADDR_MAPPING_ANNOUNCEMENT_PARAM) {
             // Stop the timer first
-            MsTimerSet(&AnnouncementTimer, 0);
-            MsTimerSet(&AgingTimer, 0);
+            SetLonTimer(&AnnouncementTimer, 0);
+            SetLonTimer(&AgingTimer, 0);
             
             AnnounceTimer = pLsUdpPayload[2] << 24 || pLsUdpPayload[3] << 16 || 
             pLsUdpPayload[4] << 8 || pLsUdpPayload[5];
@@ -744,8 +744,8 @@ IzotByte *pNpdu, uint16_t *pLtVxLen
             pLsUdpPayload[10] << 8 || pLsUdpPayload[11];
                                     
             // Set the new timer
-            MsTimerSet(&AnnouncementTimer, AnnounceTimer * 1000);
-            MsTimerSet(&AgingTimer, AddrMappingAgingTimer * 1000);
+            SetLonTimer(&AnnouncementTimer, AnnounceTimer * 1000);
+            SetLonTimer(&AgingTimer, AddrMappingAgingTimer * 1000);
         }
 #endif
         memcpy(p, pLsUdpPayload, pduLen);
@@ -936,8 +936,8 @@ void LsUDPReset(void)
         return;
     }
 
-    MsTimerSet(&AnnouncementTimer, AnnounceTimer*1000);
-    MsTimerSet(&AgingTimer, AddrMappingAgingTimer*1000);
+    SetLonTimer(&AnnouncementTimer, AnnounceTimer*1000);
+    SetLonTimer(&AgingTimer, AddrMappingAgingTimer*1000);
 
     return;
 }
@@ -965,17 +965,17 @@ void LsUDPSend(void)
     uint16_t       lsUdpLen;                    // size of lsudp payload formed
 
     // Check for the announcement timer
-    if (MsTimerExpired(&AnnouncementTimer)) {
+    if (LonTimerExpired(&AnnouncementTimer)) {
         SendAnnouncement();
         // Set the announcement timer again
-        MsTimerSet(&AnnouncementTimer, AnnounceTimer * 1000);
+        SetLonTimer(&AnnouncementTimer, AnnounceTimer * 1000);
     }
     
     // Check for the LS/IP address mapping aging
-    if (MsTimerExpired(&AgingTimer)) {
+    if (LonTimerExpired(&AgingTimer)) {
         ClearMapping();
         // Set the aging timer again
-        MsTimerSet(&AgingTimer, AddrMappingAgingTimer * 1000);
+        SetLonTimer(&AgingTimer, AddrMappingAgingTimer * 1000);
     }
     
     

@@ -91,11 +91,11 @@ struct partition_entry *part = NULL;
 mdev_t                 *device = NULL;
 IzotByte iupImageValidated;
 IzotByte iupCommitTimerStarted;
-MsTimer  iupInitFirmwareTimer;
-MsTimer  iupValidateFirmwareTimer;
-MsTimer  iupMd5EventTimer;
-MsTimer  iupSwitchOverTimer;
-MsTimer  iupCommitFirmwareTimer;
+LonTimer  iupInitFirmwareTimer;
+LonTimer  iupValidateFirmwareTimer;
+LonTimer  iupMd5EventTimer;
+LonTimer  iupSwitchOverTimer;
+LonTimer  iupCommitFirmwareTimer;
 
 /*------------------------------------------------------------------------------
  Section: Static
@@ -493,7 +493,7 @@ void ComputeMD5Digest(void)
     }
         
     fileSizeTemp = 0;
-    MsTimerSet(&iupMd5EventTimer, 2);
+    SetLonTimer(&iupMd5EventTimer, 2);
 }
 
 /*******************************************************************************
@@ -524,7 +524,7 @@ void CalculateMD5(void)
             }
             fileSizeTemp += sizeof(md5buffer);
         }
-        MsTimerSet(&iupMd5EventTimer, 2);
+        SetLonTimer(&iupMd5EventTimer, 2);
     } else {
         MD5Final(digestResp, &md5c);
 #ifdef LCS_DEBUG        
@@ -706,7 +706,7 @@ void HandleNmeIupInit(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
     DBG_vPrintf(TRUE, "IupImageLen: %d\r\n\n", iupPersistData.initData.IupImageLen);
     DBG_vPrintf(TRUE, "Initializing Image Update Process...\r\n");
     
-    MsTimerSet(&iupInitFirmwareTimer, IUP_INIT_FIRMWARE_TIMER_VALUE);
+    SetLonTimer(&iupInitFirmwareTimer, IUP_INIT_FIRMWARE_TIMER_VALUE);
     SendResponse(appReceiveParamPtr->reqId, NM_resp_success | NM_EXPANDED, sizeof(init_response), 
     (IzotByte *)&init_response);
     return;
@@ -898,7 +898,7 @@ void HandleNmeIupValidate(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
         validate_response.resultCode = IUP_VALIDATE_RESULT_STILL_PENDING;
         memcpy(saltBytes, validate_request->saltBytes, sizeof(saltBytes));
         memcpy(digestBytes, validate_request->digestBytes, sizeof(digestBytes));
-        MsTimerSet(&iupValidateFirmwareTimer, 
+        SetLonTimer(&iupValidateFirmwareTimer, 
         IUP_VALIDATE_FIRMWARE_TIMER_VALUE);
         validate_response.actionTime = swapword(60);
     }
@@ -977,7 +977,7 @@ void HandleNmeIupSwitchOver(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
     }
         
     // Start the switchover timer
-    MsTimerSet(&iupSwitchOverTimer, countDownTimer * IUP_SWITCHOVER_TIMER_VALUE);
+    SetLonTimer(&iupSwitchOverTimer, countDownTimer * IUP_SWITCHOVER_TIMER_VALUE);
     
     switchover_response.resultCode = IUP_SWITCHOVER_RESULT_SUCCESS;
     SendResponse(appReceiveParamPtr->reqId, NM_resp_success | NM_EXPANDED, sizeof(switchover_response), 
@@ -1082,7 +1082,7 @@ void HandleNmeIupCommit(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
 	if (iupPersistData.SecondaryFlag) {
 		if (!iupPersistData.iupCommitDone) {
 			DBG_vPrintf("Commiting Image...\r\n");
-			MsTimerSet(&iupCommitFirmwareTimer, IUP_COMMIT_FIRMWARE_TIMER_VALUE);
+			SetLonTimer(&iupCommitFirmwareTimer, IUP_COMMIT_FIRMWARE_TIMER_VALUE);
 			commit_response.resultCode = IUP_COMMIT_RESULT_STILL_PENDING;
 			commit_response.actionTime = swapword(IUP_COMMIT_RESPONSE_ACTION_TIME);
 		} else {

@@ -30,13 +30,23 @@
 
 #include "tmr.h"
 
-typedef TmrTimer MsTimer;
+// Structure: LonTimer
+typedef struct __attribute__ ((packed))
+{
+	IzotUbits16	expiration;		// Time to expire
+	IzotUbits16	repeatTimeout;  // Repeat timeout on expiration (0 means not repeating)
+} LonTimer;
 
-IzotUbits32  GetCurrentMsTime(void);
-void    MsTimerSet(MsTimer *timerOut, IzotUbits16 initValueIn);
+// Structure: LonWatch
+typedef struct
+{
+	IzotUbits16	start;			// Time watch started
+} LonWatch;
+
+void    SetLonTimer(LonTimer *timerOut, IzotUbits16 initValueIn);
 // Returns true once upon expiration.
-IzotByte MsTimerExpired(MsTimer *timerInOut);
+IzotByte LonTimerExpired(LonTimer *timerInOut);
 // Returns true as long as timer is running.
-IzotByte MsTimerRunning(MsTimer *timerInOut);
+IzotByte LonTimerRunning(LonTimer *timerInOut);
 
 #endif // _TIMER_H

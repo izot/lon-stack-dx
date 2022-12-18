@@ -975,25 +975,25 @@ void APPReceive(void)
     APPRspReceive();
 	APPMsgReceive();
 	
-	if (MsTimerExpired(&iupInitFirmwareTimer)) {
+	if (LonTimerExpired(&iupInitFirmwareTimer)) {
 		InitUpdateProcess();
 	}
 	
-	if (MsTimerExpired(&iupValidateFirmwareTimer)) {
+	if (LonTimerExpired(&iupValidateFirmwareTimer)) {
         ComputeMD5Digest();
     }
     
-    if (MsTimerExpired(&iupMd5EventTimer)) {
+    if (LonTimerExpired(&iupMd5EventTimer)) {
         CalculateMD5();
 	}
 	
-	if (MsTimerExpired(&iupSwitchOverTimer)) {
+	if (LonTimerExpired(&iupSwitchOverTimer)) {
 		if (iupImageValidated) {
 			SwitchOverImage();
         }
 	}
 	
-	if (MsTimerExpired(&iupCommitFirmwareTimer)) {
+	if (LonTimerExpired(&iupCommitFirmwareTimer)) {
 		CommitImage();
 	}
 }

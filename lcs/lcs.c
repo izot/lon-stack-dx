@@ -94,8 +94,8 @@ Status LCS_Init(IzotResetCause cause)
         eep->configCheckSum   = ComputeConfigCheckSum();
 		nmp->resetCause		  = cause;
 
-	    MsTimerSet(&gp->ledTimer, LED_TIMER_VALUE);
-		MsTimerSet(&gp->checksumTimer, CHECKSUM_TIMER_VALUE); // Initial value
+	    SetLonTimer(&gp->ledTimer, LED_TIMER_VALUE);
+		SetLonTimer(&gp->checksumTimer, CHECKSUM_TIMER_VALUE); // Initial value
     }
 	return SUCCESS;
 }
@@ -150,7 +150,7 @@ void LCS_Service()
 		APPReceive();
 
 		// Flash service LED if needed.
-		if (MsTimerExpired(&gp->ledTimer)) {
+		if (LonTimerExpired(&gp->ledTimer)) {
 			if (IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NODE_STATE) == IzotApplicationUnconfig) {
 				gp->serviceLedState = SERVICE_BLINKING;
 				gp->serviceLedPhysical = 1 - gp->serviceLedPhysical;
@@ -169,11 +169,11 @@ void LCS_Service()
 				gp->prevServiceLedState = gp->serviceLedState;
 				gp->preServiceLedPhysical = gp->serviceLedPhysical;
             }
-			MsTimerSet(&gp->ledTimer, LED_TIMER_VALUE); // Reset timer
+			SetLonTimer(&gp->ledTimer, LED_TIMER_VALUE); // Reset timer
 		}
 
 		// Check for integrity of config structure
-		if (MsTimerExpired(&gp->checksumTimer)) {
+		if (LonTimerExpired(&gp->checksumTimer)) {
 			if (!NodeUnConfigured() &&
 					eep->configCheckSum != ComputeConfigCheckSum()) {
 				DBG_vPrintf(TRUE, "\n: +++++++++++  LCS RESET +++++++++++++");
@@ -186,7 +186,7 @@ void LCS_Service()
 				nmp->resetCause = IzotSoftwareReset;
 				LCS_RecordError(IzotCnfgCheckSumError);
 			}
-			MsTimerSet(&gp->checksumTimer, CHECKSUM_TIMER_VALUE);
+			SetLonTimer(&gp->checksumTimer, CHECKSUM_TIMER_VALUE);
 		}
 	}
 }

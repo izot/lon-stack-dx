@@ -323,7 +323,7 @@ typedef struct
         IzotReceiveBroadcast  subnet;  /* 0 if domainwide broadcast */
         IzotByte              uniqueNodeId[UNIQUE_NODE_ID_LEN];
     } addr;
-    MsTimer                  timer;
+    LonTimer                  timer;
     TransNum                 tid;    /* Last TID used for this addr */
 } TIDTableEntry;
 
@@ -382,7 +382,7 @@ typedef struct
     IzotByte           ackCount;             /* Or respCount              */
     TransNum           transNum;
     IzotUbits16        xmitTimerValue;
-    MsTimer            xmitTimer;            /* Transmit Timer            */
+    LonTimer            xmitTimer;            /* Transmit Timer            */
     IzotByte           retriesLeft;          /* How many left?            */
     APDU              *apdu;                 /* APDU transmitted          */
     IzotUbits16        apduSize;             /* Size of APDU              */
@@ -399,7 +399,7 @@ typedef struct  __attribute__((__packed__))
     SourceAddress        srcAddr;        /* Who sent this?         */
     TransNum             transNum;
     RequestId            reqId;          /* For matching response  */
-    MsTimer              recvTimer;      /* receive timer          */
+    LonTimer              recvTimer;      /* receive timer          */
     TransactionState     transState;     /* What state is it in    */
     IzotByte              priority;
     IzotByte              altPath;        /* Was alt path used?     */
@@ -586,7 +586,7 @@ typedef struct
 
     /* Timer to delay Transport/Session layers after an external or
        power-up reset. */
-    MsTimer tsDelayTimer;
+    LonTimer tsDelayTimer;
 
     /* Transmit and Receive Records */
     TransmitRecord xmitRec;
@@ -802,8 +802,8 @@ typedef struct
     IzotUbits16 nextBindableMsgTag;
     IzotUbits16 nextNonbindableMsgTag;
 
-	MsTimer ledTimer;		/* To flash service LED */
-    MsTimer checksumTimer;	/* How often to checksum */
+	LonTimer ledTimer;		/* To flash service LED */
+    LonTimer checksumTimer;	/* How often to checksum */
 
 	TmrTimer proxyBufferWait;
 

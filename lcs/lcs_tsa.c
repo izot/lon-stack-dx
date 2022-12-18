@@ -254,7 +254,7 @@ void SendCompletion(TSASendParam *tsaSendParamPtr, IzotByte success)
  ******************************************************************/
 IzotByte SendBlocked(void)
 {
-    return MsTimerRunning(&gp->tsDelayTimer);
+    return LonTimerRunning(&gp->tsDelayTimer);
 }
 
 /*****************************************************************
@@ -388,7 +388,7 @@ void TPSend(void)
     /***************************************************
     Priority transaction timer expired event.
     **************************************************/
-    if (gp->priXmitRec.status == TRANSPORT_TX && !MsTimerRunning(&gp->priXmitRec.xmitTimer)) {
+    if (gp->priXmitRec.status == TRANSPORT_TX && !LonTimerRunning(&gp->priXmitRec.xmitTimer)) {
         DBG_vPrintf(TRUE, "TPSend: Priority transaction timer expired event.\n");
         XmitTimerExpiration(TRANSPORT, TRUE);
         return;
@@ -404,7 +404,7 @@ void TPSend(void)
     /***************************************************
     Non-priority transaction timer expired event.
     *************************************************/
-    else if (gp->xmitRec.status == TRANSPORT_TX && !MsTimerRunning(&gp->xmitRec.xmitTimer)) {
+    else if (gp->xmitRec.status == TRANSPORT_TX && !LonTimerRunning(&gp->xmitRec.xmitTimer)) {
         DBG_vPrintf(TRUE, "TPSend: Non-priority transaction timer expired event.\n");
         XmitTimerExpiration(TRANSPORT, FALSE);
     }
@@ -534,7 +534,7 @@ static void XmitTimerExpiration(Layer layerIn, IzotByte priorityIn)
         simply delete the next two lines of code */
         xmitRecPtr->retriesLeft--;
         /* Start the transmit timer */
-        MsTimerSet(&xmitRecPtr->xmitTimer, xmitRecPtr->xmitTimerValue);
+        SetLonTimer(&xmitRecPtr->xmitTimer, xmitRecPtr->xmitTimerValue);
         DBG_vPrintf(TRUE, "XmitTimerExp: Retry failure due to no space in net");
         return;
     }
@@ -641,7 +641,7 @@ static void XmitTimerExpiration(Layer layerIn, IzotByte priorityIn)
                 of space in network queue. */
                 xmitRecPtr->retriesLeft--;
                 /* Start the transmit timer. */
-                MsTimerSet(&xmitRecPtr->xmitTimer, xmitRecPtr->xmitTimerValue);
+                SetLonTimer(&xmitRecPtr->xmitTimer, xmitRecPtr->xmitTimerValue);
                 DBG_vPrintf(TRUE, "XmitTimerExp: Retry failure due to no"
                         " space in network buffer.\n");
                 return; /* Not enough space in the queue. Come back. */
@@ -797,7 +797,7 @@ static void XmitTimerExpiration(Layer layerIn, IzotByte priorityIn)
         // on multiple repeaters and thus extra time is needed to propagate a failing response down the chain.
         xmitRecPtr->xmitTimerValue += xmitRecPtr->txTimerDeltaLast;
     }
-    MsTimerSet(&xmitRecPtr->xmitTimer, xmitRecPtr->xmitTimerValue);
+    SetLonTimer(&xmitRecPtr->xmitTimer, xmitRecPtr->xmitTimerValue);
     
     return;
 }
@@ -1087,7 +1087,7 @@ nwSendParamPtr->pduSize = xmitRecPtr->apduSize + dataIndex + 1;
 EnQueue(nwQPtr);
 
 /* Start the transmit timer. */
-MsTimerSet(&xmitRecPtr->xmitTimer, xmitRecPtr->xmitTimerValue);
+SetLonTimer(&xmitRecPtr->xmitTimer, xmitRecPtr->xmitTimerValue);
 
 return;
 }
@@ -1108,7 +1108,7 @@ IzotBits16 i;
 /* Update all the receive timers, if they do exist */
 for (i = 0; i < gp->recvRecCnt; i++) {
     if (gp->recvRec[i].status == TRANSPORT_RR) {
-        if (MsTimerExpired(&gp->recvRec[i].recvTimer)) {
+        if (LonTimerExpired(&gp->recvRec[i].recvTimer)) {
             /* Timer expired. See if RR can be released. */
             DBG_vPrintf(TRUE, "\nTPReceive: Receive timer expired.\n");
             gp->recvRec[i].status = UNUSED_RR; /* Release the RR */
@@ -1303,7 +1303,7 @@ DeQueue(&gp->tsaInQ);
 
 /* Restart the Xmit Timer if the Xmit record is still active. */
 if (xmitRecPtr->status != UNUSED_TX) {
-    MsTimerSet(&xmitRecPtr->xmitTimer, xmitRecPtr->xmitTimerValue);
+    SetLonTimer(&xmitRecPtr->xmitTimer, xmitRecPtr->xmitTimerValue);
 }
 
 return;
@@ -1583,7 +1583,7 @@ DeQueue(&gp->tsaInQ);
 
 /* Restart the timer if the xmit rec is still active. */
 if (xmitRecPtr->status != UNUSED_TX) {
-    MsTimerSet(&xmitRecPtr->xmitTimer, xmitRecPtr->xmitTimerValue);
+    SetLonTimer(&xmitRecPtr->xmitTimer, xmitRecPtr->xmitTimerValue);
 }
 
 return;
@@ -1742,7 +1742,7 @@ if (initRR) {
     recvTimerValue = ComputeRecvTimerValue(
             tsaReceiveParamPtr->srcAddr.addressMode,
             tsaReceiveParamPtr->srcAddr.group.GroupId);
-    MsTimerSet(&gp->recvRec[i].recvTimer, recvTimerValue);
+    SetLonTimer(&gp->recvRec[i].recvTimer, recvTimerValue);
 }
 
 DeQueue(&gp->tsaInQ); /* Remove item from queue. */
@@ -2010,7 +2010,7 @@ recvTimerValue = ComputeRecvTimerValue(tsaReceiveParamPtr->srcAddr.addressMode,
         tsaReceiveParamPtr->srcAddr.group.GroupId);
 DeQueue(&gp->tsaInQ); /* Remove the item from queue. */
 
-MsTimerSet(&gp->recvRec[i].recvTimer, recvTimerValue);
+SetLonTimer(&gp->recvRec[i].recvTimer, recvTimerValue);
 
 gp->recvRec[i].needAuth = pduPtr->auth;
 
@@ -2512,7 +2512,7 @@ if (!QueueEmpty(&gp->tsaRespQ) && !QueueFull(&gp->nwOutQ)) {
 /***************************************************
  Priority transmit timer expired event.
  **************************************************/
-if (gp->priXmitRec.status == SESSION_TX && !MsTimerRunning(
+if (gp->priXmitRec.status == SESSION_TX && !LonTimerRunning(
         &gp->priXmitRec.xmitTimer)) {
     DBG_vPrintf(TRUE, "\n\nSNSend:  Priority transmit timer expired event.\n");
     XmitTimerExpiration(SESSION, TRUE);
@@ -2530,7 +2530,7 @@ else if (gp->priXmitRec.status == UNUSED_TX && !QueueEmpty(&gp->tsaOutPriQ)
 /***************************************************
  Non-priority timer expired event.
  *************************************************/
-else if (gp->xmitRec.status == SESSION_TX && !MsTimerRunning(
+else if (gp->xmitRec.status == SESSION_TX && !LonTimerRunning(
         &gp->xmitRec.xmitTimer)) {
     DBG_vPrintf(TRUE, "\n\nSNSend:   Non-priority timer expired event.\n");
     XmitTimerExpiration(SESSION, FALSE);
@@ -2566,7 +2566,7 @@ IzotBits16 i;
 /* Update Receive Timers, if they do exist */
 for (i = 0; i < gp->recvRecCnt; i++) {
     if (gp->recvRec[i].status == SESSION_RR) {
-        if (MsTimerExpired(&gp->recvRec[i].recvTimer)) {
+        if (LonTimerExpired(&gp->recvRec[i].recvTimer)) {
             /* Timer expired. Release the receive record. */
             DBG_vPrintf(TRUE, "SNReceive: Receive timer expired.\n");
             gp->recvRec[i].status = UNUSED_RR; /* Release the RR */
@@ -3024,7 +3024,7 @@ EnQueue(nwQueuePtr);
 DeQueue(&gp->tsaInQ);
 DBG_vPrintf(TRUE, "SendReply: Sending a reply msg.\n");
 /* Restart the transmit timer. */
-MsTimerSet(&xmitRecPtr->xmitTimer, xmitRecPtr->xmitTimerValue);
+SetLonTimer(&xmitRecPtr->xmitTimer, xmitRecPtr->xmitTimerValue);
 return;
 }
 

@@ -272,7 +272,7 @@ Status NewTrans(IzotByte   priorityIn, DestinationAddress addrIn,
             transRecPtr->transNum = *transNumPtr;
         }
         tbl[i].tid   = *transNumPtr;
-        MsTimerSet(&tbl[i].timer,
+        SetLonTimer(&tbl[i].timer,
                    (IzotUbits16)(MIN_TABLE_TIME * 1000));
         *transNumOut = *transNumPtr;
         transRecPtr->inProgress = TRUE;
@@ -287,7 +287,7 @@ Status NewTrans(IzotByte   priorityIn, DestinationAddress addrIn,
         found = FALSE;
         for (i = 0; i < *tblSize; i++)
         {
-            if (MsTimerExpired(&tbl[i].timer))
+            if (LonTimerExpired(&tbl[i].timer))
             {
                 found = TRUE;
                 break;
@@ -352,7 +352,7 @@ Status NewTrans(IzotByte   priorityIn, DestinationAddress addrIn,
         DBG_vPrintf(TRUE, 
         "NewTrans: Invalid addressMode at unexpected place\n");
     }
-    MsTimerSet(&tbl[*tblSize].timer, (IzotUbits16)(MIN_TABLE_TIME * 1000));
+    SetLonTimer(&tbl[*tblSize].timer, (IzotUbits16)(MIN_TABLE_TIME * 1000));
     tbl[*tblSize].tid = *transNumPtr;
     *transNumOut      = *transNumPtr;
     (*tblSize)++;

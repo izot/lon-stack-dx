@@ -1127,7 +1127,7 @@ volatile History hBufGbl = {0}; /* Initialize to zero */
 volatile uint32 exceptions = 0;
 
 /* Timer for PHYIO */
-MsTimer phyIOTimer;
+LonTimer phyIOTimer;
 
 /*-------------------------------------------------------------------
 Section: Local Function Prototypes
@@ -2209,7 +2209,7 @@ Comments:  None
 ******************************************************************/
 void PHYIOInit(void)
 {
-   MsTimerSet(&phyIOTimer, (uint16)(PHYIO_CHECK_INTERVAL * 1000));
+   SetLonTimer(&phyIOTimer, (uint16)(PHYIO_CHECK_INTERVAL * 1000));
    gp->resetPinPrevState    = 1; /* Allow Reset Button Push */
    gp->manualServiceRequestPrevState  = 1; /* Allow Manual Service Request Push */
    gp->ioInputPin0PrevState = 1;
@@ -2237,7 +2237,7 @@ void PHYIO(void)
 
    /* Perform Pin related checks only on timer expiry
       to avoid bounce problem */
-   if (MsTimerExpired(&phyIOTimer))
+   if (LonTimerExpired(&phyIOTimer))
    {
       /* check reset switch */
       /* reset pulled low &&
@@ -2293,7 +2293,7 @@ void PHYIO(void)
                                           press will allow push */
       }
 
-      MsTimerSet(&phyIOTimer,
+      SetLonTimer(&phyIOTimer,
                (uint16)(PHYIO_CHECK_INTERVAL * 1000));
    }
 

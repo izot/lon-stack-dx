@@ -31,58 +31,71 @@
 #include "lcs_node.h"
 
 /*****************************************************************
-Function:  GetCurrentMsTime
-Returns:   Current Time (not necessarily real time)
-Reference:
-Purpose:   To get the current time.
-Comments:  None
-******************************************************************/
-IzotUbits32 GetCurrentMsTime(void)
-{
-    return TMR_GetCurrentTime();
-}
-
-/*****************************************************************
-Function:  MsTimerSet
+Function:  SetLonTimer
 Returns:   None
 Reference: None
 Purpose:   To set a timer value to a given value in ms.
 Comments:  The timer is set to given value. The lastUpdateTime is
            set to current time. UpdateTimer is called later to
            update the timer value.  Setting a timer to 0 means it
-		   is stopped (no expiration will occur).
+		   is stopped (no expiration will occur).  V1 used
+		   TMR_Start() and TMR_Stop() using TmrTimer pointers.
 ******************************************************************/
-void MsTimerSet(MsTimer *timerOut, IzotUbits16 initValueIn)
+void SetLonTimer(LonTimer *timerOut, IzotUbits16 initValueIn)
 {
 	if (initValueIn) {
-		TMR_Start(timerOut, initValueIn);
+    	timerOut->repeatTimeout = 0;
+    	timerOut->expiration = IzotGetTickCount() + initValueIn;
+
+		if (timerOut->expiration == 0) {
+			// Zero signals that a timer is not running so disallow it.
+			timerOut->expiration = 1;
+		}
 	} else {
-		TMR_Stop(timerOut);
+		timerOut->expiration = 0;
 	}
 }
 
 /*****************************************************************
-Function:  MsTimerExpired
+Function:  LonTimerExpired
 Returns:   TRUE if the timer has expired. FALSE if the timer has
            not expired or it has expired but has already been
            reported as expired.
 Reference: None
 Purpose:   To update given timer and test if it expired.
-Comments:  None
+Comments:  V1 used TMR_Expired().
 ******************************************************************/
-IzotByte MsTimerExpired(MsTimer *timerInOut)
+IzotByte LonTimerExpired(LonTimer *timerInOut)
 {
-	return TMR_Expired(timerInOut);
+    IzotBits32 delta = (IIzotBits32nt32) (timerInOut->expiration - IzotGetTickCount());
+    IzotByte isExpired = timerInOut->expiration && delta <= 0;
+    if (isExpired) {
+        timerInOut->expiration = 0;
+        if (timerInOut->repeatTimeout) {
+            IzotUbits16 t = timerInOut->repeatTimeout;
+            if ((IzotBits32) (t + delta) < 0) {
+                // The repeat timeout is behind the current time.  Set the
+                // delta to 0 to miss a tick.
+                delta = 0;
+            }
+            SetLonTimer(timerInOut, t + delta);
+            timerInOut->repeatTimeout = t;
+        }
+    }
+    return isExpired;
 }
 
 /*****************************************************************
-Function:  MsTimerRunning
-Purpose:   To see if a timer is still running.  Different from MsTimerExpired()
-           in that it will return true once timer expires whereas MsTimerExpired() only
+Function:  LonTimerRunning
+Purpose:   Check if a timer is still running.  Returns true only
+           if the timer was ever started and has not expired yet.  
+           Different from LonTimerExpired() in that it will return 
+		   true once timer expires whereas LonTimerExpired() only 
 		   returns true once.
+Comments:  V1 used TMR_Running().
 ******************************************************************/
-IzotByte MsTimerRunning(MsTimer *timerInOut)
+IzotByte LonTimerRunning(LonTimer *timerInOut)
 {
-	return TMR_Running(timerInOut);
+	return timerInOut->expiration && !LonTimerExpired(timerInOut);
 }
 

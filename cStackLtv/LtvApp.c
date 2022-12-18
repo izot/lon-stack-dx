@@ -42,8 +42,8 @@
 
 //#pragma net_buf_in_count 7
 
-MsTimer lightTimer;
-MsTimer actionTimer;
+LonTimer lightTimer;
+LonTimer actionTimer;
 
 //#pragma num_alias_table_entries 10
 //#pragma num_addr_table_entries 15
@@ -269,7 +269,7 @@ void HandleActionTimer(void)
     }
     if (--actionBuf.iterations)
     {
-        MsTimerSet(&actionTimer, actionBuf.sleepTime);
+        SetLonTimer(&actionTimer, actionBuf.sleepTime);
     }
 }
 
@@ -299,7 +299,7 @@ void HandleMsg(void)
     {
         // Special directives to perform actions
         memcpy(&actionBuf, msg_in.data, msg_in.len);
-        MsTimerSet(&actionTimer, 1);
+        SetLonTimer(&actionTimer, 1);
     }
     else
     {
@@ -368,12 +368,12 @@ void OnlineEvent()
 void Wink(void)
 {
     gp->ioOutputPin1 = 1;
-    MsTimerSet(&lightTimer, 1000);
+    SetLonTimer(&lightTimer, 1000);
 }
 
 void DoApp(void)
 {
-    if (MsTimerExpired(&lightTimer))
+    if (LonTimerExpired(&lightTimer))
     {
         gp->ioOutputPin1 = FALSE;
     }
@@ -381,7 +381,7 @@ void DoApp(void)
     {
         if (++changes == 2) GoUnconfigured();
     }
-    if (MsTimerExpired(&actionTimer))
+    if (LonTimerExpired(&actionTimer))
     {
         HandleActionTimer();
     }

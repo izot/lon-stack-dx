@@ -58,7 +58,7 @@ Section: Type Definitions
 /*-------------------------------------------------------------------
 Section: Globals 
 -------------------------------------------------------------------*/
-MsTimer lightTimer;
+LonTimer lightTimer;
 Boolean lightOn;
 
 int8   whichOutVar;
@@ -144,7 +144,7 @@ Section: Function Definitions
 -------------------------------------------------------------------*/
 void DoApp(void)
 {
-   if (MsTimerExpired(&lightTimer))
+   if (LonTimerExpired(&lightTimer))
    {
       LightOff();
    }
@@ -187,7 +187,7 @@ void  AppInit(void)
 void  AppReset(void)
 {
    lightOn = FALSE;
-   MsTimerSet(&lightTimer, 0); /* Init to 0 */
+   SetLonTimer(&lightTimer, 0); /* Init to 0 */
    whichOutVar = 0;
    if (intOutIndex == -1 || longOutIndex == -1 || intArrayOutIndex == -1 ||
        intInIndex == -1 || longInIndex == -1 || intArrayInIndex == -1)
@@ -221,7 +221,7 @@ void NVUpdateOccurs(int16 nvIndex, int16 nvArrayIndex)
 void  Wink(void)
 {
    gp->ioOutputPin1 = TRUE;
-   MsTimerSet(&lightTimer, LIGHT_DURATION * 1000);
+   SetLonTimer(&lightTimer, LIGHT_DURATION * 1000);
 }
 
 void OfflineEvent()
@@ -239,7 +239,7 @@ void NVUpdateCompletes(Status status, int16 nvIndex, int16 nvArrayIndex)
 void LightOn(void)
 {
    gp->ioOutputPin1 = TRUE;
-   MsTimerSet(&lightTimer, LIGHT_DURATION * 1000);
+   SetLonTimer(&lightTimer, LIGHT_DURATION * 1000);
    lightOn = TRUE;
 }
 
