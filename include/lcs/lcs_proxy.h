@@ -1,7 +1,7 @@
 //
-// Proxy.h
+// lcs_proxy.h
 //
-// Copyright (C) 2022 Dialog Semiconductor
+// Copyright (C) 2022 EnOcean
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in 
@@ -21,8 +21,14 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+//
+//  Purpose: Interfaces for LON Enhanced Proxy (LTEP) repeating.
+//
+
 #ifndef __PROXY_H
 #define __PROXY_H
+
+#ifdef ENABLE_PROXY_REPEATING
 
 #pragma pack(push, 1)
 
@@ -173,8 +179,11 @@ typedef enum
 
 #define LT_ENHANCED_PROXY_SUCCESS		0x4D
 #define LT_ENHANCED_PROXY_FAILURE		0x4C
-
+#if 0
 Status ProcessLTEP(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr);
 Status ProcessLtepCompletion(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr, Status status);
+#endif
+
+#endif // ENABLE_PROXY_REPEATING
 
 #endif // __PROXY_H

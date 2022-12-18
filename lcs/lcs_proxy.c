@@ -1,7 +1,7 @@
 //
 // lcs_proxy.c
 //
-// Copyright (C) 2022 Dialog Semiconductor
+// Copyright (C) 2022 EnOcean
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in 
@@ -22,7 +22,7 @@
 // SOFTWARE.
 
 //
-// LonTalk Enhanced Proxy library
+//  Purpose: LON Enhanced Proxy (LTEP) repeating.
 //
 //  PS - proxy source - initiates transaction chain.
 //  PR - proxy repeater - forwards proxy message.
@@ -30,9 +30,11 @@
 //  PT - proxy target - terminates proxy chain.
 //
 
+#ifdef ENABLE_PROXY_REPEATING
 #include <stddef.h>
 #include <string.h>
-
+#include <stdio.h>
+#include "IzotTypes.h"
 #include "lcs_eia709_1.h"
 #include "lcs_node.h"
 #include "lcs_app.h"
@@ -54,12 +56,12 @@ static const unsigned char addrSizeTable[PX_ADDRESS_TYPES] =
     sizeof(ProxyHeader) + sizeof(ProxySicb) + sizeof(ProxySubnetNodeAddressCompact),
 };
 
+
 void processProxyRepeaterAsAgent(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr, int txcpos)
 {
-    // Even though I am a repeater, I must also serve as an agent.  This
-    // intended only for unackd/multicast/broadcast.  For this case, we
-    // must allocate an additional buffer.  If not available, then we
-    // just don't send the message.
+    // Enable a repeater to also serve as an agent.  This is only for
+    // unackd/multicast/broadcast.  Allocate an additional buffer.  
+    // If not available don't send the message.
     int len = (int)(txcpos+sizeof(ProxyTxCtrl));
 
     // Make sure packet has a certain minimum size.
@@ -69,7 +71,7 @@ void processProxyRepeaterAsAgent(APPReceiveParam *appReceiveParamPtr, APDU *apdu
 		APDU			apdu;
 
 		memcpy(&arp, appReceiveParamPtr, sizeof(arp));
-		arp.service				= UNACKD;
+		arp.service				= IzotServiceUnacknowledged;
 		arp.proxy				= TRUE;
 		arp.pduSize				= arp.pduSize - len + 2;
 		apdu.code.allBits       = LT_APDU_ENHANCED_PROXY;
@@ -84,14 +86,15 @@ void processProxyRepeaterAsAgent(APPReceiveParam *appReceiveParamPtr, APDU *apdu
 //
 // Process a LTEP completion event
 //
+
 Status ProcessLtepCompletion(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr, Status status)
 {
 	Status sts = SUCCESS;
 	if (!appReceiveParamPtr->proxyDone)
 	{
 		int len = 0;
-		Byte code = LT_ENHANCED_PROXY_SUCCESS;
-		Byte data[1];
+		IzotByte code = LT_ENHANCED_PROXY_SUCCESS;
+		IzotByte data[1];
 
 		if (status == FAILURE)
 		{
@@ -113,11 +116,12 @@ Status ProcessLTEP(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
 {
     int             offset;
     int             count;
+	IzotByte    	proxyCount;
     int             uniform;
     int				alt;
-    int             code;
+    DestinType      code;
     int             subnet;
-	int				node;
+	int				node = 0;
     int             src_subnet;
     int             dst_subnet;
     int             txcpos;
@@ -125,20 +129,23 @@ Status ProcessLTEP(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
     ProxyHeader     ph;
     ProxyTxCtrl     txc;
     int             dataLen = appReceiveParamPtr->pduSize-1;
-    Byte*           pData = apduPtr->data;
+    IzotByte*       pData = apduPtr->data;
     int             txTimer = 0;
     int             domIdx = appReceiveParamPtr->srcAddr.dmn.domainIndex;
-    Queue		   *tsaOutQPtr;
-	TSASendParam   *tsaSendParamPtr;
-	APDU		   *apduSendPtr;
-	Boolean			altKey = FALSE;
-	Boolean			longTimer = FALSE;
-	static TmrTimer proxyBufferWait;
+    Queue		   *outQPtr;
+	AltKey			altKey;
+	IzotByte			longTimer = FALSE;
+	IzotServiceType		service;
+    int 			adjust = 0;
+	IzotSendAddress		addr;
+
+	memset(&addr, 0, sizeof(addr));
+	altKey.altKey = false;
 
     ph = *(ProxyHeader*)pData;
     uniform = ph.uniform_by_src || ph.uniform_by_dest;
-    src_subnet = appReceiveParamPtr->srcAddr.subnetAddr.subnet;
-    dst_subnet = eep->domainTable[domIdx].subnet;
+    src_subnet = appReceiveParamPtr->srcAddr.subnetAddr.Subnet;
+    dst_subnet = eep->domainTable[domIdx].Subnet;
     if (ph.uniform_by_src)
     {
         subnet = src_subnet;
@@ -147,7 +154,7 @@ Status ProcessLTEP(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
     {
         subnet = dst_subnet;
     }
-    count = ph.count;
+    proxyCount = count = ph.count;
     txcpos = (int)(sizeof(ProxyHeader) + (uniform ?
                                           sizeof(ProxySubnetNodeAddressCompact)*count :
                                           sizeof(ProxySubnetNodeAddress)*count));
@@ -160,45 +167,6 @@ Status ProcessLTEP(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
         processProxyRepeaterAsAgent(appReceiveParamPtr, apduPtr, txcpos);
     }
 
-	// Get an output buffer for the proxy relay
-    if (appReceiveParamPtr->priority)
-    {
-        tsaOutQPtr = &gp->tsaOutPriQ;
-    }
-    else
-    {
-        tsaOutQPtr = &gp->tsaOutQ;
-    }
-
-    /* Check if the target queue has space for forwarding this request. */
-    if (QueueFull(tsaOutQPtr))
-    {
-        // Failure indicates we didn't process the message so don't free it!  
-	    // Note that the following deadlock condition can occur:
-	    // App Input queue full but stymied by proxy relay
-		// TSA queue full but stymied because there are no App Input buffers to send completion event to.
-		// On the Neuron, this can't occur because completion events are sent in the output buffer, not a new input buffer.
-		// LCS should probably be implemented more like the Neuron.  In the meantime, let's just have a timeout where
-		// we fail the proxy if we can't get an output buffer.
-		if (TMR_Expired(&proxyBufferWait))
-		{
-			ProcessLtepCompletion(appReceiveParamPtr, apduPtr, FAILURE);
-			return SUCCESS;
-		}
-		else if (!TMR_Running(&proxyBufferWait))
-		{
-			TMR_Start(&proxyBufferWait, 1000);
-		}
-        return FAILURE;
-    }
-	else
-	{
-		TMR_Stop(&proxyBufferWait);
-	}
-
-    tsaSendParamPtr					= QueueTail(tsaOutQPtr);
-    apduSendPtr						= (APDU *)(tsaSendParamPtr + 1);
-
     // If we got something on the flex domain, we just use domain index 0.
     if (domIdx == FLEX_DOMAIN)
 	{
@@ -207,7 +175,6 @@ Status ProcessLTEP(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
 
     if (count != 0)
     {
-        int adjust;
         ProxySubnetNodeAddress *pa;
 
         pa = (ProxySubnetNodeAddress*) (&pData[sizeof(ProxyHeader)] - uniform);
@@ -216,7 +183,7 @@ Status ProcessLTEP(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
 		longTimer = ph.long_timer;
 		subnet = uniform ? subnet : pa->subnet;
 		node = pa->node;
-	    tsaSendParamPtr->service  = appReceiveParamPtr->service;
+	    service  = appReceiveParamPtr->service;
 
         count--;
 
@@ -229,20 +196,18 @@ Status ProcessLTEP(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
             offset += (int)sizeof(ProxyTxCtrl);
         }
 
-        // To handle the case where repeated messages time out, we need to allow for
-        // the fact that each repeater in the chain needs a little bit more time on the last timeout
-        // than the previous guy.  So, we allow 512 msec for each round trip to propagate the failure
+        // To handle the case where repeated messages time out, allow for the fact that each
+        // repeater in the chain needs a little bit more time on the last timeout that the
+        // previous repeater.  So, we allow 512 msec for each round trip to propagate the failure
         // message.  This means adding 512*count msec at each hop.
-        // This kludge is timed for A band power line.  If this proxy mechanism were employed in just about
-        // any other medium, this would not be necessary.  So, the adjustment is deployed as a function of
-        // the tx_timer.
+        // This is timed for A-band power line.  This may not be necessary of higher-speed channels.
+        // The adjustment is deployed as a function of the tx_timer.
         adjust = 256;                               // Add constant 256 msec at every hop
-        if (ph.long_timer || txc.timer >= 10) adjust = 2*count;     // Add 512 msec per hop
+        if (ph.long_timer || txc.timer >= 10) adjust = 512*count;     // Add 512 msec per hop
         else if (txc.timer >= 8) adjust = 256*count;// Add 256 msec per hop
-		tsaSendParamPtr->txTimerDeltaLast = adjust;
 
         // Send message on to next PR or PA
-        code = LT_APDU_ENHANCED_PROXY;
+        code.allBits = LT_APDU_ENHANCED_PROXY;
         ph.count--;
         // Position new header into data space in preparation for copy below.
         pData[--offset] = *(unsigned char*)&ph;
@@ -254,8 +219,7 @@ Status ProcessLTEP(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
         pProxySicb = (ProxySicb*)&pData[sizeof(ProxyHeader)];
         txc = pProxySicb->txctrl;
 
-        tsaSendParamPtr->service = (ServiceType)pProxySicb->service;
-		tsaSendParamPtr->txTimerDeltaLast = 0;
+        service = (IzotServiceType)pProxySicb->service;
 
         // Set some explicit address fields.  These are assumed
         // to be the same for all address types.
@@ -278,10 +242,10 @@ Status ProcessLTEP(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
 				int len;
 				int domainIndex = domIdx;
                 ProxyAuthKey* pKey;
-                Byte            *pKeyDelta;
+                IzotByte            *pKeyDelta;
 
                 pKey = (ProxyAuthKey*)pAddress;
-				altKey = TRUE;
+				altKey.altKey = TRUE;
 				// The altKeyOma field only tells us the length of the key.  Whether or not OMA is used is dependent on the 
 				// type of challenge received which is based on the configuration of the target domain index 0.
                 len = (unsigned char)(pKey->type == AUTH_OMA ? sizeof(((ProxyOmaKey*)pKey)->key):sizeof(pKey->key));
@@ -293,7 +257,7 @@ Status ProcessLTEP(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
 					int j;
                     for (j=0; j<DOMAIN_ID_LEN; j++)
                     {
-                        tsaSendParamPtr->altKey.altKeyValue[i][j] = eep->domainTable[domainIndex].key[j] + *pKeyDelta;
+                        altKey.altKeyValue[i][j] = eep->domainTable[domainIndex].Key[j] + *pKeyDelta;
                         pKeyDelta++;
                     }
 					domainIndex++;
@@ -306,11 +270,11 @@ Status ProcessLTEP(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
             switch (pProxySicb->type)
             {
             case PX_NEURON_ID:
-				memcpy(tsaSendParamPtr->destAddr.uniqueNodeId.uniqueId, pAddress->nid.nid, sizeof(tsaSendParamPtr->destAddr.uniqueNodeId.uniqueId));
+				memcpy(addr.uniqueNodeId.NeuronId, pAddress->nid.nid, sizeof(addr.uniqueNodeId.NeuronId));
 				subnet = pAddress->nid.subnet;
                 break;
             case PX_NEURON_ID_COMPACT:
-				memcpy(tsaSendParamPtr->destAddr.uniqueNodeId.uniqueId, pAddress->nidc.nid, sizeof(tsaSendParamPtr->destAddr.uniqueNodeId.uniqueId));
+				memcpy(addr.uniqueNodeId.NeuronId, pAddress->nidc.nid, sizeof(addr.uniqueNodeId.NeuronId));
 				subnet = 0;
                 break;
             case PX_SUBNET_NODE_COMPACT_SRC:
@@ -320,6 +284,7 @@ Status ProcessLTEP(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
             case PX_SUBNET_NODE_COMPACT_DEST:
 				subnet = dst_subnet;
 				node = pAddress->snc.node;
+				addressType = SUBNET_NODE;
                 break;
             case PX_GROUP:
                 addressType = 0x80 | pAddress->gp.size;
@@ -344,44 +309,103 @@ Status ProcessLTEP(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
             }
         }
 
-        code = pData[offset++];
+        code.allBits = pData[offset++];
         alt = pProxySicb->path;
     }
 
+	addr.snode.longTimer    = longTimer;
+	addr.snode.addrMode		= addressType;
+	addr.snode.txTimer		= txTimer;
+	addr.snode.rptTimer     = txTimer;
+	addr.snode.retryCount	= txc.retry;
+	addr.snode.node			= node;
+	addr.snode.subnetID		= subnet;
+	addr.snode.domainIndex  = domIdx;  			// Set the domain index to be the one in which it was received. 
+	if (addressType & 0x80)
+	{
+		addr.noAddress = addressType;
+	}
+
+	// Get an output buffer for the proxy relay
+    if (appReceiveParamPtr->priority)
+    {
+        outQPtr = (service==IzotServiceUnacknowledged) ? &gp->nwOutPriQ : &gp->tsaOutPriQ;
+    }
+    else
+    {
+        outQPtr = (service==IzotServiceUnacknowledged) ? &gp->nwOutQ : &gp->tsaOutQ;
+    }
+
+    /* Check if the target queue has space for forwarding this request. */
+    if (QueueFull(outQPtr))
+    {
+        // Failure indicates we didn't process the message so don't free it!  
+	    // Note that the following deadlock condition can occur:
+	    // App Input queue full but stymied by proxy relay
+		// TSA queue full but stymied because there are no App Input buffers to send completion event to.
+		// On the Neuron, this can't occur because completion events are sent in the output buffer, not a new input buffer.
+		// LCS should probably be implemented more like the Neuron.  In the meantime, let's just have a timeout where
+		// we fail the proxy if we can't get an output buffer.
+		if (TMR_Expired(&gp->proxyBufferWait))
+		{
+			SendResponse(appReceiveParamPtr->reqId, LT_ENHANCED_PROXY_FAILURE, sizeof(proxyCount), &proxyCount);
+			return SUCCESS;
+		}
+		else if (!TMR_Running(&gp->proxyBufferWait))
+		{
+			TMR_Start(&gp->proxyBufferWait, 1000);
+		}
+        return FAILURE;
+    }
+	else
+	{
+		TMR_Stop(&gp->proxyBufferWait);
+	}
     // Include sanity checks on incoming packet length
     if (dataLen >= (int)(sizeof(ProxyHeader) + sizeof(ProxySicb) + 1) && offset <= dataLen)
     {
-		SNodeAddrMode *pSn = &tsaSendParamPtr->destAddr.snode;
-		memset(pSn, 0, sizeof(*pSn));
-
-		pSn->longTimer      = longTimer;
-		pSn->addrMode		= addressType;
-		pSn->txTimer		= txTimer;
-		pSn->retryCount		= txc.retry;
-		pSn->node			= node;
-		pSn->subnetID		= subnet;
-
-		/* Set the domain index to be the one in which it was received.
-		   Note that this cannot be flex domain. Transport or session
-		   will use this instead of the one in the destAddr (i.e msg_out_addr) */
-		tsaSendParamPtr->dmn.domainIndex= domIdx;
-		tsaSendParamPtr->auth			= appReceiveParamPtr->auth;
-		tsaSendParamPtr->altKey.altKey  = altKey;
-		// See explanation in HandleNDProxyCommand().
-		tsaSendParamPtr->tag      = appReceiveParamPtr->reqId;
-	    tsaSendParamPtr->altPathOverride = TRUE;
-	    tsaSendParamPtr->altPath = alt;
-		tsaSendParamPtr->priority = appReceiveParamPtr->priority;
-		tsaSendParamPtr->proxy	  = TRUE;
-		tsaSendParamPtr->proxyCount = count;
-		tsaSendParamPtr->proxyDone = FALSE;
-		// txInherit relies on the tag/reqId relationship above as well (see SendNewMsg())
-		tsaSendParamPtr->txInherit = TRUE;		
-        memcpy(apduSendPtr->data, &pData[offset], dataLen-offset);
-		tsaSendParamPtr->apduSize = dataLen-offset+1;
-        apduSendPtr->code.allBits = code;
-	    EnQueue(tsaOutQPtr);
-    }
+		Status sts = SUCCESS;
+		dataLen -= offset;
+		if (service == IzotServiceUnacknowledged)
+		{
+			PktCtrl ctrl = alt ? PKT_ALTPATH|PKT_PROXY : PKT_PROXY;
+			sts = AllocSendUnackd(ctrl, appReceiveParamPtr->reqId, &addr, code, pData[offset], dataLen, &pData[offset+1]);
+		}
+		else if (dataLen+1 > gp->tsaOutBufSize)
+		{
+			sts = FAILURE;
+		}
+		else
+		{						
+			TSASendParam   *tsaSendParamPtr = QueueTail(outQPtr);
+			APDU		   *apduSendPtr 	= (APDU *)(tsaSendParamPtr + 1);
+	
+			tsaSendParamPtr->dmn.domainIndex= COMPUTE_DOMAIN_INDEX;
+			tsaSendParamPtr->service 		= service;
+			tsaSendParamPtr->txTimerDeltaLast = adjust;
+			tsaSendParamPtr->auth			= appReceiveParamPtr->auth;
+			tsaSendParamPtr->altKey		    = altKey;
+			// See explanation in HandleNDProxyCommand().
+			tsaSendParamPtr->tag      		= appReceiveParamPtr->reqId;
+			tsaSendParamPtr->altPathOverride = true;
+			tsaSendParamPtr->altPath 		= alt;
+			tsaSendParamPtr->priority 		= appReceiveParamPtr->priority;
+			tsaSendParamPtr->proxy	  		= TRUE;
+			tsaSendParamPtr->proxyCount 	= proxyCount;
+			tsaSendParamPtr->proxyDone 		= FALSE;
+			// txInherit relies on the tag/reqId relationship above as well (see SendNewMsg())
+			tsaSendParamPtr->txInherit 		= TRUE;		
+			memcpy(apduSendPtr->data, &pData[offset], dataLen);
+			tsaSendParamPtr->apduSize 		= dataLen+1;
+			apduSendPtr->code		  		= code;
+			tsaSendParamPtr->destAddr 		= addr;
+			EnQueue(outQPtr);
+		}
+		if (sts == FAILURE)
+		{
+			SendResponse(appReceiveParamPtr->reqId, LT_ENHANCED_PROXY_FAILURE, sizeof(proxyCount), &proxyCount);
+		}
+	}
 	return SUCCESS;
 }
-
+#endif // ENABLE_PROXY_REPEATING
