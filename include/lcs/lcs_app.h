@@ -22,10 +22,10 @@
 // SOFTWARE.
 
 /*******************************************************************************
-       Reference:      ISO/IEC 14908-1, Section 10
+   Reference:      ISO/IEC 14908-1, Section 10
 
-       Purpose:        Interfaces for the LON application layer.
-                       (See app.c for more information.)
+   Purpose:        Interfaces for the LON application layer.
+                  (See app.c for more information.)
 *******************************************************************************/
 #ifndef _LCS_APP_H
 #define _LCS_APP_H

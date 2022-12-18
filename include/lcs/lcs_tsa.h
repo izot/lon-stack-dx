@@ -1,4 +1,7 @@
-// Copyright (C) 2022 Dialog Semiconductor
+//
+// lcs_tsa.h
+//
+// Copyright (C) 2022 EnOcean
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in 
@@ -19,44 +22,34 @@
 // SOFTWARE.
 
 /*********************************************************************
-          File:        tsa.h (Transport Session Authentication)
+  Reference:        ISO/IEC 14908-1, Sections 8, 9
 
-       Version:        1.7
-
-     Reference:        Sections 8, 9 Protocol Specification
-
-       Purpose:        Interface file for tsa.c
-
-          Note:        None
-
-         To Do:        None
+    Purpose:        Interfaces for LON transport, session, and
+                    authentication layers in tsa.c
 *********************************************************************/
+
 #ifndef _TSA_H
 #define _TSA_H
 
 /*------------------------------------------------------------------------------
-Section: Includes
-------------------------------------------------------------------------------*/
-/* None */
+  Section: Includes
+  ------------------------------------------------------------------------------*/
 
 /*-------------------------------------------------------------------
-Section: Constant Definitions
--------------------------------------------------------------------*/
-/* None */
+  Section: Constant Definitions
+  -------------------------------------------------------------------*/
 
 /*-------------------------------------------------------------------
-Section: Type Definitions
--------------------------------------------------------------------*/
-/* None */
+  Section: Type Definitions
+  -------------------------------------------------------------------*/
 
 /*-------------------------------------------------------------------
-Section: Globals
--------------------------------------------------------------------*/
-/* None */
+  Section: Globals
+  -------------------------------------------------------------------*/
 
 /*-------------------------------------------------------------------
-Section: Function Prototypes
--------------------------------------------------------------------*/
+  Section: Function Prototypes
+  -------------------------------------------------------------------*/
 void TSAReset(void);
 
 void TPSend(void);
@@ -67,6 +60,8 @@ void SNReceive(void);
 
 void AuthSend(void);
 void AuthReceive(void);
+
+Status TSA_AddressConversion(IzotSendAddress* pSrc, DestinationAddress *pDst);
 
 #endif
 /*------------------------End of tsa.h------------------------*/
