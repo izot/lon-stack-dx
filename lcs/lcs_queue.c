@@ -1,4 +1,7 @@
-// Copyright (C) 2022 Dialog Semiconductor
+//
+// lcs_queue.c
+//
+// Copyright (C) 2022 EnOcean
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in 
@@ -19,52 +22,40 @@
 // SOFTWARE.
 
 /*********************************************************************
-          File:        lcs_queue.c
-
-       Version:        1
-
-     Reference:        None
-
-       Purpose:        To handle queue operations. See queue.h for
+       Purpose:        Handle queue operations. See queue.h for
                        details of these operations.
-
-          Note:        None
-
-         To Do:        None
-
 *********************************************************************/
-/*------------------------------------------------------------------------------
-Section: Includes
-------------------------------------------------------------------------------*/
-#include <stdio.h>
 
+/*------------------------------------------------------------------------------
+  Section: Includes
+  ------------------------------------------------------------------------------*/
+#include <stdio.h>
+#include <stddef.h>
+#include "IzotTypes.h"
 #include <lcs_eia709_1.h>   /* To get Byte, Boolean & Status */
 #include <lcs_queue.h>
 #include <lcs_node.h>      /* To get AllocateStorage. */
 
 /*-------------------------------------------------------------------
-Section: Constant Definitions
--------------------------------------------------------------------*/
-/* None */
+  Section: Constant Definitions
+  -------------------------------------------------------------------*/
 
 /*-------------------------------------------------------------------
-Section: Type Definitions
--------------------------------------------------------------------*/
-/* None */
+  Section: Type Definitions
+  -------------------------------------------------------------------*/
 
 /*-------------------------------------------------------------------
-Section: Globals
--------------------------------------------------------------------*/
-/* None */
+  Section: Globals
+  -------------------------------------------------------------------*/
 
 /*-------------------------------------------------------------------
-Section: Local Function Prototypes
--------------------------------------------------------------------*/
-/* None */
+  Section: Local Function Prototypes
+  -------------------------------------------------------------------*/
 
 /*-------------------------------------------------------------------
-Section: Function Definitions
--------------------------------------------------------------------*/
+  Section: Function Definitions
+  -------------------------------------------------------------------*/
+
 /*****************************************************************
 Function:  QueueSize
 Returns:   The current size (# of items) of the queue.
@@ -72,7 +63,7 @@ Reference: None
 Purpose:   To determine the number of items currently in queue.
 Comments:  None
 ******************************************************************/
-uint16 QueueSize(Queue *qInp)
+IzotUbits16 QueueSize(Queue *qInp)
 {
     return(qInp->queueSize);
 }
@@ -84,7 +75,7 @@ Reference: None
 Purpose:   To get the max # of items that can be stored in queue.
 Comments:  None
 ******************************************************************/
-uint16 QueueCnt(Queue *qInp)
+IzotUbits16 QueueCnt(Queue *qInp)
 {
     return(qInp->queueCnt);
 }
@@ -96,7 +87,7 @@ Reference: None
 Purpose:   To get the size of items in the queue.
 Comments:  None
 ******************************************************************/
-uint16  QueueItemSize(Queue *qInp)
+IzotUbits16  QueueItemSize(Queue *qInp)
 {
     return(qInp->itemSize);
 }
@@ -108,11 +99,10 @@ Reference: None
 Purpose:   To check whether the queue is full or not.
 Comments:  None
 ******************************************************************/
-Boolean QueueFull(Queue *qInp)
+IzotByte QueueFull(Queue *qInp)
 {
     return(qInp->queueCnt == qInp->queueSize);
 }
-
 
 /*****************************************************************
 Function:  QueueEmpty
@@ -121,7 +111,7 @@ Reference: None
 Purpose:   To check whether a queue is empty or not.
 Comments:  None
 ******************************************************************/
-Boolean QueueEmpty(Queue *qInp)
+IzotByte QueueEmpty(Queue *qInp)
 {
     return(qInp->queueSize == 0);
 }
@@ -138,7 +128,7 @@ void DeQueue(Queue *qInOut)
 {
     if (qInOut->queueSize == 0)
     {
-        ErrorMsg("DeQueue: Queue is empty.\n");
+        DBG_vPrintf(TRUE, "DeQueue: Queue is empty.\n");
         return;
     }
     qInOut->queueSize--;
@@ -165,7 +155,7 @@ void EnQueue(Queue *qInOut)
 {
     if (qInOut->queueSize == qInOut->queueCnt)
     {
-        ErrorMsg("EnQueue: Queue is full.\n");
+    	DBG_vPrintf(TRUE, "EnQueue: Queue is full.\n");
         return;
     }
     qInOut->queueSize++;
@@ -176,6 +166,7 @@ void EnQueue(Queue *qInOut)
     {
         qInOut->tail = qInOut->data;
     }
+
 }
 
 /*****************************************************************
@@ -215,12 +206,12 @@ Purpose:   To initialize the queue by allocating storage for data
            and recording the item size and cnt values (capacity).
 Comments:  None
 ******************************************************************/
-Status QueueInit(Queue *qOut, uint16 itemSizeIn, uint16 qCntIn)
+Status QueueInit(Queue *qOut, IzotUbits16 itemSizeIn, IzotUbits16 qCntIn)
 {
     qOut->itemSize  = itemSizeIn;
     qOut->queueCnt  = qCntIn;
 
-    qOut->data = AllocateStorage((uint16)(itemSizeIn * qCntIn));
+    qOut->data = AllocateStorage((IzotUbits16)(itemSizeIn * qCntIn));
     if (qOut->data == NULL)
     {
         return(FAILURE);

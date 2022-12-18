@@ -1,4 +1,7 @@
-// Copyright (C) 2022 Dialog Semiconductor
+//
+// lcs_queue.h
+//
+// Copyright (C) 2022 EnOcean
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in 
@@ -19,71 +22,59 @@
 // SOFTWARE.
 
 /*********************************************************************
-          File:        lcs_queue.h
-
-       Version:        1
-
-     Reference:        None
-
-       Purpose:        To handle queue operations. A dynamic array
-                       is used for circular implementation of queue.
-                       The size of a queue item and the queue capacity
-                       are chosen when the queue is created. It is
+       Purpose:        Handle queue operations. Use a dynamic array
+                       for circular implementation of a queue.
+                       Choose the size of a queue item and the queue
+                       capacity when the queue is created. It is
                        up to the user of the queue to interpret
                        the contents of the queue item.
-
-          Note:        None
-
-         To Do:        None
 *********************************************************************/
 #ifndef _LCS_QUEUE_H
 #define _LCS_QUEUE_H
 
 /*------------------------------------------------------------------------------
-Section: Includes
-------------------------------------------------------------------------------*/
+  Section: Includes
+  ------------------------------------------------------------------------------*/
 #include "lcs_eia709_1.h"
 
 /*-------------------------------------------------------------------
-Section: Constant Definitions
--------------------------------------------------------------------*/
-/* None */
+  Section: Constant Definitions
+  -------------------------------------------------------------------*/
 
 /*-------------------------------------------------------------------
-Section: Type Definitions
--------------------------------------------------------------------*/
+  Section: Type Definitions
+  -------------------------------------------------------------------*/
 typedef struct
 {
-    uint16 queueCnt;   /* Max number of items in queue. i.e capacity */
-    uint16 queueSize;  /* Number of items currently in queue         */
-    uint16 itemSize;   /* Number of bytes for each item in queue     */
-    Byte *head;        /* Pointer to the head item of the queue      */
-    Byte *tail;        /* Pointer to the tail item of the queue      */
-    Byte *data;        /* Array of items -- Allocated during Init    */
+    IzotUbits16 queueCnt;   /* Max number of items in queue. i.e capacity */
+    IzotUbits16 queueSize;  /* Number of items currently in queue         */
+    IzotUbits16 itemSize;   /* Number of bytes for each item in queue     */
+    IzotByte *head;        /* Pointer to the head item of the queue      */
+    IzotByte *tail;        /* Pointer to the tail item of the queue      */
+    IzotByte *data;        /* Array of items -- Allocated during Init    */
 } Queue;
 
 /*-------------------------------------------------------------------
-Section: Globals
--------------------------------------------------------------------*/
-/* None */
+  Section: Globals
+  -------------------------------------------------------------------*/
 
 /*-------------------------------------------------------------------
-Section: Function Prototypes
--------------------------------------------------------------------*/
+  Section: Function Prototypes
+  -------------------------------------------------------------------*/
 /* QueueSize returns the current size of the queue. */
-uint16    QueueSize(Queue *qInp);
+IzotUbits16    QueueSize(Queue *qInp);
 
 /* QueueCnt returns the capacity (i.e max items) of the queue. */
-uint16    QueueCnt(Queue *qInp);
+IzotUbits16    QueueCnt(Queue *qInp);
 
 /* QueueItemSize returns the size of each item in the queue. */
-uint16    QueueItemSize(Queue *qInp);
+IzotUbits16    QueueItemSize(Queue *qInp);
 
 /* QueueFull returns TRUE if the queue is full and FALSE otherwise. */
-Boolean   QueueFull(Queue *qInp);
+IzotByte   QueueFull(Queue *qInp);
 
 /* QueueEmpty returns TRUE if the queue is empty and FALSE else. */
-Boolean   QueueEmpty(Queue *qInp);
+IzotByte   QueueEmpty(Queue *qInp);
 
 /* DeQueue removes an item (i.e advances head) from the queue. */
 void      DeQueue(Queue *qInOut);
@@ -104,6 +95,6 @@ void     *QueueTail(Queue *qInp);
 
 /* QueueInit is used to initialize a queue. Client specifies the
    size of each item in queue and the count (capacity) of queue. */
-Status    QueueInit(Queue *qOut, uint16 itemSize, uint16 qCnt);
+Status    QueueInit(Queue *qOut, IzotUbits16 itemSize, IzotUbits16 qCnt);
 
 #endif  // _LCS_QUEUE_H
