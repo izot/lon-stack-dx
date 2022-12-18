@@ -1,4 +1,7 @@
-// Copyright (C) 2022 Dialog Semiconductor
+//
+// lcs_tcs.h
+//
+// Copyright (C) 2022 EnOcean
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in 
@@ -19,13 +22,9 @@
 // SOFTWARE.
 
 /*********************************************************************
-          File:        lcs_tcs.h
-
-       Version:        1
-
-       Purpose:        Interface for Transaction Control Sublayer.
-                       Outgoing Sequencing
-                       Incoming Sequencing and Duplicate Detection.
+       Purpose:        Interface for the LON transaction control 
+                       sublayer with outgoing sequencing, incoming 
+                       sequencing, and duplicate detection.
 
           Note:        For assigning TIds, a table is used. We
                        remember the last TID for each unique dest
@@ -53,40 +52,37 @@
 #define _TCS_H
 
 /*------------------------------------------------------------------------------
-Section: Includes
-------------------------------------------------------------------------------*/
+  Section: Includes
+  ------------------------------------------------------------------------------*/
 #include <lcs_eia709_1.h>
 #include <lcs_node.h>
 
 /*-------------------------------------------------------------------
-Section: Constant Definitions
--------------------------------------------------------------------*/
-/* None */
+  Section: Constant Definitions
+  -------------------------------------------------------------------*/
 
 /*-------------------------------------------------------------------
-Section: Type Definitions
--------------------------------------------------------------------*/
-/* None */
+  Section: Type Definitions
+  -------------------------------------------------------------------*/
 
 /*-------------------------------------------------------------------
-Section: Globals
--------------------------------------------------------------------*/
-/* None */
+  Section: Globals
+  -------------------------------------------------------------------*/
 
 /*-------------------------------------------------------------------
-Section: Function Prototypes
--------------------------------------------------------------------*/
+  Section: Function Prototypes
+  -------------------------------------------------------------------*/
 void TCSReset(void);
 
-void   TransDone(Boolean  priorityIn);
-void OverrideTrans(Boolean   priorityIn, TransNum num);
+void   TransDone(IzotByte  priorityIn);
+void OverrideTrans(IzotByte   priorityIn, TransNum num);
 
 /* Return Values:      SUCCESS or FAILURE  */
-Status NewTrans(Boolean   priorityIn, DestinationAddress addrIn,
+Status NewTrans(IzotByte   priorityIn, DestinationAddress addrIn,
                 TransNum *transNumOut);
 
 /* Return Values: TRAN_CURRENT or TRAN_NOT_CURRENT */
-TransStatus ValidateTrans(Boolean  priorityIn, TransNum transNumIn);
+TransStatus ValidateTrans(IzotByte  priorityIn, TransNum transNumIn);
 
 #endif
 /*------------------------End of tcs.h------------------------*/

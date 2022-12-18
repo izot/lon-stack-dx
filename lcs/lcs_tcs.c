@@ -1,4 +1,7 @@
-// Copyright (C) 2022 Dialog Semiconductor
+//
+// lcs_tcs.c
+//
+// Copyright (C) 2022 EnOcean
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in 
@@ -19,62 +22,57 @@
 // SOFTWARE.
 
 /*********************************************************************
-          File:        lcs_tcs.c
+       Purpose:        LON transaction control sublayer with
+                       outgoing sequencing, incoming sequencing,
+                       and duplicate detection.
 
-       Version:        1
+          Note:        Implements a table for assigning transaction IDs.
+                       Remember the last TID for each unique destination
+                       address. When a new TID is requested for a
+                       destination, search this table for that
+                       destination. If found, don't assign the same TID
+                       for that destination. If the destination is not
+                       found, make a new entry in the table.
 
-       Purpose:        Interface file for transaction control sublayer.
-                       Outgoing sequencing.
-                       Incoming sequencing and duplicate detection.
-
-          Note:        For assigning TIds, a table is used. We
-                       remember the last TID for each unique destination
-                       address. When a new TId is requested for a
-                       destination, this table is searched for that
-                       destination. If found, we make sure that we
-                       don't assign the same TId used for that
-                       destination. If the destination is not
-                       found, we make a new entry in the table.
-
-                       We have an entry in the table for each
+                       There is an entry in the table for each
                        subnet/node, group, broadcast, subnet
                        broadcast, unique node id. When a table entry
-                       is assigned, we remember the time stamp too.
+                       is assigned, remember the time stamp too.
                        If the table does not have space for a new
-                       destination address, we get rid of one which has
+                       destination address, get rid of one which has
                        remained more than 24 seconds. If there is no
-                       such entry, then we fail to allocate the new
-                       transaction ID. The table size is configurable.
-
-         To Do:        None
+                       such entry, fail to allocate the new TID.
+                       The table size is configurable.
 *********************************************************************/
 
 /* *** START INFORMATIVE - Transaction ID Allcation *** */
 /* These functions represent an example means of allocating transaction IDs.
- * There are in fact several valid mechanisms for allocating transaction IDs.
- * In addition to the mechanism below, there are at least two other accepted means
+ * There are several valid mechanisms for allocating transaction IDs.  In
+ * addition to the mechanism below, there are at least two other accepted means
  * for allocating transaction IDs.
  * 1. Allocate a transaction ID per unique destination address.  This method should
  *    not be used if acknowledged or request/response using unique ID or broadcast
- *    addressing are using in time proximity with the other addressing modes.
- *    Note that such combinations can be accomplished in this scheme if guardbands
+ *    addressing are used in close time proximity with the other addressing modes.
+ *    Such combinations can be accomplished in this scheme if guardbands
  *    are placed around expected arrivals of acks/responses per transaction ID.
  * 2. Allocate all transaction IDs from a single transaction ID space without
- *    conflict checking.  If this simple scheme is used, it is recommended that
- *    conflict checking be performed by the application. */
+ *    conflict checking.  If this simple scheme is used, the application must
+ *    perform conflict checking. */
 
 /*------------------------------------------------------------------------------
-Section: Includes
-------------------------------------------------------------------------------*/
+  Section: Includes
+  ------------------------------------------------------------------------------*/
 #include <stdio.h>
 #include <string.h>
+#include <stddef.h>
+#include "IzotTypes.h"
 #include <lcs_eia709_1.h>
 #include <lcs_node.h>
 #include <lcs_tcs.h>
 
 /*--------------------------------------------------------------------
-Section: Constant Definitions
---------------------------------------------------------------------*/
+  Section: Constant Definitions
+  --------------------------------------------------------------------*/
 /* Minimum amount of time in seconds a record in the priTbl or
    non-priTbl should stay before it can be replaced with a new
    entry. i.e., if the table is full and a new entry is needed,
@@ -83,18 +81,18 @@ Section: Constant Definitions
 #define MIN_TABLE_TIME 24
 
 /*--------------------------------------------------------------------
-Section: Type Definitions
---------------------------------------------------------------------*/
+  Section: Type Definitions
+  --------------------------------------------------------------------*/
 /* None */
 
 /*-------------------------------------------------------------------
-Section: Globals
--------------------------------------------------------------------*/
+  Section: Globals
+  -------------------------------------------------------------------*/
 /* None */
 
 /*-------------------------------------------------------------------
-Section: Function Prototypes
--------------------------------------------------------------------*/
+  Section: Function Prototypes
+  -------------------------------------------------------------------*/
 /*****************************************************************
 Function:  TCSReset
 Returns:   None
@@ -118,7 +116,8 @@ void TCSReset(void)
        layer sends by a small amount so that no messages are pending in
        target nodes. If we don't follow these guidelines, the target
        node may throw away messages sent after a reset as duplicates. */
-    if (nmp->resetCause == POWER_UP_RESET || nmp->resetCause == EXTERNAL_RESET)
+    if (nmp->resetCause == IzotPowerUpReset 
+    || nmp->resetCause == IzotExternalReset)
     {
         gp->priTblSize       = 0;
         gp->nonpriTblSize    = 0;
@@ -149,15 +148,15 @@ Alg Idea:  For each of the following categories, we have an
            that has remained more than MIN_TABLE_TIME seconds.
            If no such entry, then we fail to assign a tid.
 ******************************************************************/
-Status NewTrans(Boolean   priorityIn, DestinationAddress addrIn,
+Status NewTrans(IzotByte   priorityIn, DestinationAddress addrIn,
                 TransNum *transNumOut)
 {
-    uint16           i;
+    IzotUbits16           i;
     TransCtrlRecord *transRecPtr;
     TransNum        *transNumPtr;
     TIDTableEntry   *tbl;
-    uint16          *tblSize;
-    Boolean          found;
+    IzotUbits16		*tblSize;
+    IzotByte          found;
 
     /* Point to the appropriate control record & table. */
     if (priorityIn)
@@ -194,12 +193,13 @@ Status NewTrans(Boolean   priorityIn, DestinationAddress addrIn,
     {
         /* If domainId does not match, skip entry. */
         if (addrIn.dmn.domainIndex != FLEX_DOMAIN &&
-                (eep->domainTable[addrIn.dmn.domainIndex].invalid ||
-                 tbl[i].len != eep->domainTable[addrIn.dmn.domainIndex].len ||
-                 memcmp(eep->domainTable[addrIn.dmn.domainIndex].domainId,
-                        tbl[i].domainId,
-                        eep->domainTable[addrIn.dmn.domainIndex].len) != 0)
-           )
+            (IZOT_GET_ATTRIBUTE(eep->domainTable[addrIn.dmn.domainIndex], 
+            IZOT_DOMAIN_INVALID) || tbl[i].len != 
+            IZOT_GET_ATTRIBUTE(eep->domainTable[addrIn.dmn.domainIndex], 
+            IZOT_DOMAIN_ID_LENGTH) ||
+            memcmp(eep->domainTable[addrIn.dmn.domainIndex].Id, tbl[i].domainId,
+            IZOT_GET_ATTRIBUTE(eep->domainTable[addrIn.dmn.domainIndex], 
+            IZOT_DOMAIN_ID_LENGTH)) != 0))
         {
             continue; /* Not flex domain but domain mismatch. */
         }
@@ -219,7 +219,7 @@ Status NewTrans(Boolean   priorityIn, DestinationAddress addrIn,
         case SUBNET_NODE:
             if (tbl[i].addressMode == SUBNET_NODE &&
                     memcmp(&tbl[i].addr.subnetNode, &addrIn.addr.addr2a,
-                           sizeof(SubnetAddress)) == 0)
+                           sizeof(IzotReceiveSubnetNode)) == 0)
             {
                 found = TRUE;
             }
@@ -227,28 +227,28 @@ Status NewTrans(Boolean   priorityIn, DestinationAddress addrIn,
         case UNIQUE_NODE_ID:
             if (tbl[i].addressMode == UNIQUE_NODE_ID &&
                     memcmp(tbl[i].addr.uniqueNodeId,
-                           addrIn.addr.addr3.uniqueId,
-                           UNIQUE_NODE_ID_LEN) == 0)
+                           addrIn.addr.addr3.UniqueId,
+                           IZOT_UNIQUE_ID_LENGTH) == 0)
             {
                 found = TRUE;
             }
             break;
         case MULTICAST:
             if (tbl[i].addressMode == MULTICAST &&
-                    tbl[i].addr.group  == addrIn.addr.addr1)
+                    tbl[i].addr.group.GroupId  == addrIn.addr.addr1.GroupId)
             {
                 found = TRUE;
             }
             break;
         case BROADCAST:
             if (tbl[i].addressMode == BROADCAST &&
-                    tbl[i].addr.subnet == addrIn.addr.addr0)
+                    tbl[i].addr.subnet.SubnetId == addrIn.addr.addr0.SubnetId)
             {
                 found = TRUE;
             }
             break;
         default:
-            ErrorMsg("NewTrans: Unexpected addressMode.\n");
+            DBG_vPrintf(TRUE, "NewTrans: Unexpected addressMode.\n");
             /* Should not come here. */
         }
         if (found)
@@ -273,7 +273,7 @@ Status NewTrans(Boolean   priorityIn, DestinationAddress addrIn,
         }
         tbl[i].tid   = *transNumPtr;
         MsTimerSet(&tbl[i].timer,
-                   (uint16)(MIN_TABLE_TIME * 1000));
+                   (IzotUbits16)(MIN_TABLE_TIME * 1000));
         *transNumOut = *transNumPtr;
         transRecPtr->inProgress = TRUE;
         return(SUCCESS);
@@ -318,16 +318,19 @@ Status NewTrans(Boolean   priorityIn, DestinationAddress addrIn,
     }
     else
     {
-        memcpy(tbl[*tblSize].domainId,
-               eep->domainTable[addrIn.dmn.domainIndex].domainId,
-               eep->domainTable[addrIn.dmn.domainIndex].len);
-        tbl[i].len = eep->domainTable[addrIn.dmn.domainIndex].len;
+        memcpy(tbl[*tblSize].domainId, 
+            eep->domainTable[addrIn.dmn.domainIndex].Id,
+            IZOT_GET_ATTRIBUTE(eep->domainTable[addrIn.dmn.domainIndex], 
+            IZOT_DOMAIN_ID_LENGTH));
+            
+        tbl[i].len = IZOT_GET_ATTRIBUTE(
+        eep->domainTable[addrIn.dmn.domainIndex], IZOT_DOMAIN_ID_LENGTH);
     }
 
     tbl[*tblSize].addressMode = addrIn.addressMode;
     if (addrIn.addressMode == MULTICAST)
     {
-        tbl[*tblSize].addr.group = addrIn.addr.addr1;
+        tbl[*tblSize].addr.group.GroupId = addrIn.addr.addr1.GroupId;
     }
     else if (addrIn.addressMode == SUBNET_NODE)
     {
@@ -336,19 +339,20 @@ Status NewTrans(Boolean   priorityIn, DestinationAddress addrIn,
     else if (addrIn.addressMode == UNIQUE_NODE_ID)
     {
         memcpy(tbl[*tblSize].addr.uniqueNodeId,
-               addrIn.addr.addr3.uniqueId,
-               UNIQUE_NODE_ID_LEN);
+               addrIn.addr.addr3.UniqueId,
+               IZOT_UNIQUE_ID_LENGTH);
     }
     else if (addrIn.addressMode == BROADCAST)
     {
-        tbl[*tblSize].addr.subnet = addrIn.addr.addr0;
+        tbl[*tblSize].addr.subnet.SubnetId = addrIn.addr.addr0.SubnetId;
     }
     else
     {
         /* Should not come here as addressMode was checked before too. */
-        ErrorMsg("NewTrans: Invalid addressMode at unexpected place\n");
+        DBG_vPrintf(TRUE, 
+        "NewTrans: Invalid addressMode at unexpected place\n");
     }
-    MsTimerSet(&tbl[*tblSize].timer, (uint16)(MIN_TABLE_TIME * 1000));
+    MsTimerSet(&tbl[*tblSize].timer, (IzotUbits16)(MIN_TABLE_TIME * 1000));
     tbl[*tblSize].tid = *transNumPtr;
     *transNumOut      = *transNumPtr;
     (*tblSize)++;
@@ -363,7 +367,7 @@ Reference:
 Purpose:   Override the TX# chosen by NewTrans.
 Comments:  None
 ******************************************************************/
-void OverrideTrans(Boolean   priorityIn, TransNum num)
+void OverrideTrans(IzotByte   priorityIn, TransNum num)
 {
     if (priorityIn)
     {
@@ -384,7 +388,7 @@ Reference: Section 7 Protocol Spec.
 Purpose:   To release the transaction record for future assignments.
 Comments:  None
 ******************************************************************/
-void TransDone(Boolean  priorityIn)
+void TransDone(IzotByte  priorityIn)
 {
     TransCtrlRecord *transRecPtr;
     TransNum        *transNumPtr;
@@ -421,7 +425,7 @@ Reference: Section 7, Protocol Specification.
 Purpose:   To check if a given transNumIn is current or not.
 Comments:  None
 ******************************************************************/
-TransStatus ValidateTrans(Boolean  priorityIn,
+TransStatus ValidateTrans(IzotByte  priorityIn,
                           TransNum transNumIn)
 {
     TransCtrlRecord *transRecPtr;
