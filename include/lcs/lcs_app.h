@@ -22,16 +22,11 @@
 
           File:        lcs_app.h
 
-       Version:        1
+       Reference:      Section 10, ISO/IEC 14908-1
 
        Purpose:        App Layer
-                       Data Structures for App Layer.
+                       Data Structures for the LON App Layer.
                        (See app.c for more information.)
-
-          Note:        None
-
-         To Do:        None
-
 *******************************************************************************/
 #ifndef _LCS_APP_H
 #define _LCS_APP_H
@@ -92,6 +87,7 @@ generated.
 /* Explicit application message codes */
 #define APPL_MSG_OFFLINE       0x3F
 #define FOREIGN_FRAME_OFFLINE  0x4F
+
 /*------------------------------------------------------------------------------
 Section: Type Definitions
 ------------------------------------------------------------------------------*/

@@ -21,16 +21,10 @@
 /*******************************************************************************
           File:        lcs_app.c
 
-       Version:        1
+     Reference:        Section 10, ISO/IEC 14908-1
 
-     Reference:        Section 10, Protocol Specification
-
-       Purpose:        To implement application layer.
-
-          Note:        None
-
-         To Do:        None
-*******************************************************************************/
+       Purpose:        To implement the LON application layer.
+ *******************************************************************************/
 
 /*******************************************************************************
 
@@ -107,6 +101,7 @@
  implementation. The application program should call Propagate or one
  of its variants to actually propagate network variable updates.
 *******************************************************************************/
+
 /*------------------------------------------------------------------------------
 Section: Includes
 ------------------------------------------------------------------------------*/

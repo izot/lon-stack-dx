@@ -25,8 +25,6 @@
  * File: EchelonStandardDefinitions.h
  * Title: Echelon Standard Definitions header file
  *
- * $Revision: #2 $
- *
  * Abstract:
  * This file contains the macros for common error conditions and macros that are generic;
  * typedefs for various datatypes; and macros that are used for accessing bits in a bit 

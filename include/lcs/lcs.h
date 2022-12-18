@@ -25,7 +25,7 @@
 #include "lcs_api.h"
 
 // 
-// Public APIs for the LonTalk C Stack
+// Public APIs for the LON DX Stack
 //
 
 Status LCS_Init(IzotResetCause cause);

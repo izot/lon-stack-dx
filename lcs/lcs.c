@@ -1,7 +1,7 @@
 //
 // lcs.c
 //
-// Copyright (C) 2022 Dialog Semiconductor
+// Copyright (C) 2022 EnOcean
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in 
@@ -22,7 +22,7 @@
 // SOFTWARE.
 
 //
-// LonTalk C Stack main entry points
+// LON DX Stack main entry points
 //
 
 //

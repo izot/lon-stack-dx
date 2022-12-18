@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Dialog Semiconductor
+// Copyright (C) 2022 EnOcean
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in 
@@ -21,25 +21,20 @@
 /*******************************************************************************
           File:        lcs_custom.c
 
-       Version:        1
-
-     Reference:        None
+     Reference:        ISO/IEC 14908-1
 
        Purpose:        To allow custom values for global data
-                       of protocol stack. Since the reference
-                       implementation supports multiple stacks
-                       on a single 38360, we need to consider
-                       custom values for each stack.
+                       of protocol stack.
 
           Note:        Some or all of these values will be overwritten by
                        network management tools when this node is loaded.
-
-         To Do:        None
-
 *******************************************************************************/
+
 /*------------------------------------------------------------------------------
 Section: Includes
 ------------------------------------------------------------------------------*/
+#include <stddef.h>
+#include "IzotTypes.h"
 #include <lcs_eia709_1.h>
 #include <lcs_custom.h>
 
@@ -56,114 +51,7 @@ Section: Type Definitions
 /*------------------------------------------------------------------------------
 Section: Globals
 ------------------------------------------------------------------------------*/
-CustomData  customDataGbl[NUM_STACKS] =
-{
-    /* Stack 1 Values. This is the only one used when the reference
-       implementation is run in real (i.e. not in simulation) mode. */
-    {
-        /* Unique Node Id. */
-        {0x00,0xfd,0xff,0xff,0xff,0x01},
-
-        /* How many domains? 0 => 1 domain 1 => 2 domains. */
-        1,
-
-        /* Program ID string. */
-        "cStack1",
-
-        /* Location. LOCATION_LEN represents the maximum # of characters. */
-        "loc1",
-
-        /* Domain Ids. Need one each domain. */
-        {{0x2c}},
-        /* Domain lengths. One for each domain. */
-        {1},
-        /* Subnet numbers. One for each domain. */
-        {1},
-        /* Node numbers. One for each domain. */
-        {7},
-        /* Authentication key */
-        {{0xff, 0xff, 0xff, 0xff, 0xff, 0xff}},
-
-        /* Address table entries. */
-        {0x00},
-
-        /* Alias table entries */
-        {0x00}
-    }
-#if (NUM_STACKS > 1)
-    ,
-
-    /* Stack 2 Values */
-    {
-        /* Unique Node Id. */
-        {0x00,0xfd,0xff,0xff,0xff,0x02},
-
-        /* How many domains? 0 => 1 domain 1 => 2 domains. */
-        0,
-
-        /* Program ID string. */
-        "cStack2",
-
-        /* Location. LOCATION_LEN represents the maximum # of characters. */
-        "loc2",
-
-        /* Domain Ids. Need one each domain. */
-        {{0x2c}},
-        /* Domain lengths. One for each domain. */
-        {1},
-        /* Subnet numbers. One for each domain. */
-        {1},
-        /* Node numbers. One for each domain. */
-        {8},
-        /* Authentication key */
-        {{0xff, 0xff, 0xff, 0xff, 0xff, 0xff}},
-
-        /* Address table entries. */
-        {0x00},
-
-        /* Alias table entries. */
-        {0x00}
-    }
-#endif
-
-#if (NUM_STACKS > 2)
-    ,
-    /* Stack 3 Values */
-    {
-        /* Unique Node Id. */
-        {0x00,0xfd,0xff,0xff,0xff,0x03},
-
-        /* How many domains? 0 => 1 domain 1 => 2 domains. */
-        0,
-
-        /* Program ID string. */
-        "cStack3",
-
-        /* Location. LOCATION_LEN represents the maximum # of characters. */
-        "loc3",
-
-        /* Domain Ids. Need one each domain. */
-        {{0x2c}},
-        /* Domain lengths. One for each domain. */
-        {1},
-        /* Subnet numbers. One for each domain. */
-        {1},
-        /* Node numbers. One for each domain. */
-        {9},
-        /* Authentication key */
-        {{0xff, 0xff, 0xff, 0xff, 0xff, 0xff}},
-
-        /* Address table entries. */
-        {0x00},
-
-        /* Alias table entries. */
-        {0x00}
-    }
-#endif
-
-
-};
-
+CustomData  customDataGbl[NUM_STACKS];
 CustomData *cp;
 
 /*------------------------------------------------------------------------------
