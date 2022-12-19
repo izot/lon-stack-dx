@@ -1,7 +1,7 @@
 //
 // echstd.h
 //
-// Copyright (C) 2022 Dialog Semiconductor
+// Copyright (C) 2022 EnOcean
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in 
@@ -21,10 +21,18 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+/*
+ * Title: Hardware Abstaction Layer header file
+ *
+ * Abstract:
+ * This file contains standard definitions that are to be used
+ * in Echelon Corp. C++ projects.
+ * It comprises an internal set of standards and a set which
+ * is considered safe for export via API products.
+ */
+
 #ifndef ECHSTD_H
 #define ECHSTD_H
-
-#include "BuildOptions.h"
 
 // Do not include in Neuron C.
 #ifndef _ECHELON
@@ -36,7 +44,6 @@
 #ifdef _MSC_VER
 #pragma warning(disable:4244)	// 'argument' : conversion from 'type1' to 'type2', possible loss of data
 #ifdef STRICTER_WARNINGS
-//#pragma warning (3:	4100)	// unreferenced formal parameter (normally level 4)
 #pragma warning (3:		4189)	// local variable is initialized but not referenced (normally level 4)
 #pragma warning (3:		4701)	// potentially uninitialized local variable used (normally level 4)
 #pragma warning (3:		4706)	// assignment within conditional expression (normally level 4)
@@ -73,15 +80,30 @@
 #define UNUSED_ALWAYS(x)
 #endif
 
+// FB: should we really keep this DCX specific stuff here?
+
 // Packing control directives
 #define _DCX_PACKING	1	// (not used anymore because gcc does not support symbolic pack() argument
 // The AVOID_PACKING macro must always be defined, to make sure packing is avoided when necessary.
 // It must be used only as #if !AVOID_PACKING, not #ifndef AVOID_PACKING or similar
+#ifdef __IAR_SYSTEMS_ICC__
+// Don't warn about the undefined DCXGEN macro
+#pragma diag_suppress=Pe193
+#endif
 #if DCXGEN >= 3
 #define AVOID_PACKING 1	// Don't pack
 #else
 #define AVOID_PACKING 0 // Do pack
 #endif
+#ifdef __IAR_SYSTEMS_ICC__
+// Re-enable undefined macro warnings
+#pragma diag_warning=Pe193
+#endif
+
+// Make IAR specific keywords disappear or change
+#ifndef __IAR_SYSTEMS_ICC__
+#define __monitor
+#endif // __IAR_SYSTEMS_ICC__
 
 #define MAKE_UNIQUE_NAME(baseName)      MAKE_CONCAT_NAME(baseName,__LINE__)
 #define MAKE_CONCAT_NAME(baseName,line) MAKE_CONCAT_NAME2(baseName,line)
@@ -97,17 +119,12 @@ do { \
 } while (0)
 
 //
-// The following are the standard definitions to be used by 
+// The following are the standard definitions to be used by
 // Echelon products.  The definitions in EchelonStandardDefinitions.h
 // are expected to be reasonable to export with API products.  Those
 // that are not should be included in this file directly.
 //
 #include "EchelonStandardDefinitions.h"
-
-#ifdef WIN32
-#define __monitor
-#define BIGADDR
-#endif
 
 #endif	// !_ECHELON
 

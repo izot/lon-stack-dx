@@ -1,4 +1,7 @@
-// Copyright (C) 2022 Dialog Semiconductor
+//
+// echversion.h
+//
+// Copyright (C) 2022 EnOcean
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in 
@@ -18,20 +21,21 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-// This file defines build versions.  It can be customized by different
-// products to define different version numbers, if necessary.
 
-#ifndef __ECHVERSION_H__
-#define __ECHVERSION_H__
+/*
+ * Title: Version Information header file
+ *
+ * Abstract:
+ *  This file defines build versions.  It can be customized by different
+ *  products to define different version numbers, if necessary.
+ */
+
+#ifndef ECHVERSION_H
+#define ECHVERSION_H
 
 #ifdef SUPPORT_PRAGMA_ONCE
 #pragma once
 #endif
-
-#ifndef __EchVersion_h
-#define __EchVersion_h
-
-
 
 //
 // These version numbers should be updated before a system build.
@@ -43,7 +47,7 @@
 //
 
 #ifndef RELEASE_NUMBER_MAJOR
-#  define RELEASE_NUMBER_MAJOR      3       // :MAJOR:   DO NOT DELETE THIS MARKER!
+#  define RELEASE_NUMBER_MAJOR      4       // :MAJOR:   DO NOT DELETE THIS MARKER!
 #endif
 #ifndef RELEASE_NUMBER_MINOR1
 #  define RELEASE_NUMBER_MINOR1     0       // :MINOR1:  DO NOT DELETE THIS MARKER!
@@ -55,27 +59,21 @@
 #  define RELEASE_NUMBER_BUILD0     0       // :BUILD0:  DO NOT DELETE THIS MARKER!
 #endif
 #ifndef RELEASE_NUMBER_BUILD1
-#  define RELEASE_NUMBER_BUILD1     6       // :BUILD1:  DO NOT DELETE THIS MARKER!
+#  define RELEASE_NUMBER_BUILD1     1       // :BUILD1:  DO NOT DELETE THIS MARKER!
 #endif
 #ifndef RELEASE_NUMBER_BUILD2
-#  define RELEASE_NUMBER_BUILD2     7       // :BUILD2:  DO NOT DELETE THIS MARKER!
+#  define RELEASE_NUMBER_BUILD2     1       // :BUILD2:  DO NOT DELETE THIS MARKER!
 #endif
 
 
 #define DEVEL_BIND_NUM 255
 
+// Pull-in (standard) macros for operating on these versions numbers
+#define VER_PRODUCT             "LON_DX"
 
-// pull-in (standard) macros for operating on these versions numbers
-#if DCXGEN < 3
-#define VER_PRODUCT             "NES DC-1000 Data Concentrator"
-#else
-#define VER_PRODUCT             "NES Data Concentrator"
-#endif
-
-#define COPYRIGHT_FROM			2003
+#define COPYRIGHT_FROM			2009
 
 #include "vermacro.h"
 
-#endif // __ECHVERSION_H__
+#endif // __ECHVERSION_H
 
-#endif		// __EchVersion_h
