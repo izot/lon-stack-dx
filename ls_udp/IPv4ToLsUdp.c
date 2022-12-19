@@ -21,10 +21,13 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#if PLATFORM_IS(FRTOS)
 #include <wm_net.h>
 #include <wlan.h>
 #include <wmtime.h>
 #include <wm_os.h>
+#endif
+
 #include <arch/sys.h>
 #include <dhcp-server.h>
 #include "IzotTypes.h"

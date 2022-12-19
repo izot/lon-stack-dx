@@ -78,7 +78,10 @@
 /*------------------------------------------------------------------------------
  Section: Includes
  ------------------------------------------------------------------------------*/
+#if PROCESSOR_IS(MC200)
 #include <wmstdio.h>
+#endif
+
 #include <stdio.h>
 #include <string.h>
 #include "IzotApi.h"
@@ -91,6 +94,7 @@
 #include "IzotCal.h"
 #include "endian.h"
 #include "err.h"
+
 #ifdef SECURITY_II
 #include "SecNmMsgs.h"
 #endif
@@ -98,8 +102,8 @@
 /*------------------------------------------------------------------------------
  Section: Constant Definitions
  ------------------------------------------------------------------------------*/
-#define BROADCAST_PREFIX  0xEFC00000
-#define IP_ADDRESS_LEN    4
+#define BROADCAST_PREFIX       0xEFC00000
+#define IP_ADDRESS_LEN         4
 #define MAX_NV_LEN_SUPPORTED   228
 #define IBOL_FINISH            0xFF
 

@@ -40,8 +40,7 @@
 #include "lcs_queue.h"
 #include "lcs_netmgmt.h"
 #include "lcs_link.h"
-#include "vldv.h"
-#include "tmr.h"
+#include "lcs_timer.h"
 
 /*------------------------------------------------------------------------------
   Section: Constant Definitions

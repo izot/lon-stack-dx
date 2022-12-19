@@ -29,9 +29,12 @@
  * APIs for the 88MC200 for the hardware GPIO and external flash.
  */
 
+#if PROCESSOR_IS(MC200)
 #include <mdev.h>
 #include <mc200_gpio.h>
 #include <mc200_pinmux.h>
+#endif
+
 #include "IzotHal.h"
 
 /*------------------------------------------------------------------------------

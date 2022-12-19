@@ -28,8 +28,6 @@
 #ifndef _TIMER_H
 #define _TIMER_H
 
-#include "tmr.h"
-
 // Structure: LonTimer
 typedef struct __attribute__ ((packed))
 {

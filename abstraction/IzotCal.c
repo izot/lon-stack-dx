@@ -28,10 +28,14 @@
  * This file contains the platform dependent APIs. This file contains
  * has APIs for FreeRTOS to send data on a udp socket.
  */
+
+#if PLATFORM_IS(FRTOS)
 #include <app_framework.h>
 #include <appln_cb.h>
 #include <wm_net.h>
 #include <wm_os.h>
+#endif
+
 #include "IzotTypes.h"
 #include "IzotHal.h"
 #include "IzotCal.h"

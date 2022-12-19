@@ -29,7 +29,10 @@
  * APIs for FreeRTOS to get timing information.
  */
 #include "IzotOsal.h"
+
+#if PLATFORM_IS(FRTOS)
 #include <wm_os.h>
+#endif
 
 /*
  * Function:   IzotGetTickCount
@@ -46,7 +49,11 @@
 OsalTickCount IzotGetTickCount(void)
 {
     // Return the OS tick count.
-    return os_ticks_get();
+    #if PLATFORM_IS(FRTOS)
+        return os_ticks_get();
+    #else
+        #error PROVIDE A FUNCTION TO GET A MILLISECONDS TICK COUNT
+    #endif
 }
 
 /*
