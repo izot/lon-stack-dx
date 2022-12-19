@@ -31,6 +31,7 @@
 #ifndef ERR_H
 #define ERR_H
 
+#include "EchelonStandardDefinitions.h"
 
 /*
  * Enumeration : ErrSystem

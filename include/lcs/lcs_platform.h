@@ -34,9 +34,9 @@
 #define BASE_FIRMWARE_VERSION   16
 
 // The version number of this firmware
-#define FIRMWARE_VERSION        VERSION_MAJOR
-#define FIRMWARE_MINOR_VERSION  VERSION_MINOR
-#define FIRMWARE_BUILD			VERSION_BUILD
+#define FIRMWARE_VERSION        VER_MAJOR
+#define FIRMWARE_MINOR_VERSION  VER_MINOR
+#define FIRMWARE_BUILD			    VER_BUILD
 
 // The model number of this platform
 #define MODEL_NUMBER            0x73

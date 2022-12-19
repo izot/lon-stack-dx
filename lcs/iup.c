@@ -182,14 +182,19 @@ void readIupPersistData(void)
     IzotByte    isPktWritten = 0;
     IzotByte data[iupPersistDataLen];
     
-    part = rfget_get_passive_firmware();
+    #if PLATFORM_IS(FRTOS)
+        part = rfget_get_passive_firmware();
+    #endif
+
     iflash_drv_read(NULL, data, 1, IUP_FLASH_OFFSET);
     
     if (data[0] == IUP_PERSIST_DATA_VALID) {
         DBG_vPrintf(TRUE, "IUP Persist data found\r\n");
         
         iflash_drv_init();
-        device = flash_drv_open(part->device);
+        #if PLATFORM_IS(FRTOS)
+            device = flash_drv_open(part->device);
+        #endif
         
         iflash_drv_read(NULL, data, iupPersistDataLen, IUP_FLASH_OFFSET);
         memcpy(&iupPersistData, (IupPersistent *)&data, iupPersistDataLen);
@@ -216,36 +221,39 @@ Purpose:   Initialize the firmware update process. Get the passive firmware
 *******************************************************************************/
 int InitUpdateProcess(void) 
 {
-    // Check whether transfer in process. 
-    // If yes then stop the previous transfer in process
-    iupPersistData.iupMode = 1;
-    iupRcvdPckCount = 0;    // Set the rcvd packet count to zero
-    iupPersistData.iupConfirmResultSucceed = FALSE;
-    iupCommitTimerStarted = FALSE;
-    iupImageValidated = FALSE;
-    validationOnceStarted = FALSE;
-    iupPersistData.iupCommitDone = FALSE;
-    iupPersistData.SecondaryFlag = FALSE;
+     #if PLATFORM_IS(FRTOS)
     
-    DBG_vPrintf(TRUE, "Erasing IUP Persist data in Init stage\r\n");
-    EraseIupPersistData();
-    
-    iflash_drv_init();
-    device = flash_drv_open(part->device);
-    if (device == NULL) {
-        DBG_vPrintf(TRUE, "Flash driver init is required before open\r\n");
-        return IUP_ERROR;
-    }
+        // Check whether transfer in process. 
+        // If yes then stop the previous transfer in process
+        iupPersistData.iupMode = 1;
+        iupRcvdPckCount = 0;    // Set the rcvd packet count to zero
+        iupPersistData.iupConfirmResultSucceed = FALSE;
+        iupCommitTimerStarted = FALSE;
+        iupImageValidated = FALSE;
+        validationOnceStarted = FALSE;
+        iupPersistData.iupCommitDone = FALSE;
+        iupPersistData.SecondaryFlag = FALSE;
+        
+        DBG_vPrintf(TRUE, "Erasing IUP Persist data in Init stage\r\n");
+        EraseIupPersistData();
+        
+        iflash_drv_init();
+        device = flash_drv_open(part->device);
+        if (device == NULL) {
+            DBG_vPrintf(TRUE, "Flash driver init is required before open\r\n");
+            return IUP_ERROR;
+        }
 
-    if (iflash_drv_erase(device, part->start, part->size) < 0) {
-        DBG_vPrintf(TRUE, "Failed to erase partition\r\n");
-        return IUP_ERROR;
-    }
-    
-    writeIupPersistData((IzotByte *)&iupPersistData.iupMode, sizeof(iupPersistData.iupMode) + 
-    sizeof(iupPersistData.initData), IUP_FLASH_OFFSET);
-    
-    DBG_vPrintf(TRUE, "Image Update Process Initializtion done...\r\n");
+        if (iflash_drv_erase(device, part->start, part->size) < 0) {
+            DBG_vPrintf(TRUE, "Failed to erase partition\r\n");
+            return IUP_ERROR;
+        }
+        
+        writeIupPersistData((IzotByte *)&iupPersistData.iupMode, sizeof(iupPersistData.iupMode) + 
+        sizeof(iupPersistData.initData), IUP_FLASH_OFFSET);
+        
+        DBG_vPrintf(TRUE, "Image Update Process Initializtion done...\r\n");
+    #endif
     return IUP_ERROR_NONE;
 }
 

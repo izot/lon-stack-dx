@@ -33,12 +33,14 @@
 #ifndef _ENDIAN_H
 #define _ENDIAN_H
 
+#include "lcs_platform.h"
+
 #ifdef LITTLE_ENDIAN
 #ifdef BIG_ENDIAN
-ERROR: Need to define just one of these!
+#error Need to define just one of these!
 #endif
 #elif !defined(BIG_ENDIAN)
-ERROR: Need to define either LITTLE_ENDIAN or BIG_ENDIAN
+#error Need to define either LITTLE_ENDIAN or BIG_ENDIAN
 #endif
 
 #ifdef LITTLE_ENDIAN

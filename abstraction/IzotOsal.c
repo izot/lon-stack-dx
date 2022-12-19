@@ -52,7 +52,7 @@ OsalTickCount IzotGetTickCount(void)
     #if PLATFORM_IS(FRTOS)
         return os_ticks_get();
     #else
-        #error PROVIDE A FUNCTION TO GET A MILLISECONDS TICK COUNT
+        #error Provide code to get a milliseconds tick count
     #endif
 }
 

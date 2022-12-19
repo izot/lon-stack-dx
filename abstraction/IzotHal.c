@@ -79,7 +79,11 @@ unsigned long *block_size, int *number_of_regions
  */
 void *HalFlashDrvOpen(uint32_t flags)
 {
-    dev = (mdev_t *)iflash_drv_open("iflash", 0);
+    #if PROCESSOR_IS(MC200)
+        dev = (mdev_t *)iflash_drv_open("iflash", 0);
+    #else
+        #error Implement code to open flash memory
+    #endif
     return dev;
 }
 

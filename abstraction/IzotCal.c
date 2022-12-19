@@ -40,9 +40,13 @@
 #include "IzotHal.h"
 #include "IzotCal.h"
 #include "IzotOsal.h"
+
+#if PROCESSOR_IS(MC200)
 #include <board.h>
 #include <mdev_gpio.h>
 #include <mdev_pinmux.h>
+#endif
+
 #include "IPv4ToLsUdp.h"
 #include "lcs_api.h"
 

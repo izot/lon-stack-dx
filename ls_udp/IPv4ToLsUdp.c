@@ -26,10 +26,10 @@
 #include <wlan.h>
 #include <wmtime.h>
 #include <wm_os.h>
-#endif
-
 #include <arch/sys.h>
 #include <dhcp-server.h>
+#endif
+
 #include "IzotTypes.h"
 #include "lcs.h"
 #include "lcs_queue.h"
