@@ -133,3 +133,38 @@ IzotUbits16 LonTimerRemaining(LonTimer *timerInOut)
 	return remaining;
 }
 
+/*****************************************************************
+Function:  StartLonWatch
+Returns:   None.
+Purpose:   Start a stop watch.
+******************************************************************/
+void StartLonWatch(LonWatch *watch)
+{
+	watch->start = IzotGetTickCount();
+}
+
+/*****************************************************************
+Function:  StopLonWatch
+Returns:   None.
+Purpose:   Stop a stop watch.
+******************************************************************/
+void StopLonWatch(LonWatch *watch)
+{
+	watch->start = 0;
+}
+
+/*****************************************************************
+Function:  LonWatchElapsed
+Returns:   Number of milliseconds since the watch was started.
+Purpose:   Return the number of milliseconds since StartLonWatch()
+		   was called.
+******************************************************************/
+void LonWatchElapsed(LonWatch *watch)
+{
+	IzotUbits16 duration = 0;
+	if (watch->start) {
+		duration = IzotGetTickCount() - watch->start;
+	}
+	return duration;
+}
+

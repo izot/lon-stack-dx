@@ -1,4 +1,7 @@
-// Copyright (C) 2022 Dialog Semiconductor
+//
+// lcs_link.c
+//
+// Copyright (C) 2022 EnOcean
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in 
@@ -19,21 +22,15 @@
 // SOFTWARE.
 
 /*******************************************************************************
-          File:        lcs_link.c
+     Reference:        ISO/IEC 14908-1 Link Layer
 
-       Version:        1
-
-     Reference:        Protocol Specification: Link Layer.
-
-       Purpose:        Data structures and functions for Link layers.
-
-          Note:        None
-
-         To Do:        None
+       Purpose:        Data structures and functions for LON Link layer when
+                       a native LON transport using a Neuron with MIP is used.
 *******************************************************************************/
+
 /*------------------------------------------------------------------------------
-Section: Includes
-------------------------------------------------------------------------------*/
+  Section: Includes
+  ------------------------------------------------------------------------------*/
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -47,13 +44,12 @@ Section: Includes
 #include "tmr.h"
 
 /*------------------------------------------------------------------------------
-Section: Constant Definitions
-------------------------------------------------------------------------------*/
-/* None */
+  Section: Constant Definitions
+  ------------------------------------------------------------------------------*/
 
 /*------------------------------------------------------------------------------
-Section: Type Definitions
-------------------------------------------------------------------------------*/
+  Section: Type Definitions
+  ------------------------------------------------------------------------------*/
 typedef struct
 {
 	Byte cmd;
@@ -73,7 +69,7 @@ typedef struct
 #define NUM_VNI 2
 static LinkHandle 	vniHandle[NUM_VNI];
 static XcvrParam 	vniXcvrParam[NUM_VNI];
-static TmrTimer 	xcvrTimer;
+static LonTimer 	xcvrTimer;
 static int 			plcVni;
 static Bool		 	xcvrFetch = false;
 static Bool			setPhase = true;
@@ -227,7 +223,7 @@ void LKReset(void)
 	}
 
 	// Start a timer to periodically fetch xcvr params plus kick off a fetch to get things initialized.
-	TMR_StartRepeating(&xcvrTimer, 10000);
+	StartLonRepeatTimer(&xcvrTimer, 10000);
 	LKFetchXcvr();
 	
     return;
@@ -252,7 +248,7 @@ void LKSend(void)
 	L2Frame		     sicb;
 	int				 i;
 
-	if (TMR_Expired(&xcvrTimer) || xcvrFetch)
+	if (LonTimerExpired(&xcvrTimer) || xcvrFetch)
 	{
 	  	LKFetchXcvr();
 	}

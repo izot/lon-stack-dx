@@ -2749,7 +2749,7 @@ static void InitiateChallenge(IzotUbits16 rrIndexIn)
         for (i = 0; i < 8; i++)
         {
             randomValue[i] = (IzotByte)((gp->prevChallenge[i] + rand() % 256 +
-                                     TMR_GetCurrentTime() % 256) % 256);
+                                     IzotGetTickCount() % 256) % 256);
             gp->prevChallenge[i] = randomValue[i];
         }
         memcpy(gp->recvRec[rrIndexIn].rand, randomValue, 8); /* Save */

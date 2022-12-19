@@ -346,20 +346,20 @@ Status ProcessLTEP(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
 		// On the Neuron, this can't occur because completion events are sent in the output buffer, not a new input buffer.
 		// LCS should probably be implemented more like the Neuron.  In the meantime, let's just have a timeout where
 		// we fail the proxy if we can't get an output buffer.
-		if (TMR_Expired(&gp->proxyBufferWait))
+		if (LonTimerExpired(&gp->proxyBufferWait))
 		{
 			SendResponse(appReceiveParamPtr->reqId, LT_ENHANCED_PROXY_FAILURE, sizeof(proxyCount), &proxyCount);
 			return SUCCESS;
 		}
-		else if (!TMR_Running(&gp->proxyBufferWait))
+		else if (!LonTimerRunning(&gp->proxyBufferWait))
 		{
-			TMR_Start(&gp->proxyBufferWait, 1000);
+			SetLonTimer(&gp->proxyBufferWait, 1000);
 		}
         return FAILURE;
     }
 	else
 	{
-		TMR_Stop(&gp->proxyBufferWait);
+		SetLonTimer(&gp->proxyBufferWait, 0);
 	}
     // Include sanity checks on incoming packet length
     if (dataLen >= (int)(sizeof(ProxyHeader) + sizeof(ProxySicb) + 1) && offset <= dataLen)
