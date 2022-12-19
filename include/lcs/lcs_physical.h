@@ -1,4 +1,7 @@
-// Copyright (C) 2022 Dialog Semiconductor
+//
+// lcs_physical.h
+//
+// Copyright (C) 2022 EnOcean
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in 
@@ -19,36 +22,28 @@
 // SOFTWARE.
 
 /*********************************************************************
-          File:        physical.h
+     Reference:        ISO/IEC 14908-1, Section 4, 4.3
 
-       Version:        1.7
-
-     Reference:        Protocol Spec. Section 4, 4.3
-
-       Purpose:        Data Structures for Physical Layer
-
-          Note:        None
-
-         To Do:        None
-
+       Purpose:        Data Structures for native LON Physical Layer.
+                       Not used for LON/IP.
 *********************************************************************/
 #ifndef _PHYSICAL_H
 #define _PHYSICAL_H
 
 /*------------------------------------------------------------------------------
-Section: Includes
-------------------------------------------------------------------------------*/
+  Section: Includes
+  ------------------------------------------------------------------------------*/
 #include <eia709_1.h> /* needed for NUM_COMM_PARAMS */
 
 /*-------------------------------------------------------------------
-Section: Constant Definitions
--------------------------------------------------------------------*/
+  Section: Constant Definitions
+  -------------------------------------------------------------------*/
 /* Length in bytes of Packet buffers for SPM ISR */
 #define PKT_BUF_LEN 255
 
 /*-------------------------------------------------------------------
-Section: Type Definitions
--------------------------------------------------------------------*/
+  Section: Type Definitions
+  -------------------------------------------------------------------*/
 typedef enum
 {
     RUN = 0,   /* The SPI is engaged in transfer */
@@ -88,7 +83,7 @@ typedef enum
     POST_TX,
 } Beta1Kind;
 
-/* user timer structure to keep elapsed time*/
+/* User timer structure to keep elapsed time*/
 typedef struct
 {
     Boolean expired;  /* flag indicates if timer has expired
@@ -163,7 +158,7 @@ typedef struct
 
 }   MACParam;
 
-/* frame parameters for ISR */
+/* Frame parameters for ISR */
 typedef struct
 {
 
@@ -238,15 +233,15 @@ typedef struct
 } SPMParam;
 
 /*-------------------------------------------------------------------
-Section: Globals
--------------------------------------------------------------------*/
+  Section: Globals
+  -------------------------------------------------------------------*/
 /* parameters for SPMIsr  */
 extern volatile MACParam macGbl;
 extern volatile SPMParam spmGbl;
 
 /*-------------------------------------------------------------------
-Section: Function Prototypes
--------------------------------------------------------------------*/
+  Section: Function Prototypes
+  -------------------------------------------------------------------*/
 void PHYReset(void);
 void PHYSend(void);
 void PHYReceive(void);
