@@ -1,31 +1,33 @@
+//
+// IzotPersitentFlashDirect.c
+//
+// Copyright (C) 2022 EnOcean
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy of
+// this software and associated documentation files (the "Software"), to deal in 
+// the Software without restriction, including without limitation the rights to
+// use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+// of the Software, and to permit persons to whom the Software is furnished to do
+// so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
 /*
- * File: IzotPersistentFlashDirect.c
- *
- * $Revision: #6 $
- *
  * Abstract:
- * This file contains an example implementation of the Izot non-volatile 
- * data (PERSISTENT) functions using Marvell 88MC200 flash access routines. 
- * See also IZotPersistentFlashFs.c for an alternate implementation using 
- * a flash file system.
+ * Example implementation of the Izot non-volatile data (PERSISTENT) functions
+ * using Marvell 88MC200 flash access routines. 
  * 
- * You might need to port this file to support your hardware and 
- * application requirements.
- *
- * Copyright:
- * Copyright (c) 2014 Echelon Corporation.  All rights reserved.
- *
- * Note:
- * This file is IzoT Device Stack API Software as defined in
- * the Software License Agreement that governs its use.
- *
- * ECHELON MAKES NO REPRESENTATION, WARRANTY, OR CONDITION OF
- * ANY KIND, EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE OR IN
- * ANY COMMUNICATION WITH YOU, INCLUDING, BUT NOT LIMITED TO,
- * ANY IMPLIED WARRANTIES OF MERCHANTABILITY, SATISFACTORY
- * QUALITY, FITNESS FOR ANY PARTICULAR PURPOSE,
- * NONINFRINGEMENT, AND THEIR EQUIVALENTS.
- *
+ * You can port this file to support your hardware and application
+ * requirements.
  */
 
 #include "IzotApi.h"
