@@ -28,6 +28,7 @@
  * This file contains the Platform dependent APIs. This file contains
  * APIs for FreeRTOS to get timing information.
  */
+#include "EchelonStandardDefinitions.h"
 #include "IzotOsal.h"
 
 #if PLATFORM_IS(FRTOS)
