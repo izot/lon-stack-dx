@@ -562,13 +562,13 @@ typedef struct
 typedef struct
 {
 	/* Track if this stack is initialized */
-	Bool    initialized;
+	Bool           initialized;
 
     /* Number of bytes used so far */
-    IzotUbits16  mallocUsedSize;
+    IzotUbits16    mallocUsedSize;
 
     /* Array of storage space for dynamic allocation of buffers etc */
-    IzotByte mallocStorage[MALLOC_SIZE];
+    IzotByte       mallocStorage[MALLOC_SIZE];
 
     /* Variables for Transaction Control Sublayer */
     TransCtrlRecord priTransCtrlRec;
@@ -581,22 +581,22 @@ typedef struct
     TIDTableEntry priTbl[TID_TABLE_SIZE];
     TIDTableEntry nonpriTbl[TID_TABLE_SIZE];
     /* # entries currently used */
-    IzotUbits16        priTblSize;
-    IzotUbits16        nonpriTblSize;
+    IzotUbits16    priTblSize;
+    IzotUbits16    nonpriTblSize;
 
     /* Timer to delay Transport/Session layers after an external or
        power-up reset. */
-    LonTimer tsDelayTimer;
+    LonTimer       tsDelayTimer;
 
     /* Transmit and Receive Records */
     TransmitRecord xmitRec;
     TransmitRecord priXmitRec;
 
     ReceiveRecord  *recvRec;  /* Pool of records */
-    IzotUbits16 recvRecCnt;        /* How many Records allocated? */
+    IzotUbits16    recvRecCnt;        /* How many Records allocated? */
 
-    RequestId reqId; /* Running count for request numbers */
-    IzotByte      prevChallenge[8]; /* Used in generation of new challenge. */
+    RequestId      reqId; /* Running count for request numbers */
+    IzotByte       prevChallenge[8]; /* Used in generation of new challenge. */
 
     /* Various Queues */
     /**************************************************************
@@ -609,95 +609,95 @@ typedef struct
       Buffer Sizes and Count Values are available in readOnlyData
       ************************************************************/
     /* Input Queues For App Layer */
-    Queue      appInQ;
-	Queue	   appCeRspInQ;	// Completion Event and Response queue
-    IzotUbits16     appInBufSize;
-    IzotUbits16     appInQCnt;
+    Queue          appInQ;
+	Queue	       appCeRspInQ;	// Completion Event and Response queue
+    IzotUbits16    appInBufSize;
+    IzotUbits16    appInQCnt;
 
     /* Output Queue For APP Layer */
-    Queue      appOutQ;
-    IzotUbits16     appOutBufSize;
-    IzotUbits16     appOutQCnt;
+    Queue          appOutQ;
+    IzotUbits16    appOutBufSize;
+    IzotUbits16    appOutQCnt;
 
     /* Output Priority Queue for APP Layer */
-    Queue      appOutPriQ;
-    IzotUbits16     appOutPriBufSize;
-    IzotUbits16     appOutPriQCnt;
+    Queue          appOutPriQ;
+    IzotUbits16    appOutPriBufSize;
+    IzotUbits16    appOutPriQCnt;
 
     /* Input Queue For Transport, Session, Authentication Layers */
-    Queue         tsaInQ;
-    IzotUbits16        tsaInBufSize;
-    IzotUbits16        tsaInQCnt;
+    Queue          tsaInQ;
+    IzotUbits16    tsaInBufSize;
+    IzotUbits16    tsaInQCnt;
 
     /* Output Queue For Transport, Session, Authentication Layers */
-    Queue         tsaOutQ;
-    IzotUbits16        tsaOutBufSize;
-    IzotUbits16        tsaOutQCnt;
+    Queue          tsaOutQ;
+    IzotUbits16    tsaOutBufSize;
+    IzotUbits16    tsaOutQCnt;
 
     /* Output Priority Queue For Transport, Session, Auth Layers */
-    Queue         tsaOutPriQ;
-    IzotUbits16        tsaOutPriBufSize;
-    IzotUbits16        tsaOutPriQCnt;
+    Queue          tsaOutPriQ;
+    IzotUbits16    tsaOutPriBufSize;
+    IzotUbits16    tsaOutPriQCnt;
 
     /* Output Queue for Responses. Just one queue is sufficient.
        Priority or Non-priority is determined based on request */
-    Queue         tsaRespQ;
-    IzotUbits16        tsaRespBufSize;
-    IzotUbits16        tsaRespQCnt;
+    Queue          tsaRespQ;
+    IzotUbits16    tsaRespBufSize;
+    IzotUbits16    tsaRespQCnt;
 
     /* Input Queue For network Layer */
-    Queue     nwInQ;
+    Queue          nwInQ;
     IzotUbits16    nwInBufSize;
     IzotUbits16    nwInQCnt;
 
     /* Temporary queue pointers */
-    Queue       *nwCurrent;
-    Queue       *lkCurrent;
+    Queue          *nwCurrent;
+    Queue          *lkCurrent;
 
     /* Output Queue For network Layer */
-    Queue     nwOutQ;
+    Queue          nwOutQ;
     IzotUbits16    nwOutBufSize;
     IzotUbits16    nwOutQCnt;
 
     /* Output Priority Queue For network Layer */
     /* Buffer size is same as the buffer size for Output Queue */
-    Queue     nwOutPriQ;
+    Queue          nwOutPriQ;
     IzotUbits16    nwOutPriBufSize;
     IzotUbits16    nwOutPriQCnt;
 #ifdef LINK_LAYER
     /* Input Queue For Link Layer */
-    IzotByte         *lkInQ;
-    IzotUbits16        lkInBufSize; /* Size of buffer in lkInPDUQ */
-    IzotUbits16        lkInQCnt;    /* # of Buffers allocated. */
-    IzotByte         *lkInQHeadPtr;
-    IzotByte         *lkInQTailPtr;
+    IzotByte       *lkInQ;
+    IzotUbits16    lkInBufSize; /* Size of buffer in lkInPDUQ */
+    IzotUbits16    lkInQCnt;    /* # of Buffers allocated. */
+    IzotByte       *lkInQHeadPtr;
+    IzotByte       *lkInQTailPtr;
 #endif
     /* Output Queue For Link Layer */
-    Queue         lkOutQ;
-    IzotUbits16        lkOutBufSize;
-    IzotUbits16        lkOutQCnt;
+    Queue          lkOutQ;
+    IzotUbits16    lkOutBufSize;
+    IzotUbits16    lkOutQCnt;
 
     /* Output Priority Queue For Link Layer */
     /* Buffer size is same as the buffer size for Output Queue */
-    Queue         lkOutPriQ;
-    IzotUbits16        lkOutPriBufSize;
-    IzotUbits16        lkOutPriQCnt;
+    Queue          lkOutPriQ;
+    IzotUbits16    lkOutPriBufSize;
+    IzotUbits16    lkOutPriQCnt;
 
 #ifndef INCLUDE_PHYSICAL
     /* Output Queue For Physical Layer */
-    IzotByte      *phyOutQ; /* Not a regular Queue unlike others */
-    IzotUbits16     phyOutBufSize;
-    IzotUbits16     phyOutQCnt;
-    IzotByte      *phyOutQHeadPtr;
-    IzotByte      *phyOutQTailPtr;
+    IzotByte       *phyOutQ; /* Not a regular Queue unlike others */
+    IzotUbits16    phyOutBufSize;
+    IzotUbits16    phyOutQCnt;
+    IzotByte       *phyOutQHeadPtr;
+    IzotByte       *phyOutQTailPtr;
 
     /* Output Priority Queue For Physical Layer */
     /* Buffer size is same as the buffer size for Output Queue */
-    IzotByte      *phyOutPriQ; /* Not a regular Queue unlike others */
-    IzotUbits16     phyOutPriBufSize;
-    IzotUbits16     phyOutPriQCnt;
-    IzotByte      *phyOutPriQHeadPtr;
-    IzotByte      *phyOutPriQTailPtr;
+    IzotByte       *phyOutPriQ; /* Not a regular Queue unlike others */
+    IzotUbits16    phyOutPriBufSize;
+    IzotUbits16    phyOutPriQCnt;
+    IzotByte       *phyOutPriQHeadPtr;
+    IzotByte       *phyOutPriQTailPtr;
 #endif
 
     /* API Flags */
@@ -720,8 +720,8 @@ typedef struct
     IzotUbits16 unboundSelector;
 
     /* Table to keep track of array network variables and dim */
-    NVArrayTbl nvArrayTbl[MAX_NV_ARRAYS];
-    IzotUbits16     nvArrayTblSize;
+    NVArrayTbl     nvArrayTbl[MAX_NV_ARRAYS];
+    IzotUbits16    nvArrayTblSize;
 
     /* Queue of nvIndex for network output variables.
        This queue stores the indices of network variables
@@ -749,12 +749,12 @@ typedef struct
        scheduling can be done, FALSE otherwise. This is reset to TRUE at
        the completion of the primary and all alias schedules. */
 
-    Queue         nvOutIndexQ;
-    IzotUbits16        nvOutIndexQCnt;
-    IzotUbits16        nvOutIndexBufSize;
-    Status        nvOutStatus;      /* Used to give NVUpdateCompletes for Propagate. */
+    Queue          nvOutIndexQ;
+    IzotUbits16    nvOutIndexQCnt;
+    IzotUbits16    nvOutIndexBufSize;
+    Status         nvOutStatus;      /* Used to give NVUpdateCompletes for Propagate. */
     IzotByte       nvOutCanSchedule; /* TRUE --> can continue to schedule. */
-    IzotBits16         nvOutIndex;       /* current primary index scheduled.   */
+    IzotBits16     nvOutIndex;       /* current primary index scheduled.   */
 
     /* Queue of nvIndex for network input variables.
        This queue stores the input variables that scheduled
@@ -769,15 +769,15 @@ typedef struct
 
        A poll succeeds if both nvInDataStatus and nvInTranStatus are true. */
 
-    Queue         nvInIndexQ;
-    IzotUbits16        nvInIndexQCnt;
-    Status        nvInDataStatus; /* true if any valid data from external node
+    Queue          nvInIndexQ;
+    IzotUbits16    nvInIndexQCnt;
+    Status         nvInDataStatus; /* true if any valid data from external node
                                     is received or nv is turnaround only. */
-    Status        nvInTranStatus; /* true if all transactions for the poll succeeded. */
+    Status         nvInTranStatus; /* true if all transactions for the poll succeeded. */
     IzotByte       nvInCanSchedule; /* TRUE --> can continue to schedule. */
-    IzotBits16         nvInIndex;       /* current primary index scheduled.   */
+    IzotBits16     nvInIndex;       /* current primary index scheduled.   */
 
-    IzotBits16               nvArrayIndex;
+    IzotBits16     nvArrayIndex;
     IzotReceiveAddress	nvInAddr;
 
     /* Flag to indicate scheduler whether reset is needed or not */
@@ -805,7 +805,7 @@ typedef struct
 	LonTimer ledTimer;		/* To flash service LED */
     LonTimer checksumTimer;	/* How often to checksum */
 
-	TmrTimer proxyBufferWait;
+	LonTimer proxyBufferWait;
 
 //	ErrorSim errorSim[2][2];		// One for each channel (primary, alternate) and frequency (0 primary, 1 secondary)
 
