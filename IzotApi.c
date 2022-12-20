@@ -686,7 +686,7 @@ IZOT_EXTERNAL_FN const IzotApiError IzotSetNodeMode(const IzotNodeMode mode, con
         RecomputeChecksum();
         LCS_WriteNvm();
         break;
-	case 6: /* New Physical Reset Sub Command */
+	case IzotPhysicalReset: /* New Physical Reset Sub Command */
 		PhysicalResetRequested();
 		break;
     default:

@@ -452,7 +452,8 @@ typedef IZOT_ENUM_BEGIN(IzotNodeMode)
     IzotApplicationOffLine  = 0,
     IzotApplicationOnLine   = 1,
     IzotApplicationReset    = 2,
-    IzotChangeState         = 3
+    IzotChangeState         = 3,
+    IzotPhysicalReset       = 6
 } IZOT_ENUM_END(IzotNodeMode);
 
 /*

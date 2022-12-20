@@ -527,6 +527,7 @@ Purpose:   Calulate MD5 for every 128 bytes from image and
 *******************************************************************************/
 void CalculateMD5(void) 
 {
+#if PLATFORM_IS(FRTOS)
     IzotByte digestResp[MD5_DIGEST_LENGTH];
     IzotByte md5buffer[128];
     IzotByte surPlus = iupPersistData.initData.IupImageLen % sizeof(md5buffer);
@@ -570,6 +571,7 @@ void CalculateMD5(void)
         iupImageValidated = TRUE;
         fileSizeTemp = 0;
     }
+#endif  // PLATFORM_IS(FRTOS)
 }
 
 /*******************************************************************************
