@@ -1227,6 +1227,7 @@ int UdpInit(void)
     int ret = IzotApiNoError;
     int err;
     
+#if PROCESSOR_IS(MC200)
     // Init the debug UART
     wmstdio_init(UART0_ID, 0);
     
@@ -1235,10 +1236,12 @@ int UdpInit(void)
     if (err != IzotApiNoError) {
         return err;
     }
+#endif  // PROCESSOR_IS(MC200)
 
     // Init the LCS Stack
     LCS_Init(IzotPowerUpReset);
     
+#if PROCESSOR_IS(MC200)
     // Start the wlan
     ret = CalStart();
     if (ret != IzotApiNoError) {
@@ -1252,7 +1255,8 @@ int UdpInit(void)
         return IzotApiNoIpAddress;
     }
     DBG_vPrintf(TRUE, "Sockets created\r\n");
-    
+#endif  // PROCESSOR_IS(MC200)
+  
     // restore multicast membership
     RestoreIpMembership();
     

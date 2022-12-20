@@ -130,6 +130,7 @@ void appln_critical_error_handler(void *data)
  */ 
 static void EventWlanInitDone(void *data)
 {
+#if PROCESSOR_IS(MC200)
     int ret;
     unsigned char mac[MAC_ID_LEN];
     
@@ -192,7 +193,7 @@ static void EventWlanInitDone(void *data)
     ret = wlan_cli_init();
     if (ret != WM_SUCCESS)
         CAL_Printf("Error: wlan_cli_init failed\r\n");
-
+#endif  // PROCESSOR_IS(MC200)
 }
 
 /*
@@ -312,6 +313,7 @@ static void EventNormalDHCPRenew(void *data)
  */
 static void EventNormalResetProv(void *data)
 {
+#if PROCESSOR_IS(MC200)
     // Reset to provisioning
     provisioned = 0;
 
@@ -322,6 +324,7 @@ static void EventNormalResetProv(void *data)
     }
     
     is_connected = 0;
+#endif  // PROCESSOR_IS(MC200)
 }
 
 /*
@@ -375,6 +378,7 @@ void CheckNetworkStatus(void)
 int common_event_handler(int event, void *data)
 {
     switch (event) {
+#if PROCESSOR_IS(MC200)
     case AF_EVT_WLAN_INIT_DONE:
         EventWlanInitDone(data);
         break;
@@ -405,6 +409,7 @@ int common_event_handler(int event, void *data)
     case AF_EVT_PROV_CLIENT_DONE:
         EventProvClientDone(data);
         break;
+#endif
     default:
         break;
     }
@@ -419,6 +424,8 @@ int common_event_handler(int event, void *data)
  */
 static void InitModules()
 {
+#if PROCESSOR_IS(MC200)
+
     int ret;
 
     // Initialize CLI Command
@@ -438,6 +445,7 @@ static void InitModules()
     app_sys_register_diag_handler();
     
     set_reconnect_iter(5);
+#endif  // PROCESSOR_IS(MC200)
 }
 
 /*
@@ -449,6 +457,7 @@ int CalStart(void)
 {
     int ret = IzotApiNoError;
     
+#if PROCESSOR_IS(MC200)
     InitModules();
     
     // Start the application framework
@@ -466,6 +475,7 @@ int CalStart(void)
         }
     }
     set_reconnect_iter(30);
+#endif  // PROCESSOR_IS(MC200)
     return ret;
 }
 
@@ -497,10 +507,11 @@ void SetCurrentIP(void)
  * Function: InitSocket
  *
  * Open priority and non priority sockets and 
- * also add mac filter for broadcast message
+ * add MAC filter for broadcast messages
  */
 int InitSocket(int port)
 {
+#if PROCESSOR_IS(MC200)
     struct sockaddr_in     sinme;
     
     // Open UDP socket for queue at start-up
@@ -534,7 +545,10 @@ int InitSocket(int port)
         net_close(app_udp_socket);
         return -1;
     }
-    
+#else   // PROCESSOR_IS(MC200)
+    #error Implement code to open priority and non priority sockets and add MAC filter for broadcast messages
+#endif  // PROCESSOR_IS(MC200)
+
     return 0;
 }
 
@@ -545,6 +559,7 @@ int InitSocket(int port)
  */
 void RemoveIPMembership(uint32_t addr)
 {
+#if PROCESSOR_IS(MC200)
     IzotByte mcast_mac[MLAN_MAC_ADDR_LENGTH];
     
     // Multicast address group structure
@@ -566,15 +581,17 @@ void RemoveIPMembership(uint32_t addr)
     }
     
     CAL_Printf("Removed Membership of %X \r\n",addr);wmstdio_flush();
+#endif  // PROCESSOR_IS(MC200)
 }
 
 /*
  * Function: AddIpMembership
  *
- * Add membership of given address in multicast group.
+ * Add address membership to a multicast group.
  */
 void AddIpMembership(uint32_t addr)
 {
+#if PROCESSOR_IS(MC200)
     IzotByte mcast_mac[MLAN_MAC_ADDR_LENGTH];
     
     // Multicast address group structure
@@ -597,6 +614,9 @@ void AddIpMembership(uint32_t addr)
     }
     
     CAL_Printf("Added Membership of %X \r\n", addr);
+#else   // PROCESSOR_IS(MC200)
+    #error Implement code to add address membership to a multicast group
+#endif  // PROCESSOR_IS(MC200)
 }
 
 /*
@@ -607,6 +627,7 @@ void AddIpMembership(uint32_t addr)
 void CalSend(uint32_t port, IzotByte* addr, IzotByte* pData, 
 uint16_t dataLength)
 {
+#if PROCESSOR_IS(MC200)
     IzotByte            loopch = 0;
     int                 sock = -1;
     int                 reuse = 1;
@@ -665,8 +686,10 @@ uint16_t dataLength)
         CAL_Printf("%d bytes sent\r\n", len);
     }
 #endif
-    
     net_close(sock);
+#else   // PROCESSOR_IS(MC200)
+    #error Implement code to send a UDP packet
+#endif  // PROCESSOR_IS(MC200)
 }
 
 /*
@@ -677,10 +700,12 @@ uint16_t dataLength)
  */
 int CalReceive(IzotByte* pData, IzotByte* pSourceAddr)
 {
+    int                 dataLength = 0;
+
+#if PROCESSOR_IS(MC200)
     struct sockaddr_in  from;
     int                 fromLen = sizeof(from);
     uint32_t            SrcIP;
-    int                 dataLength;
     
     dataLength = recvfrom(app_udp_socket, pData, 
     DecodeBufferSize(CAL_RECEIVE_BUF_SIZE), 0, (struct sockaddr *)&from, 
@@ -707,6 +732,8 @@ int CalReceive(IzotByte* pData, IzotByte* pSourceAddr)
         pSourceAddr[2] = (IzotByte)((SrcIP & 0x0000FF00) >> 8);
         pSourceAddr[3] = (IzotByte)(SrcIP & 0x000000FF);
     }
-    
+#else   // PROCESSOR_IS(MC200)
+    #error Implement code to received data on a UDP socket
+#endif  // PROCESSOR_IS(MC200)
     return dataLength;
 }
