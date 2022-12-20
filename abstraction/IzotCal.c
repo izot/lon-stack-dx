@@ -84,6 +84,7 @@ static uint32_t   previous, current = 0;
  *
  */
  
+ #if PROCESSOR_IS(MC200)
 /*
  * Function: appln_critical_error_handler
  * 
@@ -130,7 +131,6 @@ void appln_critical_error_handler(void *data)
  */ 
 static void EventWlanInitDone(void *data)
 {
-#if PROCESSOR_IS(MC200)
     int ret;
     unsigned char mac[MAC_ID_LEN];
     
@@ -193,7 +193,6 @@ static void EventWlanInitDone(void *data)
     ret = wlan_cli_init();
     if (ret != WM_SUCCESS)
         CAL_Printf("Error: wlan_cli_init failed\r\n");
-#endif  // PROCESSOR_IS(MC200)
 }
 
 /*
@@ -313,7 +312,6 @@ static void EventNormalDHCPRenew(void *data)
  */
 static void EventNormalResetProv(void *data)
 {
-#if PROCESSOR_IS(MC200)
     // Reset to provisioning
     provisioned = 0;
 
@@ -324,7 +322,6 @@ static void EventNormalResetProv(void *data)
     }
     
     is_connected = 0;
-#endif  // PROCESSOR_IS(MC200)
 }
 
 /*
@@ -378,7 +375,6 @@ void CheckNetworkStatus(void)
 int common_event_handler(int event, void *data)
 {
     switch (event) {
-#if PROCESSOR_IS(MC200)
     case AF_EVT_WLAN_INIT_DONE:
         EventWlanInitDone(data);
         break;
@@ -409,7 +405,6 @@ int common_event_handler(int event, void *data)
     case AF_EVT_PROV_CLIENT_DONE:
         EventProvClientDone(data);
         break;
-#endif
     default:
         break;
     }
@@ -424,8 +419,6 @@ int common_event_handler(int event, void *data)
  */
 static void InitModules()
 {
-#if PROCESSOR_IS(MC200)
-
     int ret;
 
     // Initialize CLI Command
@@ -445,8 +438,8 @@ static void InitModules()
     app_sys_register_diag_handler();
     
     set_reconnect_iter(5);
-#endif  // PROCESSOR_IS(MC200)
 }
+#endif  // PROCESSOR_IS(MC200)
 
 /*
  * Function: CalStart

@@ -94,10 +94,14 @@ typedef union {               // overlay two bytes on a 16-bit word
 /*------------------------------------------------------------------------------
  Section: Globals
  ------------------------------------------------------------------------------*/
+
+#if PROCESSOR_IS(MC200)
 struct partition_entry *part = NULL;
 mdev_t                 *device = NULL;
-IzotByte iupImageValidated;
-IzotByte iupCommitTimerStarted;
+#endif
+
+IzotByte  iupImageValidated;
+IzotByte  iupCommitTimerStarted;
 LonTimer  iupInitFirmwareTimer;
 LonTimer  iupValidateFirmwareTimer;
 LonTimer  iupMd5EventTimer;
@@ -139,6 +143,7 @@ uint32_t swaplong(uint32_t int_32) {             // swap bytes in 32-bit num
 Function:  isPacketMissed
 Purpose:   Return TRUE if given packet is missed
 *******************************************************************************/
+#if PLATFORM_IS(FRTOS)
 static IzotByte isPacketMissed(IzotUbits16 packetNumber) 
 {
     IzotByte isPktWritten = 0;
@@ -153,38 +158,42 @@ static IzotByte isPacketMissed(IzotUbits16 packetNumber)
         return FALSE;
     }
 }
+#endif
 
 /*******************************************************************************
 Function:  writeIupPersistData
 Purpose:   Write the IUP data into EEPROM
 *******************************************************************************/
+#if PLATFORM_IS(FRTOS)
 static void writeIupPersistData(IzotByte *data, uint32_t len, uint32_t addr)
 {
     iflash_drv_write(NULL, data, len, addr);
 }
+#endif
 
 /*******************************************************************************
 Function:  EraseIupPersistData
 Purpose:   Erase the IUP data from EEPROM and take the appropriate actio on that
 *******************************************************************************/
+#if PLATFORM_IS(FRTOS)
 void EraseIupPersistData(void) 
 {
     iflash_drv_erase(NULL, IUP_FLASH_OFFSET, EEPROM_BLOCK_SIZE);
 }
+#endif
 
 /*******************************************************************************
 Function:  readIupPersistData
-Purpose:   Read the IUP data from EEPROM and take the appropriate actio on that
+Purpose:   Read the IUP data from EEPROM and take the appropriate action on that
 *******************************************************************************/
 void readIupPersistData(void) 
 {
+#if PLATFORM_IS(FRTOS)
     IzotUbits16 pktNumber;
     IzotByte    isPktWritten = 0;
     IzotByte data[iupPersistDataLen];
     
-    #if PLATFORM_IS(FRTOS)
-        part = rfget_get_passive_firmware();
-    #endif
+    part = rfget_get_passive_firmware();
 
     iflash_drv_read(NULL, data, 1, IUP_FLASH_OFFSET);
     
@@ -192,9 +201,7 @@ void readIupPersistData(void)
         DBG_vPrintf(TRUE, "IUP Persist data found\r\n");
         
         iflash_drv_init();
-        #if PLATFORM_IS(FRTOS)
-            device = flash_drv_open(part->device);
-        #endif
+        device = flash_drv_open(part->device);
         
         iflash_drv_read(NULL, data, iupPersistDataLen, IUP_FLASH_OFFSET);
         memcpy(&iupPersistData, (IupPersistent *)&data, iupPersistDataLen);
@@ -212,6 +219,7 @@ void readIupPersistData(void)
     } else {
         DBG_vPrintf(TRUE, "No iup Persist data found\r\n");
     }
+#endif
 }
 
 /*******************************************************************************
@@ -221,39 +229,38 @@ Purpose:   Initialize the firmware update process. Get the passive firmware
 *******************************************************************************/
 int InitUpdateProcess(void) 
 {
-     #if PLATFORM_IS(FRTOS)
+#if PLATFORM_IS(FRTOS)
+    // Check whether transfer in process. 
+    // If yes then stop the previous transfer in process
+    iupPersistData.iupMode = 1;
+    iupRcvdPckCount = 0;    // Set the rcvd packet count to zero
+    iupPersistData.iupConfirmResultSucceed = FALSE;
+    iupCommitTimerStarted = FALSE;
+    iupImageValidated = FALSE;
+    validationOnceStarted = FALSE;
+    iupPersistData.iupCommitDone = FALSE;
+    iupPersistData.SecondaryFlag = FALSE;
     
-        // Check whether transfer in process. 
-        // If yes then stop the previous transfer in process
-        iupPersistData.iupMode = 1;
-        iupRcvdPckCount = 0;    // Set the rcvd packet count to zero
-        iupPersistData.iupConfirmResultSucceed = FALSE;
-        iupCommitTimerStarted = FALSE;
-        iupImageValidated = FALSE;
-        validationOnceStarted = FALSE;
-        iupPersistData.iupCommitDone = FALSE;
-        iupPersistData.SecondaryFlag = FALSE;
-        
-        DBG_vPrintf(TRUE, "Erasing IUP Persist data in Init stage\r\n");
-        EraseIupPersistData();
-        
-        iflash_drv_init();
-        device = flash_drv_open(part->device);
-        if (device == NULL) {
-            DBG_vPrintf(TRUE, "Flash driver init is required before open\r\n");
-            return IUP_ERROR;
-        }
+    DBG_vPrintf(TRUE, "Erasing IUP Persist data in Init stage\r\n");
+    EraseIupPersistData();
+    
+    iflash_drv_init();
+    device = flash_drv_open(part->device);
+    if (device == NULL) {
+        DBG_vPrintf(TRUE, "Flash driver init is required before open\r\n");
+        return IUP_ERROR;
+    }
 
-        if (iflash_drv_erase(device, part->start, part->size) < 0) {
-            DBG_vPrintf(TRUE, "Failed to erase partition\r\n");
-            return IUP_ERROR;
-        }
-        
-        writeIupPersistData((IzotByte *)&iupPersistData.iupMode, sizeof(iupPersistData.iupMode) + 
-        sizeof(iupPersistData.initData), IUP_FLASH_OFFSET);
-        
-        DBG_vPrintf(TRUE, "Image Update Process Initializtion done...\r\n");
-    #endif
+    if (iflash_drv_erase(device, part->start, part->size) < 0) {
+        DBG_vPrintf(TRUE, "Failed to erase partition\r\n");
+        return IUP_ERROR;
+    }
+    
+    writeIupPersistData((IzotByte *)&iupPersistData.iupMode, sizeof(iupPersistData.iupMode) + 
+    sizeof(iupPersistData.initData), IUP_FLASH_OFFSET);
+    
+    DBG_vPrintf(TRUE, "Image Update Process Initializtion done...\r\n");
+#endif
     return IUP_ERROR_NONE;
 }
 
@@ -264,7 +271,8 @@ Purpose:   verify the image data stored into passive firmware
 int VerifyImage(void)
 {
     int error = IUP_ERROR_NONE;
-    
+
+ #if PLATFORM_IS(FRTOS)   
     DBG_vPrintf(TRUE, "Validating firmware start from %X... IupImageLen = %d\r\n", 
     part->start, iupPersistData.initData.IupImageLen);
     
@@ -276,6 +284,7 @@ int VerifyImage(void)
     } else {
         DBG_vPrintf(TRUE, "Validation Done Successfully\r\n");
     }
+#endif
     return error;
 }
 
@@ -487,7 +496,7 @@ void MD5Final(uint8_t *digest, MD5Context *ctx)
     MD5Transform(ctx->buf, (uint32_t *) ctx->in);
     ByteReverse((unsigned char *) ctx->buf, 4);
     memcpy(digest, ctx->buf, 16);
-    memset(ctx, 0, sizeof(ctx));        // In case it's sensitive
+    memset(ctx, 0, sizeof(MD5Context));        // In case it's sensitive
 }
 
 /*******************************************************************************
@@ -570,6 +579,7 @@ Purpose:   Set the passive partition as a active parttition after
 *******************************************************************************/
 void SwitchOverImage(void) 
 {
+#if PLATFORM_IS(FRTOS)
     int error;
     
     iflash_drv_close(device);
@@ -580,11 +590,12 @@ void SwitchOverImage(void)
     if (!iupPersistData.SecondaryFlag){
 		arch_reboot();
 	}
+#endif
 }
  
 void CommitImage(void) 
 {
-	
+#if PLATFORM_IS(FRTOS)
 	if (!iupPersistData.iupCommitDone) {
 		part_set_active_partition(part);
 		iflash_drv_close(device);
@@ -593,6 +604,7 @@ void CommitImage(void)
 		sizeof(iupPersistData.initData) + sizeof(iupPersistData.iupConfirmResultSucceed));
 		arch_reboot();
 	}
+#endif
 }
 
 IzotByte isEmpty(IzotByte *in, IzotUbits16 len) 
@@ -612,6 +624,7 @@ Purpose:   Handle incoming NME Image Init request
 *******************************************************************************/
 void HandleNmeIupInit(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) 
 {
+#if PLATFORM_IS(FRTOS)
     // Get the available partition size
     uint32_t sizeAvailable = part->size;
     struct __attribute__ ((packed))
@@ -725,6 +738,7 @@ void HandleNmeIupInit(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
     SendResponse(appReceiveParamPtr->reqId, NM_resp_success | NM_EXPANDED, sizeof(init_response), 
     (IzotByte *)&init_response);
     return;
+#endif  // PLATFORM_IS(FRTOS)
 }
 
 /*******************************************************************************
@@ -733,6 +747,7 @@ void HandleNmeIupInit(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
  *******************************************************************************/
 void HandleNmeIupTransfer(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) 
 {
+#if PLATFORM_IS(FRTOS)
     IzotUbits16 newPckNum = 0;
 
     // Drop the packet with no data
@@ -777,6 +792,7 @@ void HandleNmeIupTransfer(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
             ((newPckNum - 1) * iupPersistData.initData.IupPacketLen));
         }
     }
+#endif  // PLATFORM_IS(FRTOS)
 }
 
 /*******************************************************************************
@@ -785,6 +801,7 @@ void HandleNmeIupTransfer(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
  *******************************************************************************/
 void HandleNmeIupConfirm(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) 
 {
+#if PLATFORM_IS(FRTOS)
     IzotUbits16 pktNumber;
     IzotByte    isPktWritten;
     struct __attribute__ ((packed))
@@ -857,6 +874,7 @@ void HandleNmeIupConfirm(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
 
     SendResponse(appReceiveParamPtr->reqId, NM_resp_success | NM_EXPANDED, sizeof(confirm_response) - 
     sizeof(confirm_response.pcktNumberColl) + (confirm_response.packetCount * 2), (IzotByte *)&confirm_response);
+#endif  // PLATFORM_IS(FRTOS)
 }
 
 /*******************************************************************************
@@ -865,6 +883,7 @@ Purpose:   Handle incoming NME Image Validate request
 *******************************************************************************/
 void HandleNmeIupValidate(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
 {
+#if PLATFORM_IS(FRTOS)
     struct __attribute__ ((packed))
     {
         IzotByte subCode;        // IUP_Validate : 0x1F
@@ -920,6 +939,7 @@ void HandleNmeIupValidate(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
     
     SendResponse(appReceiveParamPtr->reqId, NM_resp_success | NM_EXPANDED, sizeof(validate_response), 
     (IzotByte *)&validate_response);
+#endif  // PLATFORM_IS(FRTOS)
 }
 
 /*******************************************************************************
@@ -928,6 +948,7 @@ void HandleNmeIupValidate(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
  *******************************************************************************/
 void HandleNmeIupSwitchOver(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) 
 {
+#if PLATFORM_IS(FRTOS)
     uint32_t countDownTimer;
     struct __attribute__ ((packed))
     {
@@ -997,6 +1018,7 @@ void HandleNmeIupSwitchOver(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
     switchover_response.resultCode = IUP_SWITCHOVER_RESULT_SUCCESS;
     SendResponse(appReceiveParamPtr->reqId, NM_resp_success | NM_EXPANDED, sizeof(switchover_response), 
     (IzotByte *)&switchover_response);
+#endif  // PLATFORM_IS(FRTOS)
 }
 
 /*******************************************************************************
@@ -1005,6 +1027,7 @@ void HandleNmeIupSwitchOver(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
  *******************************************************************************/
 void HandleNmeIupStatus(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) 
 {
+#if PLATFORM_IS(FRTOS)
     struct __attribute__ ((packed))
     {
         IzotByte subCode;        // IUP_Status : 0x21
@@ -1053,6 +1076,7 @@ void HandleNmeIupStatus(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
     
     SendResponse(appReceiveParamPtr->reqId, NM_resp_success | NM_EXPANDED, sizeof(status_response), 
     (IzotByte *)&status_response);
+#endif  // PLATFORM_IS(FRTOS)
 }
 
 /*******************************************************************************
@@ -1061,6 +1085,7 @@ void HandleNmeIupStatus(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
  *******************************************************************************/
 void HandleNmeIupCommit(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) 
 {
+#if PLATFORM_IS(FRTOS)
     struct __attribute__ ((packed))
     {
         IzotByte subCode;        // IUP_Commit : 0x22
@@ -1113,6 +1138,7 @@ void HandleNmeIupCommit(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
     
     SendResponse(appReceiveParamPtr->reqId, NM_resp_success | NM_EXPANDED, sizeof(commit_response), 
     (IzotByte *)&commit_response);
+#endif  // PLATFORM_IS(FRTOS)
 }
 
 /*******************************************************************************
@@ -1121,10 +1147,12 @@ void HandleNmeIupCommit(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
  *******************************************************************************/
 void HandleNmeIupTransferAck(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) 
 {
+#if PLATFORM_IS(FRTOS)
 	IupTransferAckResponse TransferAck_response;
 	TransferAck_response.subCode = apduPtr->data[0];
 	TransferAck_response.resultCode = TRANSFER_CONTINUE;
 	TransferAck_response.actionTime = 0;
 	SendResponse(appReceiveParamPtr->reqId, NM_resp_success | NM_EXPANDED, sizeof(TransferAck_response), 
     (IzotByte *)&TransferAck_response);
+#endif  // PLATFORM_IS(FRTOS)
 }

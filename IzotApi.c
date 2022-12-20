@@ -51,6 +51,7 @@ extern "C" {
 #include "Persistent.h"
 #include "IPv4ToLsUdp.h"
 #include "lcs_api.h"
+#include "lcs_timer.h"
 
 /*------------------------------------------------------------------------------
   Section: Macros
@@ -98,7 +99,7 @@ IzotFilterMsgArrivedFunction izot_filter_msg_arrived = NULL;
 IzotFilterResponseArrivedFunction izot_filter_response_arrived = NULL;
 IzotFilterMsgCompletedFunction izot_filter_msg_completed = NULL;
 IzotisiTickFunction izot_isi_tick_handler = NULL;
-TmrTimer isi_tick_timer;
+LonTimer isi_tick_timer;
 
 /*------------------------------------------------------------------------------
   Section: Static
@@ -1099,7 +1100,7 @@ static void UnlockDevice(void)
 	uint8_t temp_y[8] = {0};
 	uint8_t digestKeyFlash[8] = {0};
 	uint8_t macAddress[6] = {0};            // Array to set MAC address
-    TmrTimer flickr_timer;
+    LonTimer flickr_timer;
     
     // Get Mac and Digest from SPI
 	HalGetMacAddress(macAddress);
