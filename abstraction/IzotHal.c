@@ -64,14 +64,22 @@ mdev_t *dev = NULL;
  */
 int HalGetFlashInfo(void *fd, unsigned long *offset, 
 unsigned long *region_size, int *number_of_blocks, 
-unsigned long *block_size, int *number_of_regions
-)
+unsigned long *block_size, int *number_of_regions)
 {
+#if PROCESSOR_IS(MC200)
     *offset             = FLASH_OFFSET;
     *region_size        = FLASH_REGION_SIZE;
     *number_of_blocks   = NUM_OF_BLOCKS;
     *block_size         = BLOCK_SIZE;
     *number_of_regions  = NO_OF_REGION;
+#else
+    *offset             = 0;
+    *region_size        = 0;
+    *number_of_blocks   = 0;
+    *block_size         = 0;
+    *number_of_regions  = 0;
+#endif
+
     return 0;
 }
 
@@ -82,12 +90,12 @@ unsigned long *block_size, int *number_of_regions
  */
 void *HalFlashDrvOpen(uint32_t flags)
 {
-    #if PROCESSOR_IS(MC200)
-        dev = (mdev_t *)iflash_drv_open("iflash", 0);
-    #else
-        #error Implement code to open flash memory
-    #endif
+#if PROCESSOR_IS(MC200)
+    dev = (mdev_t *)iflash_drv_open("iflash", 0);
     return dev;
+#else
+    return NULL;
+#endif
 }
 
 /*
@@ -97,7 +105,9 @@ void *HalFlashDrvOpen(uint32_t flags)
  */
 void HalFlashDrvClose(void *fd)
 {
+#if PROCESSOR_IS(MC200)
     iflash_drv_close(dev);
+#endif
 }
 
 /*
@@ -107,7 +117,9 @@ void HalFlashDrvClose(void *fd)
  */
 int HalFlashDrvInit(void)
 {
+#if PROCESSOR_IS(MC200)
     return iflash_drv_init();
+#endif
 }
 
 /*
@@ -118,7 +130,11 @@ int HalFlashDrvInit(void)
  */
 int HalFlashDrvErase(void *fd, unsigned long start, unsigned long size)
 {
+#if PROCESSOR_IS(MC200)
     return iflash_drv_erase(dev, start, size);
+#else
+    return 0;
+#endif
 }
 
 /*
@@ -129,7 +145,11 @@ int HalFlashDrvErase(void *fd, unsigned long start, unsigned long size)
  */
 int HalFlashDrvWrite(void *fd, IzotByte *buf, uint32_t len, uint32_t addr)
 {
+#if PROCESSOR_IS(MC200)
     return iflash_drv_write(dev, buf, len, addr);
+#else
+    return 0;
+#endif
 }
 
 /*
@@ -140,7 +160,11 @@ int HalFlashDrvWrite(void *fd, IzotByte *buf, uint32_t len, uint32_t addr)
  */
 int HalFlashDrvRead(void *fd, IzotByte *buf, uint32_t len, uint32_t addr)
 {
+#if PROCESSOR_IS(MC200)
     return iflash_drv_read(dev, buf, len, addr);
+#else
+    return 0;
+#endif
 }
 
 /*
@@ -150,7 +174,11 @@ int HalFlashDrvRead(void *fd, IzotByte *buf, uint32_t len, uint32_t addr)
  */ 
 int HalGetMacAddress(unsigned char *mac)
 {
+#if PROCESSOR_IS(MC200)
     return wlan_get_mac_address(mac);
+#else
+    return 0;
+#endif
 }
 
 /*
@@ -160,5 +188,7 @@ int HalGetMacAddress(unsigned char *mac)
  */ 
 void HalReboot(void)
 {
+#if PROCESSOR_IS(MC200)
     arch_reboot();
+#endif
 }

@@ -440,9 +440,13 @@ IzotApiError restore(unsigned short type)
             reason = 
                 deserializeAppDataPersistentSegment(pImage, imageLength);
             break;
+
+#ifdef SECURITY_II
         case IzotPersistentSegSecurityII:
             reason = deserializeSecurityIIData(pImage, imageLength);
             break;
+#endif
+
         default:
             reason = IzotApiPersistentFailure;
         }

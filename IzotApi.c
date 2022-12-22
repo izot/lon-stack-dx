@@ -1212,6 +1212,7 @@ const IzotControlData * const pControlData)
         return err;
     }
     
+#if PROCESSOR_IS(MC200)
     UnlockDevice();
     if (InitEEPROM(pInterface->Signature) != SUCCESS || APPInit() != SUCCESS) {
         err = IzotApiInitializationFailure;
@@ -1227,7 +1228,8 @@ const IzotControlData * const pControlData)
     } else {
         psm_set_single(IZOT_MOD_NAME, "first_run", "n");
     }
-      
+#endif  // PROCESSOR_IS(MC200)
+
     return err;
 }
 
@@ -1517,6 +1519,8 @@ IZOT_EXTERNAL_FN IzotBool IzotIsFirstRun(void)
 {
     char first_run[1] = "";
     int result = FALSE;
+ 
+#if PROCESSOR_IS(MC200)
     // Check if first run, if so, set variable
     
     psm_get_single(IZOT_MOD_NAME, "first_run", first_run, 2);
@@ -1524,7 +1528,8 @@ IZOT_EXTERNAL_FN IzotBool IzotIsFirstRun(void)
     if(strcmp(first_run, "y") == 0) {
         result = TRUE;
     }
-    
+#endif  // PROCESSOR_IS(MC200)
+
     return result;
 }
 
