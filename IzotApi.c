@@ -233,7 +233,7 @@ IZOT_EXTERNAL_FN void IzotEventPump(void)
         HalReboot();
     }
     
-    if (TMR_Expired(&isi_tick_timer)) {
+    if (LonTimerExpired(&isi_tick_timer)) {
         if (izot_isi_tick_handler) {
             izot_isi_tick_handler();
         }
@@ -1095,6 +1095,7 @@ IZOT_EXTERNAL_FN const int IzotPersistentGetMaxSize(IzotPersistentSegmentType se
  *
  * 
  */
+#if PROCESSOR_IS(MC200)
 static void UnlockDevice(void)
 {
 	uint8_t temp_y[8] = {0};
@@ -1113,18 +1114,18 @@ static void UnlockDevice(void)
     
     if (memcmp(digestKeyFlash, temp_y, sizeof(digestKeyFlash))) {
         gp->serviceLedState = SERVICE_FLICKER;
-        TMR_StartRepeating(&flickr_timer, 200);
+        SetLonRepeatTimer(&flickr_timer, 200);
     }
     
 	while (memcmp(digestKeyFlash, temp_y, sizeof(digestKeyFlash))) {
-        if (TMR_Expired(&flickr_timer)) {
+        if (LonTimerExpired(&flickr_timer)) {
             IzotServiceLedStatus(gp->serviceLedState, gp->serviceLedPhysical);
             gp->serviceLedPhysical = 1 - gp->serviceLedPhysical;
         }
         IzotSleep(100);
     }
 }
-
+#endif  // PROCESSOR_IS(MC200)
 
 /*
  * *****************************************************************************

@@ -119,6 +119,8 @@ int HalFlashDrvInit(void)
 {
 #if PROCESSOR_IS(MC200)
     return iflash_drv_init();
+#else
+    return 0;
 #endif
 }
 

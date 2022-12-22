@@ -253,6 +253,8 @@ static void EventNormalConnected(void *data)
     
     app_network_ip_get(ip);
     CAL_Printf("Connected to provisioned network with ip address =%s\r\n", ip);
+
+    // Convert IP address string (both versions) to numeric. Auto-detect version from the string.
     inet_aton(ip, &tempIp);
     
     ownIpAddress[0] = (IzotByte)(tempIp);
@@ -320,7 +322,6 @@ static void EventNormalResetProv(void *data)
     } else {
         app_provisioning_start(PROVISIONING_WLANNW);
     }
-    
     is_connected = 0;
 }
 
@@ -475,11 +476,12 @@ int CalStart(void)
 /*
  * Function: SetCurrentIP
  *
- * This function will send the announcement whenever new ip is
+ * This function will send an announcement whenever a new IP address is
  * assigned to the device
  */
 void SetCurrentIP(void)
 {
+#if PROCESSOR_IS(MC200)
     char ip[16];
     u32_t tempIp;
     
@@ -494,6 +496,7 @@ void SetCurrentIP(void)
     CAL_Printf("Source IP set as %d.%d.%d.%d\r\n",ownIpAddress[0],
                          ownIpAddress[1],ownIpAddress[2],ownIpAddress[3]);
     CAL_Printf("\r\n");
+#endif  // PROCESSOR_IS(MC200)
 }
 
 /*
