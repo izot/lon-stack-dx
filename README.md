@@ -32,6 +32,7 @@ Following is a high-level summary of the LON Stack DX file structure.
                 + IPv4ToLsUdp.c -- Layer 2 (data link layer) for a UDP/IP data link
                     + LsUDPSend() -- UDP/IP data link layer send processing 
                     + LsUDPReceive() -- UDP/IP data link layer receive processing
+                + lcs_physical.h -- Layer 1 (physical layer) data structures for a Neuron MIP data link
     IzotCal.c/h -- IP connectivity abstraction layer.
     IzotHal.c/h -- Hardware abstraction layer.
     IzotOsal.c/h -- Operating system abstraction layer.
