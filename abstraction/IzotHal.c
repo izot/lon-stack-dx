@@ -22,11 +22,11 @@
 // SOFTWARE.
 
 /*
- * Title: Hardware Abstaction Layer file
+ * Title: Hardware Abstraction Layer
  *
  * Abstract:
- * This file contains the hardware dependent APIs. This file contains
- * APIs for the 88MC200 for the hardware GPIO and external flash.
+ * Hardware-dependent APIs. This file includes optional interfaces
+ * for the 88MC200 GPIO and external flash.
  */
 
 #if PROCESSOR_IS(MC200)

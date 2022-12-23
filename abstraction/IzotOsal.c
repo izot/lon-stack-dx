@@ -33,6 +33,11 @@
 
 #if PLATFORM_IS(FRTOS)
 #include <wm_os.h>
+#else
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+#include <unistd.h>
 #endif
 
 /*
@@ -50,11 +55,14 @@
 OsalTickCount IzotGetTickCount(void)
 {
     // Return the OS tick count.
-    #if PLATFORM_IS(FRTOS)
-        return os_ticks_get();
-    #else
-        #error Provide code to get a milliseconds tick count
-    #endif
+#if PLATFORM_IS(FRTOS)
+    return os_ticks_get();
+#else
+    struct timespec timeNow;
+
+    clock_gettime(CLOCK_REALTIME, &timeNow);
+    return (timeNow->sec * 1000) + (timeNow->nsec / 1000000L);
+#endif
 }
 
 /*
@@ -91,7 +99,11 @@ OsalTickCount GetTicksPerSecond(void){
 OsalStatus OsalSleep(int ticks)
 {
     if (ticks <= MAX_TIMEOUT_TICKS) {
+#if PLATFORM_IS(FRTOS)
         os_thread_sleep(os_msec_to_ticks(ticks));
+#else
+        nanosleep((const struct timespec[]){{(int)(ticks / 1000), (ticks % 1000) * 1000000L}}, NULL);
+#endif
     } else {
         // Tick count exceeds the maximum number of ticks supported by 
         // uC/OS-II.  It will be necessary to wait more than one time.
@@ -113,8 +125,12 @@ OsalStatus OsalSleep(int ticks)
             ticksRemaining -= timeout;
             
             // Wait for "timeout" tick counts.      
+#if PLATFORM_IS(FRTOS)
             os_thread_sleep(os_msec_to_ticks(timeout));
-            
+#else
+            nanosleep((const struct timespec[]){{(int)(timeout / 1000), (timeout % 1000) * 1000000L}}, NULL);
+#endif
+
             if (ticksRemaining) {
                 // Recalculate how many ticks are really remaining to prevent 
                 // drift. 
@@ -149,7 +165,11 @@ OsalStatus OsalSleep(int ticks)
  */
 void *OsalMalloc(unsigned int size)
 {
+#if PLATFORM_IS(FRTOS)
     return os_mem_alloc(size);
+#else
+    malloc(size);
+#endif  // PLATFORM_IS(FRTOS)
 }
 
 /*
@@ -165,5 +185,9 @@ void *OsalMalloc(unsigned int size)
  */
 void OsalFree(void *ptr)
 {
+#if PLATFORM_IS(FRTOS)
     os_mem_free(ptr);
+#else
+    free(ptr);
+#endif  // PLATFORM_IS(FRTOS)
 }

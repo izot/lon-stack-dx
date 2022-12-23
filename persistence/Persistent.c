@@ -191,8 +191,10 @@ static IzotApiError store(unsigned short type)
         reason = serializeLcsEppromPersistentSegment(&pImage, &imageLen);
     } else if (type == IzotPersistentSegApplicationData) {
         reason = serializeAppDataPersistentSegment(&pImage, &imageLen);
+#ifdef SECURITY_II
     } else if (type == IzotPersistentSegSecurityII) {
         reason = serializeSecurityIIData(&pImage, &imageLen);
+#endif
     } 
     
     if (reason == IzotApiNoError) {
