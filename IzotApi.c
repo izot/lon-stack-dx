@@ -211,19 +211,24 @@ IzotServiceLedPhysicalState physicalState)
  */
 IZOT_EXTERNAL_FN void IzotEventPump(void)
 {
+#if PROCESSOR_IS(MC200)
     CheckNetworkStatus();
-    
-	if(is_connected) {
+
+	if(is_connected) {    
 		LCS_Service();
 		StoreTask();
 	}
-    
+#else
+	LCS_Service();
+	StoreTask();
+#endif
+
     IzotSleep(1);
     if (gp->serviceLedState != SERVICE_BLINKING && (((gp->serviceLedState != gp->prevServiceLedState) && 
     (gp->serviceLedState != (IzotServiceLedState)0xff)) || ((gp->serviceLedPhysical != gp->preServiceLedPhysical) && 
     (gp->serviceLedPhysical != (IzotServiceLedPhysicalState)0xff))))
     {
-        IzotServiceLedStatus(gp->serviceLedState, gp->serviceLedPhysical); // expose the service pin state to the callback function
+        IzotServiceLedStatus(gp->serviceLedState, gp->serviceLedPhysical); // expose the Connect button state to the callback function
         
         gp->prevServiceLedState = gp->serviceLedState;
         gp->preServiceLedPhysical = gp->serviceLedPhysical;
