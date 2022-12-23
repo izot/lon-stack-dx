@@ -22,11 +22,11 @@
 // SOFTWARE.
 
 /*******************************************************************************
-     Reference:        ISO/IEC 14908-1, Link Layer
+     Reference:        ISO/IEC 14908-1, Data Link Layer
 
-       Purpose:        Prototypes for the LON link layer when using a MIP
-                       transport.  These interfaces are not used with an IP
-                       transport.
+       Purpose:        Prototypes for the LON Data Link layer implemented on a
+                       Neuron processor with MIP firmware.  These interfaces
+                       are not used with an IP data link.
 *******************************************************************************/
 #ifndef _LINK_H
 #define _LINK_H

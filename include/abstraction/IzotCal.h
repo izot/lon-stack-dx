@@ -22,7 +22,7 @@
 // SOFTWARE.
 
 /*
- * Title: Connectivity Abstaction Layer header file
+ * Title: IP Connectivity Abstaction Layer header file
  *
  * Abstract:
  * This file contains the Izot Connectivity layer socket APIs.

@@ -22,10 +22,10 @@
 // SOFTWARE.
 
 /*******************************************************************************
-     Reference:        ISO/IEC 14908-1 Link Layer
+     Reference:        ISO/IEC 14908-1 Data Link Layer
 
-       Purpose:        Data structures and functions for LON Link layer when
-                       a native LON transport using a Neuron with MIP is used.
+       Purpose:        Data structures and functions for the LON Data Link layer
+                       implemented on a Neuron processor with MIP firmware.
 *******************************************************************************/
 
 /*------------------------------------------------------------------------------

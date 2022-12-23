@@ -22,7 +22,7 @@
 // SOFTWARE.
 
 /*
- * Title: Connectivity Abstaction Layer file
+ * Title: IP Connectivity Abstaction Layer file
  *
  * Abstract:
  * This file contains the platform dependent APIs. This file contains
