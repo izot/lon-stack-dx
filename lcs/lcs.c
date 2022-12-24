@@ -131,14 +131,14 @@ void LCS_Service()
 		TPSend();
 		AuthSend();
 		NWSend();
-		#if TRANSPORT_IS(MIP)
+		#if LINK_IS(MIP)
 			LKSend();
 		#else
 			LsUDPSend();
 		#endif
 		
 		// Call all the Receive functions.
-		#if TRANSPORT_IS(MIP)
+		#if LINK_IS(MIP)
 			LKReceive();
 		#else
 			LsUDPReceive();

@@ -32,7 +32,7 @@
 #define	MODULE_PLATFORM_H
 
 /*
- * Product/platform/processor/transport ID macros for conditional
+ * Product/platform/processor/link ID macros for conditional
  * compilation.  See EchelonStandardDefinitions.h for explanation 
  * of use.
  */
@@ -56,10 +56,10 @@
 #error You must define PROCESSOR_ID
 #endif		
 
-#define TRANSPORT_ID_MIP    1   // Neuron MIP transport
+#define LINK_ID_MIP    1   // Neuron MIP data link
 
-#ifndef TRANSPORT_ID
-#error You must define TRANSPORT_ID
+#ifndef LINK_ID
+#error You must define LINK_ID
 #endif		
 
 // Macro for addresses that can be > 64K

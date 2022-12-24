@@ -194,21 +194,22 @@ IzotServiceLedPhysicalState physicalState)
  * Process asynchronous IzoT events.
  *
  * Remarks:
- * The application calls this API frequently and periodically, after the
- * <IzotStartStack>() call returned with success. This function processes
- * any events that have been posted by the IzoT protocol stack.
- * Typically this function is called in response to <IzotEventReady>, but
- * must *not* be called directly from that event handler. The <IzotEventReady>
- * event handler typically sets an operating system event to schedule the main
- * application task to call the <IzotEventPump> function.
- *
- * This function must be called at least once every 10 ms.  Use the following
- * formula to determine the minimum call rate:
- *   rate = MaxPacketRate / (InputBufferCount - 1)
+ * Call this function periodically after calling IzotStartStack(),
+ * IzotRegisterStaticDatapoint() once per static NV, and IzotRegisterMemoryWindow()
+ * Call at least once every 10 ms or at the following interval in milliseconds,
+ * whichever is less:
+ *      Interval = ((InputBufferCount - 1) * 1000) / MaxPacketRate
  * where MaxPacketRate is the maximum number of packets per second arriving
  * for the device and InputBufferCount is the number of input buffers defined
- * for the application
- */
+ * for the application.  
+ 
+ * This function processes any events that have been posted by the DX stack.
+ * Typically this function is called in response to IzotEventReady(), but
+ * must *not* be called directly from that event handler. The IzotEventReady()
+ * event handler typically sets an operating system event to schedule the main
+ * application task to call the IzotEventPump() function.
+ *
+*/
 IZOT_EXTERNAL_FN void IzotEventPump(void)
 {
 #if PROCESSOR_IS(MC200)
@@ -2097,7 +2098,7 @@ const IzotBool success)
  */
 IzotApiError IzotMemoryRead(const unsigned address, const unsigned size, void* const pData)
 {
-#if     IZOT_DMF_ENABLED
+#if     LON_DMF_ENABLED
     char* pHostAddress = NULL;
     IzotMemoryDriver driver = IzotMemoryDriverUnknown;
     IzotApiError result = IzotTranslateWindowArea(FALSE, address, size, &pHostAddress, &driver);
@@ -2112,7 +2113,7 @@ IzotApiError IzotMemoryRead(const unsigned address, const unsigned size, void* c
     return result;
 #else
     return IzotApiNotAllowed;
-#endif   /* IZOT_DMF_ENABLED */
+#endif   /* LON_DMF_ENABLED */
 }
 
 /* 
@@ -2138,7 +2139,7 @@ IzotApiError IzotMemoryRead(const unsigned address, const unsigned size, void* c
  */
 IzotApiError IzotMemoryWrite(const unsigned address, const unsigned size, const void* const pData)
 {
-#if IZOT_DMF_ENABLED
+#if LON_DMF_ENABLED
     char* pHostAddress = NULL;
     IzotMemoryDriver driver = IzotMemoryDriverUnknown;
     IzotApiError result = IzotTranslateWindowArea(TRUE, address, size, &pHostAddress, &driver);
@@ -2153,7 +2154,7 @@ IzotApiError IzotMemoryWrite(const unsigned address, const unsigned size, const 
     return result;
 #else
     return IzotApiNotAllowed;
-#endif  /* IZOT_DMF_ENABLED */
+#endif  /* LON_DMF_ENABLED */
 }
 
 /*

@@ -683,7 +683,7 @@ typedef struct
     IzotUbits16    lkOutPriBufSize;
     IzotUbits16    lkOutPriQCnt;
 
-#ifndef INCLUDE_PHYSICAL
+#if LINK_IS(MIP)
     /* Output Queue For Physical Layer */
     IzotByte       *phyOutQ; /* Not a regular Queue unlike others */
     IzotUbits16    phyOutBufSize;

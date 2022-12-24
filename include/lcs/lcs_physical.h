@@ -30,6 +30,8 @@
 #ifndef _PHYSICAL_H
 #define _PHYSICAL_H
 
+#if LINK_IS(MIP)
+
 /*------------------------------------------------------------------------------
   Section: Includes
   ------------------------------------------------------------------------------*/
@@ -252,6 +254,6 @@ void PHYDisableSPMIsr(void);
 void PHYEnableSPMIsr(void);
 void PHYIO(void);
 void PHYIOInit(void);
-#endif
 
-/*************************End of physical.h*************************/
+#endif  // LINK_IS(MIP)
+#endif  // _PHYSICAL_H

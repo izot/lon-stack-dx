@@ -60,7 +60,7 @@
  *
  * This technique will only work if all the options are linkable when they are not optimized away.
  *
- * The actual product/platform/processor/transport IDs must be defined in a separate global project
+ * The actual product/platform/processor/link IDs must be defined in a separate global project
  * header file.  They must use the form xxx_ID_yyy N
  * For example:
  *
@@ -71,12 +71,12 @@
 #define PRODUCT_ID 0
 #define PLATFORM_ID 0
 #define PROCESSOR_ID 0
-#define TRANSPORT_ID 0
+#define LINK_ID 0
 
 #define PRODUCT_IS(prodid) (PRODUCT_ID == PRODUCT_ID_ ## prodid)
 #define PLATFORM_IS(platid) (PLATFORM_ID == PLATFORM_ID_ ## platid)
 #define PROCESSOR_IS(procid) (PROCESSOR_ID == PROCESSOR_ID_ ## procid)
-#define TRANSPORT_IS(tranid) (TRANSPORT_ID == TRANSPORT_ID_ ## tranid)
+#define LINK_IS(linkid) (LINK_ID == LINK_ID_ ## linkid)
 
 // Include the actual ID definitions
 #include "module_platform.h"

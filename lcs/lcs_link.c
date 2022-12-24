@@ -28,6 +28,8 @@
                        implemented on a Neuron processor with MIP firmware.
 *******************************************************************************/
 
+#if LINK_IS(MIP)
+
 /*------------------------------------------------------------------------------
   Section: Includes
   ------------------------------------------------------------------------------*/
@@ -482,5 +484,4 @@ void LKFetchXcvr(void)
 	xcvrFetch = vldv_write(vniHandle[plcVni], (L2Frame*)&sicbOut, (short)(sicbOut.len+2)) != LDV_OK;
 }
 
-/******************************End of link.c **********************************/
-
+#endif  // LINK_IS(MIP)

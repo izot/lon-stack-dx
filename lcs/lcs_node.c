@@ -535,7 +535,7 @@ void NodeReset(IzotByte firstReset)
         }
     }
 
-#ifdef INCLUDE_PHYSICAL
+#if LINK_IS(MIP)
     PHYInitSPM(firstReset);
 #endif
 
