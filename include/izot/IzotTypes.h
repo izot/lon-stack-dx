@@ -1608,13 +1608,13 @@ typedef IZOT_STRUCT_BEGIN(IzotDirectModeTransceiver)
  *  The current version of the IzotDatapointDefinition structure.
  *
  */
-#define IZOT_DATAPOINT_DEFINITION_CURRENT_VERSION 1
+#define IZOT_DATAPOINT_DEFINITION_CURRENT_VERSION 2
 
 typedef uint8_t IzotDatapointSize;
 
 typedef IZOT_STRUCT_BEGIN(IzotDatapointDefinition)
 {
-    uint8_t Version;                /* If the Izot protocol stack does
+    uint8_t         Version;        /* If the Izot protocol stack does
                                        not recognize the version, it will be
                                        rejected.  The current version is
                                        IZOT_DATAPOINT_DEFINITION_CURRENT_VERSION. */
@@ -1622,28 +1622,29 @@ typedef IZOT_STRUCT_BEGIN(IzotDatapointDefinition)
     IzotDatapointSize DeclaredSize; /* The declared size of the Datapoint (1 to 228).
                                        This is also the initial size and the
                                        maximum size. */
-    uint16_t       SnvtId;          /* Specifies the type of Datapoint if it is a
+    uint16_t        SnvtId;         /* Specifies the type of Datapoint if it is a
                                        SNVT (1-250). A non-standard datapoint
                                        type will have SnvtId = 0. */
-    uint16_t ArrayCount;            /* Array Count (0 to 4096).  A 0
+    uint16_t        ArrayCount;     /* Array Count (0 to 4096).  A 0
                                        indicates that the datapoint is
                                        not an array. */
-    uint32_t Flags;                 /* Bit flags describing attributes of the
+    uint32_t        Flags;          /* Bit flags describing attributes of the
                                        datapoint.  From a combination
                                        of the IZOT_DATAPOINT_* flags. */
-    const char *Name;               /* Datapoint name.  Limited to 16
+    const char      *Name;          /* Datapoint name.  Limited to 16
                                        bytes base name plus an array
                                        designator of [dddd] where [dddd] is a
                                        one to four digit decimal number from
                                        0 to 4095. */
-    const char *SdString;           /* Self Doc String.  Can be null.  String
+    const char      *SdString;      /* Self Doc String.  Can be null.  String
                                        length is 0 to 1023 characters. */
-    uint8_t MaxRate;                /* Encoded maximum rate (0 to 127, or 255).
+    uint8_t         MaxRate;        /* Encoded maximum rate (0 to 127, or 255).
                                        Set to IZOT_DATAPOINT_RATE_UKNOWN if not
                                        specified. */
-    uint8_t MeanRate;               /* Encoded rate(0 to 127, or 255).  Set
+    uint8_t         MeanRate;       /* Encoded rate(0 to 127, or 255).  Set
                                        to IZOT_DATAPOINT_RATE_UKNOWN if not specified. */                    
-    const uint8_t *ibol;            /* Points to the IBOL sequence */
+    const uint8_t   *ibol;          /* Points to the IBOL sequence */
+    uint16_t        NvIndex;        /* NV index -- added for version 2 */
 } IZOT_STRUCT_END(IzotDatapointDefinition);
 
 /*

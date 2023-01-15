@@ -64,7 +64,7 @@ To change the mode for a device to configured and online after setting the domai
 To update a network variable (which the DX stack API calls a “datapoint”):
 1.	Declare the network variable as a standard variable in C.
 2.	Create the network variable with IzotRegisterStaticDatapoint(), supplying a pointer to the variable you created in step 1.
-3.	Configure the selector and address table index for the network variable with IzotUpdateDpConfig()).
+3.	Configure the selector and address table index for the network variable with c).
 4.	To update the network variable:
 a.	Update the network variable value with a write to the network variable created in step 1.
 b.	Propagate the network variable by calling either IzotPropagate() or IzotPropagateByIndex(). 

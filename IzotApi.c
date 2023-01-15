@@ -1311,7 +1311,8 @@ IZOT_EXTERNAL_FN const IzotApiError IzotRegisterStaticDatapoint(const IzotDatapo
     if (d.snvtExt) {
         d.snvtDesc |= 0x80;
     }
-    if (AddNV(&d) == -1) {
+    pDatapointDef->NvIndex = AddNV(&d);
+    if (pDatapointDef->NvIndex == -1) {
         err = IzotApiInvalidParameter;
     }
     return err;
