@@ -1406,17 +1406,17 @@ typedef IZOT_ENUM_BEGIN(IzotDatapointDirection)
 
 typedef IZOT_STRUCT_BEGIN(IzotDatapointConfig)
 {
-    IzotByte  SelhiDirPrio;   /* contains selector-high, direction, priority. Use IZOT_DATAPOINT_* macros. */
+    IzotByte  SelhiDirPrio;   /* Contains selector-high, direction, priority. Use IZOT_DATAPOINT_* macros. */
     IzotByte  SelectorLow;
-    IzotByte  Attribute1;     /* contains turnaround, service, authentication, and address table index. Use IZOT_DATAPOINT_* macros. */
-	IzotByte  Attribute2; 
+    IzotByte  Attribute1;     /* Contains turnaround, service, authentication, and address-low. Use IZOT_DATAPOINT_* macros. */
+	IzotByte  Attribute2;     /* Contains address-high and aes. Use IZOT_DATAPOINT_* macros. */
 } IZOT_STRUCT_END(IzotDatapointConfig);
 
 /*
-*  Enumeration: IzotSelectionType
-*  Literals for the ECS selection type.
-*
-*/
+ *  Enumeration: IzotSelectionType
+ *  Literals for the ECS selection type.
+ *
+ */
 
 typedef IZOT_ENUM_BEGIN(IzotSelectionType)
 {
@@ -1578,10 +1578,8 @@ typedef IZOT_STRUCT_BEGIN(IzotDirectModeTransceiver)
 #define IZOT_DATAPOINT_AUTH_CONFIG      0x00000002 /* Authentication is configurable. */
 #define IZOT_DATAPOINT_PRIORITY_CONFIG  0x00000004 /* Priority is configurable. */
 #define IZOT_DATAPOINT_SERVICE_CONFIG   0x00000008 /* TService type is configurable. */
-#define IZOT_DATAPOINT_OFFLINE          0x00000010 /* Network tools should only change
-                                        * this value when the device is offline. */
-#define IZOT_DATAPOINT_POLLED           0x00000020 /* This is either a polling input or a
-                                        * polled output. */
+#define IZOT_DATAPOINT_OFFLINE          0x00000010 /* Network tools should only change this value when the device is offline. */
+#define IZOT_DATAPOINT_POLLED           0x00000020 /* This is either a polling input or a polled output. */
 #define IZOT_DATAPOINT_SYNC             0x00000040 /* A synchronous Datapoint. */
 #define IZOT_DATAPOINT_CHANGEABLE       0x00000080 /* The datapoint type is changeable. */
 #define IZOT_DATAPOINT_PRIORITY         0x00000100 /* Default to priority. */
@@ -1591,7 +1589,6 @@ typedef IZOT_STRUCT_BEGIN(IzotDirectModeTransceiver)
 #define IZOT_DATAPOINT_UNACKD           0x00001000 /* Default to unacknowledged service. */
 #define IZOT_DATAPOINT_PERSISTENT       0x00004000 /* Default to persistent datapoints */
 #define IZOT_DATAPOINT_IS_OUTPUT        0x00008000 /* The Datapoint is an output datapoint. */
-/* The following flags are added with version 2 of the IzotDatapointDefinition structure */
 
 /*
  *  Macro: IZOT_DATAPOINT_RATE_UNKNOWN

@@ -744,6 +744,7 @@ IZOT_EXTERNAL_FN const IzotApiError IzotUpdateDomainConfig(unsigned index, const
 {
     IzotByte ret;
     IzotDomain *p = AccessDomain(index);
+
     ret = UpdateDomain(pDomain, index, true);
     if (ret) {
         return IzotApiIndexInvalid;
@@ -762,6 +763,57 @@ IZOT_EXTERNAL_FN const IzotApiError IzotUpdateDomainConfig(unsigned index, const
     LCS_WriteNvm();
     return IzotApiNoError;
 }
+
+/*
+ *  Function: IzotUpdateDomain
+ *  Updates a domain table record and changes the LON stack to online and configured.
+
+ *  Parameters:
+ *  index - domain index
+ *  length - domain ID length (0, 1, 3, or 6)
+ *  domainId - domain ID (number of bytes specified by length)
+ *  subnet - subnet ID
+ *  node - node ID
+ *
+ *  Returns:
+ *  <IzotApiError>
+ */
+
+IZOT_EXTERNAL_FN const IzotApiError IzotUpdateDomain(unsigned index, unsigned length, const IzotByte* domainId, unsigned subnet, unsigned node)
+{
+	IzotDomain Domain;
+    IzotApiError apiError = IzotApiNoError;
+
+	memcpy(&Domain, access_domain(index), sizeof(Domain));
+
+    // Set the domain ID length, domain ID, subnet ID, and node ID, nonclone flag, and mark the domain valid
+    IZOT_SET_ATTRIBUTE(Domain, IZOT_DOMAIN_ID_LENGTH, length);
+    memcpy(Domain.Id, domainId, length);
+    Domain.Subnet = subnet;
+	IZOT_SET_ATTRIBUTE(Domain, IZOT_DOMAIN_NODE, node);
+    IZOT_SET_ATTRIBUTE(Domain, IZOT_DOMAIN_NONCLONE, index == 0);  // 0 = if it's a clone domain, 1= otherwise
+    IZOT_SET_ATTRIBUTE(Domain, IZOT_DOMAIN_INVALID, 0);
+
+	if (index == 0) {
+        // Set authentication type and DCHP flag for domain index 0
+		IZOT_SET_ATTRIBUTE(Domain, IZOT_AUTH_TYPE, AUTH_OMA);
+		IZOT_SET_ATTRIBUTE(Domain, IZOT_DHCP_FLAG, 1);
+	}
+	
+	if (memcmp(&Domain, access_domain(index), sizeof(Domain))) {
+        // Domain changed, update the domain table
+        apiError = IzotUpdateDomainConfig(index, &Domain);
+
+        if (index == 0) {
+            // Go configured and online for domain index 0
+            IzotGoConfigured();
+            IzotGoOnline();
+        }
+	}
+
+	return apiError;
+};
+
 
 /*
  *  Function: IzotQueryAddressConfig
@@ -849,7 +901,7 @@ IZOT_EXTERNAL_FN const IzotApiError IzotQueryDpConfig(signed index, IzotDatapoin
  *  Function: IzotUpdateDpConfig
  *  Updates a datapoint configuration table record on the IzoT device.
  *
- *  Parameter:
+ *  Parameters:
  *  index - index of datapoint
  *  pDatapointConfig - datapoint configuration
  *
@@ -870,6 +922,115 @@ IZOT_EXTERNAL_FN const IzotApiError IzotUpdateDpConfig(signed index, const IzotD
     RecomputeChecksum();
     LCS_WriteNvm();
     return IzotApiNoError;
+}
+
+/*
+ * Function: IzotDatapointSetup
+ * Sets the static configuration for a datapoint (NV).
+ *
+ * Parameters:
+ *  pDatapointConfig - datapoint configuration
+ *  value - datapoint value
+ *  size - datapoint size in bytes
+ *  snvtId - standard type index; set to 0 for a non-standard type
+ *  arrayCount - number of elements in a datapoint (NV) array; set to 0 for a single value
+ *  name - short datapoint (NV) name
+ *  sdString - long datapoint (NV) name; may include LonMark self-documentation
+ *  maxRate - estimated maximum update rate; set to IZOT_DATAPOINT_RATE_UNKNOWN if unknown
+ *  meanRate - estimated average update rate; set to IZOT_DATAPOINT_RATE_UNKNOWN if unknown
+ *  ibol - memory address for file-based configuration properties; set to NULL if none
+ *  
+ * Returns:
+ * <IzotApiError>.
+ *
+ * Remarks:
+ * This function does not update the datapoint configuration flags.  Use IzotDatapointFlags() for setting flags.
+ */
+
+IZOT_EXTERNAL_FN const IzotApiError IzotDatapointSetup(const IzotDatapointDefinition* const pDatapointDef, 
+        volatile void const *value, IzotDatapointSize size, uint16_t snvtId, uint16_t arrayCount, 
+        const char *name, const char *sdString, uint8_t maxRate, uint8_t meanRate, const uint8_t *ibol) 
+{
+    IzotApiError lastError = izotApiNoError;
+
+    pDatapointConfig->Version = 2;
+    pDatapointConfig->pValue = value;
+    pDatapointConfig->DeclaredSize = size;
+    pDatapointConfig->SnvtId = snvtId;
+    pDatapointConfig->ArrayCount = arrayCount;
+    pDatapointConfig->Name = name;
+    pDatapointConfig->SdString = sdString;
+    pDatapointConfig->MaxRate = maxRate;
+    pDatapointConfig->MeanRate = meanRate;
+    pDatapointConfig->ibol = ibol;
+
+    return(lastError);
+}
+
+/*
+ * Function: IzotDatapointFlags
+ * Sets the static configuration flags for a datapoint (NV).
+ *
+ * Parameters:
+ *  pDatapointConfig - datapoint configuration
+ *  priority - set to TRUE for a priority datapoint (NV)
+ *  direction - input or output
+ *  authentication - set to TRUE for authenticated transactions
+ *  aes - set to TRUE for AES encryption
+ *  
+ * Returns:
+ * <IzotApiError>.
+ *
+ * Remarks:
+ * This function only updates the datapoint configuration flags.  Use IzotDatapointSetup() for setting non-flags.
+ */
+
+IZOT_EXTERNAL_FN const IzotApiError IzotDatapointFlags(const IzotDatapointConfig* const pDatapointConfig,
+        IzotBool priority, IzotDatapointDirection direction, IzotBool authentication, IzotBool aes)
+{
+    IzotApiError lastError = izotApiNoError;
+
+    IZOT_SET_ATTRIBUTE(pDatapointConfig, IZOT_DATAPOINT_PRIORITY, priority);
+    IZOT_SET_ATTRIBUTE(pDatapointConfig, IZOT_DATAPOINT_DIRECTION, direction);
+    IZOT_SET_ATTRIBUTE(pDatapointConfig, IZOT_DATAPOINT_AUTHENTICATION, authentication);
+    IZOT_SET_ATTRIBUTE(pDatapointConfig, IZOT_DATAPOINT_AES, aes);
+
+    return(lastError);
+}
+
+/*
+ * Function: IzotDatapointBind
+ * Binds a datapoint (NV).  Binding is the process of creating a connection to or from a datapoint
+ * from or to one or more datapoints.
+ *
+ * Parameters:
+ *  pDatapointConfig - datapoint configuration
+ *  address - address table index
+ *  selector - NV selector
+ *  turnaround - turnaroud flag; set to TRUE if source or destination is on same device
+ *  service - delivery service
+ *  
+ * Returns:
+ * <IzotApiError>.
+ *
+ * Remarks:
+ * This function only updates the datapoint connection information.  Use IzotDatapointSetup() and
+ * IzotDatapointFlags) setting other datapoint configuration.
+ */
+
+IZOT_EXTERNAL_FN const IzotApiError IzotDatapointBind(const IzotDatapointConfig* const pDatapointConfig, 
+        IzotByte address, IzotWord selector, IzotBool turnAround, IzotServiceType service)
+{
+    IzotApiError lastError = izotApiNoError;
+
+    IZOT_SET_ATTRIBUTE(pDatapointConfig, IZOT_DATAPOINT_ADDRESS_HIGH, address >> 4);
+    IZOT_SET_ATTRIBUTE(pDatapointConfig, IZOT_DATAPOINT_ADDRESS_LOW, address);
+    IZOT_SET_ATTRIBUTE(pDatapointConfig, IZOT_DATAPOINT_SELHIGH, high_byte(IZOT_GET_UNSIGNED_WORD(selector)));
+    pDatapointConfig.SelectorLow = low_byte(IZOT_GET_UNSIGNED_WORD(selector));
+    IZOT_SET_ATTRIBUTE(pDatapointConfig, IZOT_DATAPOINT_TURNAROUND, turnAround);
+    IZOT_SET_ATTRIBUTE(pDatapointConfig, IZOT_DATAPOINT_SERVICE, service);
+
+    return(lastError);
 }
 
 /*
@@ -1258,7 +1419,7 @@ const IzotControlData * const pControlData)
 IZOT_EXTERNAL_FN const IzotApiError IzotRegisterStaticDatapoint(const IzotDatapointDefinition* const pDatapointDef) {
     IzotApiError err = IzotApiNoError;
 
-    NVDefinition d;
+    pDatapointConfiginition d;
     UInt16 flags = pDatapointDef->Flags;
     memset(&d, 0, sizeof(d));
     d.snvtType = pDatapointDef->SnvtId;
