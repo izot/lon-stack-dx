@@ -53,7 +53,7 @@ To manage stack lifetime use the following functions:
 * IzotEventPump() -- DX stack event pump API for the main event loop.  Call periodically as described in the IzotEventPump() comments.
 
 To configure the domain, subnet, and node ID for self-installation use the following function:
-* IzotUpdateDomainConfig().
+* IzotUpdateDomain().
 
 To configure an address table entry for self-installation use the following function:
 * IzotUpdateAddressConfig().
