@@ -61,27 +61,26 @@ To configure an address table entry for self-installation use the following func
 To change the mode for a device to configured and online after setting the domain and address table configuration use the following function:
 * IzotGoConfigured().
 
-To update a network variable (which the DX stack API calls a “datapoint”):
-1.	Declare the network variable as a standard variable in C.
-2.	Create the network variable with IzotRegisterStaticDatapoint(), supplying a pointer to the variable you created in step 1.
-3.	Configure the selector and address table index for the network variable with c).
-4.	To update the network variable:
-a.	Update the network variable value with a write to the network variable created in step 1.
-b.	Propagate the network variable by calling either IzotPropagate() or IzotPropagateByIndex(). 
+To create a network variable:
+1.  Declare the network variable as a standard variable in C.
+2.  Create an IzotDatapointDefinition structure for the network variable.
+3.  Initialize the IzotDatapointDefinition structure with the IzotDatapointSetup() and IzotDatapointFlags() functions.
+4.  To create a self-installed connection, update the IzotDatapointDefinition structure with the IzotDatapointBind() function.
+5.  Create the network variable with IzotRegisterStaticDatapoint(), supplying a pointer to the variable you created in step 1
+    and the IzotDatapointDefinition structure you created and initialized in steps 2 through 4.
 
-To poll a network variable:
-1.	Declare the network variable as a standard variable in C.
-2.	Create the network variable with IzotRegisterStaticDatapoint(), supplying a pointer to the variable you created in step 1.
-3.	Configure the selector for the network variable with IzotUpdateDpConfig().
-4.	To poll the network variable, call IzotPoll() or IzotPollByIndex().
+To update a network variable (which the DX stack API calls a “datapoint”):
+1.	Configure the address table index for the network variable.
+2.	To update the network variable:
+    a.	Update the network variable value with a write to the network variable created in step 1.
+    b.	Propagate the network variable by calling either IzotPropagate() or IzotPropagateByIndex(). 
+
+To poll a network variable call IzotPoll() or IzotPollByIndex().
 
 To receive a network variable update:
-1.	Declare the network variable as a standard variable in C.
-2.	Create the network variable with IzotRegisterStaticDatapoint(), supplying a pointer to the variable you created in step 1.
-3.	Configure the selector and address table index for the network variable with IzotUpdateDpConfig().
-4.	Configure a received network variable update handler with IzotDatapointUpdateOccurredRegistrar().
-5.	Your received network variable update handler will be called for every received network variable update.
-6.	For each call to your received network variable update handler, the updated network variable will be identified.  Call the appropriate network variable update handler for each received network variable.  The handler reads the updated value from the network variable created in step 1.
+1.	Configure a received network variable update handler with IzotDatapointUpdateOccurredRegistrar().
+2.	Your received network variable update handler will be called for every received network variable update.
+3.	For each call to your received network variable update handler, the updated network variable will be identified.  Call the appropriate network variable update handler for each received network variable.  The handler reads the updated value from the network variable created in step 1.
 
 To send an application message use the following function:
 * Call IzotSendMsg()
