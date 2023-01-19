@@ -947,22 +947,22 @@ IZOT_EXTERNAL_FN const IzotApiError IzotUpdateDpConfig(signed index, const IzotD
  * This function does not update the datapoint configuration flags.  Use IzotDatapointFlags() for setting flags.
  */
 
-IZOT_EXTERNAL_FN const IzotApiError IzotDatapointSetup(const IzotDatapointDefinition* const pDatapointDef, 
+IZOT_EXTERNAL_FN const IzotApiError IzotDatapointSetup(IzotDatapointDefinition* const pDatapointDef, 
         volatile void const *value, IzotDatapointSize size, uint16_t snvtId, uint16_t arrayCount, 
         const char *name, const char *sdString, uint8_t maxRate, uint8_t meanRate, const uint8_t *ibol) 
 {
     IzotApiError lastError = izotApiNoError;
 
-    pDatapointConfig->Version = 2;
-    pDatapointConfig->pValue = value;
-    pDatapointConfig->DeclaredSize = size;
-    pDatapointConfig->SnvtId = snvtId;
-    pDatapointConfig->ArrayCount = arrayCount;
-    pDatapointConfig->Name = name;
-    pDatapointConfig->SdString = sdString;
-    pDatapointConfig->MaxRate = maxRate;
-    pDatapointConfig->MeanRate = meanRate;
-    pDatapointConfig->ibol = ibol;
+    pDatapointDef->Version = 2;
+    pDatapointDef->pValue = value;
+    pDatapointDef->DeclaredSize = size;
+    pDatapointDef->SnvtId = snvtId;
+    pDatapointDef->ArrayCount = arrayCount;
+    pDatapointDef->Name = name;
+    pDatapointDef->SdString = sdString;
+    pDatapointDef->MaxRate = maxRate;
+    pDatapointDef->MeanRate = meanRate;
+    pDatapointDef->ibol = ibol;
 
     return(lastError);
 }
@@ -985,7 +985,7 @@ IZOT_EXTERNAL_FN const IzotApiError IzotDatapointSetup(const IzotDatapointDefini
  * This function only updates the datapoint configuration flags.  Use IzotDatapointSetup() for setting non-flags.
  */
 
-IZOT_EXTERNAL_FN const IzotApiError IzotDatapointFlags(const IzotDatapointConfig* const pDatapointConfig,
+IZOT_EXTERNAL_FN const IzotApiError IzotDatapointFlags(IzotDatapointConfig* const pDatapointConfig,
         IzotBool priority, IzotDatapointDirection direction, IzotBool authentication, IzotBool aes)
 {
     IzotApiError lastError = izotApiNoError;
@@ -1018,7 +1018,7 @@ IZOT_EXTERNAL_FN const IzotApiError IzotDatapointFlags(const IzotDatapointConfig
  * IzotDatapointFlags) setting other datapoint configuration.
  */
 
-IZOT_EXTERNAL_FN const IzotApiError IzotDatapointBind(const IzotDatapointConfig* const pDatapointConfig, 
+IZOT_EXTERNAL_FN const IzotApiError IzotDatapointBind(IzotDatapointConfig* const pDatapointConfig, 
         IzotByte address, IzotWord selector, IzotBool turnAround, IzotServiceType service)
 {
     IzotApiError lastError = izotApiNoError;
@@ -1416,7 +1416,7 @@ const IzotControlData * const pControlData)
  *  and is called once for each static datapoint.  This function can be
  *  called only after <IzotCreateStack>, but before <IzotStartStack>.
  */
-IZOT_EXTERNAL_FN const IzotApiError IzotRegisterStaticDatapoint(const IzotDatapointDefinition* const pDatapointDef) {
+IZOT_EXTERNAL_FN const IzotApiError IzotRegisterStaticDatapoint(IzotDatapointDefinition* const pDatapointDef) {
     IzotApiError err = IzotApiNoError;
 
     pDatapointConfiginition d;

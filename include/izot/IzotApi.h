@@ -669,9 +669,9 @@ IZOT_EXTERNAL_FN const IzotApiError IzotUpdateDpConfig(signed index,
  * This function does not update the datapoint configuration flags.  Use IzotDatapointFlags() for setting flags.
  */
 
-IZOT_EXTERNAL_FN const IzotApiError IzotDatapointSetup(signed index, volatile void const *value, 
-        IzotDatapointSize size, uint16_t snvtId, uint16_t arrayCount, const char *name, 
-        const char *sdString, uint8_t maxRate, uint8_t meanRate, const uint8_t *ibol);
+IZOT_EXTERNAL_FN const IzotApiError IzotDatapointSetup(IzotDatapointDefinition* const pDatapointDef, 
+        volatile void const *value, IzotDatapointSize size, uint16_t snvtId, uint16_t arrayCount, 
+        const char *name, const char *sdString, uint8_t maxRate, uint8_t meanRate, const uint8_t *ibol);
 
 /*
  * Function: IzotDatapointFlags
@@ -691,8 +691,8 @@ IZOT_EXTERNAL_FN const IzotApiError IzotDatapointSetup(signed index, volatile vo
  * This function only updates the datapoint configuration flags.  Use IzotDatapointSetup() for setting non-flags.
  */
 
-IZOT_EXTERNAL_FN const IzotApiError IzotDatapointFlags(signed index, IzotBool priority, 
-        IzotDatapointDirection direction, IzotBool authentication, IzotBool aes);
+IZOT_EXTERNAL_FN const IzotApiError IzotDatapointFlags(IzotDatapointConfig* const pDatapointConfig,
+        IzotBool priority, IzotDatapointDirection direction, IzotBool authentication, IzotBool aes);
 
 /*
  * Function: IzotDatapointBind
@@ -711,8 +711,8 @@ IZOT_EXTERNAL_FN const IzotApiError IzotDatapointFlags(signed index, IzotBool pr
  * IzotDatapointFlags) setting other datapoint configuration.
  */
 
-IZOT_EXTERNAL_FN const IzotApiError IzotDatapointBind(signed index, IzotByte address, IzotWord selector, 
-        IzotBool turnAround, IzotServiceType service);
+IZOT_EXTERNAL_FN const IzotApiError IzotDatapointBind(IzotDatapointConfig* const pDatapointConfig, 
+        IzotByte address, IzotWord selector, IzotBool turnAround, IzotServiceType service);
 
 /*
  *  Function: IzotQueryAliasConfig
@@ -973,7 +973,7 @@ IZOT_EXTERNAL_FN const IzotApiError IzotCreateStack(
  *  initialization function (often called IzotInit()).
  */
 IZOT_EXTERNAL_FN const IzotApiError IzotRegisterStaticDatapoint(
-    const IzotDatapointDefinition* const pDatapointDef
+    IzotDatapointDefinition* const pDatapointDef
 );
 
 /*
