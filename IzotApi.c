@@ -990,10 +990,10 @@ IZOT_EXTERNAL_FN const IzotApiError IzotDatapointFlags(IzotDatapointConfig* cons
 {
     IzotApiError lastError = izotApiNoError;
 
-    IZOT_SET_ATTRIBUTE(pDatapointConfig, IZOT_DATAPOINT_PRIORITY, priority);
-    IZOT_SET_ATTRIBUTE(pDatapointConfig, IZOT_DATAPOINT_DIRECTION, direction);
-    IZOT_SET_ATTRIBUTE(pDatapointConfig, IZOT_DATAPOINT_AUTHENTICATION, authentication);
-    IZOT_SET_ATTRIBUTE(pDatapointConfig, IZOT_DATAPOINT_AES, aes);
+    IZOT_SET_ATTRIBUTE(pDatapointConfig->SelhiDirPrio, IZOT_DATAPOINT_PRIORITY, priority);
+    IZOT_SET_ATTRIBUTE(pDatapointConfig->SelhiDirPrio, IZOT_DATAPOINT_DIRECTION, direction);
+    IZOT_SET_ATTRIBUTE(pDatapointConfig->Attribute1, IZOT_DATAPOINT_AUTHENTICATION, authentication);
+    IZOT_SET_ATTRIBUTE(pDatapointConfig->Attribute2, IZOT_DATAPOINT_AES, aes);
 
     return(lastError);
 }
@@ -1023,12 +1023,12 @@ IZOT_EXTERNAL_FN const IzotApiError IzotDatapointBind(IzotDatapointConfig* const
 {
     IzotApiError lastError = izotApiNoError;
 
-    IZOT_SET_ATTRIBUTE(pDatapointConfig, IZOT_DATAPOINT_ADDRESS_HIGH, address >> 4);
-    IZOT_SET_ATTRIBUTE(pDatapointConfig, IZOT_DATAPOINT_ADDRESS_LOW, address);
-    IZOT_SET_ATTRIBUTE(pDatapointConfig, IZOT_DATAPOINT_SELHIGH, high_byte(IZOT_GET_UNSIGNED_WORD(selector)));
+    IZOT_SET_ATTRIBUTE(pDatapointConfig->Attribute2, IZOT_DATAPOINT_ADDRESS_HIGH, address >> 4);
+    IZOT_SET_ATTRIBUTE(pDatapointConfig->Attribute1, IZOT_DATAPOINT_ADDRESS_LOW, address);
+    IZOT_SET_ATTRIBUTE(pDatapointConfig->SelhiDirPrio, IZOT_DATAPOINT_SELHIGH, high_byte(IZOT_GET_UNSIGNED_WORD(selector)));
     pDatapointConfig->SelectorLow = low_byte(IZOT_GET_UNSIGNED_WORD(selector));
-    IZOT_SET_ATTRIBUTE(pDatapointConfig, IZOT_DATAPOINT_TURNAROUND, turnAround);
-    IZOT_SET_ATTRIBUTE(pDatapointConfig, IZOT_DATAPOINT_SERVICE, service);
+    IZOT_SET_ATTRIBUTE(pDatapointConfig->Attribute1, IZOT_DATAPOINT_TURNAROUND, turnAround);
+    IZOT_SET_ATTRIBUTE(pDatapointConfig->Attribute1, IZOT_DATAPOINT_SERVICE, service);
 
     return(lastError);
 }
