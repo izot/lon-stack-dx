@@ -1026,7 +1026,7 @@ IZOT_EXTERNAL_FN const IzotApiError IzotDatapointBind(IzotDatapointConfig* const
     IZOT_SET_ATTRIBUTE(pDatapointConfig, IZOT_DATAPOINT_ADDRESS_HIGH, address >> 4);
     IZOT_SET_ATTRIBUTE(pDatapointConfig, IZOT_DATAPOINT_ADDRESS_LOW, address);
     IZOT_SET_ATTRIBUTE(pDatapointConfig, IZOT_DATAPOINT_SELHIGH, high_byte(IZOT_GET_UNSIGNED_WORD(selector)));
-    pDatapointConfig.SelectorLow = low_byte(IZOT_GET_UNSIGNED_WORD(selector));
+    pDatapointConfig->SelectorLow = low_byte(IZOT_GET_UNSIGNED_WORD(selector));
     IZOT_SET_ATTRIBUTE(pDatapointConfig, IZOT_DATAPOINT_TURNAROUND, turnAround);
     IZOT_SET_ATTRIBUTE(pDatapointConfig, IZOT_DATAPOINT_SERVICE, service);
 
@@ -1419,7 +1419,7 @@ const IzotControlData * const pControlData)
 IZOT_EXTERNAL_FN const IzotApiError IzotRegisterStaticDatapoint(IzotDatapointDefinition* const pDatapointDef) {
     IzotApiError err = IzotApiNoError;
 
-    pDatapointConfiginition d;
+    NVDefinition d;
     UInt16 flags = pDatapointDef->Flags;
     memset(&d, 0, sizeof(d));
     d.snvtType = pDatapointDef->SnvtId;

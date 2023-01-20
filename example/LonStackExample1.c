@@ -33,6 +33,7 @@ extern "C" {
 
 #include <string.h>
 #include "IzotApi.h"
+#include "isi_int.h"
 #include "LonStackExample1.h"
 
 
@@ -66,7 +67,7 @@ const char* flow1InName = "flow1In";
 const char* flow1InSD = "Flow 1 Input";
 
 // SNVT_flow_f flow2In -- Flow 2 Input NV
-SNVT_flow_f flow1In;
+SNVT_flow_f flow2In;
 #define FLOW2_IN_ADDRESS 0
 #define FLOW2_IN_SELECTOR 2
 IzotDatapointDefinition flow2InDef;    // Used to create definition and get NV index.  Copied into NV config table.
@@ -74,7 +75,7 @@ const char* flow2InName = "flow2In";
 const char* flow2InSD = "Flow 2 Input";
 
 // SNVT_temp_p temp1In -- Temperature 1 Input NV
-SNVT_temp_pf temp1In;
+SNVT_temp_p temp1In;
 #define TEMP1_IN_ADDRESS 0
 #define TEMP1_IN_SELECTOR 3
 IzotDatapointDefinition temp1InDef;    // Used to create definition and get NV index.  Copied into NV config table.
@@ -98,7 +99,7 @@ const char* flow1OutName = "flow1Out";
 const char* flow1OutSD = "Flow 1 Output";
 
 // SNVT_flow_f flow2Out -- Flow 2 Output NV
-SNVT_flow_f flow1Out;
+SNVT_flow_f flow2Out;
 #define FLOW2_OUT_ADDRESS 0
 #define FLOW2_OUT_SELECTOR 2
 IzotDatapointDefinition flow2OutDef;    // Used to create definition and get NV index.  Copied into NV config table.
@@ -164,8 +165,8 @@ void main() {
             && IZOT_SUCCESS(lastError = SetUpAddressTable());
 
     if (success) {
-        // Start the heartbeat time -- use only seconds and milliseconds from heartbeatIn
-        SetLonRepeatTimer(&HeartbeatTimer, (heartbeatIn.second * 1000) + (IZOT_GET_UNSIGNED_WORD(heartbeatIn.millisecond)));
+        // Start the heartbeat timer using the heartbeatIn NV default value
+        SetHeartbeatTimer();
     }
 
     // Main loop
@@ -332,8 +333,65 @@ IzotApiError SetUpStaticNVs(void)
     return(lastError);
 }
 
-// TBD: Create and register NV update handlers
+// TBD: Register NV update handler
 
+void IzotDatapointUpdateOccurred(const unsigned index, const IzotReceiveAddress* const pSourceAddress)
+{
+    // Compare index to the NV definition NvIndex field and call the appropriate handler.
+    if (index == heartbeatInDef->NvIndex) {
+        HeartbeatInUpdateOccurred(index, pSourceAddress);
+    } else if (index == flow1InDef->NvIndex) {
+        Flow1InUpdateOccurred(index, pSourceAddress);
+    } else if (index == flow12nDef->NvIndex) {
+        Flow2InUpdateOccurred(index, pSourceAddress);
+    } else if (index == temp1InDef->NvIndex) {
+        Temp1InUpdateOccurred(index, pSourceAddress);
+    } else if (index == temp2nDef->NvIndex) {
+        TempInUpdateOccurred(index, pSourceAddress);
+    }
+}
+
+
+void HeartbeatInUpdateOccurred(const unsigned index, const IzotReceiveAddress* const pSourceAddress)
+{
+    // Change heartbeat timer interval to the updated value.
+    SetHeartbeatTimer();
+}
+
+
+void Flow1InUpdateOccurred(const unsigned index, const IzotReceiveAddress* const pSourceAddress)
+{
+    // Copy updated flow1In to flow1Out.
+    memcpy(flow1Out, flow1In, sizeof(SNVT_flow_p));
+}
+
+
+void Flow2InUpdateOccurred(const unsigned index, const IzotReceiveAddress* const pSourceAddress)
+{
+    // Copy updated flow2In to flow2Out.
+    memcpy(flow2Out, flow2In, sizeof(SNVT_flow_f));
+}
+
+
+void Temp1InUpdateOccurred(const unsigned index, const IzotReceiveAddress* const pSourceAddress)
+{
+    // Copy updated temp1In to temp1Out.
+    memcpy(temp1Out, temp1In, sizeof(SNVT_temp_p));
+}
+
+
+void Temp2InUpdateOccurred(const unsigned index, const IzotReceiveAddress* const pSourceAddress)
+{
+    // Copy updated temp2In to temp2Out.
+    memcpy(temp2Out, temp2In, sizeof(SNVT_temp_p));
+}
+
+
+// Set the repeating heartbeat timer using only the seconds and milliseconds values from the heartbeatIn NV.
+void SetHeartbeatTimer(void)
+{
+    SetLonRepeatTimer(&HeartbeatTimer, (heartbeatIn.second * 1000) + (IZOT_GET_UNSIGNED_WORD(heartbeatIn.millisecond)));
+}
 
 #ifdef  __cplusplus
 }

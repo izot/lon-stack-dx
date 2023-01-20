@@ -43,7 +43,7 @@
 // change the EXAMPLE_TARGET_SUBNET and EXAMPLE_TARGET_NODE values for the
 // second device.
 
-#define EXAMPLE_TARGET_SUBNET 0x27
+#define EXAMPLE_TARGET_SUBNET 0x23
 #define EXAMPLE_TARGET_NODE 15
 
 
