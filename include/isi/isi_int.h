@@ -584,23 +584,23 @@ typedef enum {
 typedef union {
 	IZOT_STRUCT_BEGIN(q) {
 #ifdef BITF_LITTLE_ENDIAN
-        IzotUbits8 queue  :4;     /* Network interface message queue      */
-                                 /* Use value of type 'NI_Queue'         */
-        IzotUbits8 q_cmd  :4;     /* Network interface command with queue */
-                                 /* Use value of type 'NI_QueueCmd'      */
+        IzotUbits8 queue  :4;   /* Network interface message queue        */
+                                /* Use value of type 'NI_Queue'           */
+        IzotUbits8 q_cmd  :4;   /* Network interface command with queue   */
+                                /* Use value of type 'NI_QueueCmd'        */
 #else
-        IzotUbits8 q_cmd  :4;     /* Network interface command with queue */
-                                 /* Use value of type 'NI_QueueCmd'      */
-        IzotUbits8 queue  :4;     /* Network interface message queue      */
-                                 /* Use value of type 'NI_Queue'         */
+        IzotUbits8 q_cmd  :4;   /* Network interface command with queue   */
+                                /* Use value of type 'NI_QueueCmd'        */
+        IzotUbits8 queue  :4;   /* Network interface message queue        */
+                                /* Use value of type 'NI_Queue'           */
 #endif
-        IzotByte length;          /* Length of the buffer to follow       */
-    } IZOT_STRUCT_END(q);         /* Queue option                         */
+        IzotByte length;        /* Length of the buffer to follow         */
+    } IZOT_STRUCT_END(q);       /* Queue option                           */
     IZOT_STRUCT_BEGIN(noq) {
-        IzotByte     cmd;         /* Network interface command w/o queue  */
-                                 /* Use value of type 'NI_NoQueueCmd'    */
-        IzotByte     length;      /* Length of the buffer to follow       */
-    } IZOT_STRUCT_END(noq);		 /* No queue option                      */
+        IzotByte     cmd;       /* Network interface command w/o queue    */
+                                /* Use value of type 'NI_NoQueueCmd'      */
+        IzotByte     length;    /* Length of the buffer to follow         */
+    } IZOT_STRUCT_END(noq);		/* No queue option                        */
 } NI_Hdr;
 
 /*
@@ -621,64 +621,64 @@ typedef enum {
 /* Literals for 'cmpl_code' fields of ExpMsgHdr and NetVarHdr. */
 
 typedef enum {
-    MSG_NOT_COMPL  = 0,         /* Not a completion event              */
-    MSG_SUCCEEDS   = 1,         /* Successful completion event         */
-    MSG_FAILS      = 2          /* Failed completion event             */
+    MSG_NOT_COMPL  = 0,         /* Not a completion event                 */
+    MSG_SUCCEEDS   = 1,         /* Successful completion event            */
+    MSG_FAILS      = 2          /* Failed completion event                */
 } ComplType;
 
 /* Explicit message and Unprocessed NV Application Buffer. */
 typedef IZOT_STRUCT_BEGIN(ExpMsgHdr) {
 #ifdef BITF_LITTLE_ENDIAN
-    IzotUbits8   tag       :4;   /* Message tag for implicit addressing  */
-                                /* Magic cookie for explicit addressing */
-    IzotUbits8   auth      :1;   /* 1 => Authenticated                   */
-    IzotUbits8   st        :2;   /* Service Type - see 'ServiceType'     */
-    IzotUbits8   msg_type  :1;   /* 0 => explicit message                */
-                                /*      or unprocessed NV               */
-/*--------------------------------------------------------------------------*/
-    IzotUbits8   response  :1;   /* 1 => Response, 0 => Other            */
-    IzotUbits8   pool      :1;   /* 0 => Outgoing                        */
-    IzotUbits8   alt_path  :1;   /* 1 => Use path specified in 'path'    */
-                                /* 0 => Use default path                */
-    IzotUbits8   addr_mode :1;   /* 1 => Explicit addressing,            */
-                                /* 0 => Implicit (outgoing only)        */
-                                /* 1 => Duplicate (incoming only)       */
-    IzotUbits8   cmpl_code :2;   /* Completion Code - see 'ComplType'    */
-    IzotUbits8   path      :1;   /* 1 => Use alternate path,             */
-                                /* 0 => Use primary path                */
-                                /*      (if 'alt_path' is set)          */
-    IzotUbits8   priority  :1;   /* 1 => Priority message                */
-/*--------------------------------------------------------------------------*/
-    IzotByte   length;           /* Length of msg or NV to follow        */
-                                /* not including any explicit address   */
-                                /* field, includes code Byte or         */
-                                /* selector Bytes                       */
+    IzotUbits8   tag       :4;  /* Message tag for implicit addressing    */
+                                /* Magic cookie for explicit addressing   */
+    IzotUbits8   auth      :1;  /* 1 => Authenticated                     */
+    IzotUbits8   st        :2;  /* Service Type - see 'ServiceType'       */
+    IzotUbits8   msg_type  :1;  /* 0 => explicit message                  */
+                                /*      or unprocessed NV                 */
+/*------------------------------------------------------------------------*/
+    IzotUbits8   response  :1;  /* 1 => Response, 0 => Other              */
+    IzotUbits8   pool      :1;  /* 0 => Outgoing                          */
+    IzotUbits8   alt_path  :1;  /* 1 => Use path specified in 'path'      */
+                                /* 0 => Use default path                  */
+    IzotUbits8   addr_mode :1;  /* 1 => Explicit addressing,              */
+                                /* 0 => Implicit (outgoing only)          */
+                                /* 1 => Duplicate (incoming only)         */
+    IzotUbits8   cmpl_code :2;  /* Completion Code - see 'ComplType'      */
+    IzotUbits8   path      :1;  /* 1 => Use alternate path,               */
+                                /* 0 => Use primary path                  */
+                                /*      (if 'alt_path' is set)            */
+    IzotUbits8   priority  :1;  /* 1 => Priority message                  */
+/*------------------------------------------------------------------------*/
+    IzotByte   length;          /* Length of msg or NV to follow          */
+                                /* not including any explicit address     */
+                                /* field, includes code Byte or           */
+                                /* selector Bytes                         */
 #else
-    IzotUbits8   msg_type  :1;   /* 0 => explicit message                */
-                                /*      or unprocessed NV               */
-    IzotUbits8   st        :2;   /* Service Type - see 'ServiceType'     */
-    IzotUbits8   auth      :1;   /* 1 => Authenticated                   */
-    IzotUbits8   tag       :4;   /* Message tag for implicit addressing  */
-                                /* Magic cookie for explicit addressing */
-/*--------------------------------------------------------------------------*/
-    IzotUbits8   priority  :1;   /* 1 => Priority message                */
-    IzotUbits8   path      :1;   /* 1 => Use alternate path,             */
-                                /* 0 => Use primary path                */
-                                /*      (if 'alt_path' is set)          */
-    IzotUbits8   cmpl_code :2;   /* Completion Code - see 'ComplType'    */
-    IzotUbits8   addr_mode :1;   /* 1 => Explicit addressing,            */
-                                /* 0 => Implicit                        */
-                                /* Outgoing buffers only                */
-    IzotUbits8   alt_path  :1;   /* 1 => Use path specified in 'path'    */
-                                /* 0 => Use default path                */
-    IzotUbits8   pool      :1;   /* 0 => Outgoing                        */
-    IzotUbits8   response  :1;   /* 1 => Response, 0 => Other            */
+    IzotUbits8   msg_type  :1;  /* 0 => explicit message                  */
+                                /*      or unprocessed NV                 */
+    IzotUbits8   st        :2;  /* Service Type - see 'ServiceType'       */
+    IzotUbits8   auth      :1;  /* 1 => Authenticated                     */
+    IzotUbits8   tag       :4;  /* Message tag for implicit addressing    */
+                                /* Magic cookie for explicit addressing   */
+/*------------------------------------------------------------------------*/
+    IzotUbits8   priority  :1;  /* 1 => Priority message                  */
+    IzotUbits8   path      :1;  /* 1 => Use alternate path,               */
+                                /* 0 => Use primary path                  */
+                                /*      (if 'alt_path' is set)            */
+    IzotUbits8   cmpl_code :2;  /* Completion Code - see 'ComplType'      */
+    IzotUbits8   addr_mode :1;  /* 1 => Explicit addressing,              */
+                                /* 0 => Implicit                          */
+                                /* Outgoing buffers only                  */
+    IzotUbits8   alt_path  :1;  /* 1 => Use path specified in 'path'      */
+                                /* 0 => Use default path                  */
+    IzotUbits8   pool      :1;  /* 0 => Outgoing                          */
+    IzotUbits8   response  :1;  /* 1 => Response, 0 => Other              */
     
-/*--------------------------------------------------------------------------*/
-    IzotByte   length;           /* Length of msg or NV to follow        */
-                                /* not including any explicit address   */
-                                /* field, includes code Byte or         */
-                                /* selector Bytes                       */
+/*------------------------------------------------------------------------*/
+    IzotByte   length;          /* Length of msg or NV to follow          */
+                                /* not including any explicit address     */
+                                /* field, includes code Byte or           */
+                                /* selector Bytes                         */
 #endif
 } IZOT_STRUCT_END(ExpMsgHdr);
 
@@ -691,47 +691,47 @@ typedef IZOT_STRUCT_BEGIN(ExpMsgHdr) {
  */
 typedef IZOT_STRUCT_BEGIN(NetVarHdr) {
 #ifdef BITF_LITTLE_ENDIAN
-    IzotUbits8   tag       :4;   /* Magic cookie for correlating         */
-                                /* responses and completion events      */
+    IzotUbits8   tag       :4;  /* Magic cookie for correlating           */
+                                /* responses and completion events        */
     IzotUbits8   rsvd0     :2;
-    IzotUbits8   poll      :1;   /* 1 => Poll, 0 => Other                */
-    IzotUbits8   msg_type  :1;   /* 1 => Processed network variable      */
-/*--------------------------------------------------------------------------*/
-    IzotUbits8   response  :1;   /* 1 => Poll response, 0 => Other       */
-    IzotUbits8   pool      :1;   /* 0 => Outgoing                        */
-    IzotUbits8   trnarnd   :1;   /* 1 => Turnaround Poll, 0 => Other     */
-    IzotUbits8   addr_mode :1;   /* 1 => Explicit addressing,            */
-                                /* 0 => Implicit addressing             */
-    IzotUbits8   cmpl_code :2;   /* Completion Code - see above          */
-    IzotUbits8   path      :1;   /* 1 => Used alternate path             */
-                                /* 0 => Used primary path               */
-                                /*      (incoming only)                 */
-    IzotUbits8   priority  :1;   /* 1 => Priority msg (incoming only)    */
-/*--------------------------------------------------------------------------*/
-    IzotByte   length;           /* Length of network variable to follow */
-                                /* not including any explicit address   */
-                                /* not including index and rsvd0 Byte   */
+    IzotUbits8   poll      :1;  /* 1 => Poll, 0 => Other                  */
+    IzotUbits8   msg_type  :1;  /* 1 => Processed network variable        */
+/*------------------------------------------------------------------------*/
+    IzotUbits8   response  :1;  /* 1 => Poll response, 0 => Other         */
+    IzotUbits8   pool      :1;  /* 0 => Outgoing                          */
+    IzotUbits8   trnarnd   :1;  /* 1 => Turnaround Poll, 0 => Other       */
+    IzotUbits8   addr_mode :1;  /* 1 => Explicit addressing,              */
+                                /* 0 => Implicit addressing               */
+    IzotUbits8   cmpl_code :2;  /* Completion Code - see above            */
+    IzotUbits8   path      :1;  /* 1 => Used alternate path               */
+                                /* 0 => Used primary path                 */
+                                /*      (incoming only)                   */
+    IzotUbits8   priority  :1;  /* 1 => Priority msg (incoming only)      */
+/*------------------------------------------------------------------------*/
+    IzotByte   length;          /* Length of network variable to follow   */
+                                /* not including any explicit address     */
+                                /* not including index and rsvd0 Byte     */
 #else
-    IzotUbits8   msg_type  :1;   /* 1 => Processed network variable      */
-    IzotUbits8   poll      :1;   /* 1 => Poll, 0 => Other                */
+    IzotUbits8   msg_type  :1;  /* 1 => Processed network variable        */
+    IzotUbits8   poll      :1;  /* 1 => Poll, 0 => Other                  */
     IzotUbits8   rsvd0     :2;
-    IzotUbits8   tag       :4;   /* Magic cookie for correlating         */
-                                /* responses and completion events      */
-/*--------------------------------------------------------------------------*/
-    IzotUbits8   priority  :1;   /* 1 => Priority msg (incoming only)    */
-    IzotUbits8   path      :1;   /* 1 => Used alternate path             */
-                                /* 0 => Used primary path               */
-                                /*      (incoming only)                 */
-    IzotUbits8   cmpl_code :2;   /* Completion Code - see above          */
-    IzotUbits8   addr_mode :1;   /* 1 => Explicit addressing,            */
-                                /* 0 => Implicit addressing             */
-    IzotUbits8   trnarnd   :1;   /* 1 => Turnaround Poll, 0 => Other     */
-    IzotUbits8   pool      :1;   /* 0 => Outgoing                        */
-    IzotUbits8   response  :1;   /* 1 => Poll response, 0 => Other       */
-/*--------------------------------------------------------------------------*/
-    IzotByte   length;           /* Length of network variable to follow */
-                                /* not including any explicit address   */
-                                /* not including index and rsvd0 Byte   */
+    IzotUbits8   tag       :4;  /* Magic cookie for correlating           */
+                                /* responses and completion events        */
+/*------------------------------------------------------------------------*/
+    IzotUbits8   priority  :1;  /* 1 => Priority msg (incoming only)      */
+    IzotUbits8   path      :1;  /* 1 => Used alternate path               */
+                                /* 0 => Used primary path                 */
+                                /*      (incoming only)                   */
+    IzotUbits8   cmpl_code :2;  /* Completion Code - see above            */
+    IzotUbits8   addr_mode :1;  /* 1 => Explicit addressing,              */
+                                /* 0 => Implicit addressing               */
+    IzotUbits8   trnarnd   :1;  /* 1 => Turnaround Poll, 0 => Other       */
+    IzotUbits8   pool      :1;  /* 0 => Outgoing                          */
+    IzotUbits8   response  :1;  /* 1 => Poll response, 0 => Other         */
+/*------------------------------------------------------------------------*/
+    IzotByte   length;          /* Length of network variable to follow   */
+                                /* not including any explicit address     */
+                                /* not including index and rsvd0 Byte     */
 #endif
 } IZOT_STRUCT_END(NetVarHdr);
 
@@ -741,7 +741,7 @@ typedef IZOT_STRUCT_BEGIN(NetVarHdr) {
 typedef union {
     ExpMsgHdr  exp;
     NetVarHdr  pnv;
-    IzotByte    cmd[1];       /* For immediate commands with parameters */
+    IzotByte   cmd[1];          /* For immediate commands with parameters */
 } MsgHdr;
 
 /*
