@@ -634,7 +634,7 @@ static void HandleResponse(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
     memcpy(&gp->respIn.addr.Source, &appReceiveParamPtr->srcAddr.subnetAddr,
     sizeof(appReceiveParamPtr->srcAddr.subnetAddr));
     IZOT_SET_ATTRIBUTE(gp->respIn.addr.Source, IZOT_RESPONSESOURCE_IS_SUBNETNODE, 
-    appReceiveParamPtr->srcAddr.addressMode != MULTICAST_ACK);
+    appReceiveParamPtr->srcAddr.addressMode != AM_MULTICAST_ACK);
     if (IZOT_GET_ATTRIBUTE(gp->respIn.addr.Source, 
     IZOT_RESPONSESOURCE_IS_SUBNETNODE) == 0) {
         memcpy(&gp->respIn.addr.Destination.Group, &appReceiveParamPtr->srcAddr.ackNode,
@@ -730,15 +730,15 @@ static void HandleNormal(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
 	// Could reduce this code footprint by taking advantage of that fact.
     switch (appReceiveParamPtr->srcAddr.addressMode)
     {
-    case BROADCAST:
+    case AM_BROADCAST:
         IZOT_SET_ATTRIBUTE(gp->msgIn.addr, IZOT_RECEIVEADDRESS_FORMAT, 0);
         gp->msgIn.addr.Destination.Broadcast.SubnetId = appReceiveParamPtr->srcAddr.broadcastSubnet;
         break;
-    case MULTICAST:
+    case AM_MULTICAST:
         IZOT_SET_ATTRIBUTE(gp->msgIn.addr, IZOT_RECEIVEADDRESS_FORMAT, 1);
         gp->msgIn.addr.Destination.Group.GroupId = appReceiveParamPtr->srcAddr.group.GroupId;
         break;
-    case SUBNET_NODE:
+    case AM_SUBNET_NODE:
         IZOT_SET_ATTRIBUTE(gp->msgIn.addr, IZOT_RECEIVEADDRESS_FORMAT, 2);
         if (!IZOT_GET_ATTRIBUTE(gp->msgIn.addr, IZOT_RECEIVEADDRESS_FLEX))
         {
@@ -749,7 +749,7 @@ static void HandleNormal(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
             eep->domainTable[IZOT_GET_ATTRIBUTE(gp->msgIn.addr, IZOT_RECEIVEADDRESS_DOMAIN)], IZOT_DOMAIN_NODE));
         }
         break;
-    case UNIQUE_NODE_ID:
+    case AM_UNIQUE_NODE_ID:
         IZOT_SET_ATTRIBUTE(gp->msgIn.addr, IZOT_RECEIVEADDRESS_FORMAT, 3);
         gp->msgIn.addr.Destination.UniqueId.Subnet = 0; /* Not stored */
         memcpy(gp->msgIn.addr.Destination.UniqueId.UniqueId, eep->readOnlyData.UniqueNodeId, IZOT_UNIQUE_ID_LENGTH);
@@ -2346,18 +2346,18 @@ static void ProcessNVUpdate(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
 
             switch (appReceiveParamPtr->srcAddr.addressMode)
             {
-            case BROADCAST:
+            case AM_BROADCAST:
                 IZOT_SET_ATTRIBUTE(gp->nvInAddr, IZOT_RECEIVEADDRESS_FORMAT, 0);
                 break;
-            case MULTICAST:
+            case AM_MULTICAST:
 				IZOT_SET_ATTRIBUTE(gp->nvInAddr, IZOT_RECEIVEADDRESS_FORMAT, 1);
                 gp->nvInAddr.Destination.Group.GroupId = 
                 appReceiveParamPtr->srcAddr.group.GroupId;
                 break;
-            case SUBNET_NODE:
+            case AM_SUBNET_NODE:
 				IZOT_SET_ATTRIBUTE(gp->nvInAddr, IZOT_RECEIVEADDRESS_FORMAT, 2);
                 break;
-            case UNIQUE_NODE_ID:
+            case AM_UNIQUE_NODE_ID:
 				IZOT_SET_ATTRIBUTE(gp->nvInAddr, IZOT_RECEIVEADDRESS_FORMAT, 3);
                 break;
             default:

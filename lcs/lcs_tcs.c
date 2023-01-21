@@ -186,7 +186,7 @@ Status NewTrans(IzotByte   priorityIn, DestinationAddress addrIn,
 
     /* Make sure that this dest did not use this TID last time.
        If it did, increment the TID. */
-    /* Note: addrIn.addressMode can never be MULTICAST_ACK
+    /* Note: addrIn.addressMode can never be AM_MULTICAST_ACK
              for transactions initiated by a node. */
     found = FALSE;
     for (i = 0; i < *tblSize; i++)
@@ -216,16 +216,16 @@ Status NewTrans(IzotByte   priorityIn, DestinationAddress addrIn,
 
         switch (addrIn.addressMode)
         {
-        case SUBNET_NODE:
-            if (tbl[i].addressMode == SUBNET_NODE &&
+        case AM_SUBNET_NODE:
+            if (tbl[i].addressMode == AM_SUBNET_NODE &&
                     memcmp(&tbl[i].addr.subnetNode, &addrIn.addr.addr2a,
                            sizeof(IzotReceiveSubnetNode)) == 0)
             {
                 found = TRUE;
             }
             break;
-        case UNIQUE_NODE_ID:
-            if (tbl[i].addressMode == UNIQUE_NODE_ID &&
+        case AM_UNIQUE_NODE_ID:
+            if (tbl[i].addressMode == AM_UNIQUE_NODE_ID &&
                     memcmp(tbl[i].addr.uniqueNodeId,
                            addrIn.addr.addr3.UniqueId,
                            IZOT_UNIQUE_ID_LENGTH) == 0)
@@ -233,15 +233,15 @@ Status NewTrans(IzotByte   priorityIn, DestinationAddress addrIn,
                 found = TRUE;
             }
             break;
-        case MULTICAST:
-            if (tbl[i].addressMode == MULTICAST &&
+        case AM_MULTICAST:
+            if (tbl[i].addressMode == AM_MULTICAST &&
                     tbl[i].addr.group.GroupId  == addrIn.addr.addr1.GroupId)
             {
                 found = TRUE;
             }
             break;
-        case BROADCAST:
-            if (tbl[i].addressMode == BROADCAST &&
+        case AM_BROADCAST:
+            if (tbl[i].addressMode == AM_BROADCAST &&
                     tbl[i].addr.subnet.SubnetId == addrIn.addr.addr0.SubnetId)
             {
                 found = TRUE;
@@ -328,21 +328,21 @@ Status NewTrans(IzotByte   priorityIn, DestinationAddress addrIn,
     }
 
     tbl[*tblSize].addressMode = addrIn.addressMode;
-    if (addrIn.addressMode == MULTICAST)
+    if (addrIn.addressMode == AM_MULTICAST)
     {
         tbl[*tblSize].addr.group.GroupId = addrIn.addr.addr1.GroupId;
     }
-    else if (addrIn.addressMode == SUBNET_NODE)
+    else if (addrIn.addressMode == AM_SUBNET_NODE)
     {
         tbl[*tblSize].addr.subnetNode = addrIn.addr.addr2a;
     }
-    else if (addrIn.addressMode == UNIQUE_NODE_ID)
+    else if (addrIn.addressMode == AM_UNIQUE_NODE_ID)
     {
         memcpy(tbl[*tblSize].addr.uniqueNodeId,
                addrIn.addr.addr3.UniqueId,
                IZOT_UNIQUE_ID_LENGTH);
     }
-    else if (addrIn.addressMode == BROADCAST)
+    else if (addrIn.addressMode == AM_BROADCAST)
     {
         tbl[*tblSize].addr.subnet.SubnetId = addrIn.addr.addr0.SubnetId;
     }

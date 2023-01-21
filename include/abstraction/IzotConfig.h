@@ -25,11 +25,47 @@
 // Title: LON Stack configuration file
 //
 // Abstract:
-// This file defines the product, platform, processor, link, and ISI IDs
-// for a project.  This file can be customized for a project.  Add new
-// IDs in the first part of the file and then select IDs for a project
-// in the last part.  The default values for all IDs is 0.  See 
-// EchelonStandardDefinitions.h for explanation of use.
+// This file defines product, platform, processor, link, ISI, and security
+// conditional test macros and project-specific IDs to use with the macros.
+// You can customize this file for a project.  To add new IDs, add them
+// after "Available IDs".  To select an ID for a project, add the appropriate
+// macro name after "Project-specific IDs".  The default values for all IDs is 0. 
+// For example, the default data link is LINK_ID 0 which is LON/IP over Ethernet.
+// To change the data link to LON/IP over Wi-Fi, change the LINK_ID definition
+// under "Project-specific IDs" to the following:
+//
+// #define LINK_ID LINK_ID_WIFI
+//
+// Use the xxx_IS(yyy) macros to control conditional compilation.
+// For example:
+//
+// #if PRODUCT_IS(XYZ)
+// 		XYZ-only code
+// #endif
+//
+// If the conditional code is in the middle of a function,
+// you can use the macro as a real expression and let
+// and let optimization remove unused code.  For example:
+//
+// if (PRODUCT_IS(XYZ)) {
+// 		XYZ-only code
+// }
+//
+// This technique will only work if all the options are linkable when they are not optimized away.
+//
+// The IDs are in the form xxx_ID_yyy N.  For example:
+//
+// #define PRODUCT_ID_SLB 1
+//
+// Here are a few example conditional tests:
+//
+// #if PRODUCT_IS(SLB)
+// #if PROCESSOR_IS(MC200)
+// #if LINK_IS(WIFI)
+// #if LINK_IS(MIP)
+// #if ISI_IS(SIMPLE)
+// #if ISI_IS(SIMPLE) || ISI_IS(DA)
+// #if SECURITY_IS(V2)
 
 #if !defined(DEFINED_IZOTCONFIG_H)
 #define DEFINED_IZOTCONFIG_H
@@ -38,6 +74,17 @@
 //
 // Section: Macros
 //
+
+// Conditional test macros.
+
+#define PRODUCT_IS(prodid) (PRODUCT_ID == PRODUCT_ID_ ## prodid)
+#define PLATFORM_IS(platid) (PLATFORM_ID == PLATFORM_ID_ ## platid)
+#define PROCESSOR_IS(procid) (PROCESSOR_ID == PROCESSOR_ID_ ## procid)
+#define LINK_IS(linkid) (LINK_ID == LINK_ID_ ## linkid)
+#define ISI_IS(isiid) (ISI_ID == ISI_ID_ ## isiid)
+#define SECURITY_IS(secid) (SEC_ID == SEC_ID ## secid)
+#define ENCRYPTION_IS(encid) (ENC_ID == ENC_ID ## encid)
+
 
 // Available IDs.  You can add new IDs to this list.  Don't use 0 for
 // the value of new IDs--0 is reserved for the default value of each
@@ -60,8 +107,9 @@
 #define ISI_ID_SIMPLE  1   // ISI-S
 #define ISI_ID_DA      2   // ISI-DA (with domain address server)
 
-// Encryption IDs -- default is no encryption
-#define ENCRYPTION_ID_AES	1	// AES encryption
+// Security IDs -- default is LON Security V1 (authentication only)
+#define SECURITY_ID_V2 1	// LON Security V2 (AES encryption)
+
 
 // Project-specific IDs -- to change any of these for a project,
 // change the "0" to a macro name defined above with a matching
@@ -71,7 +119,8 @@
 #define PROCESSOR_ID  0
 #define LINK_ID 	  0
 #define ISI_ID 		  0
-#define ENCRYPTION_ID 0
+#define SECURITY_ID   0
+
 
 
 #endif  /* defined(DEFINED_IZOTCONFIG_H) */

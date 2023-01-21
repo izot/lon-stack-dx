@@ -117,20 +117,23 @@ typedef AuthPDU *AuthPDUPtr;
  Section: Globals.
  -------------------------------------------------------------------*/
 /* Array to convert address format to address mode. If format is 2,
- we convert to SUBNET_NODE instead of MULTICAST_ACK */
-static const AddrMode addrFmtToMode[4] = { BROADCAST, /* 0 */
-MULTICAST, /* 1 */
-SUBNET_NODE, /* 2 */
-UNIQUE_NODE_ID /* 3 */
+ we convert to AM_SUBNET_NODE instead of AM_MULTICAST_ACK */
+static const AddrMode addrFmtToMode[4] = { 
+AM_BROADCAST,     /* 0 */
+AM_MULTICAST,     /* 1 */
+AM_SUBNET_NODE,   /* 2 */
+AM_UNIQUE_NODE_ID /* 3 */
 };
 
 /* Array to convert address mode to format. For example,
- BROADCAST to 0 MULTICAST to 1 etc. */
-static const IzotByte addrModeToFmt[6] = { 0, 2, /* SUBNET_NODE   */
-3, /* UNIQUE_NODE_ID*/
-0, /* BROADCAST     */
-1, /* MULTICAST     */
-2  /* MULTICAST_ACK */
+ AM_BROADCAST to 0 AM_MULTICAST to 1 etc. */
+static const IzotByte addrModeToFmt[6] = { 
+0, 
+2, /* AM_SUBNET_NODE    */
+3, /* AM_UNIQUE_NODE_ID */
+0, /* AM_BROADCAST      */
+1, /* AM_MULTICAST      */
+2  /* AM_MULTICAST_ACK  */
 };
 
 /*-------------------------------------------------------------------
@@ -181,7 +184,7 @@ Status TSA_AddressConversion(IzotSendAddress* pSrc, DestinationAddress *pDst)
 
 // Check for group format
     if (IZOT_GET_ATTRIBUTE(pSrc->Group, IZOT_SENDGROUP_TYPE)) {
-        pDst->addressMode = MULTICAST;
+        pDst->addressMode = AM_MULTICAST;
         pDst->addr.addr1.GroupId = pSrc->Group.GroupId;
     } else {
         pDst->addressMode = (AddrMode) pSrc->SubnetNode.Type;
@@ -189,17 +192,17 @@ Status TSA_AddressConversion(IzotSendAddress* pSrc, DestinationAddress *pDst)
         case IzotAddressUnassigned:
             sts = FAILURE;
             break;
-        case SUBNET_NODE:
+        case AM_SUBNET_NODE:
             pDst->addr.addr2a.Subnet = pSrc->SubnetNode.Subnet;
             IZOT_SET_ATTRIBUTE(pDst->addr.addr2a, IZOT_RECEIVESN_SELFIELD, 1); /* always 1 */
             IZOT_SET_ATTRIBUTE(pDst->addr.addr2a, IZOT_RECEIVESN_NODE, 
             IZOT_GET_ATTRIBUTE(pSrc->SubnetNode, IZOT_SENDSN_NODE)); /* always 1 */
             break;
-        case UNIQUE_NODE_ID:
+        case AM_UNIQUE_NODE_ID:
             pDst->addr.addr3.Subnet = pSrc->UniqueId.Subnet;
             memcpy(pDst->addr.addr3.UniqueId, pSrc->UniqueId.NeuronId, IZOT_UNIQUE_ID_LENGTH);
             break;
-        case BROADCAST:
+        case AM_BROADCAST:
             /* Broadcast group addressing is optional.  It can not be assumed that all devices
             * support this form of addressing. */
             pDst->addr.addr0.SubnetId = pSrc->Broadcast.Subnet;
@@ -455,7 +458,7 @@ static void TerminateTrans(IzotByte priorityIn)
     }
     
     if (tsaSendParamPtr->service == IzotServiceRepeated || xmitRecPtr->destCount == 
-    xmitRecPtr->ackCount || (xmitRecPtr->nwDestAddr.addressMode == BROADCAST && xmitRecPtr->ackCount >= 1)) {
+    xmitRecPtr->ackCount || (xmitRecPtr->nwDestAddr.addressMode == AM_BROADCAST && xmitRecPtr->ackCount >= 1)) {
         /* IzotServiceRepeated or ACK and got all acks(or resp). */
         success = TRUE;
     } else {
@@ -519,7 +522,7 @@ static void XmitTimerExpiration(Layer layerIn, IzotByte priorityIn)
     /* First, check if we really need to retry the message. */
     if (xmitRecPtr->retriesLeft == 0 || xmitRecPtr->destCount
             == xmitRecPtr->ackCount || (xmitRecPtr->nwDestAddr.addressMode
-            == BROADCAST && xmitRecPtr->ackCount >= 1)) {
+            == AM_BROADCAST && xmitRecPtr->ackCount >= 1)) {
         /* No More retries left or all acks have been received.
         Terminate the transaction. Send indication to the application
         layer. */
@@ -562,7 +565,7 @@ static void XmitTimerExpiration(Layer layerIn, IzotByte priorityIn)
         memcpy(&pduPtr->data[dataIndex], xmitRecPtr->apdu, xmitRecPtr->apduSize);
         pduSize = xmitRecPtr->apduSize + 1;
         DBG_vPrintf(TRUE, "XmitTimerExp: Resending IzotServiceRepeated packet.\n");
-    } else if (xmitRecPtr->nwDestAddr.addressMode != MULTICAST) {
+    } else if (xmitRecPtr->nwDestAddr.addressMode != AM_MULTICAST) {
         if (layerIn == TRANSPORT) {
             pduPtr->pduMsgType = ACKD_MSG;
             DBG_vPrintf(TRUE, "XmitTimerExp: Resending IzotServiceAcknowledged packet.\n");
@@ -748,8 +751,8 @@ static void XmitTimerExpiration(Layer layerIn, IzotByte priorityIn)
     deltaBL = 1; /* for subnet and unique id messages. */
     if (tsaSendParamPtr->service == IzotServiceRepeated) {
         deltaBL = 0; /* Only on first attempt, deltaBL is retries left. */
-    } else if (xmitRecPtr->nwDestAddr.addressMode == BROADCAST) {
-        /* Domainwide or subnet BROADCAST. */
+    } else if (xmitRecPtr->nwDestAddr.addressMode == AM_BROADCAST) {
+        /* Domainwide or subnet AM_BROADCAST. */
         /* If there is no override value for deltaBL, then it is 15. */
         if (IZOT_GET_ATTRIBUTE(tsaSendParamPtr->destAddr.Broadcast, IZOT_SENDBCAST_BACKLOG)) {
             deltaBL = IZOT_GET_ATTRIBUTE(tsaSendParamPtr->destAddr.Broadcast, 
@@ -757,7 +760,7 @@ static void XmitTimerExpiration(Layer layerIn, IzotByte priorityIn)
         } else {
             deltaBL = 15;
         }
-    } else if (xmitRecPtr->nwDestAddr.addressMode == MULTICAST) {
+    } else if (xmitRecPtr->nwDestAddr.addressMode == AM_MULTICAST) {
         /* deltaBL is outstanding responses or acknowledgements. */
         deltaBL = xmitRecPtr->destCount - xmitRecPtr->ackCount;
     }
@@ -929,7 +932,7 @@ if (tsaSendParamPtr->dmn.domainIndex == COMPUTE_DOMAIN_INDEX) {
     nwDestAddr.dmn.domainIndex = IZOT_GET_ATTRIBUTE(tsaSendParamPtr->destAddr.SubnetNode, IZOT_SENDSN_DOMAIN);
 }
 
-if (nwDestAddr.addressMode == BROADCAST) {
+if (nwDestAddr.addressMode == AM_BROADCAST) {
     IZOT_SET_ATTRIBUTE(tsaSendParamPtr->destAddr.Broadcast, IZOT_SENDBCAST_RSVD1, 1);
 }
 
@@ -969,7 +972,7 @@ if (tsaSendParamPtr->proxy) {
     xmitRecPtr->altKey.altKey = FALSE;
 }
 
-if (nwDestAddr.addressMode == MULTICAST) {
+if (nwDestAddr.addressMode == AM_MULTICAST) {
     /* If the node is a member of the group, then groupsize
      field is set to 1 more than actual group size
      by in  app layer or app pgm.
@@ -1049,7 +1052,7 @@ memcpy(&pduPtr->data[dataIndex], xmitRecPtr->apdu, xmitRecPtr->apduSize);
 deltaBL = 1; /* For subnet and unique node id messages. */
 if (tsaSendParamPtr->service == IzotServiceRepeated) {
     deltaBL = xmitRecPtr->retriesLeft;
-} else if (nwDestAddr.addressMode == BROADCAST) {
+} else if (nwDestAddr.addressMode == AM_BROADCAST) {
     if (IZOT_GET_ATTRIBUTE(tsaSendParamPtr->destAddr.Broadcast, 
     IZOT_SENDBCAST_BACKLOG)) {
         deltaBL = IZOT_GET_ATTRIBUTE(tsaSendParamPtr->destAddr.Broadcast, 
@@ -1057,7 +1060,7 @@ if (tsaSendParamPtr->service == IzotServiceRepeated) {
     } else {
         deltaBL = 15;
     }
-} else if (nwDestAddr.addressMode == MULTICAST) {
+} else if (nwDestAddr.addressMode == AM_MULTICAST) {
     deltaBL = xmitRecPtr->destCount;
 }
 
@@ -1217,7 +1220,7 @@ if (xmitRecPtr->status != TRANSPORT_TX
     return;
 }
 
-if (xmitRecPtr->nwDestAddr.addressMode == SUBNET_NODE && 
+if (xmitRecPtr->nwDestAddr.addressMode == AM_SUBNET_NODE && 
     (xmitRecPtr->nwDestAddr.addr.addr2a.Subnet != 
     tsaReceiveParamPtr->srcAddr.subnetAddr.Subnet || 
     IZOT_GET_ATTRIBUTE(xmitRecPtr->nwDestAddr.addr.addr2a, IZOT_RECEIVESN_NODE) 
@@ -1232,11 +1235,11 @@ if (xmitRecPtr->nwDestAddr.addressMode == SUBNET_NODE &&
     return;
 }
 
-if (xmitRecPtr->nwDestAddr.addressMode == MULTICAST
-    && (tsaReceiveParamPtr->srcAddr.addressMode != MULTICAST_ACK
+if (xmitRecPtr->nwDestAddr.addressMode == AM_MULTICAST
+    && (tsaReceiveParamPtr->srcAddr.addressMode != AM_MULTICAST_ACK
         || xmitRecPtr->nwDestAddr.addr.addr1.GroupId
             != tsaReceiveParamPtr->srcAddr.ackNode.groupAddr.group.GroupId)) {
-    /* MULTICAST message but not MULTICAST_ACK or the ack's group
+    /* AM_MULTICAST message but not AM_MULTICAST_ACK or the ack's group
      # does not match that of xmitRecord. */
     /* ACK does not seem to correspond to what we are expecting. */
     DeQueue(&gp->tsaInQ);
@@ -1247,7 +1250,7 @@ if (xmitRecPtr->nwDestAddr.addressMode == MULTICAST
 
 /* For broadcast messages, ACK can come back with subnet value of 0
  from unconfigured nodes. We should accept these acks too. */
-if (xmitRecPtr->nwDestAddr.addressMode == BROADCAST
+if (xmitRecPtr->nwDestAddr.addressMode == AM_BROADCAST
         && tsaReceiveParamPtr->srcAddr.subnetAddr.Subnet != 0
         && xmitRecPtr->nwDestAddr.addr.addr0.SubnetId != 0
         && xmitRecPtr->nwDestAddr.addr.addr0.SubnetId
@@ -1261,9 +1264,9 @@ if (xmitRecPtr->nwDestAddr.addressMode == BROADCAST
 }
 
 switch (xmitRecPtr->nwDestAddr.addressMode) {
-case BROADCAST: /* Fall Through. */
-case SUBNET_NODE: /* Fall Through. */
-case UNIQUE_NODE_ID:
+case AM_BROADCAST:   /* Fall Through. */
+case AM_SUBNET_NODE: /* Fall Through. */
+case AM_UNIQUE_NODE_ID:
     /* Normally the first ack should have terminated the transaction.
      If it did not, we can try to terminate again. There is no
      harm in doing this. Also, there is no harm in increment
@@ -1271,7 +1274,7 @@ case UNIQUE_NODE_ID:
     xmitRecPtr->ackCount++; /* Got one more ack. */
     TerminateTrans(tsaReceiveParamPtr->priority);
     break;
-case MULTICAST:
+case AM_MULTICAST:
     /* Group acknowledgement. */
     if (tsaReceiveParamPtr->srcAddr.ackNode.groupAddr.member > MAX_GROUP_NUMBER) 
     {
@@ -1312,10 +1315,10 @@ return;
 void prepareNpdu(TSAReceiveParam *tsaReceiveParamPtr, TSPDUPtr pduPtr, IzotByte *pNpdu, int *npduHdrLen)
 {
 	int j = 0;
-	IzotByte addrFmt = (tsaReceiveParamPtr->srcAddr.addressMode == BROADCAST) ? 0 : 
-					((tsaReceiveParamPtr->srcAddr.addressMode == MULTICAST) ? 1 : 
-					((tsaReceiveParamPtr->srcAddr.addressMode == SUBNET_NODE) ? 2 : 
-					((tsaReceiveParamPtr->srcAddr.addressMode == UNIQUE_NODE_ID) ? 3 : 4)));
+	IzotByte addrFmt = (tsaReceiveParamPtr->srcAddr.addressMode == AM_BROADCAST) ? 0 : 
+					((tsaReceiveParamPtr->srcAddr.addressMode == AM_MULTICAST) ? 1 : 
+					((tsaReceiveParamPtr->srcAddr.addressMode == AM_SUBNET_NODE) ? 2 : 
+					((tsaReceiveParamPtr->srcAddr.addressMode == AM_UNIQUE_NODE_ID) ? 3 : 4)));
 	IzotByte encodeDmnLen;
 	EncodeDomainLength(tsaReceiveParamPtr->srcAddr.dmn.domainLen, &encodeDmnLen);
 	pNpdu[NPDU_TYPE_INDEX] = 
@@ -1324,24 +1327,24 @@ void prepareNpdu(TSAReceiveParam *tsaReceiveParamPtr, TSPDUPtr pduPtr, IzotByte 
 	pNpdu[NPDU_SOURCE_NODE_INDEX] = tsaReceiveParamPtr->srcAddr.subnetAddr.Node | 0x80;
 	
 	switch (tsaReceiveParamPtr->srcAddr.addressMode) {
-		case BROADCAST:
+		case AM_BROADCAST:
 			pNpdu[NPDU_DEST_SUBNET_INDEX] = eep->domainTable[tsaReceiveParamPtr->srcAddr.dmn.domainIndex].Subnet;
 			j = NPDU_DEST_SUBNET_INDEX + 1;
 		break;
 		
-		case MULTICAST:
+		case AM_MULTICAST:
 			pNpdu[NPDU_DEST_ADDR_INDEX] = tsaReceiveParamPtr->srcAddr.group.GroupId;
 			j = NPDU_DEST_ADDR_INDEX + 1;
 		break;
 
-		case SUBNET_NODE:
+		case AM_SUBNET_NODE:
 			pNpdu[NPDU_DEST_SUBNET_INDEX] = eep->domainTable[tsaReceiveParamPtr->srcAddr.dmn.domainIndex].Subnet;
 			pNpdu[NPDU_DEST_NODE_INDEX] = IZOT_GET_ATTRIBUTE(
 								eep->domainTable[tsaReceiveParamPtr->srcAddr.dmn.domainIndex], IZOT_DOMAIN_NODE) | 0x80;
 			j = NPDU_DEST_NODE_INDEX + 1;
 		break;
 
-		case MULTICAST_ACK:
+		case AM_MULTICAST_ACK:
 			pNpdu[NPDU_SOURCE_NODE_INDEX] &= 0x7F; 
 			pNpdu[NPDU_DEST_SUBNET_INDEX] = tsaReceiveParamPtr->srcAddr.ackNode.subnetAddr.Subnet;
 			pNpdu[NPDU_DEST_NODE_INDEX] = tsaReceiveParamPtr->srcAddr.ackNode.subnetAddr.Node | 0x80;
@@ -1350,7 +1353,7 @@ void prepareNpdu(TSAReceiveParam *tsaReceiveParamPtr, TSPDUPtr pduPtr, IzotByte 
 			j = NPDU_RESP_GROUPMBR_INDEX + 1;
 		break;
 		
-		case UNIQUE_NODE_ID:
+		case AM_UNIQUE_NODE_ID:
 			pNpdu[NPDU_DEST_SUBNET_INDEX] = eep->domainTable[tsaReceiveParamPtr->srcAddr.dmn.domainIndex].Subnet;
 			memcpy(&pNpdu[NPDU_DEST_NEURON_ID_INDEX], eep->readOnlyData.UniqueNodeId, IZOT_UNIQUE_ID_LENGTH);
 			j = NPDU_DEST_NEURON_ID_INDEX + 6;
@@ -1443,7 +1446,7 @@ if (xmitRecPtr->status != SESSION_TX || xmitRecPtr->nwDestAddr.dmn.domainIndex
     return;
 }
 
-if (xmitRecPtr->nwDestAddr.addressMode == SUBNET_NODE
+if (xmitRecPtr->nwDestAddr.addressMode == AM_SUBNET_NODE
     && (xmitRecPtr->nwDestAddr.addr.addr2a.Subnet
     != tsaReceiveParamPtr->srcAddr.subnetAddr.Subnet
     || IZOT_GET_ATTRIBUTE(xmitRecPtr->nwDestAddr.addr.addr2a, 
@@ -1458,11 +1461,11 @@ if (xmitRecPtr->nwDestAddr.addressMode == SUBNET_NODE
     return;
 }
 
-if (xmitRecPtr->nwDestAddr.addressMode == MULTICAST
-    && (tsaReceiveParamPtr->srcAddr.addressMode != MULTICAST_ACK
+if (xmitRecPtr->nwDestAddr.addressMode == AM_MULTICAST
+    && (tsaReceiveParamPtr->srcAddr.addressMode != AM_MULTICAST_ACK
         || xmitRecPtr->nwDestAddr.addr.addr1.GroupId
             != tsaReceiveParamPtr->srcAddr.ackNode.groupAddr.group.GroupId)) {
-    /* MULTICAST message but not MULTICAST_ACK or the response's group
+    /* AM_MULTICAST message but not AM_MULTICAST_ACK or the response's group
      # does not match that of xmitRecord. */
     /* Response does not seem to correspond to what we are expecting. */
     DeQueue(&gp->tsaInQ);
@@ -1523,7 +1526,7 @@ tsaSendParamPtr->proxyDone = true;
 /* Don't deliver the response to application yet. It could be
  a duplicate. */
 switch (xmitRecPtr->nwDestAddr.addressMode) {
-case BROADCAST:
+case AM_BROADCAST:
     /* We deliver up to N responses to app layer where N =
      tsaSendParamPtr->destAddr.Broadcast.maxResponses.
      But we succeed if at least one resp is received. */
@@ -1540,8 +1543,8 @@ case BROADCAST:
     }
     /* else, we don't want this response. Ignore it. */
     break;
-case SUBNET_NODE: /* Fall through. */
-case UNIQUE_NODE_ID:
+case AM_SUBNET_NODE: /* Fall through. */
+case AM_UNIQUE_NODE_ID:
     if (xmitRecPtr->ackCount == 0) {
         EnQueue(&gp->appCeRspInQ);
         xmitRecPtr->ackCount++; /* First response. */
@@ -1549,10 +1552,10 @@ case UNIQUE_NODE_ID:
     }
     /* else, it is a duplicate response. Ignore it. */
     break;
-case MULTICAST:
+case AM_MULTICAST:
     /* Group request message. Check response address mode. */
-    if (tsaReceiveParamPtr->srcAddr.addressMode != MULTICAST_ACK) {
-        DBG_vPrintf(TRUE, "SNReceiveResponse: RESPONSE should be MULTICAST_ACK.\n");
+    if (tsaReceiveParamPtr->srcAddr.addressMode != AM_MULTICAST_ACK) {
+        DBG_vPrintf(TRUE, "SNReceiveResponse: RESPONSE should be AM_MULTICAST_ACK.\n");
         break;
     }
     if (tsaReceiveParamPtr->srcAddr.ackNode.groupAddr.member > 
@@ -1854,7 +1857,7 @@ if (i == -1 && pduPtr->pduMsgType == REMINDER_MSG) {
     return;
 }
 
-if (i != -1 && (gp->recvRec[i].srcAddr.addressMode != MULTICAST
+if (i != -1 && (gp->recvRec[i].srcAddr.addressMode != AM_MULTICAST
         || gp->recvRec[i].transNum != transNum || gp->recvRec[i].status
         != (layerIn == TRANSPORT ? TRANSPORT_RR : SESSION_RR) || (apduPtr
         && apduSize != gp->recvRec[i].apduSize) || (apduPtr && memcmp(apduPtr,
@@ -2088,9 +2091,9 @@ else
 destAddr.dmn = gp->recvRec[rrIndexIn].srcAddr.dmn;
 
 /* We send unicast ACK or multicast ACK depending on msg recvd. */
-if (gp->recvRec[rrIndexIn].srcAddr.addressMode == MULTICAST) {
+if (gp->recvRec[rrIndexIn].srcAddr.addressMode == AM_MULTICAST) {
     /* Send ACK in address format 2b. */
-    destAddr.addressMode = MULTICAST_ACK;
+    destAddr.addressMode = AM_MULTICAST_ACK;
     destAddr.addr.addr2b.subnetAddr = gp->recvRec[rrIndexIn].srcAddr.subnetAddr;
     destAddr.addr.addr2b.groupAddr.group.GroupId = 
                                    gp->recvRec[rrIndexIn].srcAddr.group.GroupId;
@@ -2102,7 +2105,7 @@ if (gp->recvRec[rrIndexIn].srcAddr.addressMode == MULTICAST) {
     }
 } else {
     /* Send Ack in address format 2a. */
-    destAddr.addressMode = SUBNET_NODE;
+    destAddr.addressMode = AM_SUBNET_NODE;
     destAddr.addr.addr2a = gp->recvRec[rrIndexIn].srcAddr.subnetAddr;
 }
 
@@ -2214,9 +2217,9 @@ if (flexResponse) {
 
 /* We send unicast response or multicast response depending on
  the request received. */
-if (gp->recvRec[rrIndexIn].srcAddr.addressMode == MULTICAST) {
+if (gp->recvRec[rrIndexIn].srcAddr.addressMode == AM_MULTICAST) {
     /* Send the response in address format 2b. */
-    destAddr.addressMode = MULTICAST_ACK;
+    destAddr.addressMode = AM_MULTICAST_ACK;
     destAddr.addr.addr2b.subnetAddr = gp->recvRec[rrIndexIn].srcAddr.subnetAddr;
     destAddr.addr.addr2b.groupAddr.group.GroupId = 
                                    gp->recvRec[rrIndexIn].srcAddr.group.GroupId;
@@ -2230,7 +2233,7 @@ if (gp->recvRec[rrIndexIn].srcAddr.addressMode == MULTICAST) {
     }
 } else {
     /* Send response in address format 2a. */
-    destAddr.addressMode = SUBNET_NODE;
+    destAddr.addressMode = AM_SUBNET_NODE;
     destAddr.addr.addr2a = gp->recvRec[rrIndexIn].srcAddr.subnetAddr;
 }
 
@@ -2327,11 +2330,11 @@ for (i = 0; i < gp->recvRecCnt; i++) {
     /* Source node address should always match. */
     (memcmp(&srcAddrIn.subnetAddr, &gp->recvRec[i].srcAddr.subnetAddr,
             sizeof(IzotReceiveSubnetNode)) == 0) &&
-    /* Make sure BROADCAST address matches for broadcast messages. */
-    (srcAddrIn.addressMode != BROADCAST || srcAddrIn.broadcastSubnet
+    /* Make sure AM_BROADCAST address matches for broadcast messages. */
+    (srcAddrIn.addressMode != AM_BROADCAST || srcAddrIn.broadcastSubnet
             == gp->recvRec[i].srcAddr.broadcastSubnet) &&
-    /* Make sure MULTICAST address matches for multicast messages. */
-    (srcAddrIn.addressMode != MULTICAST || srcAddrIn.group.GroupId
+    /* Make sure AM_MULTICAST address matches for multicast messages. */
+    (srcAddrIn.addressMode != AM_MULTICAST || srcAddrIn.group.GroupId
             == gp->recvRec[i].srcAddr.group.GroupId))
 
     {
@@ -2400,11 +2403,11 @@ static IzotUbits16 ComputeRecvTimerValue(AddrMode addrModeIn,
     IzotByte groupIdIn) {
 IzotUbits16 i, max = 0, temp;
 
-if (addrModeIn == UNIQUE_NODE_ID) {
+if (addrModeIn == AM_UNIQUE_NODE_ID) {
     return (NGTIMER_SPCL_VAL);
 }
 
-if (addrModeIn == MULTICAST) {
+if (addrModeIn == AM_MULTICAST) {
     /* Search through the address table to find the receiver timer val. */
     /* If there is more than one entry with the same group,
      use the one with the max rcv timer value */
@@ -2757,7 +2760,7 @@ static void InitiateChallenge(IzotUbits16 rrIndexIn)
 
     /* Form the challenge AuthPDU. */
     pduOutPtr->fmt = addrModeToFmt[gp->recvRec[rrIndexIn].srcAddr.addressMode];
-    if (gp->recvRec[rrIndexIn].srcAddr.addressMode == MULTICAST)
+    if (gp->recvRec[rrIndexIn].srcAddr.addressMode == AM_MULTICAST)
     {
         /* For Multicast message, send the group info with AuthPDU. */
         nwSendParamPtr->pduSize = 10 + dataIndex;
@@ -2778,8 +2781,8 @@ nwSendParamPtr->dropIfUnconfigured = FALSE; /* Challenges are not dropped */
 /* Challenge must have come from a particular node.
  Use format 2b for multicast and format 2a for others. */
 nwSendParamPtr->destAddr.dmn = gp->recvRec[rrIndexIn].srcAddr.dmn;
-if (gp->recvRec[rrIndexIn].srcAddr.addressMode == MULTICAST) {
-    nwSendParamPtr->destAddr.addressMode = MULTICAST_ACK;
+if (gp->recvRec[rrIndexIn].srcAddr.addressMode == AM_MULTICAST) {
+    nwSendParamPtr->destAddr.addressMode = AM_MULTICAST_ACK;
     nwSendParamPtr->destAddr.addr.addr2b.subnetAddr
             = gp->recvRec[rrIndexIn].srcAddr.subnetAddr;
     nwSendParamPtr->destAddr.addr.addr2b.groupAddr.group.GroupId
@@ -2792,7 +2795,7 @@ if (gp->recvRec[rrIndexIn].srcAddr.addressMode == MULTICAST) {
         return; /* Don't challenge. This case should not happen. */
     }
 } else {
-    nwSendParamPtr->destAddr.addressMode = SUBNET_NODE;
+    nwSendParamPtr->destAddr.addressMode = AM_SUBNET_NODE;
     nwSendParamPtr->destAddr.addr.addr2a = 
                                       gp->recvRec[rrIndexIn].srcAddr.subnetAddr;
 }
@@ -2857,15 +2860,15 @@ void ChallengeOmaDestAddr(DestinationAddress* pAddr, OmaAddress* pOmaAddr) {
 memset(pOmaAddr, 0xFF, sizeof(OmaAddress));
 
 switch (pAddr->addressMode) {
-case UNIQUE_NODE_ID:
+case AM_UNIQUE_NODE_ID:
     memcpy(pOmaAddr->physical.uniqueId, pAddr->addr.addr3.UniqueId,
             IZOT_UNIQUE_ID_LENGTH);
     break;
-case SUBNET_NODE:
+case AM_SUBNET_NODE:
     pOmaAddr->logical.addr.snode = pAddr->addr.addr2a;
     IZOT_SET_ATTRIBUTE(pOmaAddr->logical.addr.snode, IZOT_RECEIVESN_SELFIELD, 0);
     break;
-case MULTICAST:
+case AM_MULTICAST:
     pOmaAddr->logical.addr.group = pAddr->addr.addr1.GroupId;
     break;
 default:
@@ -2873,7 +2876,7 @@ default:
     break;
 }
 
-if (pAddr->addressMode != UNIQUE_NODE_ID) {
+if (pAddr->addressMode != AM_UNIQUE_NODE_ID) {
     // We use the domain table version because the algorithm always uses 6 bytes and we need
     // predictable contents.  This assumes that the NM assigns consistent padding to the unused
     // bytes of the domain ID!!!!
@@ -3010,7 +3013,7 @@ if (IZOT_GET_ATTRIBUTE(tsaReceiveParamPtr->srcAddr.subnetAddr,
 IZOT_RECEIVESN_NODE) == 0 && pduInPtr->fmt == 3) {
     nwSendParamPtr->destAddr = xmitRecPtr->nwDestAddr;
 } else {
-    nwSendParamPtr->destAddr.addressMode = SUBNET_NODE;
+    nwSendParamPtr->destAddr.addressMode = AM_SUBNET_NODE;
     nwSendParamPtr->destAddr.addr.addr2a
             = tsaReceiveParamPtr->srcAddr.subnetAddr;
 }

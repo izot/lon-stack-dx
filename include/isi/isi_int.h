@@ -755,14 +755,14 @@ typedef union {
 
 typedef enum {
     UNASSIGNED     = 0,
-    SUBNET_NODE    = 1,
-    NEURON_ID      = 2,
-    BROADCAST      = 3,
+    AT_SUBNET_NODE = 1,
+    AT_NEURON_ID   = 2,
+    AT_BROADCAST   = 3,
     // The following are not real destination address types
     // They are interpreted in ni_send_msg_wait()
-    SNODE_FARSIDE  = SUBNET_NODE | 0x40,    // router far side by S/N
-    NRNID_FARSIDE  = NEURON_ID   | 0x40,    // router far side by NID
-    BCAST_FARSIDE  = BROADCAST   | 0x40,    // router far side by bcast
+    SNODE_FARSIDE  = AT_SUBNET_NODE | 0x40,    // router far side by S/N
+    NRNID_FARSIDE  = AT_NEURON_ID   | 0x40,    // router far side by NID
+    BCAST_FARSIDE  = AT_BROADCAST   | 0x40,    // router far side by bcast
     IMPLICIT       = 126,    /* use address table, not explicit address */
     LOCAL          = 127,    /* network interface node */
     GROUP_0        = 128,
@@ -804,7 +804,7 @@ typedef IZOT_STRUCT_BEGIN(SendGroup) {
 /* Subnet/node ID address.  Use for a unicast destination address. */
 typedef IZOT_STRUCT_BEGIN(SendSnode) {
 #ifdef BITF_LITTLE_ENDIAN
-    IzotByte   type;             /* SUBNET_NODE                          */
+    IzotByte   type;             /* AT_SUBNET_NODE                       */
 
     IzotUbits8   node      :7;   /* Node number                          */
     IzotUbits8   domain    :1;   /* Domain index                         */
@@ -817,7 +817,7 @@ typedef IZOT_STRUCT_BEGIN(SendSnode) {
 
     IzotByte   subnet;           /* Subnet ID                            */
 #else
-    IzotByte   type;             /* SUBNET_NODE                          */
+    IzotByte   type;             /* AT_SUBNET_NODE                       */
     
     IzotUbits8   domain    :1;   /* Domain index                         */
     IzotUbits8   node      :7;   /* Node number                          */
@@ -835,32 +835,32 @@ typedef IZOT_STRUCT_BEGIN(SendSnode) {
 /* 48-bit NEURON ID destination address. */
 typedef IZOT_STRUCT_BEGIN(SendNrnid) {
 #ifdef BITF_LITTLE_ENDIAN
-    IzotByte     type;             /* NEURON_ID                            */
+    IzotByte     type;           /* AT_NEURON_ID                         */
     IzotUbits8   rsvd0      :7;
     IzotUbits8   domain     :1;  /* Domain index                         */
     IzotUbits8   retry      :4;  /* Retry count                          */
     IzotUbits8   rpt_timer  :4;  /* Retry repeat timer                   */
     IzotUbits8   tx_timer   :4;  /* Transmit timer index                 */
     IzotUbits8   rsvd2      :4;
-    IzotByte     subnet;           /* Subnet ID, 0 => pass all routers     */
-    IzotByte     nid[ NEURON_ID_LEN ]; /* NEURON ID                          */
+    IzotByte     subnet;           /* Subnet ID, 0 => pass all routers   */
+    IzotByte     nid[ NEURON_ID_LEN ]; /* Neuron ID                      */
 #else
-    IzotByte     type;             /* NEURON_ID                            */
+    IzotByte     type;           /* AT_NEURON_ID                         */
     IzotUbits8   domain     :1;  /* Domain index                         */
     IzotUbits8   rsvd0      :7;
     IzotUbits8   rpt_timer  :4;  /* Retry repeat timer                   */
     IzotUbits8   retry      :4;  /* Retry count                          */
     IzotUbits8   rsvd2      :4;
     IzotUbits8   tx_timer   :4;  /* Transmit timer index                 */
-    IzotByte     subnet;           /* Subnet ID, 0 => pass all routers     */
-    IzotByte     nid[ NEURON_ID_LEN ]; /* NEURON ID                          */
+    IzotByte     subnet;           /* Subnet ID, 0 => pass all routers   */
+    IzotByte     nid[ NEURON_ID_LEN ]; /* Neuron ID                      */
 #endif
 } IZOT_STRUCT_END(SendNrnid);
 
 /* Broadcast destination address. */
 typedef IZOT_STRUCT_BEGIN(SendBcast) {
 #ifdef BITF_LITTLE_ENDIAN
-    IzotByte   type;             /* BROADCAST                            */
+    IzotByte   type;             /* AT_BROADCAST                         */
 
     IzotUbits8   backlog     :6; /* Backlog                              */
     IzotUbits8   rsvd0       :1;
@@ -874,7 +874,7 @@ typedef IZOT_STRUCT_BEGIN(SendBcast) {
 
     IzotByte   subnet;           /* Subnet ID, 0 => domain-wide          */
 #else
-    IzotByte   type;             /* BROADCAST                            */
+    IzotByte   type;             /* AT_BROADCAST                         */
     
     IzotUbits8   domain      :1; /* Domain index                         */
     IzotUbits8   rsvd0       :1;

@@ -251,17 +251,17 @@ void   NWSend(void)
     npduPtr->pduType         = nwSendParamPtr->pduType;
     switch (nwSendParamPtr->destAddr.addressMode)
     {
-    case BROADCAST:
+    case AM_BROADCAST:
         npduPtr->addrFmt = 0;
         break;
-    case MULTICAST:
+    case AM_MULTICAST:
         npduPtr->addrFmt = 1;
         break;
-    case SUBNET_NODE:
-    case MULTICAST_ACK:
+    case AM_SUBNET_NODE:
+    case AM_MULTICAST_ACK:
         npduPtr->addrFmt = 2;
         break;
-    case UNIQUE_NODE_ID:
+    case AM_UNIQUE_NODE_ID:
         npduPtr->addrFmt = 3;
         break;
     default:
@@ -319,8 +319,8 @@ void   NWSend(void)
     {
         IzotByte selField = 0;
         /* Determine the selField value. */
-        /* Only MULTICAST_ACK has selector field as 0. For all others, it is 1. */
-        if (nwSendParamPtr->destAddr.addressMode != MULTICAST_ACK)
+        /* Only AM_MULTICAST_ACK has selector field as 0. For all others, it is 1. */
+        if (nwSendParamPtr->destAddr.addressMode != AM_MULTICAST_ACK)
         {
             selField = 1;
         }
@@ -359,25 +359,25 @@ void   NWSend(void)
     /* Set j to the index for writing the domain field. */
     switch (nwSendParamPtr->destAddr.addressMode)
     {
-    case BROADCAST:
+    case AM_BROADCAST:
         npduPtr->data[2] = nwSendParamPtr->destAddr.addr.addr0.SubnetId;
         j = 3;
         break;
-    case MULTICAST:
+    case AM_MULTICAST:
         npduPtr->data[2] = nwSendParamPtr->destAddr.addr.addr1.GroupId;
         j = 3;
         break;
-    case SUBNET_NODE:
+    case AM_SUBNET_NODE:
         IZOT_SET_ATTRIBUTE(nwSendParamPtr->destAddr.addr.addr2a, IZOT_RECEIVESN_SELFIELD, 1);
         memcpy(&npduPtr->data[2], &nwSendParamPtr->destAddr.addr.addr2a, 2);
         j = 4;
         break;
-    case MULTICAST_ACK:
+    case AM_MULTICAST_ACK:
         IZOT_SET_ATTRIBUTE(nwSendParamPtr->destAddr.addr.addr2b.subnetAddr, IZOT_RECEIVESN_SELFIELD, 1);
         memcpy(&npduPtr->data[2], &nwSendParamPtr->destAddr.addr.addr2b, 4);
         j = 6;
         break;
-    case UNIQUE_NODE_ID:
+    case AM_UNIQUE_NODE_ID:
         memcpy(&npduPtr->data[2], &nwSendParamPtr->destAddr.addr.addr3, 7);
         j = 9;
         break;
@@ -533,21 +533,21 @@ void   NWReceive(void)
     memcpy(&srcAddr.subnetAddr, npduPtr->data, 2);
 
     /* Determine the destination address used and set srcAddr properly. */
-    /* For MULTICAST and MULTICAST_ACK address modes, the
+    /* For AM_MULTICAST and AM_MULTICAST_ACK address modes, the
        group and/or member values are copied into srcAddr.group
-       or srcAddr.ackNode. For BROADCAST and SUBNET_NODE address
+       or srcAddr.ackNode. For AM_BROADCAST and AM_SUBNET_NODE address
        modes, destAddr is used to store subnet and/or node
-       values. For UNIQUE_NODE_ID, uniqueNodeId is used & subnet is ignored */
+       values. For AM_UNIQUE_NODE_ID, uniqueNodeId is used & subnet is ignored */
     /* Also, set j to domain field's index. */
     switch (npduPtr->addrFmt)
     {
     case 0:
-        srcAddr.addressMode = BROADCAST;
+        srcAddr.addressMode = AM_BROADCAST;
         destAddr.Subnet   = npduPtr->data[2];
         j = 3;
         break;
     case 1:
-        srcAddr.addressMode = MULTICAST;
+        srcAddr.addressMode = AM_MULTICAST;
         srcAddr.group.GroupId = npduPtr->data[2];
         j = 3;
         break;
@@ -555,13 +555,13 @@ void   NWReceive(void)
         if (IZOT_GET_ATTRIBUTE(srcAddr.subnetAddr, 
         IZOT_RECEIVESN_SELFIELD) == 1)
         {
-            srcAddr.addressMode = SUBNET_NODE;
+            srcAddr.addressMode = AM_SUBNET_NODE;
             memcpy(&destAddr, &npduPtr->data[2], 2);
             j = 4;
         }
         else
         {
-            srcAddr.addressMode = MULTICAST_ACK;
+            srcAddr.addressMode = AM_MULTICAST_ACK;
             memcpy(&destAddr, &npduPtr->data[2], 2);
             memcpy(&srcAddr.ackNode.subnetAddr, &destAddr, 2);
             memcpy(&srcAddr.ackNode.groupAddr, &npduPtr->data[4], 2);
@@ -569,7 +569,7 @@ void   NWReceive(void)
         }
         break;
     case 3:
-        srcAddr.addressMode = UNIQUE_NODE_ID;
+        srcAddr.addressMode = AM_UNIQUE_NODE_ID;
         destAddr.Subnet = npduPtr->data[2]; /* Routing Purpose */
         memcpy(uniqueNodeId, &npduPtr->data[3], IZOT_UNIQUE_ID_LENGTH);
         j = 3 + IZOT_UNIQUE_ID_LENGTH;
@@ -656,7 +656,7 @@ void   NWReceive(void)
 
     switch (srcAddr.addressMode)
     {
-    case BROADCAST:
+    case AM_BROADCAST:
         if (!flexDomain &&  destAddr.Subnet != 0 && /* subnet broadcast. */
         memcmp(&destAddr.Subnet, &eep->domainTable[srcAddr.dmn.domainIndex].Subnet, 1) != 0)
         {
@@ -667,7 +667,7 @@ void   NWReceive(void)
         }
         srcAddr.broadcastSubnet = destAddr.Subnet;
         break;
-    case MULTICAST:
+    case AM_MULTICAST:
         if (!flexDomain && !IsGroupMember(srcAddr.dmn.domainIndex, srcAddr.group.GroupId, NULL))
         {
             /* Domain matches but group does not. Not for us. */
@@ -676,7 +676,7 @@ void   NWReceive(void)
             return;
         }
         break;
-    case SUBNET_NODE:
+    case AM_SUBNET_NODE:
         if (!flexDomain && memcmp(&destAddr, &eep->domainTable[srcAddr.dmn.domainIndex].Subnet, 2) != 0)
         {
             DeQueue(&gp->nwInQ);
@@ -684,7 +684,7 @@ void   NWReceive(void)
             return;
         }
         break;
-    case MULTICAST_ACK:
+    case AM_MULTICAST_ACK:
         /* Make sure the destination subnet/node matches. */
         if (!flexDomain && memcmp(&destAddr, &eep->domainTable[srcAddr.dmn.domainIndex].Subnet, 2) != 0)
         {
@@ -701,7 +701,7 @@ void   NWReceive(void)
             return;
         }
         break;
-    case UNIQUE_NODE_ID:
+    case AM_UNIQUE_NODE_ID:
         if (memcmp(uniqueNodeId, eep->readOnlyData.UniqueNodeId, IZOT_UNIQUE_ID_LENGTH) != 0)
         {
             /* Unique Node Id message but not for our id. */
@@ -722,7 +722,7 @@ void   NWReceive(void)
 
     /* If a node is in unconfigured state,
        only broadcast and Unique Node ID messages can be received. */
-    if (!NodeConfigured() && srcAddr.addressMode != BROADCAST && srcAddr.addressMode != UNIQUE_NODE_ID)
+    if (!NodeConfigured() && srcAddr.addressMode != AM_BROADCAST && srcAddr.addressMode != AM_UNIQUE_NODE_ID)
     {
         /* Drop the packet. */
         DeQueue(&gp->nwInQ);
@@ -735,7 +735,7 @@ void   NWReceive(void)
     /* i.e if node is configured, flexdomain is not possible
        unless it is Unique Node ID addressed. */
 
-    if (flexDomain && NodeConfigured() && srcAddr.addressMode != UNIQUE_NODE_ID)
+    if (flexDomain && NodeConfigured() && srcAddr.addressMode != AM_UNIQUE_NODE_ID)
     {
         /* Drop the packet. */
         DeQueue(&gp->nwInQ);

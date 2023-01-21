@@ -38,47 +38,6 @@
 #ifndef __EchelonStandardDefinitions_h
 #define __EchelonStandardDefinitions_h
 
-/*
- * Product/platform/processor/link/isi conditional compiliation macros
- *
- * Use the xxx_IS(yyy) macros to control conditional compilation
- * For example:
- *
- * #if PRODUCT_IS(XYZ)
- * // XYZ-only code
- * #endif
- *
- * If the conditional code is in the middle of a function,
- * another method may be to use the macro as real expression
- * and let optimization remove unused code.
- * For example:
- *
- * if (PRODUCT_IS(XYZ))
- * {
- *     // XYZ-only code
- * }
- *
- * This technique will only work if all the options are linkable when they are not optimized away.
- *
- * The product/platform/processor/link/isi IDs are defined and selected in the IzotConfig.h file.
- * The IDs are in the form xxx_ID_yyy N.  For example:
- *
- * #define PRODUCT_ID_SLB 1
- *
- * Here are a few example conditional tests:
- * #if PROCESSOR_IS(MC200)
- * #if LINK_IS(WIFI)
- * #if LINK_IS(MIP)
- * #if ISI_IS(SIMPLE)
- * #if ISI_IS(SIMPLE) || ISI_IS(DA)
- * #if ENCRYPTION_IS(AES)
- */
-#define PRODUCT_IS(prodid) (PRODUCT_ID == PRODUCT_ID_ ## prodid)
-#define PLATFORM_IS(platid) (PLATFORM_ID == PLATFORM_ID_ ## platid)
-#define PROCESSOR_IS(procid) (PROCESSOR_ID == PROCESSOR_ID_ ## procid)
-#define LINK_IS(linkid) (LINK_ID == LINK_ID_ ## linkid)
-#define ISI_IS(isiid) (ISI_ID == ISI_ID_ ## isiid)
-
 // Include the address space definitions.
 #include "module_platform.h"
 

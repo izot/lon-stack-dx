@@ -125,7 +125,7 @@ Status ProcessLTEP(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
     int             src_subnet;
     int             dst_subnet;
     int             txcpos;
-    int             addressType = SUBNET_NODE;
+    int             addressType = AM_SUBNET_NODE;
     ProxyHeader     ph;
     ProxyTxCtrl     txc;
     int             dataLen = appReceiveParamPtr->pduSize-1;
@@ -284,7 +284,7 @@ Status ProcessLTEP(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
             case PX_SUBNET_NODE_COMPACT_DEST:
 				subnet = dst_subnet;
 				node = pAddress->snc.node;
-				addressType = SUBNET_NODE;
+				addressType = AM_SUBNET_NODE;
                 break;
             case PX_GROUP:
                 addressType = 0x80 | pAddress->gp.size;

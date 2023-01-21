@@ -207,7 +207,7 @@ IzotByte ManualServiceRequestMessage(void) {
     nwSendParamPtr->destAddr.dmn.domainIndex = FLEX_DOMAIN;
     nwSendParamPtr->destAddr.dmn.domainLen = 0;
     nwSendParamPtr->pduType = APDU_TYPE;
-    nwSendParamPtr->destAddr.addressMode = BROADCAST;
+    nwSendParamPtr->destAddr.addressMode = AM_BROADCAST;
     nwSendParamPtr->destAddr.addr.addr0.SubnetId = 0; /* Domain wide broadcast. */
     nwSendParamPtr->deltaBL = 0;
     nwSendParamPtr->altPath = 0; /* don't use alternate path. */
@@ -351,8 +351,8 @@ void HandleNMUpdateDomain(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
     {
         if (pDomain->Subnet != 0 && p->Subnet != pDomain->Subnet) 
         {
-            uint32_t oldaddr = BROADCAST_PREFIX | p->Subnet;
-            uint32_t newaddr = BROADCAST_PREFIX | pDomain->Subnet;
+            uint32_t oldaddr = AM_BROADCAST_PREFIX | p->Subnet;
+            uint32_t newaddr = AM_BROADCAST_PREFIX | pDomain->Subnet;
             RemoveIPMembership(oldaddr);
             AddIpMembership(newaddr);
         }
@@ -1341,17 +1341,17 @@ void HandleNmeUpdateNvByIndex(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr
             memcpy(&gp->nvInAddr.Source, &appReceiveParamPtr->srcAddr.subnetAddr, sizeof(gp->nvInAddr.Source));
 
             switch (appReceiveParamPtr->srcAddr.addressMode) {
-            case BROADCAST:
+            case AM_BROADCAST:
                 IZOT_SET_ATTRIBUTE(gp->nvInAddr, IZOT_RECEIVEADDRESS_FORMAT, 0);
             break;
-            case MULTICAST:
+            case AM_MULTICAST:
                 IZOT_SET_ATTRIBUTE(gp->nvInAddr, IZOT_RECEIVEADDRESS_FORMAT, 1);
                 gp->nvInAddr.Destination.Group.GroupId = appReceiveParamPtr->srcAddr.group.GroupId;
             break;
-            case SUBNET_NODE:
+            case AM_SUBNET_NODE:
                 IZOT_SET_ATTRIBUTE(gp->nvInAddr, IZOT_RECEIVEADDRESS_FORMAT, 2);
             break;
-            case UNIQUE_NODE_ID:
+            case AM_UNIQUE_NODE_ID:
                 IZOT_SET_ATTRIBUTE(gp->nvInAddr, IZOT_RECEIVEADDRESS_FORMAT, 3);
             break;
             default:
@@ -1645,9 +1645,9 @@ APDU *apduPtr) {
     /* This message must be delivered with group addressing and is
      updated based on the domain in which it was received. Hence,
      flex domain is not allowed. */
-    if (appReceiveParamPtr->srcAddr.addressMode != MULTICAST
+    if (appReceiveParamPtr->srcAddr.addressMode != AM_MULTICAST
             || appReceiveParamPtr->srcAddr.dmn.domainIndex == FLEX_DOMAIN) {
-        /* This message should be sent in MULTICAST. Fail */
+        /* This message should be sent in AM_MULTICAST. Fail */
         NMNDRespond(NM_MESSAGE, FAILURE, appReceiveParamPtr, apduPtr);
         return;
     }
@@ -2303,10 +2303,10 @@ APDU *apduPtr) {
     /* Send failure response if we are proxy agent and the message received is 
     on flex domain or it does not have correct size */
     if (appReceiveParamPtr->srcAddr.dmn.domainIndex == FLEX_DOMAIN
-            || (apduPtr->data[1] == UNIQUE_NODE_ID
+            || (apduPtr->data[1] == AM_UNIQUE_NODE_ID
                     && appReceiveParamPtr->pduSize != (2
                             + sizeof(IzotAddress) + IZOT_UNIQUE_ID_LENGTH))
-            || (apduPtr->data[1] != UNIQUE_NODE_ID
+            || (apduPtr->data[1] != AM_UNIQUE_NODE_ID
                     && appReceiveParamPtr->pduSize != (2
                             + sizeof(IzotAddress)))) {
         NMNDRespond(ND_MESSAGE, FAILURE, appReceiveParamPtr, apduPtr);

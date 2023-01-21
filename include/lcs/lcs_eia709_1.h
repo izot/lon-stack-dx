@@ -67,31 +67,31 @@ void IncrementStat(LcsStatistic x);
   Section: Constant Definitions
   ------------------------------------------------------------------------------*/
 
-#define UNIQUE_NODE_ID_LEN 6 /* Length of the Unique Node Id.         */
-#define ID_STR_LEN       8   /* Length of the program id string.      */
-#define AUTH_KEY_LEN     6   /* Length of the authentication key.     */
-#define OMA_KEY_LEN     12   /* Length of the OMA authentication key. */
-#define DOMAIN_ID_LEN    6   /* Maximum length for a domain id.       */
-#define LOCATION_LEN     6   /* Maximum length for location string.   */
-#define NUM_COMM_PARAMS  7   /* Max # of parameters for a tranceiver. */
-#define PROTOCOL_VERSION 0   /* 0 for reference implementaion.        */
-#define MAX_DOMAINS      2   /* Maximum # of domains allowed.         */
+#define UNIQUE_NODE_ID_LEN 6   /* Length of the Unique Node Id.         */
+#define ID_STR_LEN         8   /* Length of the program id string.      */
+#define AUTH_KEY_LEN       6   /* Length of the authentication key.     */
+#define OMA_KEY_LEN       12   /* Length of the OMA authentication key. */
+#define DOMAIN_ID_LEN      6   /* Maximum length for a domain id.       */
+#define LOCATION_LEN       6   /* Maximum length for location string.   */
+#define NUM_COMM_PARAMS    7   /* Max # of parameters for a tranceiver. */
+#define PROTOCOL_VERSION   0   /* 0 for reference implementaion.        */
+#define MAX_DOMAINS        2   /* Maximum # of domains allowed.         */
 
 /* Set the size of the array to log error messages from the protocol stack.
    The error messages wrap around, if there are too many errors.
    Errors seldom happen. So, there is no need for this to be too large. */
 #define ERROR_MSG_SIZE  1000  /* 20 messages each with 50 chars */
 
-#define FLEX_DOMAIN          2   /* Indicates that the message was received
-in flex domain when domain index is 2 */
-#define COMPUTE_DOMAIN_INDEX 3   /* When application layer communicates
-with transport or session layer,
-the domainIndex for the outgoing message
-can be either set by the application layer
-or computed by transport or session layer
-based on the destination address.
-This value is used only in TSASenParam
-structure. */
+/* Flex domain indicates that the message was received in flex domain when
+   domain index is 2 */
+#define FLEX_DOMAIN          2   
+      
+/* When the application layer communicates with the transport or session layer,
+   the domainIndex for the outgoing message can be either set by the application 
+   layer or computed by the transport or session layer based on the destination 
+   address.  This value is used only in the TSASenParam structure. */
+#define COMPUTE_DOMAIN_INDEX 3 
+
 #define MAX_GROUP_NUMBER 63    /* Maximum number of a node in a group */
 
 /*------------------------------------------------------------------------------
@@ -110,17 +110,17 @@ BINDABLE = 1       /* Same as BIND.   */
 /* Address Types. */
 typedef enum __attribute__ ((packed))
 {
-UNBOUND          = 0,
+UNBOUND           = 0,
 
-SUBNET_NODE      = 1,
+AM_SUBNET_NODE    = 1,
 
-UNIQUE_NODE_ID   = 2,
+AM_UNIQUE_NODE_ID = 2,
 
-BROADCAST        = 3,
+AM_BROADCAST      = 3,
 
-MULTICAST        = 4,
+AM_MULTICAST      = 4,
 
-MULTICAST_ACK    = 5,
+AM_MULTICAST_ACK  = 5,
 } AddrMode;
 
 // Node state masks
@@ -230,10 +230,10 @@ typedef struct __attribute__ ((packed))
     IzotReceiveSubnetNode	subnetAddr;   /* Subnet of source node. */
     AddrMode				addressMode;  /* What mode used. */
 	Domain					dmn;
-    /* group is used only if addressMode is MULTICAST.
+    /* group is used only if addressMode is AM_MULTICAST.
        It is the group of the source node sending this message. */
     IzotReceiveGroup		group;
-    /* ackNode is used only if addressMode is MULTICAST_ACK.
+    /* ackNode is used only if addressMode is AM_MULTICAST_ACK.
        It is the destSubnet used and the group of the node sending the ack
        or response. */
     MulticastAckAddress		ackNode;
