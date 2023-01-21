@@ -38,6 +38,7 @@ extern "C" {
 
 #include "IzotPlatform.h"
 #include "IzotTypes.h"
+#include "isi_int.h"
 
 #define IZOT_EXTERNAL_FN extern
 

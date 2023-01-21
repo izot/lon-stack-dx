@@ -434,12 +434,14 @@ IsiApiError initializeData(IsiBootType bootType)
         sts = IzotQueryReadOnlyData(&read_only_data);
     }
 
+#if ISI_IS(SIMPLE) || ISI_IS(DA)
 	if (restorePersistentData(IsiPersistentSegConnectionTable) != 
     LT_PERSISTENCE_OK) {
 		_IsiAPIDebug("No Isi connection table found\r\n");
         _IsiInitConnectionTable();
 		return sts;
 	}
+#endif
 
 	if (restorePersistentData(IsiPersistentSegPersistent) != LT_PERSISTENCE_OK)
     {

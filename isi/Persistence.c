@@ -134,10 +134,9 @@ int* len
 *
 */
 LtPersistenceLossReason serializeIsiNvdSegConnectionTable(
-IzotByte** pBuffer, 
-int* len
-)
+		IzotByte** pBuffer, int* len)
 {
+#if ISI_IS(SIMPLE) || ISI_IS(DA)
 	int image_len = IsiGetConnectionTableSize() * sizeof(IsiConnection);
     
 	// Allocate memory for the serialization
@@ -145,6 +144,7 @@ int* len
     *len = image_len;
 
     memcpy((void *)*pBuffer, (const void *)IsiGetConnection(0), image_len);
+#endif
 
     return LT_PERSISTENCE_OK;
 }
@@ -161,12 +161,11 @@ int* len
 *
 */
 LtPersistenceLossReason deserializeIsiNvdSegConnectionTable(
-IzotByte* pBuffer, 
-int len, 
-int nVersion
-)
+		IzotByte* pBuffer, int len, int nVersion)
 {
     LtPersistenceLossReason reason = LT_PERSISTENCE_OK;
+
+#if ISI_IS(SIMPLE) || ISI_IS(DA)
     int image_len = IsiGetConnectionTableSize() * sizeof(IsiConnection);
 
     if (len >= image_len)
@@ -175,6 +174,7 @@ int nVersion
     }
     else
         reason = LT_PROGRAM_ATTRIBUTE_CHANGE;
+#endif
 
     return reason;
 }

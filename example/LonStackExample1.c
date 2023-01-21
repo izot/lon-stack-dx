@@ -32,9 +32,9 @@ extern "C" {
 #endif
 
 #include <string.h>
-#include "IzotApi.h"
-#include "isi_int.h"
-#include "LonStackExample1.h"
+#include "IzotConfig.h"         // Project-specific configuration
+#include "IzotApi.h"            // LON Stack API definition
+#include "LonStackExample1.h"   // Example definitions
 
 
 //

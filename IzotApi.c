@@ -212,7 +212,7 @@ IzotServiceLedPhysicalState physicalState)
 */
 IZOT_EXTERNAL_FN void IzotEventPump(void)
 {
-#if PROCESSOR_IS(MC200)
+#if LINK_IS(WIFI)
     CheckNetworkStatus();
 
 	if(is_connected) {    
@@ -1262,7 +1262,7 @@ IZOT_EXTERNAL_FN const int IzotPersistentGetMaxSize(IzotPersistentSegmentType se
  *
  * 
  */
-#if PROCESSOR_IS(MC200)
+#if LINK_IS(WIFI)
 static void UnlockDevice(void)
 {
 	uint8_t temp_y[8] = {0};
@@ -1292,7 +1292,7 @@ static void UnlockDevice(void)
         IzotSleep(100);
     }
 }
-#endif  // PROCESSOR_IS(MC200)
+#endif  // LINK_IS(WIFI)
 
 /*
  * *****************************************************************************
@@ -1379,8 +1379,8 @@ const IzotControlData * const pControlData)
     if (err != IzotApiNoError) {
         return err;
     }
-    
-#if PROCESSOR_IS(MC200)
+
+#if LINK_IS(WIFI)
     UnlockDevice();
     if (InitEEPROM(pInterface->Signature) != SUCCESS || APPInit() != SUCCESS) {
         err = IzotApiInitializationFailure;
@@ -1396,7 +1396,7 @@ const IzotControlData * const pControlData)
     } else {
         psm_set_single(IZOT_MOD_NAME, "first_run", "n");
     }
-#endif  // PROCESSOR_IS(MC200)
+#endif  // LINK_IS(WIFI)
 
     return err;
 }

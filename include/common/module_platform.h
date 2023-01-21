@@ -22,45 +22,15 @@
 // SOFTWARE.
 
 /*
- * Title:- Target Environment Definitions
+ * Title:- Target Address Space Definitions
  *
  * Abstract:
- * Definitions for the target environment
+ * Definitions for the target address space.
  */
 
 #ifndef MODULE_PLATFORM_H
 #define	MODULE_PLATFORM_H
 
-/*
- * Product/platform/processor/link ID macros for conditional
- * compilation.  See EchelonStandardDefinitions.h for explanation 
- * of use.
- */
-
-// Do not start any of these ID macros at zero; the default IDs are 0
-
-#ifndef PRODUCT_ID
-#error You must define PRODUCT_ID
-#endif		
-
-#define PLATFORM_ID_SIM		1  // Windows simulator
-#define PLATFORM_ID_FRTOS   2  // FreeRTOS
-
-#ifndef PLATFORM_ID
-#error You must define PLATFORM_ID
-#endif		
-
-#define PROCESSOR_ID_MC200  1   // Marvell MC200 ARM Cortex M3
-
-#if !defined(PROCESSOR_ID) && !PLATFORM_IS(SIM)		// Allow processor to be undefined for the simulator
-#error You must define PROCESSOR_ID
-#endif		
-
-#define LINK_ID_MIP    1   // Neuron MIP data link
-
-#ifndef LINK_ID
-#error You must define LINK_ID
-#endif		
 
 // Macro for addresses that can be > 64K
 #if PLATFORM_IS(SIM)
