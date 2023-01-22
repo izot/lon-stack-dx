@@ -98,10 +98,11 @@
  *  convert between native scalars and multi-byte aggregates.
  *
  ***************************************************************************/
+#include "IzotConfig.h"
+
 #ifndef _IZOT_PLATFORM_H
 #define _IZOT_PLATFORM_H
 
-#include "IzotConfig.h"
 
 #if defined(ARM_NONE_EABI_GCC)
 

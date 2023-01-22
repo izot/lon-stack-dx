@@ -28,10 +28,13 @@
  * This file contains the Platform dependent APIs. This file contains
  * APIs for FreeRTOS to get timing information.
  */
+
+#include "IzotPlatform.h"
+#include "EchelonStandardDefinitions.h"
+
 #if !defined(DEFINED_IZOTOSAL_H)
 #define DEFINED_IZOTOSAL_H
 
-#include "IzotPlatform.h"
 
 /*
  * SECTION: General OSAL definitions

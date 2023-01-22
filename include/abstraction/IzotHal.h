@@ -28,10 +28,12 @@
  * This file contains the hardware dependent APIs. This file contains
  * APIs for the 88MC200 for the hardware GPIO and external flash.
  */ 
+
+#include "IzotPlatform.h"
+
 #if !defined(DEFINED_IZOTHAL_H)
 #define DEFINED_IZOTHAL_H
 
-#include "IzotPlatform.h"
 
 /*------------------------------------------------------------------------------
 Section: Macro

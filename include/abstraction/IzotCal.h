@@ -27,13 +27,14 @@
  * Abstract:
  * This file contains the Izot Connectivity layer socket APIs.
  */ 
-#if !defined(DEFINED_IZOTCAL_H)
-#define DEFINED_IZOTCAL_H
 
 #include "IzotPlatform.h"
 #include "IzotTypes.h"
 #include "IzotHal.h"
 #include "IzotOsal.h"
+
+#if !defined(DEFINED_IZOTCAL_H)
+#define DEFINED_IZOTCAL_H
 
 
 /*------------------------------------------------------------------------------
