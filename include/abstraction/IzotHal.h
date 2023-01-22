@@ -30,7 +30,7 @@
  */ 
 
 #include "IzotConfig.h"
-#include "IzotPlatform.h"
+#include "../izot/IzotPlatform.h"
 
 #if !defined(DEFINED_IZOTHAL_H)
 #define DEFINED_IZOTHAL_H

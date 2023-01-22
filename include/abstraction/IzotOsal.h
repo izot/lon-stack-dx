@@ -30,8 +30,8 @@
  */
 
 #include "IzotConfig.h"
-#include "IzotPlatform.h"
-#include "EchelonStandardDefinitions.h"
+#include "../izot/IzotPlatform.h"
+#include "../common/EchelonStandardDefinitions.h"
 
 #if !defined(DEFINED_IZOTOSAL_H)
 #define DEFINED_IZOTOSAL_H
