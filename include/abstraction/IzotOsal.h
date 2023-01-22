@@ -29,6 +29,7 @@
  * APIs for FreeRTOS to get timing information.
  */
 
+#include "IzotConfig.h"
 #include "IzotPlatform.h"
 #include "EchelonStandardDefinitions.h"
 
