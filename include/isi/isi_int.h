@@ -1452,7 +1452,10 @@ extern void _IsiSetDeviceCount(IzotByte number);
 extern IzotByte _IsiGetDasDeviceCountEst(void);
 extern void _IsiSetDasDeviceCountEst(IzotByte number);
 
+#if PROCESSOR_IS(MC200)
 #include <wmstdio.h>
+#endif
+
 #ifdef ISI_DEBUG
 	#define _IsiAPIDebug	wmprintf
 #else
