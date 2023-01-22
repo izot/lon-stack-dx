@@ -30,6 +30,11 @@
  */
 #ifndef _PERSISTENT_H
 #define _PERSISTENT_H
+
+#include "isi_int.h"
+#include <stddef.h>
+#include <wm_os.h>
+
 /*------------------------------------------------------------------------------
   Section: Definations
   ------------------------------------------------------------------------------*/
