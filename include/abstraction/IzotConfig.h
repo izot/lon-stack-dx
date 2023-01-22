@@ -70,6 +70,8 @@
 #if !defined(DEFINED_IZOTCONFIG_H)
 #define DEFINED_IZOTCONFIG_H
  
+#include "IzotConfig.h"
+
 
 //
 // Section: Macros
