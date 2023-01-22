@@ -29,13 +29,14 @@
  * for the 88MC200 GPIO and external flash.
  */
 
+#include "IzotHal.h"
+
 #if PROCESSOR_IS(MC200)
 #include <mdev.h>
 #include <mc200_gpio.h>
 #include <mc200_pinmux.h>
 #endif
 
-#include "IzotHal.h"
 
 /*------------------------------------------------------------------------------
 Section: Macro
