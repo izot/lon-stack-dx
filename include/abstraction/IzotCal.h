@@ -31,6 +31,10 @@
 #define DEFINED_IZOTCAL_H
 
 #include "IzotPlatform.h"
+#include "IzotTypes.h"
+#include "IzotHal.h"
+#include "IzotOsal.h"
+
 
 /*------------------------------------------------------------------------------
 Section: Macros

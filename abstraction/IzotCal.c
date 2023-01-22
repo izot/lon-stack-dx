@@ -29,17 +29,14 @@
  * has APIs for FreeRTOS to send data on a udp socket.
  */
 
+#include "IzotCal.h"
+
 #if PLATFORM_IS(FRTOS)
 #include <app_framework.h>
 #include <appln_cb.h>
 #include <wm_net.h>
 #include <wm_os.h>
 #endif
-
-#include "IzotTypes.h"
-#include "IzotHal.h"
-#include "IzotCal.h"
-#include "IzotOsal.h"
 
 #if PROCESSOR_IS(MC200)
 #include <board.h>
