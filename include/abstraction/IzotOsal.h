@@ -32,6 +32,7 @@
 #define DEFINED_IZOTOSAL_H
 
 #include "IzotPlatform.h"
+
 /*
  * SECTION: General OSAL definitions
  *
