@@ -1,4 +1,15 @@
 {
   "name": "lon-stack-dx",
-  "version": "0.0.0+20230122115916"
+  "version": "0.0.0+20230122115916",
+  "build": {
+    "flags": [
+      "-Iinclude/abstraction",
+      "-Iinclude/common",
+      "-Iinclude/isi",
+      "-Iinclude/izot",
+      "-Iinclude/lcs",
+      "-Iinclude/ls_udp",
+      "-Iinclude/persitence"
+    ]
+  }
 }

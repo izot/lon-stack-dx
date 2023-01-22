@@ -98,7 +98,7 @@
  *  convert between native scalars and multi-byte aggregates.
  *
  ***************************************************************************/
-#include "../abstraction/IzotConfig.h"
+#include "IzotConfig.h"
 
 #ifndef _IZOT_PLATFORM_H
 #define _IZOT_PLATFORM_H

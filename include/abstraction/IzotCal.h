@@ -29,8 +29,8 @@
  */ 
 
 #include "IzotConfig.h"
-#include "../izot/IzotPlatform.h"
-#include "../izot/IzotTypes.h"
+#include "IzotPlatform.h"
+#include "IzotTypes.h"
 #include "IzotHal.h"
 #include "IzotOsal.h"
 
