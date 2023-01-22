@@ -28,9 +28,7 @@
  * Abstract:
  * implement ISI persistence files
  */
-#include "isi_int.h"
-#include <stddef.h>
-#include <wm_os.h>
+
 #include "Persistent.h"
 
 /*------------------------------------------------------------------------------
