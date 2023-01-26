@@ -29,14 +29,14 @@
   Purpose:        LON DX Stack Application Program Interface
                   This is the interface file for the LON DX Stack API.
 *********************************************************************/
-#ifndef _API_H
-#define _API_H
+#ifndef _LCS_API_H
+#define _LCS_API_H
 
 /*------------------------------------------------------------------------------
 Section: Includes
 ------------------------------------------------------------------------------*/
-#include "lcs_eia709_1.h"
 #include "lcs_custom.h"
+#include "lcs_eia709_1.h"
 #include "lcs_timer.h"
 
 /*------------------------------------------------------------------------------
@@ -47,6 +47,10 @@ Section: Constant Definitions
 /*********************************************************************
 Section: Type Definitions
 *********************************************************************/
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #pragma pack(push, 1)
 
@@ -82,6 +86,10 @@ typedef union __attribute__ ((packed))
 } DestinType;
 
 #pragma pack(pop)
+
+#ifdef __cplusplus
+}
+#endif
 
 /* Message Declarations ****************************************** */
 
@@ -144,8 +152,8 @@ typedef struct
     IzotByte  persist;      // 1 => persist datapoints
 	IzotByte  explodeArray;	// 1 => explode arrays in SNVT structure
 	IzotByte  nvLength;		// length of NV in bytes.  For arrays, give the size of each item
-    IzotByte  snvtDesc;         /* snvtDesc_struct in byte form. Big_Endian */
-    IzotByte  snvtExt;          /* Extension record. Big_Endian. */
+    IzotByte  snvtDesc;         /* snvtDesc_struct in byte form. Big-endian */
+    IzotByte  snvtExt;          /* Extension record. Big-endian. */
     IzotByte  snvtType;         /* 0 => non-SNVT variable. */
     IzotByte  rateEst;
     IzotByte  maxrEst;
@@ -241,7 +249,7 @@ IzotByte ManualServiceRequestMessage(void);
 
 /* Functions that must be defined in applications using this API */
 extern Status AppInit(void);             /* Application initialization      */
-void DoApp(Bool isOnline);      /* Application processing          */
+void DoApp(IzotBool isOnline);      /* Application processing          */
 void LCS_RegisterClearStatsCallback(void (*cb)(void));
 extern void setMem(const unsigned addr, const unsigned size);
 extern void RecomputeChecksum(void);
@@ -254,5 +262,5 @@ extern void RecomputeChecksum(void);
 extern void setAppSignature(unsigned appSignature);
 extern void readIupPersistData(void);
 
-#endif   /* #ifndef _API_H */
+#endif   /* #ifndef _LCS_API_H */
 /********************************api.h*******************************/
