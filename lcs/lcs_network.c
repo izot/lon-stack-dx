@@ -30,14 +30,7 @@
 /*------------------------------------------------------------------------------
   Section: Includes
   ------------------------------------------------------------------------------*/
-#include <stdio.h>
-#include <string.h>
-#include <stddef.h>
-#include "IzotTypes.h"
-#include <lcs_eia709_1.h>
-#include <lcs_node.h>
-#include <lcs_queue.h>
-#include <lcs_network.h>
+#include "lcs_network.h"
 
 /*------------------------------------------------------------------------------
   Section: Constants

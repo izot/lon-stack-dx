@@ -43,16 +43,7 @@
 /*------------------------------------------------------------------------------
   Section: Includes
   ------------------------------------------------------------------------------*/
-#include <stdio.h>
-#include <string.h>
-#include <stddef.h>
-#include "IzotTypes.h"
-#include "lcs_eia709_1.h"
-#include "lcs_custom.h"
 #include "lcs_node.h"
-#include "endian.h"
-#include "lcs_timer.h"
-#include "IzotPlatform.h"
 
 /*-------------------------------------------------------------------
   Section: Constant Definitions
