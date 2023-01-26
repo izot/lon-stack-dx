@@ -39,8 +39,8 @@
 #define ISI_IMPLEMENT_LIBRARY 
 #endif  //  ISI_DEBUG_IMPLEMENT_LIBRARY
 
-#include "IzotIsiApi.h"
 #include <string.h>
+#include "IzotIsiApi.h"
 
 #ifdef  __cplusplus
 extern "C" {
@@ -560,7 +560,7 @@ typedef enum {
 //    niSERVICE        = 0xE6,
     niTXID           = 0xE8,
     niSLTAPLS        = 0xEA,
-    niDRV_CMD        = 0xF0,        /* Not used                             */
+    niDRV_CMD        = 0xF0         /* Not used                             */
 } NI_NoQueueCmd;
 
 #define niWAIT_TIME 3               // Timeout for network interface
@@ -944,10 +944,10 @@ typedef IZOT_STRUCT_BEGIN(RcvNrnid) {
 /* Union of all received destination addresses. */
 
 typedef union {
-    IzotByte    gp;                  /* Group ID for multicast destination   */
+    IzotByte   gp;                  /* Group ID for multicast destination   */
     RcvSnode   sn;                  /* Subnet/node ID for unicast           */
     RcvNrnid   id;                  /* 48-bit NEURON ID destination address */
-    IzotByte    subnet;              /* Subnet ID for broadcast destination  */
+    IzotByte   subnet;              /* Subnet ID for broadcast destination  */
                                     /* 0 => domain-wide */
 } RcvDestAddr;
 
@@ -976,18 +976,18 @@ typedef enum {
 /* Address field of incoming message. */
 typedef IZOT_STRUCT_BEGIN(RcvAddrDtl) {
 #ifdef BITF_LITTLE_ENDIAN
-    IzotUbits8    format      :6;/* Destination address type             */
+    IzotUbits8    format      :6;/* Destination address type            */
                                 /* See 'RcvDstAddrFormat'               */
-    IzotUbits8    flex_domain :1;/* 1 => broadcast to unconfigured node  */
-    IzotUbits8    domain      :1;/* Domain table index                   */
+    IzotUbits8    flex_domain :1;/* 1 => broadcast to unconfigured node */
+    IzotUbits8    domain      :1;/* Domain table index                  */
 #else
-    IzotUbits8    domain      :1;/* Domain table index                   */
-    IzotUbits8    flex_domain :1;/* 1 => broadcast to unconfigured node  */
-    IzotUbits8    format      :6;/* Destination address type             */
+    IzotUbits8    domain      :1;/* Domain table index                  */
+    IzotUbits8    flex_domain :1;/* 1 => broadcast to unconfigured node */
+    IzotUbits8    format      :6;/* Destination address type            */
                                 /* See 'RcvDstAddrFormat'               */
 #endif
-    RcvSrcAddr  source;         /* Source address of incoming message   */
-    RcvDestAddr dest;           /* Destination address of incoming msg  */
+    RcvSrcAddr    source;       /* Source address of incoming message   */
+    RcvDestAddr   dest;         /* Destination address of incoming msg  */
 } IZOT_STRUCT_END(RcvAddrDtl);
 
 /*
@@ -1177,18 +1177,11 @@ typedef enum {
 typedef enum {
     MF_OK,
     MF_NO_ANSWER,
-    MF_RESPONSE_ERROR,
+    MF_RESPONSE_ERROR
 } MsgResult;
 
 /***************************** End ni_msg.h *****************************/
 
-
-//
-// The following macros are used when accessing data that is normally on the Neuron but could be remote
-// in the event of a MIP with host selection.
-//
-#define NvCount			_nv_count()
-#define AliasCount		_alias_count()
 
 //
 // Used for convenient access to selector bytes
@@ -1244,7 +1237,7 @@ extern unsigned get_nv_type (unsigned index);
 extern IzotByte high_byte (IzotUbits16 a);
 extern IzotByte low_byte (IzotUbits16 a);
 extern IzotWord make_long(IzotByte low_byte, IzotByte high_byte);
-extern void watchdog_update(void);
+extern void lon_watchdog_update(void);
 extern IsiApiError update_config_data(const IzotConfigData *config_data1);
 
 extern IzotReadOnlyData read_only_data;
@@ -1477,4 +1470,5 @@ extern void _IsiRequestConnectionTable(const IzotUniqueId* pUniqueId, IzotByte i
 #ifdef  __cplusplus
 }
 #endif
+
 #endif	//	!defined __ISIINT_H__
