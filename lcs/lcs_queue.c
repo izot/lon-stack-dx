@@ -29,12 +29,7 @@
 /*------------------------------------------------------------------------------
   Section: Includes
   ------------------------------------------------------------------------------*/
-#include <stdio.h>
-#include <stddef.h>
-#include "IzotTypes.h"
-#include <lcs_eia709_1.h>   /* To get Byte, Boolean & Status */
-#include <lcs_queue.h>
-#include <lcs_node.h>      /* To get AllocateStorage. */
+#include "lcs_queue.h"
 
 /*-------------------------------------------------------------------
   Section: Constant Definitions
