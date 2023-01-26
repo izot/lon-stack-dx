@@ -29,7 +29,7 @@
  * implement ISI persistence files
  */
 
-#include "../include/persitence/Persistent.h"
+#include "Persistent.h"
 
 /*------------------------------------------------------------------------------
 Section: Macros
