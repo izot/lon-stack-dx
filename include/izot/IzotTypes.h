@@ -28,18 +28,14 @@
  * This file declares the enumerations and data types for the LON DX Stack API.
  */
 
-#include "IzotPlatform.h"
 
 #ifndef _IZOT_TYPES_H
 #define _IZOT_TYPES_H
 
-#if !defined(IZOT_STACK_DX)
-#   error This API definition applies to the IzoT Device Stack DX
-#endif
-
 #ifndef _IZOT_PLATFORM_H
 #   error You must include IzotPlatform.h first
 #endif  /* _IZOT_PLATFORM_H */
+
 
 /*
  * *****************************************************************************
@@ -211,11 +207,15 @@ typedef IZOT_ENUM_BEGIN(IzotApiError)
  */
 
 /*
- *  Macros: IZOT_GET_UNSIGNED_WORD, IZOT_SET_UNSIGNED_WORD
- *  Converts a IzotWord into a 16 bit unsigned scalar and vice versa.
+ *  Macros: IZOT_GET_UNSIGNED_WORD, IZOT_SET_UNSIGNED_WORD, and
+ *  IZOT_SET_UNSIGNED_WORD_FROM_BYTES.  The first two convert an
+ *  IzotWord into a 16-bit unsigned scalar and vice versa.  The third
+ *  converts to IzotBytes to a 16-bit unsigned scalar.
  */
 #define IZOT_GET_UNSIGNED_WORD(n)          (((uint16_t)((n).msb) << 8)+(uint16_t)((n).lsb))
 #define IZOT_SET_UNSIGNED_WORD(n, v)       (n).msb = (IzotByte)((v)>>8); (n).lsb = (IzotByte)(v)
+#define IZOT_SET_UNSIGNED_WORD_FROM_BYTES(n,b1,b2) (n).msb = (IzotByte)(b1); \
+                                                    (n).lsb = (IzotByte)(b2)
 
 /*
  *  Macros: IZOT_GET_SIGNED_WORD, IZOT_SET_SIGNED_WORD
@@ -478,7 +478,7 @@ typedef IZOT_ENUM_BEGIN(IzotResetCause)
  */
 typedef IZOT_ENUM_BEGIN(IzotAddressType)
 {
-    /*  0 */ IzotAddressUnassigned    = 0,
+    /*  0 */ IzotAddressUnassigned = 0,
     /*  1 */ IzotAddressSubnetNode,
     /*  2 */ IzotAddressUniqueId,
     /*  3 */ IzotAddressBroadcast,
@@ -648,7 +648,7 @@ typedef IZOT_ENUM_BEGIN(IzotServiceLedPhysicalState)
  * Use the IZOT_SENDGROUP_REPEAT_TIMER_* macros to access the Repeat field in
  * IzotSendGroup.RepeatRetry
  */
-#define IZOT_SENDGROUP_REPEAT_TIMER_MASK 0xF0    /* repeat timer. Use values from the <IzotRepeatTimer> enumeration. */
+#define IZOT_SENDGROUP_REPEAT_TIMER_MASK   0xF0  /* repeat timer. Use values from the <IzotRepeatTimer> enumeration. */
 #define IZOT_SENDGROUP_REPEAT_TIMER_SHIFT  4
 #define IZOT_SENDGROUP_REPEAT_TIMER_FIELD  RepeatRetry
 
@@ -664,7 +664,7 @@ typedef IZOT_ENUM_BEGIN(IzotServiceLedPhysicalState)
  * Use the IZOT_SENDGROUP_RECEIVE_TIMER_* macros to access the Receive Timer
  * field in IzotSendGroup.ReceiveTransmit
  */
-#define IZOT_SENDGROUP_RECEIVE_TIMER_MASK 0xF0   /* receive timer. Use values from the <IzotReceiveTimer> enumeration. */
+#define IZOT_SENDGROUP_RECEIVE_TIMER_MASK  0xF0 /* receive timer. Use values from the <IzotReceiveTimer> enumeration. */
 #define IZOT_SENDGROUP_RECEIVE_TIMER_SHIFT 4
 #define IZOT_SENDGROUP_RECEIVE_TIMER_FIELD ReceiveTransmit
 
@@ -672,7 +672,7 @@ typedef IZOT_ENUM_BEGIN(IzotServiceLedPhysicalState)
  * Use the IZOT_SENDGROUP_TRANSMIT_TIMER_* macros to access the TransmitTimer
  * field in IzotSendGroup.ReceiveTransmit
  */
-#define IZOT_SENDGROUP_TRANSMIT_TIMER_MASK 0x0F   /* receive timer. Use values from the <IzotTransmitTimer> enumeration. */
+#define IZOT_SENDGROUP_TRANSMIT_TIMER_MASK  0x0F /* receive timer. Use values from the <IzotTransmitTimer> enumeration. */
 #define IZOT_SENDGROUP_TRANSMIT_TIMER_SHIFT 0
 #define IZOT_SENDGROUP_TRANSMIT_TIMER_FIELD ReceiveTransmit
 
@@ -737,13 +737,13 @@ typedef IZOT_STRUCT_BEGIN(IzotSendGroup)
  * Use the IZOT_SENDSN_TRANSMIT_TIMER_* macros to access the transmit timer
  * field in IzotSendSubnetNode.RsvdTransmit
  */
-#define IZOT_SENDSN_TRANSMIT_TIMER_MASK  0x0F    /* Transmit timer. Use values from the <IzotTransmitTimer> enumeration. */
+#define IZOT_SENDSN_TRANSMIT_TIMER_MASK   0x0F   /* Transmit timer. Use values from the <IzotTransmitTimer> enumeration. */
 #define IZOT_SENDSN_TRANSMIT_TIMER_SHIFT  0
 #define IZOT_SENDSN_TRANSMIT_TIMER_FIELD  RsvdTransmit
 
 typedef IZOT_STRUCT_BEGIN(IzotSendSubnetNode)
 {
-    IZOT_ENUM(IzotAddressType) Type;   /* should be IzotAddressSubnetNode for subnet/node addressing */
+    IZOT_ENUM(IzotAddressType) Type;  /* should be IzotAddressSubnetNode for subnet/node addressing */
     IzotByte  DomainNode;             /* contains domain, node. See IZOT_SENDSN_DOMAIN_* and _NODE_* macros. */
     IzotByte  RepeatRetry;            /* contains repeat, retry. See IZOT_SENDSN_REPEAT_* and _RETRY_* macros. */
     IzotByte  RsvdTransmit;           /* contains rsvd0, transmit. See IZOT_SENDSN_RSVD0_* and _TRANSMIT_TIMER_* macros. */
@@ -762,7 +762,7 @@ typedef IZOT_STRUCT_BEGIN(IzotSendSubnetNode)
  * Use the IZOT_SENDNID_DOMAIN_* macros to access the Domain field in
  * IzotSendUniqueId.DomainNode
  */
-#define IZOT_SENDNID_DOMAIN_MASK     0x80    /* domain index, zero or one */
+#define IZOT_SENDNID_DOMAIN_MASK     0x80     /* domain index, zero or one */
 #define IZOT_SENDNID_DOMAIN_SHIFT    7
 #define IZOT_SENDNID_DOMAIN_FIELD    Domain
 
@@ -770,7 +770,7 @@ typedef IZOT_STRUCT_BEGIN(IzotSendSubnetNode)
  * Use the IZOT_SENDNID_REPEAT_* macros to access the Repeat field in
  * IzotSendUniqueId.RepeatRetry
  */
-#define IZOT_SENDNID_REPEAT_TIMER_MASK   0xF0    /* repeat timer. Use values from the <IzotRepeatTimer> enumeration. */
+#define IZOT_SENDNID_REPEAT_TIMER_MASK   0xF0 /* repeat timer. Use values from the <IzotRepeatTimer> enumeration. */
 #define IZOT_SENDNID_REPEAT_TIMER_SHIFT  4
 #define IZOT_SENDNID_REPEAT_TIMER_FIELD  RepeatRetry
 
@@ -794,17 +794,17 @@ typedef IZOT_STRUCT_BEGIN(IzotSendSubnetNode)
  * Use the IZOT_SENDNID_TRANSMIT_TIMER_* macros to access the transmit timer
  * field in IzotSendUniqueId.RsvdTransmit
  */
-#define IZOT_SENDNID_TRANSMIT_TIMER_MASK 0x0F    /* Transmit timer. Use values from the <IzotTransmitTimer> enumeration. */
+#define IZOT_SENDNID_TRANSMIT_TIMER_MASK   0x0F /* Transmit timer. Use values from the <IzotTransmitTimer> enumeration. */
 #define IZOT_SENDNID_TRANSMIT_TIMER_SHIFT  0
 #define IZOT_SENDNID_TRANSMIT_TIMER_FIELD  RsvdTransmit
 
 typedef IZOT_STRUCT_BEGIN(IzotSendUniqueId)
 {
-    IZOT_ENUM(IzotAddressType) Type;   /* should be IzotAddressUniqueId */
-    IzotByte  Domain;                 /* contains the domain index. See IZOT_SENDNID_DOMAIN_* macro. The remaining 7 bits must be zero. */
-    IzotByte  RepeatRetry;            /* contains repeat, retry. See IZOT_SENDNID_REPEAT_* and _RETRY_* macros. */
+    IZOT_ENUM(IzotAddressType) Type;  /* Should be IzotAddressUniqueId */
+    IzotByte  Domain;                 /* Contains the domain index. See IZOT_SENDNID_DOMAIN_* macro. The remaining 7 bits must be zero. */
+    IzotByte  RepeatRetry;            /* Contains repeat, retry. See IZOT_SENDNID_REPEAT_* and _RETRY_* macros. */
     IzotByte  RsvdTransmit;
-    IzotSubnetId Subnet;              /* destination subnet number, 1..255, or zero to pass all routers */
+    IzotSubnetId Subnet;              /* Destination subnet number, 1..255, or zero to pass all routers */
     IzotUniqueId NeuronId;            /* 48-bit unique ID of Neuron Chip or Smart Transceiver */
 } IZOT_STRUCT_END(IzotSendUniqueId);
 
@@ -820,7 +820,7 @@ typedef IZOT_STRUCT_BEGIN(IzotSendUniqueId)
  * Use the IZOT_SENDBCAST_DOMAIN_* macros to access the Domain filed in
  * IzotSendBroadcast.DomainRsvdBacklog
  */
-#define IZOT_SENDBCAST_DOMAIN_MASK   0x80    /* domain index, zero or one */
+#define IZOT_SENDBCAST_DOMAIN_MASK   0x80    /* Domain index, zero or one */
 #define IZOT_SENDBCAST_DOMAIN_SHIFT  7
 #define IZOT_SENDBCAST_DOMAIN_FIELD  DomainRsvdBacklog
 
@@ -836,7 +836,7 @@ typedef IZOT_STRUCT_BEGIN(IzotSendUniqueId)
  * Use the IZOT_SENDBCAST_BACKLOG_* macros to access the Backlog field in
  * IzotSendBroadcast.DomainRsvdBacklog
  */
-#define IZOT_SENDBCAST_BACKLOG_MASK  0x3F   /* backlog (set to zero if unknown) */
+#define IZOT_SENDBCAST_BACKLOG_MASK  0x3F   /* Backlog (set to zero if unknown) */
 #define IZOT_SENDBCAST_BACKLOG_SHIFT 0
 #define IZOT_SENDBCAST_BACKLOG_FIELD DomainRsvdBacklog
 
@@ -844,7 +844,7 @@ typedef IZOT_STRUCT_BEGIN(IzotSendUniqueId)
  * Use the IZOT_SENDBCAST_REPEAT_* macros to access the Repeat field in
  * IzotSendBroadcast.RepeatRetry
  */
-#define IZOT_SENDBCAST_REPEAT_TIMER_MASK     0xF0    /* repeat timer. Use values from the <IzotRepeatTimer> enumeration. */
+#define IZOT_SENDBCAST_REPEAT_TIMER_MASK     0xF0  /* Repeat timer. Use values from the <IzotRepeatTimer> enumeration. */
 #define IZOT_SENDBCAST_REPEAT_TIMER_SHIFT    4
 #define IZOT_SENDBCAST_REPEAT_TIMER_FIELD    RepeatRetry
 
@@ -852,7 +852,7 @@ typedef IZOT_STRUCT_BEGIN(IzotSendUniqueId)
  * Use the IZOT_SENDBCAST_RETRY_* macros to access the Retry field in
  * IzotSendBroadcast.RepeatRetry
  */
-#define IZOT_SENDBCAST_RETRY_MASK    0x0F    /* Retry count */
+#define IZOT_SENDBCAST_RETRY_MASK    0x0F       /* Retry count */
 #define IZOT_SENDBCAST_RETRY_SHIFT   0
 #define IZOT_SENDBCAST_RETRY_FIELD   RepeatRetry
 
@@ -860,7 +860,7 @@ typedef IZOT_STRUCT_BEGIN(IzotSendUniqueId)
  * Use the IZOT_SENDNID_RSVD1_* macros to access the rsvd1 field in
  * IzotSendBroadcast.RsvdTransmit
  */
-#define IZOT_SENDBCAST_RSVD1_MASK    0xF0			/* maxResponses */
+#define IZOT_SENDBCAST_RSVD1_MASK    0xF0		/* maxResponses */
 #define IZOT_SENDBCAST_RSVD1_SHIFT   4
 #define IZOT_SENDBCAST_RSVD1_FIELD   RsvdTransmit
 
@@ -868,17 +868,17 @@ typedef IZOT_STRUCT_BEGIN(IzotSendUniqueId)
  * Use the IZOT_SENDBCAST_TRANSMIT_TIMER_* macros to access the transmit timer
  * field in IzotSendBroadcast.RsvdTransmit
  */
-#define IZOT_SENDBCAST_TRANSMIT_TIMER_MASK   0x0F    /* Transmit timer. Use values from the <IzotTransmitTimer> enumeration. */
+#define IZOT_SENDBCAST_TRANSMIT_TIMER_MASK   0x0F /* Transmit timer. Use values from the <IzotTransmitTimer> enumeration. */
 #define IZOT_SENDBCAST_TRANSMIT_TIMER_SHIFT  0
 #define IZOT_SENDBCAST_TRANSMIT_TIMER_FIELD  RsvdTransmit
 
 typedef IZOT_STRUCT_BEGIN(IzotSendBroadcast)
 {
-    IZOT_ENUM(IzotAddressType) Type;   /* should be IzotAddressBroadcast */
-    IzotByte  DomainRsvdBacklog;      /* contains domain, rsvd0, backlog. See IZOT_SENDBCAST_DOMAIN_*, _RSVD0_* and _BACKLOG_* macros. */
-    IzotByte  RepeatRetry;            /* contains repeat, retry. See IZOT_SENDBCAST_REPEAT_* and _RETRY_* macros. */
+    IZOT_ENUM(IzotAddressType) Type;  /* Should be IzotAddressBroadcast */
+    IzotByte  DomainRsvdBacklog;      /* Contains domain, rsvd0, backlog. See IZOT_SENDBCAST_DOMAIN_*, _RSVD0_* and _BACKLOG_* macros. */
+    IzotByte  RepeatRetry;            /* Contains repeat, retry. See IZOT_SENDBCAST_REPEAT_* and _RETRY_* macros. */
     IzotByte  RsvdTransmit;
-    IzotSubnetId Subnet;             /* destination subnet number, 1..255 for subnet broadcast, zero for domain broadcast */
+    IzotSubnetId Subnet;              /* Destination subnet number, 1..255 for subnet broadcast, zero for domain broadcast */
 } IZOT_STRUCT_END(IzotSendBroadcast);
 
 /*
@@ -889,7 +889,7 @@ typedef IZOT_STRUCT_BEGIN(IzotSendBroadcast)
  */
 typedef IZOT_STRUCT_BEGIN(IzotSendUnassigned)
 {
-    IZOT_ENUM(IzotAddressType) Type;   /* should be IzotAddressUnassigned */
+    IZOT_ENUM(IzotAddressType) Type;   /* Should be IzotAddressUnassigned */
 } IZOT_STRUCT_END(IzotSendUnassigned);
 
 /*
@@ -899,7 +899,7 @@ typedef IZOT_STRUCT_BEGIN(IzotSendUnassigned)
  */
 typedef IZOT_STRUCT_BEGIN(IzotSendLocal)
 {
-    IZOT_ENUM(IzotAddressType) Type;   /* should be IzotAddressLocal */
+    IZOT_ENUM(IzotAddressType) Type;   /* Should be IzotAddressLocal */
 } IZOT_STRUCT_END(IzotSendLocal);
 
 /*
@@ -931,7 +931,7 @@ typedef IZOT_UNION_BEGIN(IzotSendAddress)
 #define IZOT_RECEIVESN_SELFIELD_SHIFT 7
 #define IZOT_RECEIVESN_SELFIELD_FIELD Node 
  
-#define IZOT_RECEIVESN_NODE_MASK  0x7F    /* node Id 0..127, MSB is reserved */
+#define IZOT_RECEIVESN_NODE_MASK  0x7F  /* node Id 0..127, MSB is reserved */
 #define IZOT_RECEIVESN_NODE_SHIFT 0
 #define IZOT_RECEIVESN_NODE_FIELD Node
 
@@ -997,7 +997,7 @@ typedef IZOT_UNION_BEGIN(IzotReceiveDestination)
  */
 typedef IZOT_ENUM_BEGIN(IzotReceiveDestinationAddressFormat)
 {
-    /*  0 */ IzotReceiveDestinationAddressBroadcast  = 0,
+    /*  0 */ IzotReceiveDestinationAddressBroadcast = 0,
     /*  1 */ IzotReceiveDestinationAddressGroup,
     /*  2 */ IzotReceiveDestinationAddressSubnetNode,
     /*  3 */ IzotReceiveDestinationAddressUniqueId,
@@ -1012,21 +1012,21 @@ typedef IZOT_ENUM_BEGIN(IzotReceiveDestinationAddressFormat)
  *  (the address through which the message was received on this node) and the
  *  message's source address (where it came from).
  */
-#define IZOT_RECEIVEADDRESS_DOMAIN_MASK   0x80    /* domain table index through which the message was received */
+#define IZOT_RECEIVEADDRESS_DOMAIN_MASK   0x80    /* Domain table index through which the message was received */
 #define IZOT_RECEIVEADDRESS_DOMAIN_SHIFT  7
 #define IZOT_RECEIVEADDRESS_DOMAIN_FIELD  DomainFormat
 
-#define IZOT_RECEIVEADDRESS_FLEX_MASK     0x40    /* one for flex domain, that is, received message on unconfigured node */
+#define IZOT_RECEIVEADDRESS_FLEX_MASK     0x40    /* One for flex domain, that is, received message on unconfigured node */
 #define IZOT_RECEIVEADDRESS_FLEX_SHIFT    6
 #define IZOT_RECEIVEADDRESS_FLEX_FIELD    DomainFormat
 
-#define IZOT_RECEIVEADDRESS_FORMAT_MASK   0x3F    /* use <IzotReceiveDestinationAddressFormat> enumeration */
+#define IZOT_RECEIVEADDRESS_FORMAT_MASK   0x3F    /* Use <IzotReceiveDestinationAddressFormat> enumeration */
 #define IZOT_RECEIVEADDRESS_FORMAT_SHIFT  0
 #define IZOT_RECEIVEADDRESS_FORMAT_FIELD  DomainFormat
 
 typedef IZOT_STRUCT_BEGIN(IzotReceiveAddress)
 {
-    IzotByte  DomainFormat;   /* contains domain, flex domain, format. Use IZOT_RECEIVEADDRESS_* macros to access data. */
+    IzotByte  DomainFormat;   /* Contains domain, flex domain, format. Use IZOT_RECEIVEADDRESS_* macros to access data. */
     IzotReceiveSubnetNode    Source;
     IzotReceiveDestination   Destination;
 } IZOT_STRUCT_END(IzotReceiveAddress);
@@ -1035,7 +1035,7 @@ typedef IZOT_STRUCT_BEGIN(IzotReceiveAddress)
  *  Typedef: IzotResponseSource
  *  Source address of a response message.
  *
- * IzotResponseSource holds the source address of a response message.
+ *  IzotResponseSource holds the source address of a response message.
  */
 #define IZOT_RESPONSESOURCE_IS_SUBNETNODE_MASK   0x80    /* 1: subnet/node response. 0: group response. */
 #define IZOT_RESPONSESOURCE_IS_SUBNETNODE_SHIFT  7
@@ -1153,11 +1153,11 @@ typedef IZOT_UNION_BEGIN(IzotExplicitAddress)
 #define IZOT_ADDRESS_GROUP_TYPE_SHIFT    7
 #define IZOT_ADDRESS_GROUP_TYPE_FIELD    TypeSize
 
-#define IZOT_ADDRESS_GROUP_SIZE_MASK     0x7F    /* group size 1..63, or zero for open group */
+#define IZOT_ADDRESS_GROUP_SIZE_MASK     0x7F    /* Group size 1..63, or zero for open group */
 #define IZOT_ADDRESS_GROUP_SIZE_SHIFT    0
 #define IZOT_ADDRESS_GROUP_SIZE_FIELD    TypeSize
 
-#define IZOT_ADDRESS_GROUP_DOMAIN_MASK   0x80    /* domain index */
+#define IZOT_ADDRESS_GROUP_DOMAIN_MASK   0x80    /* Domain index */
 #define IZOT_ADDRESS_GROUP_DOMAIN_SHIFT  7
 #define IZOT_ADDRESS_GROUP_DOMAIN_FIELD  DomainMember
 
@@ -1165,36 +1165,36 @@ typedef IZOT_UNION_BEGIN(IzotExplicitAddress)
 #define IZOT_ADDRESS_GROUP_MEMBER_SHIFT  0
 #define IZOT_ADDRESS_GROUP_MEMBER_FIELD  DomainMember
 
-#define IZOT_ADDRESS_GROUP_REPEAT_TIMER_MASK 0xF0    /* repeat timer, use IzotRepeatTimer */
+#define IZOT_ADDRESS_GROUP_REPEAT_TIMER_MASK  0xF0   /* Repeat timer, use IzotRepeatTimer */
 #define IZOT_ADDRESS_GROUP_REPEAT_TIMER_SHIFT 4
 #define IZOT_ADDRESS_GROUP_REPEAT_TIMER_FIELD RepeatRetry
 
-#define IZOT_ADDRESS_GROUP_RETRY_MASK    0x0F        /* retry count */
+#define IZOT_ADDRESS_GROUP_RETRY_MASK    0x0F        /* Retry count */
 #define IZOT_ADDRESS_GROUP_RETRY_SHIFT   0
 #define IZOT_ADDRESS_GROUP_RETRY_FIELD   RepeatRetry
 
-#define IZOT_ADDRESS_GROUP_RECEIVE_TIMER_MASK 0xF0   /* receive timer, use IzotReceiveTimer */
+#define IZOT_ADDRESS_GROUP_RECEIVE_TIMER_MASK 0xF0   /* Receive timer, use IzotReceiveTimer */
 #define IZOT_ADDRESS_GROUP_RECEIVE_TIMER_SHIFT   4
 #define IZOT_ADDRESS_GROUP_RECEIVE_TIMER_FIELD   ReceiveTransmit
 
-#define IZOT_ADDRESS_GROUP_TRANSMIT_TIMER_MASK 0x0F  /* transmit timer, use IzotTransmitTimer */
+#define IZOT_ADDRESS_GROUP_TRANSMIT_TIMER_MASK 0x0F  /* Transmit timer, use IzotTransmitTimer */
 #define IZOT_ADDRESS_GROUP_TRANSMIT_TIMER_SHIFT  0
 #define IZOT_ADDRESS_GROUP_TRANSMIT_TIMER_FIELD  ReceiveTransmit
 
 typedef IZOT_STRUCT_BEGIN(IzotAddressTableGroup)
 {
-    IzotByte      TypeSize;               /* contains type, size. Use the IZOT_ADDRESS_GROUP_* macros. */
-    IzotByte      DomainMember;           /* contains domain, member. Use the IZOT_ADDRESS_GROUP_* macros. */
-    IzotByte      RepeatRetry;            /* contains repeatTimer, retry. Use the IZOT_ADDRESS_GROUP_* macros. */
-    IzotByte      ReceiveTransmit;        /* contains receive and transmit timer. Use Izot_ADDRESS_GROUP_* macros. */
-    IzotGroupId   Group;                  /* the group identifier */
+    IzotByte      TypeSize;               /* Contains type, size. Use the IZOT_ADDRESS_GROUP_* macros. */
+    IzotByte      DomainMember;           /* Contains domain, member. Use the IZOT_ADDRESS_GROUP_* macros. */
+    IzotByte      RepeatRetry;            /* Contains repeatTimer, retry. Use the IZOT_ADDRESS_GROUP_* macros. */
+    IzotByte      ReceiveTransmit;        /* Contains receive and transmit timer. Use Izot_ADDRESS_GROUP_* macros. */
+    IzotGroupId   Group;                  /* Group identifier */
 } IZOT_STRUCT_END(IzotAddressTableGroup);
 
 /*
  *  Typedef: IzotAddressTableSubnetNode
  *  Holds subnet/node addressing information in the address table (<IzotAddress>).
  *
- * IzotAddressTableSubnetNode holds subnet/node address information in the
+ *  IzotAddressTableSubnetNode holds subnet/node address information in the
  *  address table (<IzotAddress>), used for unicast addressing.
  */
 #define IZOT_ADDRESS_SN_DOMAIN_MASK      0x80        /* domain index */
@@ -1215,9 +1215,9 @@ typedef IZOT_STRUCT_BEGIN(IzotAddressTableGroup)
 
 typedef IZOT_STRUCT_BEGIN(IzotAddressTableSubnetNode)
 {
-    IZOT_ENUM(IzotAddressType) Type;          /* should be IzotAddressSubnetNode   */
-    IzotByte                  DomainNode;    /* contains domain, node. Use IZOT_ADDRESS_SN_* macros. */
-    IzotByte                  RepeatRetry;   /* contains repeat timer and retry. Use IZOT_ADDRESS_SN_* macros. */
+    IZOT_ENUM(IzotAddressType) Type;         /* Set to IzotAddressSubnetNode   */
+    IzotByte                  DomainNode;    /* Domain, node. Use IZOT_ADDRESS_SN_* macros. */
+    IzotByte                  RepeatRetry;   /* Repeat timer and retry. Use IZOT_ADDRESS_SN_* macros. */
     IZOT_ENUM(IzotTransmitTimer) TransmitTimer;
     IzotSubnetId             Subnet;
 } IZOT_STRUCT_END(IzotAddressTableSubnetNode);
@@ -1229,48 +1229,48 @@ typedef IZOT_STRUCT_BEGIN(IzotAddressTableSubnetNode)
  * IzotAddressTableBroadcast holds broadcast addressing information in the
  *  address table (<IzotAddress>), used for multicast addressing.
  */
-#define IZOT_ADDRESS_BROADCAST_DOMAIN_MASK   0x80        /* domain index */
+#define IZOT_ADDRESS_BROADCAST_DOMAIN_MASK   0x80        /* Domain index */
 #define IZOT_ADDRESS_BROADCAST_DOMAIN_SHIFT  7
 #define IZOT_ADDRESS_BROADCAST_DOMAIN_FIELD  DomainBacklog
 
-#define IZOT_ADDRESS_BROADCAST_BACKLOG_MASK  0x3F        /* backlog. Use zero if unknown. */
+#define IZOT_ADDRESS_BROADCAST_BACKLOG_MASK  0x3F        /* Backlog. Use zero if unknown. */
 #define IZOT_ADDRESS_BROADCAST_BACKLOG_SHIFT 0
 #define IZOT_ADDRESS_BROADCAST_BACKLOG_FIELD DomainBacklog
 
-#define IZOT_ADDRESS_BROADCAST_REPEAT_TIMER_MASK 0xF0    /* repeat timer, use IzotRepeatTimer */
+#define IZOT_ADDRESS_BROADCAST_REPEAT_TIMER_MASK 0xF0    /* Repeat timer, use IzotRepeatTimer */
 #define IZOT_ADDRESS_BROADCAST_REPEAT_SHIFT  4
 #define IZOT_ADDRESS_BROADCAST_REPEAT_FIELD  RepeatRetry
 
-#define IZOT_ADDRESS_BROADCAST_RETRY_MASK    0x0F        /* retry counts */
+#define IZOT_ADDRESS_BROADCAST_RETRY_MASK    0x0F        /* Retry counts */
 #define IZOT_ADDRESS_BROADCAST_RETRY_SHIFT   0
 #define IZOT_ADDRESS_BROADCAST_RETRY_FIELD   RepeatRetry
 
 typedef IZOT_STRUCT_BEGIN(IzotAddressTableBroadcast)
 {
-    IZOT_ENUM(IzotAddressType) Type;           /* should be IzotAddressBroadcast */
-    IzotByte                  DomainBacklog;  /* contains domain, backlog. Use IZOT_ADDRESS_BROADCAST_* macros. */
-    IzotByte                  RepeatRetry;    /* contains repeat timer and retry. Use IZOT_ADDRESS_BROADCAST_* macros instead. */
+    IZOT_ENUM(IzotAddressType) Type;          /* Set to IzotAddressBroadcast */
+    IzotByte                   DomainBacklog; /* Domain, backlog. Use IZOT_ADDRESS_BROADCAST_* macros. */
+    IzotByte                   RepeatRetry;   /* Repeat timer and retry. Use IZOT_ADDRESS_BROADCAST_* macros instead. */
     IZOT_ENUM(IzotTransmitTimer) TransmitTimer;
-    IzotSubnetId             Subnet;
+    IzotSubnetId               Subnet;
 } IZOT_STRUCT_END(IzotAddressTableBroadcast);
 
 /*
  *  Typedef: IzotAddressTableTurnaround
  *  Holds turnaround address information in the address table (<IzotAddress>).
  */
-#define IZOT_ADDRESS_TURNAROUND_REPEAT_TIMER_MASK    0xF0    /* use IzotRepeatTimer */
+#define IZOT_ADDRESS_TURNAROUND_REPEAT_TIMER_MASK    0xF0    /* Use IzotRepeatTimer */
 #define IZOT_ADDRESS_TURNAROUND_REPEAT_TIMER_SHIFT   4
 #define IZOT_ADDRESS_TURNAROUND_REPEAT_TIMER_FIELD   RepeatRetry
 
-#define IZOT_ADDRESS_TURNAROUND_RETRY_MASK           0x0F    /* retry count */
+#define IZOT_ADDRESS_TURNAROUND_RETRY_MASK           0x0F    /* Retry count */
 #define IZOT_ADDRESS_TURNAROUND_RETRY_SHIFT          0
 #define IZOT_ADDRESS_TURNAROUND_RETRY_FIELD          RepeatRetry
 
 typedef IZOT_STRUCT_BEGIN(IzotAddressTableTurnaround)
 {
-    IZOT_ENUM(IzotAddressType) Type;           /* should be IzotAddressUnassigned */
-    IzotByte                  Turnaround;     /* 1: turnaround record. 0: not in use. */
-    IzotByte                  RepeatRetry;    /* contains repeat timer and retry. Use IZOT_ADDRESS_TURNAROUND_* macros. */
+    IZOT_ENUM(IzotAddressType) Type;          /* Set to IzotAddressUnassigned */
+    IzotByte                   Turnaround;    /* 1: turnaround record. 0: not in use. */
+    IzotByte                   RepeatRetry;   /* Contains repeat timer and retry. Use IZOT_ADDRESS_TURNAROUND_* macros. */
     IZOT_ENUM(IzotTransmitTimer) TransmitTimer;
 } IZOT_STRUCT_END(IzotAddressTableTurnaround);
 
@@ -1280,7 +1280,7 @@ typedef IZOT_STRUCT_BEGIN(IzotAddressTableTurnaround)
  * ******************************************************************************
  *
  *  This section contains definitions of system resources and structures, such
- *  as the domain table or address table formats, and so on.
+ *  as the domain table or address table formats.
  */
 
 /*
@@ -1359,7 +1359,7 @@ typedef IZOT_STRUCT_BEGIN(IzotDomain)
 typedef IZOT_ENUM_BEGIN(IzotDatapointDirection)
 {
     /*  0 */ IzotDatapointDirectionIsInput  = 0,
-    /*  1 */ IzotDatapointDirectionIsOutput = 1,
+    /*  1 */ IzotDatapointDirectionIsOutput = 1
 } IZOT_ENUM_END(IzotDatapointDirection);
 
 /*
@@ -1380,15 +1380,15 @@ typedef IZOT_ENUM_BEGIN(IzotDatapointDirection)
 #define IZOT_DATAPOINT_SELHIGH_SHIFT    0
 #define IZOT_DATAPOINT_SELHIGH_FIELD    SelhiDirPrio
 
-#define IZOT_DATAPOINT_TURNAROUND_MASK  0x80        /* use IzotBool */
+#define IZOT_DATAPOINT_TURNAROUND_MASK  0x80        /* Use IzotBool */
 #define IZOT_DATAPOINT_TURNAROUND_SHIFT 7
 #define IZOT_DATAPOINT_TURNAROUND_FIELD Attribute1
 
-#define IZOT_DATAPOINT_SERVICE_MASK     0x60        /* use IzotServiceType */
+#define IZOT_DATAPOINT_SERVICE_MASK     0x60        /* Use IzotServiceType */
 #define IZOT_DATAPOINT_SERVICE_SHIFT    5
 #define IZOT_DATAPOINT_SERVICE_FIELD    Attribute1
 
-#define IZOT_DATAPOINT_AUTHENTICATION_MASK  0x10    /* use IzotBool */
+#define IZOT_DATAPOINT_AUTHENTICATION_MASK  0x10    /* Use IzotBool */
 #define IZOT_DATAPOINT_AUTHENTICATION_SHIFT 4
 #define IZOT_DATAPOINT_AUTHENTICATION_FIELD Attribute1
 
@@ -1400,7 +1400,7 @@ typedef IZOT_ENUM_BEGIN(IzotDatapointDirection)
 #define IZOT_DATAPOINT_ADDRESS_HIGH_SHIFT    4
 #define IZOT_DATAPOINT_ADDRESS_HIGH_FIELD    Attribute2
 
-#define IZOT_DATAPOINT_AES_MASK  	        0x08    /* use IzotBool */
+#define IZOT_DATAPOINT_AES_MASK  	        0x08    /* Use IzotBool */
 #define IZOT_DATAPOINT_AES_SHIFT 	        3
 #define IZOT_DATAPOINT_AES_FIELD 	        Attribute2
 
@@ -1420,7 +1420,7 @@ typedef IZOT_STRUCT_BEGIN(IzotDatapointConfig)
 
 typedef IZOT_ENUM_BEGIN(IzotSelectionType)
 {
-    IzotSelectionSelectorOnly,      /* 0 normal:  select as long as selector matches */
+    IzotSelectionSelectorOnly,      /* 0: normal:  select as long as selector matches */
     IzotSelectionSelectorAndSource, /* 1: select if both selector and source match */
     IzotSelectionNoSelection,       /* 2: do not do Dp selection; reserved for poll-only inputs */
 } IZOT_ENUM_END(IzotSelectionType);
@@ -1429,39 +1429,39 @@ typedef IZOT_ENUM_BEGIN(IzotSelectionType)
  *  Typedef: IzotDatapointEcsConfig
  *  The datapoint configuration structure for use with ECS devices.
  *
- * IzotDatapointEcsConfig is used to store datapoint configuration
- *  in Extended Command Set (ECS) devices, such as an IzoT device.
+ *  IzotDatapointEcsConfig stores datapoint configuration in
+ *  Extended Command Set (ECS) devices.
  */
 
-#define IZOT_DATAPOINT_ECS_PRIORITY_MASK 0x80    /* use IzotBool */
+#define IZOT_DATAPOINT_ECS_PRIORITY_MASK  0x80     /* Use IzotBool */
 #define IZOT_DATAPOINT_ECS_PRIORITY_SHIFT 7
-#define IZOT_DATAPOINT_ECS_PRIORITY_FIELD SelhiDirPrio
+#define IZOT_DATAPOINT_ECS_PRIORITY_FIELD EcsSelhiDirPrio
 
-#define IZOT_DATAPOINT_ECS_DIRECTION_MASK 0x40    /* use IzotDatapointDirection */
+#define IZOT_DATAPOINT_ECS_DIRECTION_MASK  0x40    /* Use IzotDatapointDirection */
 #define IZOT_DATAPOINT_ECS_DIRECTION_SHIFT 6
-#define IZOT_DATAPOINT_ECS_DIRECTION_FIELD SelhiDirPrio
+#define IZOT_DATAPOINT_ECS_DIRECTION_FIELD EcsSelhiDirPrio
 
-#define IZOT_DATAPOINT_ECS_SELHIGH_MASK 0x3F
+#define IZOT_DATAPOINT_ECS_SELHIGH_MASK  0x3F
 #define IZOT_DATAPOINT_ECS_SELHIGH_SHIFT 0
-#define IZOT_DATAPOINT_ECS_SELHIGH_FIELD SelhiDirPrio
+#define IZOT_DATAPOINT_ECS_SELHIGH_FIELD EcsSelhiDirPrio
 
-#define IZOT_DATAPOINT_ECS_TURNAROUND_MASK 0x80    /* use IzotBool */
+#define IZOT_DATAPOINT_ECS_TURNAROUND_MASK  0x80      /* Use IzotBool */
 #define IZOT_DATAPOINT_ECS_TURNAROUND_SHIFT 7
 #define IZOT_DATAPOINT_ECS_TURNAROUND_FIELD Attributes1
 
-#define IZOT_DATAPOINT_ECS_AUTHENTICATION_MASK 0x40    /* use IzotBool */
+#define IZOT_DATAPOINT_ECS_AUTHENTICATION_MASK  0x40  /* Use IzotBool */
 #define IZOT_DATAPOINT_ECS_AUTHENTICATION_SHIFT 6
 #define IZOT_DATAPOINT_ECS_AUTHENTICATION_FIELD Attributes1
 
-#define IZOT_DATAPOINT_ECS_WRITE_BY_INDEX_MASK 0x20    /* use IzotBool */
+#define IZOT_DATAPOINT_ECS_WRITE_BY_INDEX_MASK  0x20  /* Use IzotBool */
 #define IZOT_DATAPOINT_ECS_WRITE_BY_INDEX_SHIFT 5
 #define IZOT_DATAPOINT_ECS_WRITE_BY_INDEX_FIELD Attributes1
 
-#define IZOT_DATAPOINT_ECS_REMOTE_NM_AUTH_MASK 0x10    /* use IzotBool */
+#define IZOT_DATAPOINT_ECS_REMOTE_NM_AUTH_MASK 0x10   /* Use IzotBool */
 #define IZOT_DATAPOINT_ECS_REMOTE_NM_AUTH_SHIFT 4
 #define IZOT_DATAPOINT_ECS_REMOTE_NM_AUTH_FIELD Attributes1
 
-#define IZOT_DATAPOINT_ECS_RESP_SELECTION_MASK 0x0C    /* use IzotSelectionType */
+#define IZOT_DATAPOINT_ECS_RESP_SELECTION_MASK 0x0C   /* Use IzotSelectionType */
 #define IZOT_DATAPOINT_ECS_RESP_SELECTION_SHIFT 2
 #define IZOT_DATAPOINT_ECS_RESP_SELECTION_FIELD Attributes1
 
@@ -1469,34 +1469,34 @@ typedef IZOT_ENUM_BEGIN(IzotSelectionType)
 #define IZOT_DATAPOINT_ECS_UNUSED_MBZ_SHIFT 0
 #define IZOT_DATAPOINT_ECS_UNUSED_MBZ_FIELD Attributes1
 
-#define IZOT_DATAPOINT_ECS_READ_BY_INDEX_MASK 0x80    /* use IzotBool */
+#define IZOT_DATAPOINT_ECS_READ_BY_INDEX_MASK 0x80    /* Use IzotBool */
 #define IZOT_DATAPOINT_ECS_READ_BY_INDEX_SHIFT 7
 #define IZOT_DATAPOINT_ECS_READ_BY_INDEX_FIELD Attributes2
 
-#define IZOT_DATAPOINT_ECS_SERVICE_MASK 0x60        /* use IzotServiceType */
+#define IZOT_DATAPOINT_ECS_SERVICE_MASK 0x60          /* Use IzotServiceType */
 #define IZOT_DATAPOINT_ECS_SERVICE_SHIFT 5
 #define IZOT_DATAPOINT_ECS_SERVICE_FIELD Attributes2
 
-#define IZOT_DATAPOINT_ECS_REQUEST_SELECTION_MASK 0x18    /* use IzotSelectionType */
+#define IZOT_DATAPOINT_ECS_REQUEST_SELECTION_MASK 0x18   /* Use IzotSelectionType */
 #define IZOT_DATAPOINT_ECS_REQUEST_SELECTION_SHIFT 3
 #define IZOT_DATAPOINT_ECS_REQUEST_SELECTION_FIELD Attributes2
 
-#define IZOT_DATAPOINT_ECS_UPDATE_SELECTION_MASK 0x06    /* use IzotSelectionType */
+#define IZOT_DATAPOINT_ECS_UPDATE_SELECTION_MASK 0x06    /* Use IzotSelectionType */
 #define IZOT_DATAPOINT_ECS_UPDATE_SELECTION_SHIFT 1
 #define IZOT_DATAPOINT_ECS_UPDATE_SELECTION_FIELD Attributes2
 
-#define IZOT_DATAPOINT_ECS_SOURCE_SELECTION_MASK 0x01    /* use IzotBool */
+#define IZOT_DATAPOINT_ECS_SOURCE_SELECTION_MASK 0x01    /* Use IzotBool */
 #define IZOT_DATAPOINT_ECS_SOURCE_SELECTION_SHIFT 0
 #define IZOT_DATAPOINT_ECS_SOURCE_SELECTION_FIELD Attributes2
 
 typedef IZOT_STRUCT_BEGIN(IzotDatapointEcsConfig)
 {
-    IzotByte  SelhiDirPrio;   /* contains selector-high, direction, priority. Use IZOT_DATAPOINT_ECS_* macros. */
+    IzotByte  EcsSelhiDirPrio; /* selector-high, direction, priority. Use IZOT_DATAPOINT_ECS_* macros. */
     IzotByte  SelectorLow;
-    IzotByte  Attributes1;    /* contains turnaround, authentication write-by-index, remote-nm-auth, response-selection. Use IZOT_DATAPOINT_* macros. */
-    IzotByte  Attributes2;    /* contains read-by-index, service, request-selection, update-selection, source-selection-only. Use IZOT_DATAPOINT_ECS_* macros. */
-    IzotWord  AddressIndex;   /* Address table index */
-    IzotWord  DatapointIndex;        /* index of remote datapoint */
+    IzotByte  Attributes1;     /* turnaround, authentication write-by-index, remote-nm-auth, response-selection. Use IZOT_DATAPOINT_* macros. */
+    IzotByte  Attributes2;     /* read-by-index, service, request-selection, update-selection, source-selection-only. Use IZOT_DATAPOINT_ECS_* macros. */
+    IzotWord  AddressIndex;    /* Address table index */
+    IzotWord  DatapointIndex;  /* Index of remote datapoint */
 } IZOT_STRUCT_END(IzotDatapointEcsConfig);
 
 /*
@@ -1526,19 +1526,19 @@ typedef IZOT_STRUCT_BEGIN(IzotAliasEcsConfig)
  *  Typedef: IzotDirectModeTransceiver
  *  Holds direct-mode transceiver parameters.
  */
-#define IZOT_DIRECT_XCVR_CD_MASK             0x80    /* collision-detect */
+#define IZOT_DIRECT_XCVR_CD_MASK             0x80    /* Collision-detect */
 #define IZOT_DIRECT_XCVR_CD_SHIFT            7
 #define IZOT_DIRECT_XCVR_CD_FIELD            Parameter_1
 
-#define IZOT_DIRECT_XCVR_BST_MASK            0x60    /* bit-sync-threshold */
+#define IZOT_DIRECT_XCVR_BST_MASK            0x60    /* Bit-sync-threshold */
 #define IZOT_DIRECT_XCVR_BST_SHIFT           5
 #define IZOT_DIRECT_XCVR_BST_FIELD           Parameter_1
 
-#define IZOT_DIRECT_XCVR_FILTER_MASK         0x18    /* filter */
+#define IZOT_DIRECT_XCVR_FILTER_MASK         0x18    /* Filter */
 #define IZOT_DIRECT_XCVR_FILTER_SHIFT        3
 #define IZOT_DIRECT_XCVR_FILTER_FIELD        Parameter_1
 
-#define IZOT_DIRECT_XCVR_HYSTERESIS_MASK     0x07    /* hysteresis */
+#define IZOT_DIRECT_XCVR_HYSTERESIS_MASK     0x07    /* Hysteresis */
 #define IZOT_DIRECT_XCVR_HYSTERESIS_SHIFT    0
 #define IZOT_DIRECT_XCVR_HYSTERESIS_FIELD    Parameter_1
 
@@ -1556,8 +1556,8 @@ typedef IZOT_STRUCT_BEGIN(IzotAliasEcsConfig)
 
 typedef IZOT_STRUCT_BEGIN(IzotDirectModeTransceiver)
 {
-    IzotByte      Parameter_1;    /* contains collision-detect, bit-sync-threshold, filter, and hysteresis. Use IZOT_DIRECT_XCVR_* macros. */
-    IzotByte      Parameter_2;    /* contains cd-to-end-packet, cd-tail, cd-preamble. Use IZOT_DIRECT_XCVR_* macros. */
+    IzotByte      Parameter_1;    /* Collision-detect, bit-sync-threshold, filter, and hysteresis. Use IZOT_DIRECT_XCVR_* macros. */
+    IzotByte      Parameter_2;    /* cd-to-end-packet, cd-tail, cd-preamble. Use IZOT_DIRECT_XCVR_* macros. */
 } IZOT_STRUCT_END(IzotDirectModeTransceiver);
 
 /*
@@ -1580,7 +1580,7 @@ typedef IZOT_STRUCT_BEGIN(IzotDirectModeTransceiver)
 #define IZOT_DATAPOINT_SERVICE_CONFIG   0x00000008 /* TService type is configurable. */
 #define IZOT_DATAPOINT_OFFLINE          0x00000010 /* Network tools should only change this value when the device is offline. */
 #define IZOT_DATAPOINT_POLLED           0x00000020 /* This is either a polling input or a polled output. */
-#define IZOT_DATAPOINT_SYNC             0x00000040 /* A synchronous Datapoint. */
+#define IZOT_DATAPOINT_SYNC             0x00000040 /* A synchronous datapoint. */
 #define IZOT_DATAPOINT_CHANGEABLE       0x00000080 /* The datapoint type is changeable. */
 #define IZOT_DATAPOINT_PRIORITY         0x00000100 /* Default to priority. */
 #define IZOT_DATAPOINT_AUTHENTICATED    0x00000200 /* Default to authenticated. */
@@ -1588,7 +1588,7 @@ typedef IZOT_STRUCT_BEGIN(IzotDirectModeTransceiver)
 #define IZOT_DATAPOINT_UNACKD_RPT       0x00000800 /* Default to unacknowledged repeat service. */
 #define IZOT_DATAPOINT_UNACKD           0x00001000 /* Default to unacknowledged service. */
 #define IZOT_DATAPOINT_PERSISTENT       0x00004000 /* Default to persistent datapoints */
-#define IZOT_DATAPOINT_IS_OUTPUT        0x00008000 /* The Datapoint is an output datapoint. */
+#define IZOT_DATAPOINT_IS_OUTPUT        0x00008000 /* The datapoint is an output datapoint. */
 
 /*
  *  Macro: IZOT_DATAPOINT_RATE_UNKNOWN
@@ -3084,8 +3084,7 @@ typedef const IzotPersistentHandle (*IzotPersistentOpenForReadFunction)(
  */
 typedef const IzotPersistentHandle (*IzotPersistentOpenForWriteFunction)(
     const IzotPersistentSegmentType type,
-    const size_t size
-);
+    const size_t size);
 
 /*
  *  Callback: IzotPersistentClose
@@ -3103,8 +3102,7 @@ typedef const IzotPersistentHandle (*IzotPersistentOpenForWriteFunction)(
  *  event. Without an application-specific handler, this event does nothing.
  */
 typedef void (*IzotPersistentCloseFunction)(
-    const IzotPersistentHandle handle
-);
+    const IzotPersistentHandle handle);
 
 /*
  *  Callback: IzotPersistentDelete
@@ -3129,8 +3127,7 @@ typedef void (*IzotPersistentCloseFunction)(
  *  Without an application-specific handler, this event does nothing.
  */
 typedef void (*IzotPersistentDeleteFunction)(
-    const IzotPersistentSegmentType type
-);
+    const IzotPersistentSegmentType type);
 
 /*
  *  Callback: IzotPersistentRead
@@ -3159,8 +3156,7 @@ typedef const IzotApiError (*IzotPersistentReadFunction)(
     const IzotPersistentHandle handle,
     const size_t offset,
     const size_t size,
-    void * const pBuffer
-);
+    void * const pBuffer);
 
 
 /*
@@ -3190,8 +3186,7 @@ typedef const IzotApiError (*IzotPersistentWriteFunction)(
     const IzotPersistentHandle handle,
     const size_t offset,
     const size_t size,
-    const void * const pData
-);
+    const void * const pData);
 
 /*
  *  Callback: IzotPersistentIsInTransaction
@@ -3214,8 +3209,7 @@ typedef const IzotApiError (*IzotPersistentWriteFunction)(
  *  returns TRUE.
  */
 typedef const IzotBool (*IzotPersistentIsInTransactionFunction)(
-    const IzotPersistentSegmentType type
-);
+    const IzotPersistentSegmentType type);
 
 /*
  *  Callback: IzotPersistentEnterTransaction
@@ -3240,8 +3234,7 @@ typedef const IzotBool (*IzotPersistentIsInTransactionFunction)(
  *  fails.
  */
 typedef const IzotApiError (*IzotPersistentEnterTransactionFunction)(
-    const IzotPersistentSegmentType type
-);
+    const IzotPersistentSegmentType type);
 
 /*
  *  Callback: IzotPersistentExitTransaction
@@ -3259,8 +3252,7 @@ typedef const IzotApiError (*IzotPersistentEnterTransactionFunction)(
  *  event. Without an application-specific handler, this event always fails.
  */
 typedef const IzotApiError (*IzotPersistentExitTransactionFunction)(
-    const IzotPersistentSegmentType type
-);
+    const IzotPersistentSegmentType type);
 
 /*
  *  Callback: IzotPersistentGetApplicationSegmentSize
@@ -3276,8 +3268,7 @@ typedef const IzotApiError (*IzotPersistentExitTransactionFunction)(
  *  persistent data segment is assumed to be empty (zero bytes long).
  */
 typedef const unsigned (*IzotPersistentGetApplicationSegmentSizeFunction)(
-    void
-);
+    void);
 
 /*
  *  Callback: IzotPersistentDeserializeSegment
@@ -3298,8 +3289,7 @@ typedef const unsigned (*IzotPersistentGetApplicationSegmentSizeFunction)(
  */
 typedef const IzotApiError (*IzotPersistentDeserializeSegmentFunction)(
     const void * const pData,
-    const size_t       size
-);
+    const size_t       size);
 
 /*
  *  Callback: IzotPersistentSerializeSegment
@@ -3319,9 +3309,8 @@ typedef const IzotApiError (*IzotPersistentDeserializeSegmentFunction)(
  *  fails.
  */
 typedef const IzotApiError (*IzotPersistentSerializeSegmentFunction)(
-    void * const pData,
-    const size_t       size
-);
+    void * const       pData,
+    const size_t       size);
 
 /*
  * ******************************************************************************
@@ -3356,9 +3345,7 @@ typedef const IzotApiError (*IzotPersistentSerializeSegmentFunction)(
  *  Use <IzotResetRegistrar> to register a handler for this event.
  *  Without an application-specific reset event handler, this event does nothing.
  */
-typedef void (*IzotResetFunction)(
-    void
-);
+typedef void (*IzotResetFunction)(void);
 
 /*
  *  Event: IzotWink
@@ -3375,9 +3362,7 @@ typedef void (*IzotResetFunction)(
  *  Use <IzotWinkRegistrar> to register a handler for this event. Without an
  *  application-specific wink event handler, this event does nothing.
  */
-typedef void (*IzotWinkFunction)(
-    void
-);
+typedef void (*IzotWinkFunction)(void);
 
 /*
  *  Event: IzotOffline
@@ -3391,9 +3376,7 @@ typedef void (*IzotWinkFunction)(
  *  Use <IzotOfflineRegistrar> to register a handler for this event. Without
  *  an application-specific offline event handler, this event does nothing.
  */
-typedef void (*IzotOfflineFunction)(
-    void
-);
+typedef void (*IzotOfflineFunction)(void);
 
 /*
  *  Event: IzotOnline
@@ -3408,9 +3391,7 @@ typedef void (*IzotOfflineFunction)(
  *  Without an application-specific online event handler, this event does
  *  nothing.
  */
-typedef void (*IzotOnlineFunction)(
-    void
-);
+typedef void (*IzotOnlineFunction)(void);
 
 /*
  *  Event: IzotDatapointUpdateOccurred
@@ -3438,8 +3419,7 @@ typedef void (*IzotOnlineFunction)(
  */
 typedef void (*IzotDatapointUpdateOccurredFunction)(
     const unsigned index,
-    const IzotReceiveAddress* const pSourceAddress
-);
+    const IzotReceiveAddress* const pSourceAddress);
 
 /*
  *  Event: IzotDatapointUpdateCompleted
@@ -3466,8 +3446,7 @@ typedef void (*IzotDatapointUpdateOccurredFunction)(
  */
 typedef void (*IzotDatapointUpdateCompletedFunction)(
     const unsigned index,
-    const IzotBool success
-);
+    const IzotBool success);
 
 /*
  *  Event: IzotMsgArrived
@@ -3516,8 +3495,7 @@ typedef void (*IzotMsgArrivedFunction)(
     const IzotBool authenticated,
     const IzotByte code,
     const IzotByte* const pData,
-    const unsigned dataLength
-);
+    const unsigned dataLength);
 
 /*
  *  Event: IzotResponseArrived
@@ -3544,8 +3522,7 @@ typedef void (*IzotResponseArrivedFunction)(
     const unsigned tag,
     const IzotByte code,
     const IzotByte* const pData,
-    const unsigned dataLength
-);
+    const unsigned dataLength);
 
 /*
  *  Event: IzotMsgCompleted
@@ -3574,8 +3551,7 @@ typedef void (*IzotResponseArrivedFunction)(
  */
 typedef void (*IzotMsgCompletedFunction)(
     const unsigned tag,
-    const IzotBool success
-);
+    const IzotBool success);
 
 /*
  *  Event: IzotServiceLedStatus
@@ -3601,8 +3577,7 @@ typedef void (*IzotMsgCompletedFunction)(
  *  Without an application-specific handler, this event does nothing.
  */
 typedef void (*IzotServiceLedStatusFunction)(
-    IzotServiceLedState state, IzotServiceLedPhysicalState physicalState
-);
+    IzotServiceLedState state, IzotServiceLedPhysicalState physicalState);
 
 /*
  *  Event: IzotFilterMsgArrived
@@ -3638,8 +3613,7 @@ typedef const IzotBool (*IzotFilterMsgArrivedFunction)(
     const IzotBool authenticated,
     const IzotByte code,
     const IzotByte* const pData,
-    const unsigned dataLength
-);
+    const unsigned dataLength);
 
 /*
  *  Event: IzotFilterResponseArrived
@@ -3670,8 +3644,7 @@ typedef const IzotBool(*IzotFilterResponseArrivedFunction)(
     const unsigned tag,
     const IzotByte code,
     const IzotByte* const pData,
-    const unsigned dataLength
-);
+    const unsigned dataLength);
 
 /*
  *  Event: IzotFilterMsgCompleted
@@ -3700,11 +3673,123 @@ typedef const IzotBool(*IzotFilterResponseArrivedFunction)(
  */
 typedef const IzotBool(*IzotFilterMsgCompletedFunction)(
     const unsigned tag,
-    const IzotBool success
-);
+    const IzotBool success);
 
-typedef void (*IzotisiTickFunction)(
-    void
-);
+typedef void (*IzotisiTickFunction)(void);
 
-#endif /* _IzoT_TYPES_H */
+/*
+ * *****************************************************************************
+ * SECTION: LON PROTOCOL CONSTANT DEFINITIONS
+ * *****************************************************************************
+ */
+
+#define UNIQUE_NODE_ID_LEN 6   /* Length of the unique node ID          */
+#define ID_STR_LEN         8   /* Length of the program id string       */
+#define AUTH_KEY_LEN       6   /* Length of the authentication key      */
+#define OMA_KEY_LEN       12   /* Length of the OMA authentication key  */
+#define DOMAIN_ID_LEN      6   /* Maximum length for a domain id        */
+#define LOCATION_LEN       6   /* Maximum length for location string    */
+#define NUM_COMM_PARAMS    7   /* Max # of parameters for a transceiver */
+#define PROTOCOL_VERSION   0   /* Protocol version                      */
+#define MAX_DOMAINS        2   /* Maximum # of domains allowed          */
+
+/* Set the size of the array to log error messages from the LON Stack.
+   The error messages wrap around, if there are too many errors.
+   Errors seldom happen. So, there is no need for this to be too large. */
+#define ERROR_MSG_SIZE  1000   /* 20 messages each with 50 chars        */
+
+/* Flex domain indicates that the message was received in flex domain when
+   domain index is 2 */
+#define FLEX_DOMAIN        2   
+      
+/* When the application layer communicates with the transport or session layer,
+   the domain index for the outgoing message can be either set by the application 
+   layer or computed by the transport or session layer based on the destination 
+   address.  This value is used only in the TSASenParam structure.      */
+#define COMPUTE_DOMAIN_INDEX 3 
+
+#define MAX_GROUP_NUMBER 63    /* Maximum number of a node in a group   */
+
+/* Maximum number of array network variables allowed in
+    the application program. This constant is used to allocate
+    space that keeps track of all arrays and their dimension */
+#define MAX_NV_ARRAYS 10
+
+/* Maximum number of network output variables that can
+    be scheduled to be sent out at any point in time */
+#define MAX_NV_OUT     5
+
+/* To implement synchronous variables, the values of the
+    variables are to be stored along with index in the queue.
+    Define the maximum size (in bytes) of a network variable
+    in the application program. This is used for storage allocation. */
+#define MAX_NV_LENGTH 50
+
+/* Maximum number of network input variables that can
+    be scheduled to be polled at any point in time */
+#define MAX_NV_IN     50
+
+/* Maximum number of bytes in data array for msg_in, msg_out, resp_in etc.
+    This value is indepedent of application buffer sizes mentioned
+    earlier. Clearly it does not make sense for this value to be
+    larger than application buffer size (out or in). */
+#define MAX_DATA_SIZE 255
+
+/* Maximum size of message on the wire (approximate, might be over sized a byte or two for safety.) */
+#define MAX_PDU_SIZE (MAX_DATA_SIZE+21)
+
+/*********************************************************************
+   NUM_ADDR_TBL_ENTRIES:
+   The maximum supported value is 255.
+**********************************************************************/
+#define NUM_ADDR_TBL_ENTRIES   254     /* # of address table entries  */
+
+#define RECEIVE_TRANS_COUNT    16      /* Can be > 16 for Ref. Impl */
+
+#define NV_TABLE_SIZE          254     /* Check management tool for any restriction on maximum size */
+
+#define NV_ALIAS_TABLE_SIZE    254     /* Check management tool for any restriction on maximum size */
+
+/*******************************************************************************
+    The LON Stack uses an array to allocate storage space dynamically.
+    The size of the array used for this allocation is determined
+    by this constant. If it is too low, it may be impossible
+    to allocate necessary buffers or data structures.  If it is
+    too high, some memory is unused.  To determine an appropriate value,
+    set MALLOC_SIZE to some high value, run a test application, stop, and
+    check gp->mallocUsedSize to determine the current usage.
+    This array space is allocated during reset of all layers.
+    Tracing through the reset code of all layers will indicate
+    the approximate size of this array necessary.
+    If AllocateStorage function in node.c is rewritten to use malloc, then
+    this constant will not be used.
+*******************************************************************************/
+#define MALLOC_SIZE     10050
+
+/*-------------------------------------------------------------------
+    Queue entry structure.
+  -------------------------------------------------------------------*/
+typedef struct {
+    IzotUbits16 queueCnt;   /* Max number of items in queue. i.e capacity */
+    IzotUbits16 queueSize;  /* Number of items currently in queue         */
+    IzotUbits16 itemSize;   /* Number of bytes for each item in queue     */
+    IzotByte *head;         /* Pointer to the head item of the queue      */
+    IzotByte *tail;         /* Pointer to the tail item of the queue      */
+    IzotByte *data;         /* Array of items -- Allocated during Init    */
+} Queue;
+
+// Structure: LonTimer
+typedef struct __attribute__ ((packed))
+{
+	IzotUbits16	expiration;		// Time to expire
+	IzotUbits16	repeatTimeout;  // Repeat timeout on expiration (0 means not repeating)
+} LonTimer;
+
+// Structure: LonWatch
+typedef struct
+{
+	IzotUbits16	start;			// Time watch started
+} LonWatch;
+
+
+#endif /* _IZOT_TYPES_H */
