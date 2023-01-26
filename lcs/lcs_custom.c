@@ -1,4 +1,4 @@
-// Copyright (C) 2022 EnOcean
+// Copyright (C) 2023 EnOcean
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in 
@@ -33,10 +33,7 @@
 /*------------------------------------------------------------------------------
 Section: Includes
 ------------------------------------------------------------------------------*/
-#include <stddef.h>
-#include "IzotTypes.h"
-#include <lcs_eia709_1.h>
-#include <lcs_custom.h>
+#include "lcs_custom.h"
 
 /*------------------------------------------------------------------------------
 Section: Constant Definitions
