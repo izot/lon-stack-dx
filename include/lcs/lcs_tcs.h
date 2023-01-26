@@ -1,7 +1,7 @@
 //
 // lcs_tcs.h
 //
-// Copyright (C) 2022 EnOcean
+// Copyright (C) 2023 EnOcean
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in 
@@ -54,8 +54,16 @@
 /*------------------------------------------------------------------------------
   Section: Includes
   ------------------------------------------------------------------------------*/
-#include <lcs_eia709_1.h>
-#include <lcs_node.h>
+#include <stdio.h>
+#include <string.h>
+#include <stddef.h>
+#include "IzotConfig.h"
+#include "IzotApi.h"
+#include "IzotTypes.h"
+#include "lcs_eia709_1.h"
+#include "lcs_timer.h"
+#include "lcs_node.h"
+
 
 /*-------------------------------------------------------------------
   Section: Constant Definitions
@@ -85,4 +93,3 @@ Status NewTrans(IzotByte   priorityIn, DestinationAddress addrIn,
 TransStatus ValidateTrans(IzotByte  priorityIn, TransNum transNumIn);
 
 #endif
-/*------------------------End of tcs.h------------------------*/
