@@ -21,25 +21,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#if PLATFORM_IS(FRTOS)
-#include <wm_net.h>
-#include <wlan.h>
-#include <wmtime.h>
-#include <wm_os.h>
-#include <arch/sys.h>
-#include <dhcp-server.h>
-#endif
-
-#include "IzotTypes.h"
-#include "lcs.h"
-#include "lcs_queue.h"
-#include "err.h"
 #include "IPv4ToLsUdp.h"
-#include <lcs_node.h>
-#include "IzotCal.h"
-#include "lcs_api.h"
-#include <stdio.h>
-#include <string.h>
 
 /*------------------------------------------------------------------------------
 Section: Macros
