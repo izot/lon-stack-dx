@@ -60,6 +60,7 @@
 // Here are a few example conditional tests:
 //
 // #if PRODUCT_IS(SLB)
+// #if PLATFORM_IS(RPI)
 // #if PROCESSOR_IS(MC200)
 // #if LINK_IS(WIFI)
 // #if LINK_IS(MIP)
@@ -67,8 +68,8 @@
 // #if ISI_IS(SIMPLE) || ISI_IS(DA)
 // #if SECURITY_IS(V2)
 
-#if !defined(DEFINED_IZOTCONFIG_H)
-#define DEFINED_IZOTCONFIG_H
+#if !defined(_IZOT_CONFIG_H)
+#define _IZOT_CONFIG_H
  
 
 //
@@ -93,8 +94,20 @@
 #define PRODUCT_ID_SLB 1
 
 // Platform IDs -- default is unspecified
-#define PLATFORM_ID_SIM		1  // Windows simulator
-#define PLATFORM_ID_FRTOS   2  // FreeRTOS
+#define PLATFORM_ID_RPI              1  // Raspberry Pi ARM (__ARMEL__)
+#define PLATFORM_ID_ARM_EABI_GCC     2  // Generic ARM EABI GCC (ARM_NONE_EABI_GCC)
+#define PLATFORM_ID_FRTOS_ARM_EABI   3  // FreeRTOS ARM EABI GCC
+#define PLATFORM_ID_LINUX32_ARM_GCC  4  // Linux 32 ARM (LINUX32_GCC)
+#define PLATFORM_ID_WIN32_X86        5  // Windows 32 x86 (WIN32)
+#define PLATFORM_ID_IAR_ARM7         6  // IAR ARM7 (ARM7_IAR)
+#define PLATFORM_ID_AVR_TINY13       7  // AVR Tiny-13 (AVR_TINY13)
+#define PLATFORM_ID_HITECH           8  // Hi-Tech C (_HITECH)
+#define PLATFORM_ID_COSMIC           9  // Cosmic C (_COSMIC)
+#define PLATFORM_ID_NIOS2_LE        10  // Altera NIOS II GCC Little Endian (GCC_NIOS)
+
+
+#define PLATFORM_ID_SIM		1  // Windows simulator --> WIN32_X86
+
 
 // Processor IDs -- default is unspecified
 #define PROCESSOR_ID_MC200  1   // Marvell MC200 ARM Cortex M3
@@ -113,14 +126,18 @@
 
 // Project-specific IDs -- to change any of these for a project,
 // change the "0" to a macro name defined above with a matching
-// prefix.
+// prefix.  There is no default for the PLATFORM_ID.  IzotPlatform.h
+// will determine the platform ID based on pre-defined platform
+// macros for different platforms.  If one is not identified, you 
+// must define one.  To do that, uncomment the following line and
+// change the TBD.
+//
+// #define PLATFORM_ID   TBD
+
 #define PRODUCT_ID 	  0
-#define PLATFORM_ID   0
 #define PROCESSOR_ID  0
 #define LINK_ID 	  0
 #define ISI_ID 		  0
 #define SECURITY_ID   0
 
-
-
-#endif  /* defined(DEFINED_IZOTCONFIG_H) */
+#endif  // defined(_IZOT_CONFIG_H) 
