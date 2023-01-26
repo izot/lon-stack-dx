@@ -32,26 +32,7 @@
 /*------------------------------------------------------------------------------
  Section: Includes
  ------------------------------------------------------------------------------*/ 
-
-#if PROCESSOR_IS(MC200)
-#include <wmstdio.h>
-#endif
-
-#include <stdio.h>
-#include <string.h>
-#include "IzotApi.h"
-#include "lcs_node.h"
-#include "lcs_api.h"
-#include "lcs_netmgmt.h"
 #include "iup.h"
-#include "endian.h"
-#include "IzotHal.h"
-
-#if PROCESSOR_IS(MC200)
-#include <rfget.h>
-#include <flash.h>
-#include <partition.h>
-#endif
 
 /*------------------------------------------------------------------------------
  Section: Constant Definitions
