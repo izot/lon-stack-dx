@@ -31,9 +31,19 @@
 #ifndef _PERSISTENT_H
 #define _PERSISTENT_H
 
-#include "isi_int.h"
 #include <stddef.h>
+#include <string.h>
+#include "IzotConfig.h"
+#include "IzotApi.h"
+#include "IzotOsal.h"
+#include "isi_int.h"
+#include "lcs_timer.h"
+#include "lcs_node.h"
+
+#if PROCESSOR_IS(MC200)
 #include <wm_os.h>
+#endif
+
 
 /*------------------------------------------------------------------------------
   Section: Definations
