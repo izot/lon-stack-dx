@@ -22,15 +22,15 @@
 // SOFTWARE.
 
 /*
- * Title: LON DX Stack ISI API Types
+ * Title: ISI API Types
  *
  * Abstract:
  * This file contains definitions used with the API for the Interoperable
- * Self-Installation engine for the IzoT Device Stack DX (ISI).
+ * Self-Installation (ISI) engine for the LON Stack.
  */
 
-#ifndef __ISI_TYPES_H__
-#   define  __ISI_TYPES_H__
+#ifndef _ISI_TYPES_H
+#   define  _ISI_TYPES_H
 
 #ifndef _IZOT_PLATFORM_H
 #   error You must include IzotPlatform.h first 
@@ -181,7 +181,7 @@ typedef IZOT_STRUCT_BEGIN(IsiDrum)
     IZOT_STRUCT_NESTED_BEGIN(Extended) 
     {
         IzotWord DeviceClass;
-	    IzotByte    Usage;
+	    IzotByte Usage;
     } IZOT_STRUCT_NESTED_END(Extended);
 } IZOT_STRUCT_END(IsiDrum);
 
@@ -653,4 +653,4 @@ typedef struct
 
 
 
-#endif  //  !defined __ISI_TYPES_H__
+#endif  //  !defined _ISI_TYPES_H
