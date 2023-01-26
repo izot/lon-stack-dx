@@ -29,7 +29,14 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include "isi_int.h"
+
+#if PROCESSOR_IS(MC200)
 #include <wmtime.h>
+#endif
+
+#ifdef  __cplusplus
+extern "C" {
+#endif
 
 //============== LOCAL VARIABLES ===========================================
 #define thisRandomInit 1234          //for random_t()
@@ -42,6 +49,8 @@ unsigned m_z = thisRandomInit;  	 //for random_t() //changed datatype to ignore 
 extern unsigned IzotGetCurrentDatapointSize(const unsigned index);
 extern void IzotReset(const IzotResetNotification* const pResetNotification);
 extern volatile void* IzotGetDatapointValue(const unsigned index);
+
+
 /***************************************************************************
  *  Function: access_domain
  *
@@ -56,11 +65,9 @@ const IzotDomain* access_domain(int index)
     IzotDomain* pDomain = NULL;
 
     _IsiAPIDebug("Start access_domain = %d\n", index);
-    if (index <= IZOT_GET_ATTRIBUTE(read_only_data, IZOT_READONLY_TWO_DOMAINS))
-    {
+    if (index <= IZOT_GET_ATTRIBUTE(read_only_data, IZOT_READONLY_TWO_DOMAINS)) {
         pDomain = &domainTable[index];
-        if ((IsiApiError)IzotQueryDomainConfig(index, pDomain) == IsiApiNoError)
-        {
+        if ((IsiApiError)IzotQueryDomainConfig(index, pDomain) == IsiApiNoError) {
             _IsiAPIDebug("DomainID  = %x %x %x %x %x %x, Subnet=%d, NonClone=%d Node=%d Invalid=%d Length=%d Key=%x\n", 
                 pDomain->Id[0],pDomain->Id[1],pDomain->Id[2],pDomain->Id[3],pDomain->Id[4],pDomain->Id[5],pDomain->Subnet, 
                 IZOT_GET_ATTRIBUTE_P(pDomain,IZOT_DOMAIN_NONCLONE),
@@ -71,7 +78,7 @@ const IzotDomain* access_domain(int index)
     }
      _IsiAPIDebug("End access_domain = %d\n", index);
     return pDomain;
-};
+}
 
 /***************************************************************************
  *  Function: update_domain_address
@@ -87,13 +94,10 @@ IsiApiError update_domain_address(const IzotDomain* pDomain, int index, int nonC
     IsiApiError sts = IsiApiNoError;
 
     _IsiAPIDebug("Start update_domain_address = %d\n", index);
-    if (index <= IZOT_GET_ATTRIBUTE(read_only_data, IZOT_READONLY_TWO_DOMAINS))
-    {
+    if (index <= IZOT_GET_ATTRIBUTE(read_only_data, IZOT_READONLY_TWO_DOMAINS)) {
         temp = &domainTable[index];
-        if (bUpdateID)
-        {
-            for(i=0; i<DOMAIN_ID_LEN; i++)
-            {
+        if (bUpdateID) {
+            for(i=0; i<DOMAIN_ID_LEN; i++) {
 		        temp->Id[i] = pDomain->Id[i];
 	        };
         }
@@ -112,7 +116,7 @@ IsiApiError update_domain_address(const IzotDomain* pDomain, int index, int nonC
     }
     _IsiAPIDebug("End update_domain_address = %d\n", sts);
     return sts;
-};
+}
 
 
 /***************************************************************************
@@ -131,7 +135,7 @@ IsiApiError IsiSetDomain(const IzotDomain* pDomain, unsigned index)
 
     _IsiAPIDebug("End IsiSetDomain = %d\n", sts);
     return sts;
-};
+}
 
 /***************************************************************************
  *  Function: _nv_count
@@ -143,11 +147,12 @@ IsiApiError IsiSetDomain(const IzotDomain* pDomain, unsigned index)
 unsigned _nv_count(void)
 {
     unsigned int nvCount = IzotGetStaticDatapointCount();
+
     // Check against the ISI limit
     if (nvCount > ISI_MAX_NV_COUNT)
         nvCount = ISI_MAX_NV_COUNT;
     return nvCount;
-};
+}
 
 /***************************************************************************
  *  Function: IsiSetNv
@@ -159,7 +164,7 @@ unsigned _nv_count(void)
 void IsiSetNv(IzotDatapointConfig* pNv, unsigned Index)
 {
 	update_nv(pNv, Index);
-};
+}
 
 /***************************************************************************
  *  Function: update_nv
@@ -170,14 +175,13 @@ void IsiSetNv(IzotDatapointConfig* pNv, unsigned Index)
  ***************************************************************************/
 void update_nv(const IzotDatapointConfig * nv_entry, unsigned index)
 {
-    if (nv_entry && index < _nv_count())
-    {
+    if (nv_entry && index < _nv_count()) {
 		/*IsiApiError sts = */IzotUpdateDpConfig(index, nv_entry);
 
         _IsiAPIDebug("update_nv index %u sts %i ", index, sts);
         _IsiAPIDump("data = 0x", (void *)nv_entry, sizeof(IzotDatapointConfig), "\n");
     }
-};
+}
 
 /***************************************************************************
  *  Function: IsiGetNv
@@ -191,7 +195,7 @@ const IzotDatapointConfig* IsiGetNv(unsigned Index)
     memset(&nv_config, 0, sizeof(IzotDatapointConfig));
     IzotQueryDpConfig(Index, &nv_config);
     return (IzotDatapointConfig* )&nv_config;
-};
+}
 
 /***************************************************************************
  *  Function: high_byte
@@ -203,7 +207,7 @@ const IzotDatapointConfig* IsiGetNv(unsigned Index)
 IzotByte high_byte (IzotUbits16 a)
 {
 	return ((unsigned char)(a>>8));
-};
+}
 
 /***************************************************************************
  *  Function: low_byte
@@ -215,7 +219,7 @@ IzotByte high_byte (IzotUbits16 a)
 IzotByte low_byte (IzotUbits16 a)
 {
 	return ((unsigned char)(a&(0x00FF)));
-};
+}
 
 /***************************************************************************
  *  Function: make_long
@@ -229,7 +233,7 @@ IzotWord make_long(IzotByte low_byte, IzotByte high_byte)
     IzotWord w;
     IZOT_SET_UNSIGNED_WORD(w, (IzotUbits16)((high_byte<<8)|low_byte));
 	return w;
-};
+}
 
 /***************************************************************************
  *  Function: getRandom
@@ -248,7 +252,7 @@ unsigned int getRandom(void)
 	m_w = 18000 * (m_w & 65535) + (m_w >> 4);
 
 	return (m_z << 4) + m_w;  /* 32-bit result */
-};
+}
 
 /***************************************************************************
  *  Function: access_address
@@ -257,7 +261,7 @@ unsigned int getRandom(void)
  *
  *  Operation: Using LTS IzotQueryAddressConfig function to return ptr of index
  ***************************************************************************/
-const IzotAddress*	access_address	(int index)
+const IzotAddress*	access_address(int index)
 {
     IzotAddress* pAddress = (IzotAddress*)&addrTable;
 
@@ -265,7 +269,7 @@ const IzotAddress*	access_address	(int index)
         return pAddress;
     else
         return (IzotAddress*)NULL;            
-};
+}
 
 /***************************************************************************
  *  Function: update_address
@@ -277,24 +281,23 @@ const IzotAddress*	access_address	(int index)
 IsiApiError update_address(const IzotAddress* address, int index)
 {
     IsiApiError sts = IzotUpdateAddressConfig(index, address);
-	if (sts != IsiApiNoError)
-    {
+	if (sts != IsiApiNoError) {
 		_IsiAPIDebug("update_address failed (entry %d)\n", index);
 	}
     return sts;
-};
+}
 
 /***************************************************************************
- *  Function: watchdog_update
+ *  Function: lon_watchdog_update
  *
  *  Parameters: void
  *
  *  Operation: 
  ***************************************************************************/
-void watchdog_update(void)
+void lon_watchdog_update(void)
 {
     // do nothing
-};
+}
 
 
 /***************************************************************************
@@ -314,7 +317,7 @@ const IzotAliasConfig* IsiGetAlias(unsigned Index)
     }
     _IsiAPIDebug("End IsiGetAlias(%d)\n", Index);
 	return (IzotAliasConfig*)&alias_config;
-};
+}
 
 /***************************************************************************
  *  Function: IsiSetAlias
@@ -326,14 +329,14 @@ const IzotAliasConfig* IsiGetAlias(unsigned Index)
 IsiApiError IsiSetAlias(IzotAliasConfig* pAlias, unsigned Index)
 {
     return IzotUpdateAliasConfig(Index, pAlias); 
-};
+}
 
 IsiApiError update_config_data(const IzotConfigData *config_data1)
 {
     // Update the global copy of config data
     memcpy(&config_data, config_data1, sizeof(IzotConfigData));
     return IzotUpdateConfigData(config_data1);  // call LTS IzotUpdateConfigData to update the config data 
-};
+}
 
 IzotConfigData* get_config_data()
 {
@@ -349,7 +352,7 @@ unsigned int _alias_count(void)
     if (aliasCount > ISI_MAX_ALIAS_COUNT)
         aliasCount = ISI_MAX_ALIAS_COUNT;
     return aliasCount;
-};
+}
 
 unsigned int _address_table_count(void)
 {
@@ -358,12 +361,12 @@ unsigned int _address_table_count(void)
     if (addressTableCount > ISI_MAX_ADDRESS_TABLE_SIZE)
         addressTableCount = ISI_MAX_ADDRESS_TABLE_SIZE;
     return addressTableCount;
-};
+}
 
 unsigned get_nv_si_count(void)
 {
 	return _nv_count(); // same with the nv count
-};
+}
 
 /***************************************************************************
  *  Function: get_nv_type
@@ -376,29 +379,29 @@ unsigned get_nv_si_count(void)
 unsigned get_nv_type (unsigned index)
 {
 	return 1;
-};
+}
 
 IzotWord _IsiAddSelector(IzotWord Selector, unsigned Increment)
 {
     IzotWord result;
 	IZOT_SET_UNSIGNED_WORD(result, IZOT_GET_UNSIGNED_WORD(Selector) + Increment);
     return result;
-};
+}
 
 IzotWord _IsiIncrementSelector(IzotWord Selector)
 {
     return _IsiAddSelector(Selector, 1);
-};
+}
 
 IsiType _IsiGetCurrentType()
 {
     return gIsiType;
-};
+}
 
 void _IsiSetCurrentType(IsiType type)
 {
     gIsiType = type;
-};
+}
 
 const unsigned get_nv_length(const unsigned index)
 {
@@ -447,8 +450,7 @@ IsiApiError initializeData(IsiBootType bootType)
     {
 		_IsiAPIDebug("No Isi Persistent data found\r\n");
         // First time run.  Signal the engine to clear-out NV, alias, connection table and address tables.
-        if (bootType != isiReboot)
-		{
+        if (bootType != isiReboot) {
 			_isiPersist.BootType = isiReset;
 		}
     }
@@ -460,3 +462,7 @@ IsiApiError set_node_mode(unsigned mode, unsigned state)
 {
 	return IzotSetNodeMode(mode, state);
 }
+
+#ifdef  __cplusplus
+}
+#endif
