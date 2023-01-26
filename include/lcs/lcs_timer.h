@@ -28,18 +28,12 @@
 #ifndef _TIMER_H
 #define _TIMER_H
 
-// Structure: LonTimer
-typedef struct __attribute__ ((packed))
-{
-	IzotUbits16	expiration;		// Time to expire
-	IzotUbits16	repeatTimeout;  // Repeat timeout on expiration (0 means not repeating)
-} LonTimer;
-
-// Structure: LonWatch
-typedef struct
-{
-	IzotUbits16	start;			// Time watch started
-} LonWatch;
+#include <stddef.h>
+#include "IzotConfig.h"
+#include "IzotPlatform.h"
+#include "IzotTypes.h"
+#include "lcs_eia709_1.h"
+// #include "lcs_node.h"
 
 void    SetLonTimer(LonTimer *timerOut, IzotUbits16 initValueIn);
 void    SetLonRepeatTimer(LonTimer *timerOut, IzotUbits16 initValueIn);
