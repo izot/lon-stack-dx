@@ -1,7 +1,7 @@
 //
 // module_platform.h
 //
-// Copyright (C) 2022 EnOcean
+// Copyright (C) 2023 EnOcean
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in 
@@ -31,8 +31,10 @@
 #ifndef MODULE_PLATFORM_H
 #define	MODULE_PLATFORM_H
 
+#include "IzotConfig.h"
+#include "IzotPlatform.h"
 
-// Macro for addresses that can be > 64K
+// Macro for addresses that can be > 64K -- these are not currently used
 #if PLATFORM_IS(SIM)
 #define BIGADDR				// They're all 32 bit anyway
 typedef unsigned long BIGPTR;
