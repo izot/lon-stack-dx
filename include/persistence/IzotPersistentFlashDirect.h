@@ -1,7 +1,7 @@
 //
 // IzotPersitentFlashDirect.h
 //
-// Copyright (C) 2022 EnOcean
+// Copyright (C) 2023 EnOcean
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in 
@@ -31,6 +31,12 @@
  */
 #if !defined(DEFINED_IZOTPERSISTENTFLASHDIRECT_H)
 #define DEFINED_IZOTPERSISTENTFLASHDIRECT_H
+
+#include <stdio.h>
+#include <string.h>
+#include "IzotConfig.h"
+#include "IzotPlatform.h"
+
 
 /*------------------------------------------------------------------------------
   Section: Macros
@@ -77,8 +83,7 @@
  *  <IzotPersistentClose> is called for that handle.  
  */
 extern const IzotPersistentHandle IzotPersistentOpenForRead(
-const IzotPersistentSegmentType type
-); 
+    const IzotPersistentSegmentType type); 
  
 /* 
  *  Callback: IzotPersistentOpenForWrite
@@ -101,9 +106,7 @@ const IzotPersistentSegmentType type
  *  An error value is returned if the data cannot be written.
  */
 extern const IzotPersistentHandle IzotPersistentOpenForWrite(
-const IzotPersistentSegmentType type, 
-const size_t size
-); 
+    const IzotPersistentSegmentType type, const size_t size); 
 
 /* 
  *  Callback: IzotPersistentClose
@@ -140,8 +143,7 @@ extern void IzotPersistentClose(const IzotPersistentHandle handle);
  *  the size of the previous call.
  */
 extern const IzotApiError IzotPersistentRead(const IzotPersistentHandle handle, 
-const size_t offset, const size_t size, void * const pBuffer
-);
+    const size_t offset, const size_t size, void * const pBuffer);
 																
 /* 
  *  Callback: IzotPersistentWrite
@@ -165,8 +167,7 @@ const size_t offset, const size_t size, void * const pBuffer
  *  the size of the previous call.
  */
 extern const IzotApiError IzotPersistentWrite(const IzotPersistentHandle handle, 
-const size_t offset, const size_t size, const void* const pData
-);
+    const size_t offset, const size_t size, const void* const pData);
 
 /* 
  *  Callback: IzotPersistentIsInTransaction
@@ -185,8 +186,7 @@ const size_t offset, const size_t size, const void* const pData
  *  data. 
  */
 extern const IzotBool IzotPersistentIsInTransaction(
-const IzotPersistentSegmentType type
-); 
+    const IzotPersistentSegmentType type); 
  
 /* 
  *  Callback: IzotPersistentEnterTransaction
@@ -202,8 +202,7 @@ const IzotPersistentSegmentType type
  *  storage at a later time.  
  */
 extern const IzotApiError IzotPersistentEnterTransaction(
-const IzotPersistentSegmentType type
-);
+    const IzotPersistentSegmentType type);
 
 /* 
  *  Callback: IzotPersistentExitTransaction
@@ -218,8 +217,7 @@ const IzotPersistentSegmentType type
  *  updates required.
  */
 extern const IzotApiError IzotPersistentExitTransaction(
-const IzotPersistentSegmentType type
-);
+    const IzotPersistentSegmentType type);
 
 #endif  /* defined(DEFINED_IZOTPERSISTENTFLASHDIRECT_H) */
 /* end of file. */
