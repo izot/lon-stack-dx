@@ -1,7 +1,7 @@
 //
 // lcs_link.c
 //
-// Copyright (C) 2022 EnOcean
+// Copyright (C) 2023 EnOcean
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in 
@@ -28,6 +28,8 @@
                        implemented on a Neuron processor with MIP firmware.
 *******************************************************************************/
 
+#include "lcs_link.h"
+
 #if LINK_IS(MIP)
 
 /*------------------------------------------------------------------------------
@@ -38,12 +40,11 @@
 #include <string.h>
 
 #include "lcs_eia709_1.h"
+#include "lcs_timer.h"
 #include "lcs_node.h"
 #include "lcs_queue.h"
 #include "lcs_netmgmt.h"
-#include "lcs_link.h"
-#include "lcs_timer.h"
-
+#include "link.h"
 /*------------------------------------------------------------------------------
   Section: Constant Definitions
   ------------------------------------------------------------------------------*/
