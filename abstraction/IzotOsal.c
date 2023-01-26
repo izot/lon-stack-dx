@@ -57,11 +57,16 @@ OsalTickCount IzotGetTickCount(void)
     // Return the OS tick count.
 #if PLATFORM_IS(FRTOS)
     return os_ticks_get();
+#elif PLATFORM_IS(RPI)
+    unsigned long msecNow;
+
+    msecNow = millis();
+    return msecNow;
 #else
     struct timespec timeNow;
 
     clock_gettime(CLOCK_REALTIME, &timeNow);
-    return (timeNow->sec * 1000) + (timeNow->nsec / 1000000L);
+    return (timeNow.tv_sec * 1000) + (timeNow.tv_nsec / 1000000L);
 #endif
 }
 
@@ -101,6 +106,8 @@ OsalStatus OsalSleep(int ticks)
     if (ticks <= MAX_TIMEOUT_TICKS) {
 #if PLATFORM_IS(FRTOS)
         os_thread_sleep(os_msec_to_ticks(ticks));
+#elif PLATFORM_IS(RPI)
+        delay(ticks);
 #else
         nanosleep((const struct timespec[]){{(int)(ticks / 1000), (ticks % 1000) * 1000000L}}, NULL);
 #endif
@@ -127,6 +134,8 @@ OsalStatus OsalSleep(int ticks)
             // Wait for "timeout" tick counts.      
 #if PLATFORM_IS(FRTOS)
             os_thread_sleep(os_msec_to_ticks(timeout));
+#elif PLATFORM_IS(RPI)
+        delay(ticks);
 #else
             nanosleep((const struct timespec[]){{(int)(timeout / 1000), (timeout % 1000) * 1000000L}}, NULL);
 #endif
