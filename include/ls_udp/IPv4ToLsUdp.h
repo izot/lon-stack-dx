@@ -30,6 +30,23 @@ extern "C" {            // Assume C declarations for C++
 
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
+
+#include "IzotConfig.h"
+#include "IzotPlatform.h"
+#include "IzotTypes.h"
+#include "IzotCal.h"
+#include "lcs.h"
+
+#if PLATFORM_IS(FRTOS)
+#include <wm_net.h>
+#include <wlan.h>
+#include <wmtime.h>
+#include <wm_os.h>
+#include <arch/sys.h>
+#include <dhcp-server.h>
+#endif
+
 
 /*------------------------------------------------------------------------------
 Section: Macros
@@ -598,7 +615,7 @@ extern void SendAnnouncement(void);
 
 /* 
  *  Callback: UdpInit
- *  Initialize the Izot Framework with the relevat details
+ *  Initialize the Izot Framework with the relevant details
  *
  *
  *  Returns:
