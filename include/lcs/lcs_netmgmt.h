@@ -34,11 +34,33 @@
 /*------------------------------------------------------------------------------
 Section: Includes
 ------------------------------------------------------------------------------*/
-#include <lcs_eia709_1.h>
-#include <lcs_queue.h>
-#include <lcs_tsa.h>
-#include <lcs_network.h>
-#include <lcs_api.h>
+
+#include <stdio.h>
+#include <string.h>
+#include "endian.h"
+#include "err.h"
+#include "IzotConfig.h"
+#include "IzotApi.h"
+#include "IzotCal.h"
+#include "iup.h"
+#include "lcs_api.h"
+#include "lcs_app.h"
+#include "lcs_eia709_1.h"
+#include "lcs_timer.h"
+#include "lcs_node.h"
+#include "lcs_queue.h"
+#include "lcs_tsa.h"
+#include "lcs_network.h"
+#include "lcs_api.h"
+
+
+#if PROCESSOR_IS(MC200)
+#include <wmstdio.h>
+#endif
+
+#ifdef SECURITY_II
+#include "SecNmMsgs.h"
+#endif
 
 #pragma pack(push, 1)
 
