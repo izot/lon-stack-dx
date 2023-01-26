@@ -30,6 +30,10 @@
  * Implement the ISI internal variables
  */
 
+#ifdef  __cplusplus
+extern "C" {
+#endif
+
 #include "isi_int.h"
 #include <stddef.h>
 
@@ -62,4 +66,6 @@ IzotAliasConfig alias_config;
 
 unsigned char globalExtended = 0;
 
-
+#ifdef  __cplusplus
+}
+#endif
