@@ -1,7 +1,7 @@
 //
 // Persitent.c
 //
-// Copyright (C) 2022 EnOcean
+// Copyright (C) 2023 EnOcean
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in 
@@ -29,10 +29,6 @@
  * to the flash memory.
  */
 
-#include <string.h>
-#include "IzotPlatform.h"
-#include "IzotOsal.h"
-#include "lcs_node.h"
 #include "Persistent.h"
 
 /*------------------------------------------------------------------------------
