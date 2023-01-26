@@ -31,15 +31,6 @@
 //
 
 #ifdef ENABLE_PROXY_REPEATING
-#include <stddef.h>
-#include <string.h>
-#include <stdio.h>
-#include "IzotTypes.h"
-#include "lcs_eia709_1.h"
-#include "lcs_node.h"
-#include "lcs_app.h"
-#include "lcs_api.h"
-#include "lcs_netmgmt.h"
 #include "lcs_proxy.h"
 
 Status ProcessLTEP(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr);
