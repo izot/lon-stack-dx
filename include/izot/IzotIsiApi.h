@@ -37,8 +37,9 @@
 extern "C" {
 #endif
 
-#include "IzotApi.h"
+#include "IzotConfig.h"
 #include "IzotPlatform.h"
+#include "IzotTypes.h"
 #include "IzotIsiTypes.h"
 
 /*------------------------------------------------------------------------------
