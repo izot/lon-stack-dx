@@ -26,21 +26,36 @@
                   layers of the LON stack and to define interface
                   functions for some of these data structures.
 *********************************************************************/
+
 #ifndef _NODE_H
 #define _NODE_H
 
 /*------------------------------------------------------------------------------
 Section: Includes
 ------------------------------------------------------------------------------*/
-#include "IzotApi.h"
-#include "lcs_eia709_1.h"
+
+#include <stdio.h>
+#include <string.h>
+#include <stddef.h>
+#include "IzotConfig.h"
+#include "IzotPlatform.h"
+#include "IzotTypes.h"
+#include "EchelonStandardDefinitions.h"
+#include "isi_int.h"
+#include "endian.h"
 #include "lcs_api.h"
+#include "lcs_eia709_1.h"
 #include "lcs_queue.h"
+#include "lcs_timer.h"
 
 #ifdef LCS_DEBUG
 	#define DBG_vPrintf(format,args...)		wmprintf(args)
 #else
 	#define DBG_vPrintf(format,args...)		;
+#endif
+
+#ifdef  __cplusplus
+extern "C" {
 #endif
 
 /*-------------------------------------------------------------------
@@ -324,7 +339,7 @@ typedef struct
         IzotByte              uniqueNodeId[UNIQUE_NODE_ID_LEN];
     } addr;
     LonTimer                  timer;
-    TransNum                 tid;    /* Last TID used for this addr */
+    TransNum                  tid;     /* Last TID used for this addr */
 } TIDTableEntry;
 
 /* Type Definitions for transport, Session, Auth Layers */
@@ -541,9 +556,9 @@ typedef struct
 
 typedef struct
 {
-	Bool8		downloading;	// true => doing a download
-	Bool8		switchoverFailure;// true => switchover failed
-	Bool8		wrapPending;	// true => a wrap is about to occur.
+	IzotBool8   downloading;	// true => doing a download
+	IzotBool8   switchoverFailure;// true => switchover failed
+	IzotBool8	wrapPending;	// true => a wrap is about to occur.
 	uint32_t    imageOffset;	// Current 64K base offset being written to
 } DownloadState;
 
@@ -562,7 +577,7 @@ typedef struct
 typedef struct
 {
 	/* Track if this stack is initialized */
-	Bool           initialized;
+	IzotBool       initialized;
 
     /* Number of bytes used so far */
     IzotUbits16    mallocUsedSize;
@@ -849,7 +864,7 @@ typedef struct
 
 typedef struct
 {
-	UInt16 rx[2][2][NUM_RX_TYPES];	// Alt path is first dimension, solicited/unsolicited is second
+	IzotUbits16 rx[2][2][NUM_RX_TYPES];	// Alt path is first dimension, solicited/unsolicited is second
 } RxStats;
 
 typedef struct
@@ -967,6 +982,10 @@ void    ErrorMsg(char errMessageIn[]);
 #else
 #define DebugMsg(x)
 #define ErrorMsg(x)
+#endif
+
+#ifdef  __cplusplus
+}
 #endif
 
 #endif   /* #ifndef _NODE_H */
