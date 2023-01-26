@@ -28,6 +28,8 @@
 #ifndef _PLATFORM_H
 #define _PLATFORM_H
 
+#include "IzotConfig.h"
+#include "IzotPlatform.h"
 #include "echversion.h"
 
 // The base Neuron firmware version on which this implementation is based.
@@ -39,23 +41,11 @@
 #define FIRMWARE_BUILD			    VER_BUILD
 
 // The model number of this platform
-#define MODEL_NUMBER            0x73
+#define MODEL_NUMBER            0x74
 
-/* Data type definitions */
-typedef IzotBits8		nshort;
-typedef IzotBits8		nint;
-typedef IzotByte		nuint;
-typedef IzotByte		nushort;
-typedef IzotBits16	nlong;
-typedef IzotUbits16	nulong;
-
-typedef IzotByte		BitField;
 
 // Turn on packing so that structures are packed on byte boundaries.  This should be done globally via a compiler switch.  Otherwise, try using
 // a pragma such as #pragma pack
-
-// Number of stacks on this platform
-#define NUM_STACKS 1
 
 // This macro takes a C enum type and turns it into a Byte type that will fit into C data structures that are sent on the network.
 #define NetEnum(enumType) IzotByte
@@ -66,10 +56,6 @@ typedef IzotByte		BitField;
 #define BITF_LITTLE_ENDIAN
 
 #include "bitfield.h"
-
-#ifndef LITTLE_ENDIAN
-#define LITTLE_ENDIAN
-#endif
 
 // Specify a way for the application program to suspend so that other apps can run and we don't consume all the CPU
 #ifdef WIN32
