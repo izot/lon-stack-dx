@@ -30,17 +30,7 @@
 /*------------------------------------------------------------------------------
  Section: Includes
  ------------------------------------------------------------------------------*/
-#include <stdio.h>
-#include <stddef.h>
-#include <string.h>
-#include "IzotTypes.h"
-#include "lcs_eia709_1.h"
-#include "lcs_node.h"
-#include "lcs_queue.h"
-#include "lcs_tcs.h"
 #include "lcs_tsa.h"
-#include "lcs_app.h" /* For TAG related macros and constants */
-#include "lcs_netmgmt.h"
 
 /*--------------------------------------------------------------------
  Section: Constant Definitions.
