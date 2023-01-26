@@ -22,45 +22,20 @@
 // SOFTWARE.
 
 /*
- * Title: LON DX Stack API
+ * Title: LON Stack API
  *
  * Abstract:
- * This file declares prototypes for LON DX Stack API functions.
- * This file is part of the LON DX Stack API.
+ * This file declares prototypes for LON Stack API functions.
+ * This file is part of the LON Stack API.
  */
 
-#ifndef _IZOT_API_H
-#   define _IZOT_API_H
+#include "IzotApi.h"
 
-#include <stdlib.h>
 #ifdef  __cplusplus
 extern "C" {
 #endif
 
-#include <string.h>
-#include "IzotPlatform.h"
-#include "IzotTypes.h"
-#include "echstd.h"
-#include "lcs_node.h"
-#include "lcs.h"
-#include "IzotApi.h"
-#include "IzotHal.h"
-#include "IzotOsal.h"
-#include "IzotCal.h"
-#include "IzotPersistentFlashDirect.h"
-#include "Persistent.h"
-#include "IPv4ToLsUdp.h"
-#include "lcs_api.h"
-#include "lcs_timer.h"
 
-/*------------------------------------------------------------------------------
-  Section: Macros
-  ------------------------------------------------------------------------------*/
-#define IZOT_EXTERNAL_FN extern
-#define IZOT_SET_UNSIGNED_WORD_FROM_BYTES(n,b1,b2) (n).msb = (IzotByte)(b1); \
-                                                    (n).lsb = (IzotByte)(b2)
-#define IZOT_MOD_NAME "izot"
-                                                    
 /*------------------------------------------------------------------------------
   Section: Globals
   ------------------------------------------------------------------------------*/
@@ -114,7 +89,7 @@ const static IzotByte K[6] = {0x57, 0x91, 0xBC, 0x23, 0xF2, 0x01};
 void IzotOnline(void);
 void IzotOffline(void);
 extern void Encrypt(IzotByte randIn[], APDU *apduIn, IzotUbits16 apduSizeIn, IzotByte *pKey, 
-IzotByte encryptValueOut[], IzotByte isOma, OmaAddress* pOmaDest);
+        IzotByte encryptValueOut[], IzotByte isOma, OmaAddress* pOmaDest);
 
 /*
  * *****************************************************************************
@@ -182,7 +157,7 @@ IZOT_EXTERNAL_FN void IzotSleep(int ticks)
  *
  */
 void IzotServiceLedStatus(IzotServiceLedState state, 
-IzotServiceLedPhysicalState physicalState)
+        IzotServiceLedPhysicalState physicalState)
 {
     if(izot_service_led_handler) {
         izot_service_led_handler(state, physicalState);
@@ -226,9 +201,8 @@ IZOT_EXTERNAL_FN void IzotEventPump(void)
 
     IzotSleep(1);
     if (gp->serviceLedState != SERVICE_BLINKING && (((gp->serviceLedState != gp->prevServiceLedState) && 
-    (gp->serviceLedState != (IzotServiceLedState)0xff)) || ((gp->serviceLedPhysical != gp->preServiceLedPhysical) && 
-    (gp->serviceLedPhysical != (IzotServiceLedPhysicalState)0xff))))
-    {
+            (gp->serviceLedState != (IzotServiceLedState)0xff)) || ((gp->serviceLedPhysical != gp->preServiceLedPhysical) && 
+            (gp->serviceLedPhysical != (IzotServiceLedPhysicalState)0xff)))) {
         IzotServiceLedStatus(gp->serviceLedState, gp->serviceLedPhysical); // expose the Connect button state to the callback function
         
         gp->prevServiceLedState = gp->serviceLedState;
@@ -453,12 +427,12 @@ IZOT_EXTERNAL_FN const IzotApiError IzotSendServicePin(void)
  *  called when corresponding responses arrive.
  */
 IZOT_EXTERNAL_FN const IzotApiError IzotSendMsg(
-const unsigned tag, const IzotBool priority,
-const IzotServiceType serviceType,
-const IzotBool authenticated,
-const IzotSendAddress* const pDestAddr,
-const IzotByte code,
-const IzotByte* const pData, const unsigned length)
+        const unsigned tag, const IzotBool priority,
+        const IzotServiceType serviceType,
+        const IzotBool authenticated,
+        const IzotSendAddress* const pDestAddr,
+        const IzotByte code,
+        const IzotByte* const pData, const unsigned length)
 {
     gp->msgOut.priorityOn     = priority;
     gp->msgOut.tag            = (MsgTag) tag;
@@ -496,8 +470,8 @@ const IzotByte* const pData, const unsigned length)
  *  should be in the 0x00..0x2f range.
  */
 IZOT_EXTERNAL_FN const IzotApiError IzotSendResponse(
-const IzotCorrelator correlator, const IzotByte code,
-const IzotByte* const pData, const unsigned length)
+        const IzotCorrelator correlator, const IzotByte code,
+        const IzotByte* const pData, const unsigned length)
 {
     memcpy(&gp->respOut.reqId, correlator, 2); 
     gp->respOut.nullResponse = length ? 0 : 1;
@@ -563,7 +537,7 @@ IZOT_EXTERNAL_FN const IzotApiError IzotQueryStatus(IzotStatus* const pStatus)
     IZOT_SET_UNSIGNED_WORD_FROM_BYTES(pStatus->MissedMessages, nmp->stats.stats[8], nmp->stats.stats[9]);
     pStatus->ResetCause = nmp->resetCause;
     if (IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NODE_STATE) == IzotConfigOnLine && 
-    gp->appPgmMode == OFF_LINE) {
+            gp->appPgmMode == OFF_LINE) {
         pStatus->NodeState = IzotSoftOffLine;
     } else {
         pStatus->NodeState = IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NODE_STATE);
@@ -573,6 +547,7 @@ IZOT_EXTERNAL_FN const IzotApiError IzotQueryStatus(IzotStatus* const pStatus)
     pStatus->ErrorLog       = eep->errorLog;
     pStatus->ModelNumber    = MODEL_NUMBER;
     IZOT_SET_UNSIGNED_WORD(pStatus->LostEvents, 12);
+
     return IzotApiNoError;
 }
 
@@ -593,6 +568,7 @@ IZOT_EXTERNAL_FN const IzotApiError IzotClearStatus(void)
     nmp->resetCause = IzotResetCleared;
     eep->errorLog = IzotNoError;
     LCS_WriteNvm();
+
     return IzotApiNoError;
 }
 
@@ -614,6 +590,7 @@ IZOT_EXTERNAL_FN const IzotApiError IzotClearStatus(void)
 IZOT_EXTERNAL_FN const IzotApiError IzotQueryConfigData(IzotConfigData* const pConfig)
 {
     memcpy(pConfig, &eep->configData, sizeof(IzotConfigData));
+
     return IzotApiNoError;
 }
 
@@ -636,6 +613,7 @@ IZOT_EXTERNAL_FN const IzotApiError IzotUpdateConfigData(const IzotConfigData* c
     memcpy(&eep->configData, pConfig, sizeof(IzotConfigData));
     RecomputeChecksum();
     LCS_WriteNvm();
+
     return IzotApiNoError;
 }
 
@@ -665,36 +643,39 @@ IZOT_EXTERNAL_FN const IzotApiError IzotUpdateConfigData(const IzotConfigData* c
 */
 IZOT_EXTERNAL_FN const IzotApiError IzotSetNodeMode(const IzotNodeMode mode, const IzotNodeState state)
 {
-    switch (mode) 
-    {
+    switch (mode) {
     case IzotApplicationOffLine: // Go to soft offline state
         if (AppPgmRuns()) {
             IzotOffline(); // Indicate to application program.
         }
         gp->appPgmMode = OFF_LINE;
         break;
+
     case IzotApplicationOnLine: // Go on-line
         IzotOnline(); // Indicate to application program.
         gp->appPgmMode = ON_LINE;
         break;
+
     case IzotApplicationReset: // Application reset
         gp->resetNode = TRUE;
         nmp->resetCause = IzotSoftwareReset; // Software reset.
         break;
+
     case IzotChangeState: // Change State
         IZOT_SET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NODE_STATE, state);
         // Preserve the state of appPgmMode except for IzotNoApplicationUnconfig
         if (IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NODE_STATE) == IzotNoApplicationUnconfig || 
-        IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NODE_STATE) == IzotStateInvalid_7)
-        {
+                IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NODE_STATE) == IzotStateInvalid_7) {
             gp->appPgmMode = NOT_RUNNING;
         }
         RecomputeChecksum();
         LCS_WriteNvm();
         break;
+
 	case IzotPhysicalReset: /* New Physical Reset Sub Command */
 		PhysicalResetRequested();
 		break;
+
     default:
         /* Let us reset the node for this case */
         gp->resetNode = TRUE;
@@ -761,6 +742,7 @@ IZOT_EXTERNAL_FN const IzotApiError IzotUpdateDomainConfig(unsigned index, const
     
     RecomputeChecksum();
     LCS_WriteNvm();
+
     return IzotApiNoError;
 }
 
@@ -835,6 +817,7 @@ IZOT_EXTERNAL_FN const IzotApiError IzotQueryAddressConfig(unsigned index, IzotA
 {
     IzotAddress *p = (IzotAddress *)AccessAddress(index);
     memcpy(pAddress, p, sizeof(IzotAddress));
+
     return IzotApiNoError;
 }
 
@@ -892,8 +875,8 @@ IZOT_EXTERNAL_FN const IzotApiError IzotUpdateAddressConfig(unsigned index, cons
  */
 IZOT_EXTERNAL_FN const IzotApiError IzotQueryDpConfig(signed index, IzotDatapointConfig* const pDatapointConfig)
 {
-    memcpy(pDatapointConfig, &eep->nvConfigTable[index], 
-    sizeof(IzotDatapointConfig));
+    memcpy(pDatapointConfig, &eep->nvConfigTable[index], sizeof(IzotDatapointConfig));
+
     return IzotApiNoError;
 }
 
@@ -917,10 +900,10 @@ IZOT_EXTERNAL_FN const IzotApiError IzotQueryDpConfig(signed index, IzotDatapoin
  */
 IZOT_EXTERNAL_FN const IzotApiError IzotUpdateDpConfig(signed index, const IzotDatapointConfig* const pDatapointConfig)
 {
-    memcpy(&eep->nvConfigTable[index], pDatapointConfig, 
-    sizeof(IzotDatapointConfig));
+    memcpy(&eep->nvConfigTable[index], pDatapointConfig, sizeof(IzotDatapointConfig));
     RecomputeChecksum();
     LCS_WriteNvm();
+
     return IzotApiNoError;
 }
 
@@ -951,10 +934,10 @@ IZOT_EXTERNAL_FN const IzotApiError IzotDatapointSetup(IzotDatapointDefinition* 
         volatile void const *value, IzotDatapointSize size, uint16_t snvtId, uint16_t arrayCount, 
         const char *name, const char *sdString, uint8_t maxRate, uint8_t meanRate, const uint8_t *ibol) 
 {
-    IzotApiError lastError = izotApiNoError;
+    IzotApiError lastError = IzotApiNoError;
 
     pDatapointDef->Version = 2;
-    pDatapointDef->pValue = value;
+    pDatapointDef->PValue = value;
     pDatapointDef->DeclaredSize = size;
     pDatapointDef->SnvtId = snvtId;
     pDatapointDef->ArrayCount = arrayCount;
@@ -988,12 +971,12 @@ IZOT_EXTERNAL_FN const IzotApiError IzotDatapointSetup(IzotDatapointDefinition* 
 IZOT_EXTERNAL_FN const IzotApiError IzotDatapointFlags(IzotDatapointConfig* const pDatapointConfig,
         IzotBool priority, IzotDatapointDirection direction, IzotBool authentication, IzotBool aes)
 {
-    IzotApiError lastError = izotApiNoError;
+    IzotApiError lastError = IzotApiNoError;
 
-    IZOT_SET_ATTRIBUTE(pDatapointConfig->SelhiDirPrio, IZOT_DATAPOINT_PRIORITY, priority);
-    IZOT_SET_ATTRIBUTE(pDatapointConfig->SelhiDirPrio, IZOT_DATAPOINT_DIRECTION, direction);
-    IZOT_SET_ATTRIBUTE(pDatapointConfig->Attribute1, IZOT_DATAPOINT_AUTHENTICATION, authentication);
-    IZOT_SET_ATTRIBUTE(pDatapointConfig->Attribute2, IZOT_DATAPOINT_AES, aes);
+    IZOT_SET_ATTRIBUTE_P(pDatapointConfig, IZOT_DATAPOINT_PRIORITY, priority);
+    IZOT_SET_ATTRIBUTE_P(pDatapointConfig, IZOT_DATAPOINT_DIRECTION, direction);
+    IZOT_SET_ATTRIBUTE_P(pDatapointConfig, IZOT_DATAPOINT_AUTHENTICATION, authentication);
+    IZOT_SET_ATTRIBUTE_P(pDatapointConfig, IZOT_DATAPOINT_AES, aes);
 
     return(lastError);
 }
@@ -1021,14 +1004,14 @@ IZOT_EXTERNAL_FN const IzotApiError IzotDatapointFlags(IzotDatapointConfig* cons
 IZOT_EXTERNAL_FN const IzotApiError IzotDatapointBind(IzotDatapointConfig* const pDatapointConfig, 
         IzotByte address, IzotWord selector, IzotBool turnAround, IzotServiceType service)
 {
-    IzotApiError lastError = izotApiNoError;
+    IzotApiError lastError = IzotApiNoError;
 
-    IZOT_SET_ATTRIBUTE(pDatapointConfig->Attribute2, IZOT_DATAPOINT_ADDRESS_HIGH, address >> 4);
-    IZOT_SET_ATTRIBUTE(pDatapointConfig->Attribute1, IZOT_DATAPOINT_ADDRESS_LOW, address);
-    IZOT_SET_ATTRIBUTE(pDatapointConfig->SelhiDirPrio, IZOT_DATAPOINT_SELHIGH, high_byte(IZOT_GET_UNSIGNED_WORD(selector)));
+    IZOT_SET_ATTRIBUTE_P(pDatapointConfig, IZOT_DATAPOINT_ADDRESS_HIGH, address >> 4);
+    IZOT_SET_ATTRIBUTE_P(pDatapointConfig, IZOT_DATAPOINT_ADDRESS_LOW, address);
+    IZOT_SET_ATTRIBUTE_P(pDatapointConfig, IZOT_DATAPOINT_SELHIGH, high_byte(IZOT_GET_UNSIGNED_WORD(selector)));
     pDatapointConfig->SelectorLow = low_byte(IZOT_GET_UNSIGNED_WORD(selector));
-    IZOT_SET_ATTRIBUTE(pDatapointConfig->Attribute1, IZOT_DATAPOINT_TURNAROUND, turnAround);
-    IZOT_SET_ATTRIBUTE(pDatapointConfig->Attribute1, IZOT_DATAPOINT_SERVICE, service);
+    IZOT_SET_ATTRIBUTE_P(pDatapointConfig, IZOT_DATAPOINT_TURNAROUND, turnAround);
+    IZOT_SET_ATTRIBUTE_P(pDatapointConfig, IZOT_DATAPOINT_SERVICE, service);
 
     return(lastError);
 }
@@ -1503,7 +1486,7 @@ IZOT_EXTERNAL_FN const IzotApiError IzotRegisterStaticDatapoint(IzotDatapointDef
  *  0x0001 and 0xffff, but some protocol stacks may further limit the supported
  *  address range.
  */
-IZOT_EXTERNAL_FN const IzotApiError IzotRegisterMemoryWindow(const unsigned windowAddress, const unsigned windowSize)
+IZOT_EXTERNAL_FN IzotApiError IzotRegisterMemoryWindow(const unsigned windowAddress, const unsigned windowSize)
 {
     IzotApiError err = IzotApiNoError;
     setMem(windowAddress, windowSize);
@@ -2693,7 +2676,7 @@ IZOT_EXTERNAL_FN const IzotApiError IzotMemoryWriteRegistrar(IzotMemoryWriteFunc
  *  Remarks:
  *
  */
-IZOT_EXTERNAL_FN const IzotApiError IzotServiceLedStatusRegistrar(IzotServiceLedStatusFunction handler)
+IZOT_EXTERNAL_FN IzotApiError IzotServiceLedStatusRegistrar(IzotServiceLedStatusFunction handler)
 {
     if (handler) {
         izot_service_led_handler = handler;
@@ -3000,4 +2983,4 @@ IZOT_EXTERNAL_FN void IzotDeregisterAllCallbacks(void)
 #ifdef  __cplusplus
 }
 #endif
-#endif /* _IzoT_API_H */
+
