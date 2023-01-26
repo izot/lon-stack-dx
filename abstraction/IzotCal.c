@@ -539,7 +539,7 @@ int InitSocket(int port)
         return -1;
     }
 #else   // PROCESSOR_IS(MC200)
-    #error Implement code to open priority and non priority sockets and add MAC filter for broadcast messages
+    #pragma message("Implement code to open priority and non priority sockets and add MAC filter for broadcast messages")
 #endif  // PROCESSOR_IS(MC200)
 
     return 0;
@@ -608,7 +608,7 @@ void AddIpMembership(uint32_t addr)
     
     CAL_Printf("Added Membership of %X \r\n", addr);
 #else   // PROCESSOR_IS(MC200)
-    #error Implement code to add address membership to a multicast group
+    #pragma message("Implement code to add address membership to a multicast group")
 #endif  // PROCESSOR_IS(MC200)
 }
 
@@ -681,7 +681,7 @@ uint16_t dataLength)
 #endif
     net_close(sock);
 #else   // PROCESSOR_IS(MC200)
-    #error Implement code to send a UDP packet
+    #pragma message("Implement code to send a UDP packet")
 #endif  // PROCESSOR_IS(MC200)
 }
 
@@ -726,7 +726,7 @@ int CalReceive(IzotByte* pData, IzotByte* pSourceAddr)
         pSourceAddr[3] = (IzotByte)(SrcIP & 0x000000FF);
     }
 #else   // PROCESSOR_IS(MC200)
-    #error Implement code to received data on a UDP socket
+    #pragma message("Implement code to received data on a UDP socket")
 #endif  // PROCESSOR_IS(MC200)
     return dataLength;
 }
