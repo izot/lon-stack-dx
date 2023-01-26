@@ -1,7 +1,7 @@
 //
 // LsMappingUtil.c
 //
-// Copyright (C) 2022 EnOcean
+// Copyright (C) 2023 EnOcean
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in 
@@ -22,7 +22,8 @@
 // SOFTWARE.
 
 #include <string.h>
-#include "IzotPlatform.h"
+#include "IzotConfig.h"
+#include "IzotApi.h"
 #include "IPv4ToLsUdp.h"
 #include "IzotCal.h"
 
