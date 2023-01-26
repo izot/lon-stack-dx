@@ -33,7 +33,11 @@
 /*------------------------------------------------------------------------------
  Section: Includes
  ------------------------------------------------------------------------------*/
-#include "lcs_eia709_1.h"  /* To get constants and types (e.g. IzotByte) */
+#include <stddef.h>
+#include "IzotConfig.h"
+#include "IzotPlatform.h"
+#include "IzotTypes.h"
+// #include "lcs_eia709_1.h" 
 
 /*------------------------------------------------------------------------------
   Section: Constant Definitions
@@ -45,20 +49,6 @@
 #define RUN_WHEN_UNCONF       0 /* Set to 1 if applicaiton needs to run
 even if the node is unconfigured */
 
-/*********************************************************************
-   NUM_ADDR_TBL_ENTRIES:
-   The address table in reference implementation supports more than
-   15 entries. However, network management tools might support only
-   upto 15 entries. So, other entries should be managed by the
-   application program itself. The maximum supported value is 255.
-**********************************************************************/
-#define NUM_ADDR_TBL_ENTRIES    254    /* # of entries in addr tbl    */
-
-#define RECEIVE_TRANS_COUNT    16    /* Can be > 16 for Ref. Impl */
-
-#define NV_TABLE_SIZE          254    /* Check management tool for any restriction on maximum size */
-
-#define NV_ALIAS_TABLE_SIZE    254    /* Check management tool for any restriction on maximum size */
 
 /*********************************************************************
     Warning!!! The following constants are encoded. So, don't use the
@@ -103,34 +93,6 @@ even if the node is unconfigured */
     line to do this. For backward compatibility, uncomment it. */
 #define GROUP_SIZE_COMPATIBILITY
 
-/* Maximum number of array network variables allowed in
-    the application program. This constant is used to allocate
-    space that keeps track of all arrays and their dimension */
-#define MAX_NV_ARRAYS 10
-
-/* Maximum number of network output variables that can
-    be scheduled to be sent out at any point in time */
-#define MAX_NV_OUT     5
-
-/* To implement synchronous variables, the values of the
-    variables are to be stored along with index in the queue.
-    Define the maximum size (in bytes) of a network variable
-    in the application program. This is used for storage allocation. */
-#define MAX_NV_LENGTH 50
-
-/* Maximum number of network input variables that can
-    be scheduled to be polled at any point in time */
-#define MAX_NV_IN     50
-
-/* Maximum number of bytes in data array for msg_in, msg_out, resp_in etc.
-    This value is indepedent of application buffer sizes mentioned
-    earlier. Clearly it does not make sense for this value to be
-    larger than application buffer size (out or in). */
-#define MAX_DATA_SIZE 255
-
-/* Maximum size of message on the wire (approximate, might be over sized a byte or two for safety.) */
-#define MAX_PDU_SIZE (MAX_DATA_SIZE+21)
-
 /* The following constant is used to delay transport and session
     layers on an external or power-up reset for sending messages
     to make sure that messages sent after a reset are not discarded
@@ -142,21 +104,6 @@ even if the node is unconfigured */
     timer value in all target nodes. */
 #define TS_RESET_DELAY_TIME 2000
 
-/*******************************************************************************
-    Protocol Stack Implementation uses an array to allocate storage
-    space dynamically. The size of the array used for this allocation
-    is determined by this constant. If it is too low, it may be
-    impossible to allocate necessary buffers or data structures.
-    If it is too high, some memory is unused.
-    Set to some high value, run program, stop, and check
-    gp->mallocUsedSize to determine the current usage.
-    This array space is allocated during Reset of all layers.
-    Tracing through the Reset code of all layers will indicate
-    the approximate size of this array necessary.
-    If AllocateStorage function in node.c is rewritten to use malloc, then
-    this constant will be of no use.
-*******************************************************************************/
-#define MALLOC_SIZE     10050
 
 /*******************************************************************************
  Section: Type Definitions
@@ -184,7 +131,7 @@ typedef struct
     IzotByte len[MAX_DOMAINS];
     IzotByte subnet[MAX_DOMAINS]; /* One for each domain */
     IzotByte node[MAX_DOMAINS];
-	Bool8 clone[MAX_DOMAINS];	/* This is really NOT clone */
+	IzotBool8 clone[MAX_DOMAINS];	/* This is really NOT clone */
     AuthKey key[MAX_DOMAINS];  /* 6 byte authentication key */
 
     /* Address Table Info. Enter all 5 byte values */
