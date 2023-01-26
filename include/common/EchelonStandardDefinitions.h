@@ -197,8 +197,4 @@ typedef UInt16om						EchErr;
 #define BITS_BYTE_OFFSET(bitIndex)	((bitIndex)/BITS_PER_BYTE)
 #define BITS_MASK(bitIndex)			(1<<((bitIndex)%BITS_PER_BYTE))
 
-#ifndef LITTLE_ENDIAN
-#define LITTLE_ENDIAN
-#endif
-
 #endif		// __EchelonStandardDefinitions_h
