@@ -106,18 +106,7 @@
 /*------------------------------------------------------------------------------
 Section: Includes
 ------------------------------------------------------------------------------*/
-#include <string.h>
-#include "IzotApi.h"
-#include "lcs_eia709_1.h"
-#include "lcs_node.h"
-#include "lcs_queue.h"
 #include "lcs_app.h"
-#include "lcs_api.h"
-#include "lcs_netmgmt.h"
-#include "iup.h"
-#include "lcs_proxy.h"
-#include "IzotApi.h"
-#include "endian.h"
 
 /*------------------------------------------------------------------------------
 Section: Constant and Macro Definitions
