@@ -29,34 +29,22 @@
                        up to the user of the queue to interpret
                        the contents of the queue item.
 *********************************************************************/
+
 #ifndef _LCS_QUEUE_H
 #define _LCS_QUEUE_H
 
 /*------------------------------------------------------------------------------
   Section: Includes
   ------------------------------------------------------------------------------*/
-#include "lcs_eia709_1.h"
+#include <stdio.h>
+#include <stddef.h>
+#include "IzotConfig.h"
+#include "IzotApi.h"
+#include "IzotTypes.h"
+#include "lcs_eia709_1.h"   /* To get Byte, Boolean & Status         */
+#include "lcs_timer.h"      /* For LonTimer required by lcs_node.h   */
+#include "lcs_node.h"       /* To get AllocateStorage.               */
 
-/*-------------------------------------------------------------------
-  Section: Constant Definitions
-  -------------------------------------------------------------------*/
-
-/*-------------------------------------------------------------------
-  Section: Type Definitions
-  -------------------------------------------------------------------*/
-typedef struct
-{
-    IzotUbits16 queueCnt;   /* Max number of items in queue. i.e capacity */
-    IzotUbits16 queueSize;  /* Number of items currently in queue         */
-    IzotUbits16 itemSize;   /* Number of bytes for each item in queue     */
-    IzotByte *head;        /* Pointer to the head item of the queue      */
-    IzotByte *tail;        /* Pointer to the tail item of the queue      */
-    IzotByte *data;        /* Array of items -- Allocated during Init    */
-} Queue;
-
-/*-------------------------------------------------------------------
-  Section: Globals
-  -------------------------------------------------------------------*/
 
 /*-------------------------------------------------------------------
   Section: Function Prototypes
