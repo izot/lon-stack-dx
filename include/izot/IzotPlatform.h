@@ -1,7 +1,7 @@
 //
 // IzotPlatform.h
 //
-// Copyright (C) 2022 EnOcean
+// Copyright (C) 2023 EnOcean
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in 
@@ -98,18 +98,282 @@
  *  convert between native scalars and multi-byte aggregates.
  *
  ***************************************************************************/
-#include "IzotConfig.h"
 
 #ifndef _IZOT_PLATFORM_H
 #define _IZOT_PLATFORM_H
 
+#include <stddef.h>
 
-#if defined(ARM_NONE_EABI_GCC)
+
+#if !defined(PLATFORM_ID) && defined(__ARMEL__)
+    #define PLATFORM_ID PLATFORM_ID_RPI
+#endif
+
+#if PLATFORM_IS(RPI) && PLATFORM_ID_RPI
+    /*
+     * Raspberry Pi platform using the arm-linux-gnueabihf toolchain.  Little-endian.
+     */
+
+    #if !defined(_IZOT_PLATFORM_DEFINED)
+        #define _IZOT_PLATFORM_DEFINED
+    #else
+        #error Multiple platform definitions including RPI
+    #endif
+
+//  #pragma message("Raspberry Pi platform (RPI) selected")
+    #define RASPBERRY_PI_HOSTED       /* Runs on the Raspberry Pi */
+
+    // Specify little-endian byte order.
+    #undef BYTE_ORDER
+    #define BYTE_ORDER LITTLE_ENDIAN
 
     /*
-     * ARM_NONE_EABI_GCC C programs.
+     * IZOT_(ENUM|STRUCT|UNION)_BEGIN and *_END macros for beginning and
+     * ending type definitions for enumerations, structures and unions. These
+     * must be defined such that the resulting type uses byte-alignment
+     * without padding.
+     *
+     * The *_NESTED_* macros define unions or structures within surrounding
+     * union or structure definitions. These may require different
+     * modifiers to accomplish the same compact, byte-aligned, image.
+     *
+     * IZOT_ENUM implements a variable of an enumeration type. This
+     * can expand to the actual enumeration type, if the compiler supports
+     * a signed 8-bit enumerated type. Most compilers will map this to int8_t.
      */
+    #define IZOT_ENUM_BEGIN(n)   enum
+    #define IZOT_ENUM_END(n)     n
+    #define IZOT_ENUM(n)         n
+
+    #define IZOT_STRUCT_BEGIN(n) struct __attribute__((__packed__))
+    #define IZOT_STRUCT_END(n)   n
+
+    #define IZOT_STRUCT_NESTED_BEGIN(n)  struct __attribute__((__packed__))
+    #define IZOT_STRUCT_NESTED_END(n)    n
+
+    #define IZOT_UNION_BEGIN(n)  union __attribute__((__packed__))
+    #define IZOT_UNION_END(n)    n
+
+    #define IZOT_UNION_NESTED_BEGIN(n)   union __attribute__((__packed__))
+    #define IZOT_UNION_NESTED_END(n)     n
+    
+	/*
+     * Compiler-dependent types for signed and unsigned 8-bit, 16-bit scalars and 
+     * 32-bit scalars.
+     *
+	 * To enhance portability between different platforms, no aggregate contains
+	 * multi-byte scalars, but instead use multiple byte-sized scalars.
+	 *
+     * Float type variables are handled through a float_type equivalent structure.
+     */
+    typedef unsigned char	IzotUbits8;			/* 8-bits           */
+    typedef signed   char	IzotBits8;			/* 8-bits, signed   */
+	typedef unsigned short  IzotUbits16;		/* 16-bits          */
+    typedef signed   short  IzotBits16;			/* 16-bits, signed  */
+	typedef unsigned long	IzotUbits32;        /* 32-bits          */
+    typedef signed   long	IzotBits32;			/* 32-bits, signed  */
+	
+    #include <stdint.h>
+    typedef uint8_t         IzotByte;
+
+    /*
+     *  typedef: IzotWord
+     *  Holds a 16-bit numerical value.
+     *
+     *  The IzotWord structure holds a 16-bit unsigned value in big-endian
+     *  ordering through two seperate high-order and low-order bytes.
+     *  Use the <IZOT_SET_SIGNED_WORD> or <IZOT_SET_UNSIGNED_WORD> macro to
+     *  obtain the signed or unsigned numerical value in the correct byte
+     *  ordering.
+     */
+    typedef IZOT_STRUCT_BEGIN(IzotWord)
+    {
+        IzotByte  msb;    /* High-order byte, the most significant byte, the 0x12 in 0x1234 */
+        IzotByte  lsb;    /* Low-order byte, the least significant byte, the 0x34 in 0x1234 */
+    } IZOT_STRUCT_END(IzotWord);
+
+    /*
+     *  typedef: IzotDoubleWord
+     *  Holds a 32-bit numerical value.
+     *
+     *  The IzotDoubleWord structure holds a 32-bit unsigned value in big-endian
+     *  ordering through two seperate high-order and low-order <IzotWord> members.
+     *  Use the <IZOT_SET_SIGNED_DOUBLEWORD> or <IZOT_SET_UNSIGNED_DOUBLEWORD>
+     *  macro to obtain the signed or unsigned numerical value in the correct
+     *  byte ordering.
+     */
+    typedef IZOT_STRUCT_BEGIN(IzotDoubleWord)
+    {
+        IzotWord  msw;    /* High-order word, the most significant word, the 0x1234 in 0x12345678 */
+        IzotWord  lsw;    /* Low-order word, the least significant word, the 0x5678 in 0x12345678 */
+    } IZOT_STRUCT_END(IzotDoubleWord);
+
+    /*
+     * Basic boolean type that accepts TRUE and FALSE values.
+     */
+    typedef int        IzotBool;
+    typedef uint8_t    IzotBool8;
+    #ifndef TRUE
+        #define TRUE   1
+    #endif
+    #ifndef FALSE
+        #define FALSE  0
+    #endif
+
+#endif // defined(RPI)
+
+
+#if !defined(PLATFORM_ID) && defined(ARM_NONE_EABI_GCC)
+    #define PLATFORM_ID PLATFORM_ID_ARM_EABI_GCC
+#endif
+
+#if PLATFORM_IS(ARM_EABI_GCC)
+    /*
+     * ARM_NONE_EABI_GCC C programs.  Little-endian.
+     */
+
+    #if !defined(_IZOT_PLATFORM_DEFINED)
+        #define _IZOT_PLATFORM_DEFINED
+    #else
+        #error Multiple platform definitions including ARM_EABI_GCC
+    #endif
+
+//  #pragma message("Generic ARM EABI GCC platform (ARM_EABI_GCC) selected")
+    #define ARM_EABI_GCC_HOSTED
+
+    // Specify little-endian byte order.
+    #undef BYTE_ORDER
+    #define BYTE_ORDER LITTLE_ENDIAN
+
+    /*
+     * Indicate that a compiler/platform has been defined in this file.
+     */
+    #if !defined(_IZOT_PLATFORM_DEFINED)
+        #define _IZOT_PLATFORM_DEFINED
+    #else
+        #error Multiple platform definitions
+    #endif
+
+    /*
+     * If stdint.h is supported, simply #include this here,
+     * replacing the following definitions.
+     */
+	 #include "stdint.h"
+    
+    /*
+     * IZOT_(ENUM|STRUCT|UNION)_BEGIN and *_END macros are used to begin and
+     * end type definitions for enumerations, structures and unions. These
+     * must be defined such that the resulting type uses byte-alignment
+     * without padding.
+     *
+     * The *_NESTED_* macros are used to define unions or structures within
+     * surrounding union or structure definitions. These may require different
+     * modifiers to accomplish the same compact, byte-aligned, image.
+     *
+     * IZOT_ENUM is used to implement a variable of an enumeration type. This
+     * can expand to the actual enumeration type, if the compiler supports
+     * a signed 8-bit enumerated type. Most compilers will map this to int8_t.
+     */
+    #define IZOT_ENUM_BEGIN(n)   enum
+    #define IZOT_ENUM_END(n)     n
+    #define IZOT_ENUM(n)         n
+
+    #define IZOT_STRUCT_BEGIN(n) struct __attribute__((__packed__))
+    #define IZOT_STRUCT_END(n)   n
+
+    #define IZOT_STRUCT_NESTED_BEGIN(n)  struct __attribute__((__packed__))
+    #define IZOT_STRUCT_NESTED_END(n)    n
+
+    #define IZOT_UNION_BEGIN(n)  union __attribute__((__packed__))
+    #define IZOT_UNION_END(n)    n
+
+    #define IZOT_UNION_NESTED_BEGIN(n)   union __attribute__((__packed__))
+    #define IZOT_UNION_NESTED_END(n)     n
+
+	/*
+     * Compiler-dependent types for signed and unsigned 8-bit, 16-bit scalars and 32-bit scalars.
+     *
+	 * To enhance portability between different platforms, no aggregate shall contain
+	 * multi-byte scalars, but shall use multiple byte-sized scalars instead. We will define
+	 * only the basic type IzotByte and the rest (IzotWord, IzotDoubleWord) derive from it.
+	 *
+     * Float-type variables are handled through a float_type equivalent structure.
+     */
+
+    typedef unsigned char	IzotUbits8;			/* 8-bits           */
+    typedef signed   char	IzotBits8;			/* 8-bits, signed   */
+	typedef unsigned short  IzotUbits16;		/* 16-bits          */
+    typedef signed   short  IzotBits16;			/* 16-bits, signed  */
+	typedef unsigned long	IzotUbits32;        /* 32-bits          */
+    typedef signed   long	IzotBits32;			/* 32-bits, signed  */
+	
+    typedef uint8_t         IzotByte;
+
+    /*
+     *  typedef: IzotWord
+     *  Holds a 16-bit numerical value.
+     *
+     *  The IzotWord structure holds a 16-bit unsigned value in big-endian
+     *  ordering through two seperate high-order and low-order bytes.
+     *  Use the <IZOT_SET_SIGNED_WORD> or <IZOT_SET_UNSIGNED_WORD> macro to
+     *  obtain the signed or unsigned numerical value in the correct byte
+     *  ordering.
+     */
+    typedef IZOT_STRUCT_BEGIN(IzotWord)
+    {
+        IzotByte  msb;    /* high-order byte, the most significant byte, the 0x12 in 0x1234 */
+        IzotByte  lsb;    /* low-order byte, the least significant byte, the 0x34 in 0x1234 */
+    } IZOT_STRUCT_END(IzotWord);
+
+    /*
+     *  typedef: IzotDoubleWord
+     *  Holds a 32-bit numerical value.
+     *
+     *  The IzotDoubleWord structure holds a 32-bit unsigned value in big-endian
+     *  ordering through two seperate high-order and low-order <IzotWord> members.
+     *  Use the <IZOT_SET_SIGNED_DOUBLEWORD> or <IZOT_SET_UNSIGNED_DOUBLEWORD>
+     *  macro to obtain the signed or unsigned numerical value in the correct
+     *  byte ordering.
+     */
+    typedef IZOT_STRUCT_BEGIN(IzotDoubleWord)
+    {
+        IzotWord  msw;    /* high-order word, the most significant word, the 0x1234 in 0x12345678 */
+        IzotWord  lsw;    /* low-order word, the least significant word, the 0x5678 in 0x12345678 */
+    } IZOT_STRUCT_END(IzotDoubleWord);
+
+    /*
+     * Basic boolean type. You must make sure to have a type
+     * with name 'IzotBool' defined, and that type must accept TRUE and FALSE
+     * (defined below).
+     */
+    typedef int        IzotBool;
+    typedef uint8_t    IzotBool8;
+    #ifndef TRUE
+        #define TRUE   1
+    #endif
+    #ifndef FALSE
+        #define FALSE  0
+    #endif
+
+#endif // defined(ARM_NONE_EABI_GCC)
+
+#if PLATFORM_IS(FRTOS_ARM_EABI)
+    /*
+     * FreeRTOS ARM_NONE_EABI_GCC C programs.  Little-endian.
+     */
+
+    #if !defined(_IZOT_PLATFORM_DEFINED)
+        #define _IZOT_PLATFORM_DEFINED
+    #else
+        #error Multiple platform definitions including FRTOS_ARM_EABI
+    #endif
+
+//  #pragma message("FreeRTOS ARM EABI platform (FRTOS_ARM_EABI) selected")
     #define ARM_EABI_GCC_HOSTED        // used with the CPM 4200 SDK
+
+    // Specify little-endian byte order.
+    #undef BYTE_ORDER
+    #define BYTE_ORDER LITTLE_ENDIAN
 
     /*
      * Indicate that a compiler/platform has been defined in this file.
@@ -171,14 +435,14 @@
      * details about "float" type handling.
      */
 
-    typedef unsigned char	IzotUbits8;			/* 8-bits */
-    typedef signed   char	IzotBits8;			/* 8-bits, signed */
-	typedef unsigned short  IzotUbits16;			/* 16-bits */
-    typedef signed   short  IzotBits16;			/* 16-bits, signed */
-	typedef unsigned long	IzotUbits32;         /* 32-bits */
-    typedef signed   long	IzotBits32;			/* 32-bits, signed */
+    typedef unsigned char	IzotUbits8;			/* 8-bits           */
+    typedef signed   char	IzotBits8;			/* 8-bits, signed   */
+	typedef unsigned short  IzotUbits16;		/* 16-bits          */
+    typedef signed   short  IzotBits16;			/* 16-bits, signed  */
+	typedef unsigned long	IzotUbits32;        /* 32-bits          */
+    typedef signed   long	IzotBits32;			/* 32-bits, signed  */
 	
-    typedef uint8_t        IzotByte;
+    typedef uint8_t         IzotByte;
 
     /*
      *  typedef: IzotWord
@@ -218,6 +482,7 @@
      * (defined below).
      */
     typedef int        IzotBool;
+    typedef uint8_t    IzotBool8;
     #ifndef TRUE
         #define TRUE   1
     #endif
@@ -225,12 +490,429 @@
         #define FALSE  0
     #endif
 
-#elif defined(_COSMIC)
+#endif // PLATFORM_IS(FRTOS_ARM_EABI)
+
+
+#if !defined(PLATFORM_ID) && defined(LINUX32_GCC)
+    #define PLATFORM_ID PLATFORM_ID_LINUX32_ARM_GCC
+#endif
+
+#if PLATFORM_IS(LINUX32_ARM_GCC)
+    /*
+     * This is the correct choice for a 32-bit standard Linux desktop
+     * configuration using the standard GCC tool chain.  Little-endian.
+     */
+
+    #if !defined(_IZOT_PLATFORM_DEFINED)
+        #define _IZOT_PLATFORM_DEFINED
+    #else
+        #error Multiple platform definitions including LINUX32_ARM_GCC
+    #endif
+
+//  #pragma message("Linux 32-bit ARM platform (LINUX32_ARM_GCC) selected")
+    #define LINUX32_HOSTED       /* runs on a Linux32 system */
+
+    // Specify little-endian byte order.
+    #undef BYTE_ORDER
+    #define BYTE_ORDER LITTLE_ENDIAN
 
     /*
-     * Cosmic C programs.
+     * indicate a compiler/platform has been defined
      */
+    #if !defined(_IZOT_PLATFORM_DEFINED)
+        #define _IZOT_PLATFORM_DEFINED
+    #else
+        #error Multiple platform definitions
+    #endif
+
+   #include <stdint.h>
+   typedef uint8_t       IzotByte;
+
+    #define IZOT_ENUM_BEGIN(n)   enum
+    #define IZOT_ENUM_END(n)     n
+    #define IZOT_ENUM(n)         IzotByte
+
+    #define IZOT_STRUCT_BEGIN(n) struct
+    #define IZOT_STRUCT_END(n)   __attribute__((__packed__, aligned(1))) n
+
+    #define IZOT_STRUCT_NESTED_BEGIN(n)  struct
+    #define IZOT_STRUCT_NESTED_END(n)    __attribute__((__packed__, aligned(1))) n
+
+    #define IZOT_UNION_BEGIN(n)  union
+    #define IZOT_UNION_END(n)    __attribute__((__packed__, aligned(1))) n
+
+    #define IZOT_UNION_NESTED_BEGIN(n)   union
+    #define IZOT_UNION_NESTED_END(n)     __attribute__((__packed__, aligned(1))) n
+
+    typedef IZOT_STRUCT_BEGIN(IzotWord)
+    {
+        IzotByte  msb;    /* high-order byte, the most significant byte, the 0x12 in 0x1234 */
+        IzotByte  lsb;    /* low-order byte, the least significant byte, the 0x34 in 0x1234 */
+    } IZOT_STRUCT_END(IzotWord);
+
+    typedef IZOT_STRUCT_BEGIN(IzotDoubleWord)
+    {
+        IzotWord  msw;    /* high-order word, the most significant word, the 0x1234 in 0x12345678 */
+        IzotWord  lsw;    /* low-order word, the least significant word, the 0x5678 in 0x12345678 */
+    } IZOT_STRUCT_END(IzotDoubleWord);
+
+    typedef int32_t    IzotBool;
+    typedef uint8_t    IzotBool8;
+    #ifndef TRUE
+        #define TRUE   1
+    #endif
+    #ifndef FALSE
+        #define FALSE  0
+    #endif
+
+#endif // defined(LINUX32_ARM_GCC)
+
+
+#if !defined(PLATFORM_ID) && defined(WIN32)
+    #define PLATFORM_ID PLATFORM_ID_WIN32_X86
+#endif
+
+#if PLATFORM_IS(WIN32_X86)
+    /*
+     * WIN32 C programs.  Little-endian.
+     */
+
+    #if !defined(_IZOT_PLATFORM_DEFINED)
+        #define _IZOT_PLATFORM_DEFINED
+    #else
+        #error Multiple platform definitions including WIN32_X86
+    #endif
+
+//  #pragma message("Win32 x86 platform (WIN32_X86) selected")
+    #define WIN32_HOSTED       /* runs in the WIN32 environment */
+
+    // Specify little-endian byte order.
+    #undef BYTE_ORDER
+    #define BYTE_ORDER LITTLE_ENDIAN
+
+    /*
+     * indicate a compiler/platform has been defined
+     */
+    #if !defined(_IZOT_PLATFORM_DEFINED)
+        #define _IZOT_PLATFORM_DEFINED
+    #else
+        #error Multiple platform definitions
+    #endif
+
+    #include <stdint.h>
+    typedef uint8_t             IzotByte;
+
+    #define IZOT_ENUM_BEGIN(n)   enum
+    #define IZOT_ENUM_END(n)     n
+    #define IZOT_ENUM(n)         IzotByte
+
+    #define IZOT_STRUCT_BEGIN(n) struct __declspec(align(1))
+    #define IZOT_STRUCT_END(n)   n
+
+    #define IZOT_STRUCT_NESTED_BEGIN(n)  struct
+    #define IZOT_STRUCT_NESTED_END(n)    n
+
+    #define IZOT_UNION_BEGIN(n)  union __declspec(align(1))
+    #define IZOT_UNION_END(n)    n
+
+    #define IZOT_UNION_NESTED_BEGIN(n)   union
+    #define IZOT_UNION_NESTED_END(n)     n
+
+    typedef IZOT_STRUCT_BEGIN(IzotWord)
+    {
+        IzotByte  msb;    /* high-order byte, the most significant byte, the 0x12 in 0x1234 */
+        IzotByte  lsb;    /* low-order byte, the least significant byte, the 0x34 in 0x1234 */
+    } IZOT_STRUCT_END(IzotWord);
+
+    typedef IZOT_STRUCT_BEGIN(IzotDoubleWord)
+    {
+        IzotWord  msw;    /* high-order word, the most significant word, the 0x1234 in 0x12345678 */
+        IzotWord  lsw;    /* low-order word, the least significant word, the 0x5678 in 0x12345678 */
+    } IZOT_STRUCT_END(IzotDoubleWord);
+
+    typedef int        IzotBool;
+    typedef uint8_t    IzotBool8;
+    #ifndef TRUE
+        #define TRUE   1
+    #endif
+    #ifndef FALSE
+        #define FALSE  0
+    #endif
+
+#endif // defined(WIN32_X86)
+
+
+#if !defined(PLATFORM_ID) && defined(ARM7_IAR)
+    #define PLATFORM_ID PLATFORM_ID_IAR_ARM7
+#endif
+
+#if PLATFORM_IS(IAR_ARM7)
+    /*
+     * ARM7 C programs using the IAR toolchain.  Little-endian.
+     *
+     */
+
+    #if !defined(_IZOT_PLATFORM_DEFINED)
+        #define _IZOT_PLATFORM_DEFINED
+    #else
+        #error Multiple platform definitions including ARM7-IAR
+    #endif
+
+//  #pragma message("IAR ARM7 platform (IAR_ARM7) selected")
+    #define ARM7_HOSTED       /* runs in the ARM7 environment */
+
+    // Specify little-endian byte order.
+    #undef BYTE_ORDER
+    #define BYTE_ORDER LITTLE_ENDIAN
+
+    /*
+     * indicate a compiler/platform has been defined
+     */
+    #if !defined(_IZOT_PLATFORM_DEFINED)
+        #define _IZOT_PLATFORM_DEFINED
+    #else
+        #error Multiple platform definitions
+    #endif
+
+    /*
+     * Definition for ARM7 specific pragmas, definitions, and so on.
+     * For example, packing directives to align objects on byte boundary.
+     */
+    #define INCLUDE_IZOT_BEGIN_END
+
+    #include <stdint.h>
+
+    typedef uint8_t             IzotByte;
+
+    #define IZOT_ENUM_BEGIN(n)   enum
+    #define IZOT_ENUM_END(n)     n
+    #define IZOT_ENUM(n)         n
+
+    #define IZOT_STRUCT_BEGIN(n) struct
+    #define IZOT_STRUCT_END(n)   n
+
+    #define IZOT_STRUCT_NESTED_BEGIN(n)  struct
+    #define IZOT_STRUCT_NESTED_END(n)    n
+
+    #define IZOT_UNION_BEGIN(n)  union
+    #define IZOT_UNION_END(n)    n
+
+    #define IZOT_UNION_NESTED_BEGIN(n)   union
+    #define IZOT_UNION_NESTED_END(n)     n
+
+    typedef IZOT_STRUCT_BEGIN(IzotWord)
+    {
+        IzotByte  msb;    /* high-order byte, the most significant byte, the 0x12 in 0x1234 */
+        IzotByte  lsb;    /* low-order byte, the least significant byte, the 0x34 in 0x1234 */
+    } IZOT_STRUCT_END(IzotWord);
+
+    typedef IZOT_STRUCT_BEGIN(IzotDoubleWord)
+    {
+        IzotWord  msw;    /* high-order word, the most significant word, the 0x1234 in 0x12345678 */
+        IzotWord  lsw;    /* low-order word, the least significant word, the 0x5678 in 0x12345678 */
+    } IZOT_STRUCT_END(IzotDoubleWord);
+
+    typedef int        IzotBool;
+    typedef uint8_t    IzotBool8;
+    #ifndef TRUE
+        #define TRUE   1
+    #endif
+    #ifndef FALSE
+        #define FALSE  0
+    #endif
+
+#endif // defined(IAR_ARM7)
+
+
+#if !defined(PLATFORM_ID) && defined(AVR_TINY13)
+    #define PLATFORM_ID PLATFORM_ID_AVR_TINY13
+#endif
+
+#if PLATFORM_IS(AVR_TINY13)
+    /*
+     * AVR Tiny-13 & C programs.  Little-endian.
+     */
+
+    #if !defined(_IZOT_PLATFORM_DEFINED)
+        #define _IZOT_PLATFORM_DEFINED
+    #else
+        #error Multiple platform definitions including AVR_TINY13
+    #endif
+
+//  #pragma message("AVR Tiny13 platform (AVR_TINY13) selected")
+    #define AVR_TINY13_HOSTED       /* runs in the AVR_TINY13 environment */
+
+    // Specify little-endian byte order.
+    #undef BYTE_ORDER
+    #define BYTE_ORDER LITTLE_ENDIAN
+
+    /*
+     * indicate a compiler/platform has been defined
+     */
+    #if !defined(_IZOT_PLATFORM_DEFINED)
+        #define _IZOT_PLATFORM_DEFINED
+    #else
+        #error Multiple platform definitions
+    #endif
+
+   /*
+     * If stdint.h is supported, simply #include this here,
+     * replacing the following definitions.
+     */
+    typedef unsigned char  uint8_t;
+    typedef signed char    int8_t;
+    typedef unsigned short uint16_t;
+    typedef signed short   int16_t;
+    typedef unsigned long  uint32_t;
+    typedef signed long    int32_t;
+
+    typedef uint8_t        IzotByte;
+
+    #define IZOT_ENUM_BEGIN(n)   enum
+    #define IZOT_ENUM_END(n)     n
+    #define IZOT_ENUM(n)         n
+
+    #define IZOT_STRUCT_BEGIN(n) struct
+    #define IZOT_STRUCT_END(n)   n
+
+    #define IZOT_STRUCT_NESTED_BEGIN(n)  struct
+    #define IZOT_STRUCT_NESTED_END(n)    n
+
+    #define IZOT_UNION_BEGIN(n)  union
+    #define IZOT_UNION_END(n)    n
+
+    #define IZOT_UNION_NESTED_BEGIN(n)   union
+    #define IZOT_UNION_NESTED_END(n)     n
+
+    typedef IZOT_STRUCT_BEGIN(IzotWord)
+    {
+        IzotByte  msb;    /* high-order byte, the most significant byte, the 0x12 in 0x1234 */
+        IzotByte  lsb;    /* low-order byte, the least significant byte, the 0x34 in 0x1234 */
+    } IZOT_STRUCT_END(IzotWord);
+
+    typedef IZOT_STRUCT_BEGIN(IzotDoubleWord)
+    {
+        IzotWord  msw;    /* high-order word, the most significant word, the 0x1234 in 0x12345678 */
+        IzotWord  lsw;    /* low-order word, the least significant word, the 0x5678 in 0x12345678 */
+    } IZOT_STRUCT_END(IzotDoubleWord);
+
+    typedef int        IzotBool;
+    typedef uint8_t    IzotBool8;
+    #ifndef TRUE
+        #define TRUE   1
+    #endif
+    #ifndef FALSE
+        #define FALSE  0
+    #endif
+
+#endif // defined(AVR_TINY13)
+
+
+#if !defined(PLATFORM_ID) && defined(_HITECH)
+    #define PLATFORM_ID PLATFORM_ID_HITECH
+#endif
+
+#if PLATFORM_IS(HITECH)
+    /*
+     * Hi-Tech C programs.  Little-endian.
+     */
+
+    #if !defined(_IZOT_PLATFORM_DEFINED)
+        #define _IZOT_PLATFORM_DEFINED
+    #else
+        #error Multiple platform definitions including HITECH
+    #endif
+
+//  #pragma message("Hi-Tech C platform (HITECH) selected")
+    #define HITECH_HOSTED       /* runs in the Hi-Tech C environment */
+
+    // Specify little-endian byte order.
+    #undef BYTE_ORDER
+    #define BYTE_ORDER LITTLE_ENDIAN
+
+    /*
+     * Indicate that a compiler/platform has been defined
+     */
+    #if !defined(_IZOT_PLATFORM_DEFINED)
+        #define _IZOT_PLATFORM_DEFINED
+    #else
+        #error Multiple platform definitions
+    #endif
+
+    #define IZOT_ENUM_BEGIN(n)   enum
+    #define IZOT_ENUM_END(n)     n
+    #define IZOT_ENUM(n)         n
+
+    #define IZOT_STRUCT_BEGIN(n) struct
+    #define IZOT_STRUCT_END(n)   n
+
+    #define IZOT_STRUCT_NESTED_BEGIN(n)  struct
+    #define IZOT_STRUCT_NESTED_END(n)    n
+
+    #define IZOT_UNION_BEGIN(n)  union
+    #define IZOT_UNION_END(n)    n
+
+    #define IZOT_UNION_NESTED_BEGIN(n)   union
+    #define IZOT_UNION_NESTED_END(n)     n
+
+    /*
+     * If stdint.h is supported, simply #include this here,
+     * replacing the following definitions.
+     */
+    typedef unsigned char  uint8_t;
+    typedef signed char    int8_t;
+    typedef unsigned short uint16_t;
+    typedef signed short   int16_t;
+    typedef unsigned long  uint32_t;
+    typedef signed long    int32_t;
+
+    typedef uint8_t        IzotByte;
+
+    typedef IZOT_STRUCT_BEGIN(IzotWord)
+    {
+        IzotByte  msb;    /* high-order byte, the most significant byte, the 0x12 in 0x1234 */
+        IzotByte  lsb;    /* low-order byte, the least significant byte, the 0x34 in 0x1234 */
+    } IZOT_STRUCT_END(IzotWord);
+
+    typedef IZOT_STRUCT_BEGIN(IzotDoubleWord)
+    {
+        IzotWord  msw;    /* high-order word, the most significant word, the 0x1234 in 0x12345678 */
+        IzotWord  lsw;    /* low-order word, the least significant word, the 0x5678 in 0x12345678 */
+    } IZOT_STRUCT_END(IzotDoubleWord);
+
+    typedef int        IzotBool;
+    typedef uint8_t    IzotBool8;
+    #ifndef TRUE
+        #define TRUE   1
+    #endif
+    #ifndef FALSE
+        #define FALSE  0
+    #endif
+
+#endif // defined(HITECH)
+
+
+#if !defined(PLATFORM_ID) && defined(_COSMIC)
+    #define PLATFORM_ID PLATFORM_ID_COSMIC
+#endif
+
+#if PLATFORM_IS(COSMIC)
+    /*
+     * Cosmic C programs.  Little-endian.
+     */
+
+    #if !defined(_IZOT_PLATFORM_DEFINED)
+        #define _IZOT_PLATFORM_DEFINED
+    #else
+        #error Multiple platform definitions including COSMIC
+    #endif
+
+//  #pragma message("Cosmic C platform (COSMIC) selected")
     #define COSMIC_HOSTED        /* runs in the COSMIC C environment */
+
+    // Specify little-endian byte order.
+    #undef BYTE_ORDER
+    #define BYTE_ORDER LITTLE_ENDIAN
 
     /*
      * Indicate that a compiler/platform has been defined in this file.
@@ -322,6 +1004,7 @@
      * (defined below).
      */
     typedef int        IzotBool;
+    typedef uint8_t    IzotBool8;
     #ifndef TRUE
         #define TRUE   1
     #endif
@@ -329,273 +1012,37 @@
         #define FALSE  0
     #endif
 
-#elif defined(_HITECH)
+#endif // defined(COSMIC)
+
+
+#if !defined(PLATFORM_ID) && defined(GCC_NIOS)
+    #define PLATFORM_ID PLATFORM_ID_NIOS2_LE
+#endif
+
+#if PLATFORM_IS(NIOS2_LE)
     /*
-     * Hi-Tech C programs.
-     */
-    #define HITECH_HOSTED       /* runs in the HITECH C environment */
-
-    /*
-     * Indicate that a compiler/platform has been defined
-     */
-    #if !defined(_IZOT_PLATFORM_DEFINED)
-        #define _IZOT_PLATFORM_DEFINED
-    #else
-        #error Multiple platform definitions
-    #endif
-
-    #define IZOT_ENUM_BEGIN(n)   enum
-    #define IZOT_ENUM_END(n)     n
-    #define IZOT_ENUM(n)         n
-
-    #define IZOT_STRUCT_BEGIN(n) struct
-    #define IZOT_STRUCT_END(n)   n
-
-    #define IZOT_STRUCT_NESTED_BEGIN(n)  struct
-    #define IZOT_STRUCT_NESTED_END(n)    n
-
-    #define IZOT_UNION_BEGIN(n)  union
-    #define IZOT_UNION_END(n)    n
-
-    #define IZOT_UNION_NESTED_BEGIN(n)   union
-    #define IZOT_UNION_NESTED_END(n)     n
-
-    /*
-     * If stdint.h is supported, simply #include this here,
-     * replacing the following definitions.
-     */
-    typedef unsigned char  uint8_t;
-    typedef signed char    int8_t;
-    typedef unsigned short uint16_t;
-    typedef signed short   int16_t;
-    typedef unsigned long  uint32_t;
-    typedef signed long    int32_t;
-
-    typedef uint8_t        IzotByte;
-
-    typedef IZOT_STRUCT_BEGIN(IzotWord)
-    {
-        IzotByte  msb;    /* high-order byte, the most significant byte, the 0x12 in 0x1234 */
-        IzotByte  lsb;    /* low-order byte, the least significant byte, the 0x34 in 0x1234 */
-    } IZOT_STRUCT_END(IzotWord);
-
-    typedef IZOT_STRUCT_BEGIN(IzotDoubleWord)
-    {
-        IzotWord  msw;    /* high-order word, the most significant word, the 0x1234 in 0x12345678 */
-        IzotWord  lsw;    /* low-order word, the least significant word, the 0x5678 in 0x12345678 */
-    } IZOT_STRUCT_END(IzotDoubleWord);
-
-    typedef int     IzotBool;
-    #ifndef TRUE
-        #define TRUE   1
-    #endif
-    #ifndef FALSE
-        #define FALSE  0
-    #endif
-
-#elif defined(WIN32)
-    /*
-     * WIN32 C programs.
-     */
-    #define WIN32_HOSTED       /* runs in the WIN32 environment */
-
-    /*
-     * indicate a compiler/platform has been defined
-     */
-    #if !defined(_IZOT_PLATFORM_DEFINED)
-        #define _IZOT_PLATFORM_DEFINED
-    #else
-        #error Multiple platform definitions
-    #endif
-
-    #include <stdint.h>
-
-    typedef uint8_t             IzotByte;
-
-    #define IZOT_ENUM_BEGIN(n)   enum
-    #define IZOT_ENUM_END(n)     n
-    #define IZOT_ENUM(n)         IzotByte
-
-    #define IZOT_STRUCT_BEGIN(n) struct __declspec(align(1))
-    #define IZOT_STRUCT_END(n)   n
-
-    #define IZOT_STRUCT_NESTED_BEGIN(n)  struct
-    #define IZOT_STRUCT_NESTED_END(n)    n
-
-    #define IZOT_UNION_BEGIN(n)  union __declspec(align(1))
-    #define IZOT_UNION_END(n)    n
-
-    #define IZOT_UNION_NESTED_BEGIN(n)   union
-    #define IZOT_UNION_NESTED_END(n)     n
-
-    typedef IZOT_STRUCT_BEGIN(IzotWord)
-    {
-        IzotByte  msb;    /* high-order byte, the most significant byte, the 0x12 in 0x1234 */
-        IzotByte  lsb;    /* low-order byte, the least significant byte, the 0x34 in 0x1234 */
-    } IZOT_STRUCT_END(IzotWord);
-
-    typedef IZOT_STRUCT_BEGIN(IzotDoubleWord)
-    {
-        IzotWord  msw;    /* high-order word, the most significant word, the 0x1234 in 0x12345678 */
-        IzotWord  lsw;    /* low-order word, the least significant word, the 0x5678 in 0x12345678 */
-    } IZOT_STRUCT_END(IzotDoubleWord);
-
-   typedef int     IzotBool;
-    #ifndef TRUE
-        #define TRUE   1
-    #endif
-    #ifndef FALSE
-        #define FALSE  0
-    #endif
-
-#elif defined(ARM7_IAR)
-    /*
-     * ARM7 C programs using the IAR toolchain.
-     *
-     */
-    #define ARM7_HOSTED       /* runs in the ARM7 environment */
-
-    /*
-     * indicate a compiler/platform has been defined
-     */
-    #if !defined(_IZOT_PLATFORM_DEFINED)
-        #define _IZOT_PLATFORM_DEFINED
-    #else
-        #error Multiple platform definitions
-    #endif
-
-    /*
-     * Definition for ARM7 specific pragmas, definitions, and so on.
-     * For example, packing directives to align objects on byte boundary.
-     */
-    #define INCLUDE_IZOT_BEGIN_END
-
-    #include <stdint.h>
-
-    typedef uint8_t             IzotByte;
-
-    #define IZOT_ENUM_BEGIN(n)   enum
-    #define IZOT_ENUM_END(n)     n
-    #define IZOT_ENUM(n)         n
-
-    #define IZOT_STRUCT_BEGIN(n) struct
-    #define IZOT_STRUCT_END(n)   n
-
-    #define IZOT_STRUCT_NESTED_BEGIN(n)  struct
-    #define IZOT_STRUCT_NESTED_END(n)    n
-
-    #define IZOT_UNION_BEGIN(n)  union
-    #define IZOT_UNION_END(n)    n
-
-    #define IZOT_UNION_NESTED_BEGIN(n)   union
-    #define IZOT_UNION_NESTED_END(n)     n
-
-    typedef IZOT_STRUCT_BEGIN(IzotWord)
-    {
-        IzotByte  msb;    /* high-order byte, the most significant byte, the 0x12 in 0x1234 */
-        IzotByte  lsb;    /* low-order byte, the least significant byte, the 0x34 in 0x1234 */
-    } IZOT_STRUCT_END(IzotWord);
-
-    typedef IZOT_STRUCT_BEGIN(IzotDoubleWord)
-    {
-        IzotWord  msw;    /* high-order word, the most significant word, the 0x1234 in 0x12345678 */
-        IzotWord  lsw;    /* low-order word, the least significant word, the 0x5678 in 0x12345678 */
-    } IZOT_STRUCT_END(IzotDoubleWord);
-
-   typedef int     IzotBool;
-    #ifndef TRUE
-        #define TRUE   1
-    #endif
-    #ifndef FALSE
-        #define FALSE  0
-    #endif
-
-#elif defined(AVR_TINY13)
-    /*
-     * AVR Tiny-13 & C programs.
-     */
-    #define AVR_TINY13_HOSTED       /* runs in the AVR_TINY13 environment */
-
-    /*
-     * indicate a compiler/platform has been defined
-     */
-    #if !defined(_IZOT_PLATFORM_DEFINED)
-        #define _IZOT_PLATFORM_DEFINED
-    #else
-        #error Multiple platform definitions
-    #endif
-
-   /*
-     * If stdint.h is supported, simply #include this here,
-     * replacing the following definitions.
-     */
-    typedef unsigned char  uint8_t;
-    typedef signed char    int8_t;
-    typedef unsigned short uint16_t;
-    typedef signed short   int16_t;
-    typedef unsigned long  uint32_t;
-    typedef signed long    int32_t;
-
-    typedef uint8_t        IzotByte;
-
-    #define IZOT_ENUM_BEGIN(n)   enum
-    #define IZOT_ENUM_END(n)     n
-    #define IZOT_ENUM(n)         n
-
-    #define IZOT_STRUCT_BEGIN(n) struct
-    #define IZOT_STRUCT_END(n)   n
-
-    #define IZOT_STRUCT_NESTED_BEGIN(n)  struct
-    #define IZOT_STRUCT_NESTED_END(n)    n
-
-    #define IZOT_UNION_BEGIN(n)  union
-    #define IZOT_UNION_END(n)    n
-
-    #define IZOT_UNION_NESTED_BEGIN(n)   union
-    #define IZOT_UNION_NESTED_END(n)     n
-
-    typedef IZOT_STRUCT_BEGIN(IzotWord)
-    {
-        IzotByte  msb;    /* high-order byte, the most significant byte, the 0x12 in 0x1234 */
-        IzotByte  lsb;    /* low-order byte, the least significant byte, the 0x34 in 0x1234 */
-    } IZOT_STRUCT_END(IzotWord);
-
-    typedef IZOT_STRUCT_BEGIN(IzotDoubleWord)
-    {
-        IzotWord  msw;    /* high-order word, the most significant word, the 0x1234 in 0x12345678 */
-        IzotWord  lsw;    /* low-order word, the least significant word, the 0x5678 in 0x12345678 */
-    } IZOT_STRUCT_END(IzotDoubleWord);
-
-    typedef int     IzotBool;
-    #ifndef TRUE
-        #define TRUE   1
-    #endif
-    #ifndef FALSE
-        #define FALSE  0
-    #endif
-
-#elif defined(GCC_NIOS)
-    /*
-     * GCC_NIOS C programs.  Assume GCC_NIOS is defined.
+     * GCC_NIOS C programs.  Assume GCC_NIOS is defined.  Little-endian.
      *
      * This is the correct choice for the Nios II platform.
      * This section also assumes that C programs run on a LITTLE_ENDIAN machine,
      * which is the typical case.  If you are running a C program on a BIG_ENDIAN
      * processor, be sure to adjust the definitions within this section.
      */
-    #define GCC_NIOS_HOSTED       /* runs in the GCC_NIOS C environment */
 
-    /*
-     * indicate a compiler/platform has been defined
-     */
     #if !defined(_IZOT_PLATFORM_DEFINED)
         #define _IZOT_PLATFORM_DEFINED
     #else
-        #error Multiple platform definitions
+        #error Multiple platform definitions including NIOS2_LE
     #endif
 
-    #include <stdint.h>
+//  #pragma message("Altera NIOS II Little-Endian platform (NIOS2_LE) selected")
+    #define GCC_NIOS_HOSTED       /* runs in the GCC_NIOS C environment */
 
+    // Specify little-endian byte order.
+    #undef BYTE_ORDER
+    #define BYTE_ORDER LITTLE_ENDIAN
+
+    #include <stdint.h>
     typedef uint8_t     IzotByte;
 
     #define IZOT_ENUM_BEGIN(n)   enum
@@ -626,78 +1073,8 @@
         IzotWord  lsw;    /* low-order word, the least significant word, the 0x5678 in 0x12345678 */
     } IZOT_STRUCT_END(IzotDoubleWord);
 
-    typedef int     IzotBool;
-    #ifndef TRUE
-        #define TRUE   1
-    #endif
-    #ifndef FALSE
-        #define FALSE  0
-    #endif
-#elif defined(__ARMEL__)
-    /*
-     * This is the correct choice for the Raspberry Pi platform using the
-     * arm-linux-gnueabihf toolchain.
-     */
-    #define RASPBERRY_PI_HOSTED       /* runs on the Raspberry Pi */
-
-    /*
-     * indicate a compiler/platform has been defined
-     */
-    #if !defined(_IZOT_PLATFORM_DEFINED)
-        #define _IZOT_PLATFORM_DEFINED
-    #else
-        #error Multiple platform definitions
-    #endif
-
-    /*
-     * Compiler-dependent types for signed and unsigned 8-bit, 16-bit scalars,
-     * and 32-bit scalars. All Izot Interface Developer-Builder generated
-     * types use NEURON C equivalent types which are based on the following
-     * type definitions.
-     *
-     * To enhance portability between different platforms, no aggregate shall
-     * contain multi-byte scalars, but shall use multiple byte-sized scalars
-     * instead. We will define only the basic type IzotByte and the rest
-     * (IzotWord, IzotDoubleWord) derive from it.
-     *
-     * Note that "float" type variables are handled through a "float_type"
-     * equivalent structure. See the ShortStack or IZOT documentation
-     * for more details about Builder-generated type definitions including
-     * details about "float" type handling.
-     */
-
-    #include <stdint.h>
-    typedef uint8_t       IzotByte;
-
-    #define IZOT_ENUM_BEGIN(n)   enum
-    #define IZOT_ENUM_END(n)     n
-    #define IZOT_ENUM(n)         IzotByte
-
-    #define IZOT_STRUCT_BEGIN(n) struct
-    #define IZOT_STRUCT_END(n)   __attribute__((__packed__, aligned(1))) n
-
-    #define IZOT_STRUCT_NESTED_BEGIN(n)  struct
-    #define IZOT_STRUCT_NESTED_END(n)    __attribute__((__packed__, aligned(1))) n
-
-    #define IZOT_UNION_BEGIN(n)  union
-    #define IZOT_UNION_END(n)    __attribute__((__packed__, aligned(1))) n
-
-    #define IZOT_UNION_NESTED_BEGIN(n)   union
-    #define IZOT_UNION_NESTED_END(n)     __attribute__((__packed__, aligned(1))) n
-
-    typedef IZOT_STRUCT_BEGIN(IzotWord)
-    {
-        IzotByte  msb;    /* high-order byte, the most significant byte, the 0x12 in 0x1234 */
-        IzotByte  lsb;    /* low-order byte, the least significant byte, the 0x34 in 0x1234 */
-    } IZOT_STRUCT_END(IzotWord);
-
-    typedef IZOT_STRUCT_BEGIN(IzotDoubleWord)
-    {
-        IzotWord  msw;    /* high-order word, the most significant word, the 0x1234 in 0x12345678 */
-        IzotWord  lsw;    /* low-order word, the least significant word, the 0x5678 in 0x12345678 */
-    } IZOT_STRUCT_END(IzotDoubleWord);
-
-    typedef int     IzotBool;
+    typedef int        IzotBool;
+    typedef uint8_t    IzotBool8;
     #ifndef TRUE
         #define TRUE   1
     #endif
@@ -705,80 +1082,16 @@
         #define FALSE  0
     #endif
 
-#elif defined(LINUX32_GCC)
-    /*
-     * This is the correct choice for a 32-bit standard Linux desktop
-     * configuration using the standard GCC tool chain.
-     */
-    #define LINUX32_HOSTED       /* runs on a Linux32 system */
+#endif // defined(NIOS2_LE)
 
-    /*
-     * indicate a compiler/platform has been defined
-     */
-    #if !defined(_IZOT_PLATFORM_DEFINED)
-        #define _IZOT_PLATFORM_DEFINED
-    #else
-        #error Multiple platform definitions
-    #endif
 
-   #include <stdint.h>
-
-   typedef uint8_t       IzotByte;
-
-    #define IZOT_ENUM_BEGIN(n)   enum
-    #define IZOT_ENUM_END(n)     n
-    #define IZOT_ENUM(n)         IzotByte
-
-    #define IZOT_STRUCT_BEGIN(n) struct
-    #define IZOT_STRUCT_END(n)   __attribute__((__packed__, aligned(1))) n
-
-    #define IZOT_STRUCT_NESTED_BEGIN(n)  struct
-    #define IZOT_STRUCT_NESTED_END(n)    __attribute__((__packed__, aligned(1))) n
-
-    #define IZOT_UNION_BEGIN(n)  union
-    #define IZOT_UNION_END(n)    __attribute__((__packed__, aligned(1))) n
-
-    #define IZOT_UNION_NESTED_BEGIN(n)   union
-    #define IZOT_UNION_NESTED_END(n)     __attribute__((__packed__, aligned(1))) n
-
-    typedef IZOT_STRUCT_BEGIN(IzotWord)
-    {
-        IzotByte  msb;    /* high-order byte, the most significant byte, the 0x12 in 0x1234 */
-        IzotByte  lsb;    /* low-order byte, the least significant byte, the 0x34 in 0x1234 */
-    } IZOT_STRUCT_END(IzotWord);
-
-    typedef IZOT_STRUCT_BEGIN(IzotDoubleWord)
-    {
-        IzotWord  msw;    /* high-order word, the most significant word, the 0x1234 in 0x12345678 */
-        IzotWord  lsw;    /* low-order word, the least significant word, the 0x5678 in 0x12345678 */
-    } IZOT_STRUCT_END(IzotDoubleWord);
-
-    typedef int32_t     IzotBool;
-    #ifndef TRUE
-        #define TRUE   1
-    #endif
-    #ifndef FALSE
-        #define FALSE  0
-    #endif
-
-#else
-    /*
-     * Add compiler and platform-specifics here.
-     */
-    #error No compiler and platform-specifics defined in IzotPlatform.h
+#if !defined(PLATFORM_ID) 
+    #error Missing platform specification in IzotConfig.h and IzotPlatform.h
 #endif
 
-/*
- *  +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- *  No change should be required to the following section, because it
- *  does not contain compiler or target platform dependencies.
- *  +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- */
 
-/* some error checking first: */
-#if !defined(_IZOT_PLATFORM_DEFINED)
-    #error  Platform definition is missing
-#endif
+// Number of stacks on this platform
+#define NUM_STACKS 1
 
 
 /*
@@ -804,6 +1117,18 @@ typedef IzotBits8    ncsShort;   /* equivalent of NEURON C "signed short"    */
 typedef IzotBits8    ncsInt;     /* equivalent of NEURON C "signed int"      */
 typedef IzotWord     ncsLong;    /* equivalent of NEURON C "signed long"     */
 
+typedef IzotBits8    nshort;
+typedef IzotBits8    nint;
+typedef IzotByte     nuint;
+typedef IzotByte     nushort;
+typedef IzotBits16   nlong;
+typedef IzotUbits16  nulong;
+
+typedef IzotByte     BitField;
+
+#include "bitfield.h"
+#include "lcs_timer.h"
+#include "lcs_node.h"
 
 #endif  /* _IZOT_PLATFORM_H */
 
