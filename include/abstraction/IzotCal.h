@@ -30,9 +30,6 @@
 
 #include "IzotConfig.h"
 #include "IzotPlatform.h"
-#include "IzotTypes.h"
-#include "IzotHal.h"
-#include "IzotOsal.h"
 
 #if !defined(DEFINED_IZOTCAL_H)
 #define DEFINED_IZOTCAL_H
