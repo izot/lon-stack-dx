@@ -24,11 +24,7 @@
 /*******************************************************************************
        Purpose:  Implement timer APIs.
 *******************************************************************************/
-#include <stddef.h>
-#include "IzotTypes.h"
-#include "lcs_eia709_1.h"
 #include "lcs_timer.h"
-#include "lcs_node.h"
 
 /*****************************************************************
 Function:  SetLonTimer
@@ -85,7 +81,7 @@ Comments:  V1 used TMR_Expired().
 ******************************************************************/
 IzotByte LonTimerExpired(LonTimer *timerInOut)
 {
-    IzotBits32 delta = (IIzotBits32nt32) (timerInOut->expiration - IzotGetTickCount());
+    IzotBits32 delta = (IzotBits32) (timerInOut->expiration - IzotGetTickCount());
     IzotByte isExpired = timerInOut->expiration && delta <= 0;
     if (isExpired) {
         timerInOut->expiration = 0;
