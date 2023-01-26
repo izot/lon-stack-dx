@@ -63,36 +63,6 @@ typedef enum __attribute__ ((packed))
 #define INCR_STATS(x) IncrementStat(x)
 void IncrementStat(LcsStatistic x);
 
-/*------------------------------------------------------------------------------
-  Section: Constant Definitions
-  ------------------------------------------------------------------------------*/
-
-#define UNIQUE_NODE_ID_LEN 6   /* Length of the Unique Node Id.         */
-#define ID_STR_LEN         8   /* Length of the program id string.      */
-#define AUTH_KEY_LEN       6   /* Length of the authentication key.     */
-#define OMA_KEY_LEN       12   /* Length of the OMA authentication key. */
-#define DOMAIN_ID_LEN      6   /* Maximum length for a domain id.       */
-#define LOCATION_LEN       6   /* Maximum length for location string.   */
-#define NUM_COMM_PARAMS    7   /* Max # of parameters for a tranceiver. */
-#define PROTOCOL_VERSION   0   /* 0 for reference implementaion.        */
-#define MAX_DOMAINS        2   /* Maximum # of domains allowed.         */
-
-/* Set the size of the array to log error messages from the protocol stack.
-   The error messages wrap around, if there are too many errors.
-   Errors seldom happen. So, there is no need for this to be too large. */
-#define ERROR_MSG_SIZE  1000  /* 20 messages each with 50 chars */
-
-/* Flex domain indicates that the message was received in flex domain when
-   domain index is 2 */
-#define FLEX_DOMAIN          2   
-      
-/* When the application layer communicates with the transport or session layer,
-   the domainIndex for the outgoing message can be either set by the application 
-   layer or computed by the transport or session layer based on the destination 
-   address.  This value is used only in the TSASenParam structure. */
-#define COMPUTE_DOMAIN_INDEX 3 
-
-#define MAX_GROUP_NUMBER 63    /* Maximum number of a node in a group */
 
 /*------------------------------------------------------------------------------
   Section: Type Definitions
