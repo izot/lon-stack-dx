@@ -1,7 +1,7 @@
 //
 // iup.h
 //
-// Copyright (C) 2022 EnOcean
+// Copyright (C) 2023 EnOcean
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in 
@@ -30,6 +30,25 @@
  */
 #ifndef _IUP_H
 #define _IUP_H
+
+#include <stdio.h>
+#include <string.h>
+#include "IzotConfig.h"
+#include "IzotApi.h"
+#include "IzotHal.h"
+#include "endian.h"
+#include "iup.h"
+#include "lcs_api.h"
+#include "lcs_netmgmt.h"
+#include "lcs_timer.h"
+#include "lcs_node.h"
+
+#if PROCESSOR_IS(MC200)
+    #include <wmstdio.h>
+    #include <rfget.h>
+    #include <flash.h>
+    #include <partition.h>
+#endif
 
 /*------------------------------------------------------------------------------
 Section: Constant Definitions
