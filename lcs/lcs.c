@@ -30,11 +30,7 @@
 // 1. Call LCS_Init() during initialization
 // 2. Call LCS_Service() as often as practical (e.g., once per millisecond)
 //
-#include <stddef.h>
-#include "IzotTypes.h"
-#include "lcs_eia709_1.h"
-#include "lcs_custom.h"
-#include "lcs_node.h"
+
 #include "lcs.h"
 
 
