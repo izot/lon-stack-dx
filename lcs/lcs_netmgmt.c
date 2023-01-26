@@ -78,26 +78,7 @@
 /*------------------------------------------------------------------------------
  Section: Includes
  ------------------------------------------------------------------------------*/
-#if PROCESSOR_IS(MC200)
-#include <wmstdio.h>
-#endif
-
-#include <stdio.h>
-#include <string.h>
-#include "IzotApi.h"
-#include "lcs_eia709_1.h"
-#include "lcs_node.h"
-#include "lcs_app.h"
-#include "lcs_api.h"
 #include "lcs_netmgmt.h"
-#include "iup.h"
-#include "IzotCal.h"
-#include "endian.h"
-#include "err.h"
-
-#ifdef SECURITY_II
-#include "SecNmMsgs.h"
-#endif
 
 /*------------------------------------------------------------------------------
  Section: Constant Definitions
@@ -351,8 +332,8 @@ void HandleNMUpdateDomain(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
     {
         if (pDomain->Subnet != 0 && p->Subnet != pDomain->Subnet) 
         {
-            uint32_t oldaddr = AM_BROADCAST_PREFIX | p->Subnet;
-            uint32_t newaddr = AM_BROADCAST_PREFIX | pDomain->Subnet;
+            uint32_t oldaddr = BROADCAST_PREFIX | p->Subnet;
+            uint32_t newaddr = BROADCAST_PREFIX | pDomain->Subnet;
             RemoveIPMembership(oldaddr);
             AddIpMembership(newaddr);
         }
