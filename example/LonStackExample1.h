@@ -26,6 +26,20 @@
 // Abstract:
 // Definitions for aimple example application for the LON Stack.
 
+#include <stdlib.h>
+#include <string.h>
+
+#include "IzotConfig.h"         // Project-specific configuration
+#include "IzotApi.h"            // LON Stack API definition
+#include "IzotTypes.h"          // LON Stack type definitions
+#include "lcs_custom.h"
+#include "lcs_api.h"
+
+// Function prototypes.
+
+extern "C" IzotApiError SetUpExample1(void);
+extern "C" IzotApiError LoopExample1(void);
+
 // Domain definition.  
 
 #define EXAMPLE_DOMAIN_LENGTH 1
@@ -47,27 +61,27 @@
 #define EXAMPLE_TARGET_NODE 15
 
 
-/*
-* Typedef: IzotFloat
-* 32-bit floating-point type defined by ANSI/IEEE 754-1985.
-*/
+// Typedef: IzotFloat
+// 32-bit floating-point type defined by ANSI/IEEE 754-1985.
+
 #define IZOT_FLOAT_SIGN_MASK  0x80
 #define IZOT_FLOAT_SIGN_SHIFT 7
-#define IZOT_FLOAT_SIGN_FIELD Flags_1
+#define IZOT_FLOAT_SIGN_FIELD msExpSign
 #define IZOT_FLOAT_MSEXPONENT_MASK  0x7F
 #define IZOT_FLOAT_MSEXPONENT_SHIFT 0
-#define IZOT_FLOAT_MSEXPONENT_FIELD Flags_1
+#define IZOT_FLOAT_MSEXPONENT_FIELD msExpSign
 #define IZOT_FLOAT_LSEXPONENT_MASK  0x80
 #define IZOT_FLOAT_LSEXPONENT_SHIFT 7
-#define IZOT_FLOAT_LSEXPONENT_FIELD Flags_2
+#define IZOT_FLOAT_LSEXPONENT_FIELD lsExpMsMantissa
 #define IZOT_FLOAT_MSMANTISSA_MASK  0x7F
 #define IZOT_FLOAT_MSMANTISSA_SHIFT 0
-#define IZOT_FLOAT_MSMANTISSA_FIELD Flags_2
+#define IZOT_FLOAT_MSMANTISSA_FIELD lsExpMsMantissa
+
 typedef IZOT_STRUCT_BEGIN(IzotFloat)
 {
-    IzotByte  Flags_1   /* Contains sign and msexponent; use IZOT_FLOAT_* macros. */
-    IzotByte  Flags_2   /* Contains lsexponent and msmantissa; use IZOT_FLOAT_* macros */
-    IzotWord  LS_mantissa;
+    IzotByte  msExpSign;         // Contains sign and msexponent; use IZOT_FLOAT_* macros
+    IzotByte  lsExpMsMantissa;   // Contains lsexponent and msmantissa; use IZOT_FLOAT_* macros
+    IzotWord  lsMantissa;
 } IZOT_STRUCT_END(IzotFloat);
 
 // Floating point example: to set the sign, exponent, and mantissa for <FloatVariable>:
@@ -90,6 +104,7 @@ typedef struct {
     IzotByte second;        // 0 -- 59
     IzotWord millisecond;   // 0 -- 999 (read with IZOT_GET_UNSIGNED_WORD(n))
 } SNVT_elapsed_tm;
+
 #define SNVT_elapsed_tm_index 87
 
 // SNVT_flow_f (53) -- Flow volume (liters/second; 4-byte float)
@@ -97,7 +112,7 @@ typedef IzotFloat SNVT_flow_f;
 #define SNVT_flow_f_index 53
 
 // SNVT_flow_p (161) -- Flow volume (cubic meters/hour; 2-byte unsigned long; scaled value = 1 * 10^-2 * (Raw + 0))
-typedef IzotWord SNVT_flow_p
+typedef IzotWord SNVT_flow_p;
 #define SNVT_flow_p_index 161
 
 // SNVT_temp_f (63) -- Temperature (degrees Celsius; 4-byte float)
@@ -105,6 +120,5 @@ typedef IzotFloat SNVT_temp_f;
 #define SNVT_temp_f_index 63
 
 // SNVT_temp_p (105) -- Temperature (degrees Celsius; 2-byte signed long; scaled value = 1 * 10^-2 * (Raw + 0))
-typedef IzotWord SNVT_temp_p
+typedef IzotWord SNVT_temp_p;
 #define SNVT_flow_p_index 105
-
