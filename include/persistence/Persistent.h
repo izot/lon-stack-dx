@@ -146,9 +146,7 @@ extern IzotApiError restore(unsigned short type);
  *  Remarks:
  *
  */
-extern const IzotApiError IzotEnterTransaction(
-const IzotPersistentSegmentType type
-);
+extern IzotApiError IzotEnterTransaction(const IzotPersistentSegmentType type);
 
 /*
  *  Event: IzotOpenForWrite
@@ -157,9 +155,7 @@ const IzotPersistentSegmentType type
  *  Remarks:
  *
  */
-extern const IzotPersistentHandle IzotOpenForWrite(
-const IzotPersistentSegmentType type, const size_t size
-);
+extern IzotPersistentHandle IzotOpenForWrite(const IzotPersistentSegmentType type, const size_t size);
 
 /*
  *  Event: IzotWrite
@@ -168,10 +164,8 @@ const IzotPersistentSegmentType type, const size_t size
  *  Remarks:
  *
  */
-extern const IzotApiError IzotWrite(
-const IzotPersistentHandle handle, const size_t offset, 
-const size_t size, const void* const pData
-);
+extern IzotApiError IzotWrite(const IzotPersistentHandle handle, const size_t offset, 
+		const size_t size, const void* const pData);
 
 /*
  *  Event: IzotClose
@@ -189,9 +183,7 @@ extern void IzotClose(const IzotPersistentHandle handle);
  *  Remarks:
  *
  */
-extern const IzotApiError IzotExitTransaction(
-const IzotPersistentSegmentType type
-);
+extern IzotApiError IzotExitTransaction(const IzotPersistentSegmentType type);
 
 /*
  *  Event: IzotIsInTransaction
@@ -200,9 +192,7 @@ const IzotPersistentSegmentType type
  *  Remarks:
  *
  */
-extern const IzotBool IzotIsInTransaction(
-const IzotPersistentSegmentType type
-);
+extern IzotBool IzotIsInTransaction(const IzotPersistentSegmentType type);
 
 /*
  *  Event: IzotOpenForRead
@@ -211,9 +201,7 @@ const IzotPersistentSegmentType type
  *  Remarks:
  *
  */
-extern const IzotPersistentHandle IzotOpenForRead(
-const IzotPersistentSegmentType type
-);
+extern IzotPersistentHandle IzotOpenForRead(const IzotPersistentSegmentType type);
 
 /*
  *  Event: IzotRead
@@ -222,10 +210,8 @@ const IzotPersistentSegmentType type
  *  Remarks:
  *
  */
-extern const IzotApiError IzotRead(
-const IzotPersistentHandle handle, const size_t offset, 
-const size_t size, void * const pBuffer
-);
+extern IzotApiError IzotRead(const IzotPersistentHandle handle, const size_t offset, 
+		const size_t size, void * const pBuffer);
 
 /*
  *  Function: IzotPersistentGetMaxSize
@@ -243,8 +229,6 @@ const size_t size, void * const pBuffer
  *  but may be used by persistent data event handlers (implemented by the
  *  application) to reserve space for persistent data segments.
  */
-extern const int IzotPersistentGetMaxSize(
-IzotPersistentSegmentType segmentType
-);
+extern int IzotPersistentGetMaxSize(IzotPersistentSegmentType segmentType);
 
 #endif /*_PERSISTENT_H*/
