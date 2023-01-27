@@ -82,8 +82,7 @@
  *  each segment. The application can invalidate a handle when 
  *  <IzotPersistentClose> is called for that handle.  
  */
-extern const IzotPersistentHandle IzotPersistentOpenForRead(
-    const IzotPersistentSegmentType type); 
+extern IzotPersistentHandle IzotPersistentOpenForRead(const IzotPersistentSegmentType type); 
  
 /* 
  *  Callback: IzotPersistentOpenForWrite
@@ -105,8 +104,7 @@ extern const IzotPersistentHandle IzotPersistentOpenForRead(
  *
  *  An error value is returned if the data cannot be written.
  */
-extern const IzotPersistentHandle IzotPersistentOpenForWrite(
-    const IzotPersistentSegmentType type, const size_t size); 
+extern IzotPersistentHandle IzotPersistentOpenForWrite(const IzotPersistentSegmentType type, const size_t size); 
 
 /* 
  *  Callback: IzotPersistentClose
@@ -142,7 +140,7 @@ extern void IzotPersistentClose(const IzotPersistentHandle handle);
  *  the segment. The offset in each subsequent call will be incremented by
  *  the size of the previous call.
  */
-extern const IzotApiError IzotPersistentRead(const IzotPersistentHandle handle, 
+extern IzotApiError IzotPersistentRead(const IzotPersistentHandle handle, 
     const size_t offset, const size_t size, void * const pBuffer);
 																
 /* 
@@ -166,7 +164,7 @@ extern const IzotApiError IzotPersistentRead(const IzotPersistentHandle handle,
  *  the segment. The offset in each subsequent call will be incremented by
  *  the size of the previous call.
  */
-extern const IzotApiError IzotPersistentWrite(const IzotPersistentHandle handle, 
+extern IzotApiError IzotPersistentWrite(const IzotPersistentHandle handle, 
     const size_t offset, const size_t size, const void* const pData);
 
 /* 
@@ -185,8 +183,7 @@ extern const IzotApiError IzotPersistentWrite(const IzotPersistentHandle handle,
  *  otherwise, the IZOT Device Stack API will attempt to read the persistent 
  *  data. 
  */
-extern const IzotBool IzotPersistentIsInTransaction(
-    const IzotPersistentSegmentType type); 
+extern IzotBool IzotPersistentIsInTransaction(const IzotPersistentSegmentType type); 
  
 /* 
  *  Callback: IzotPersistentEnterTransaction
@@ -201,8 +198,7 @@ extern const IzotBool IzotPersistentIsInTransaction(
  *  the non-persistent image, and schedules writes to update the non-volatile 
  *  storage at a later time.  
  */
-extern const IzotApiError IzotPersistentEnterTransaction(
-    const IzotPersistentSegmentType type);
+extern IzotApiError IzotPersistentEnterTransaction(const IzotPersistentSegmentType type);
 
 /* 
  *  Callback: IzotPersistentExitTransaction
@@ -216,10 +212,7 @@ extern const IzotApiError IzotPersistentEnterTransaction(
  *  <IzotPersistentWrite> has returned success and there are no further 
  *  updates required.
  */
-extern const IzotApiError IzotPersistentExitTransaction(
-    const IzotPersistentSegmentType type);
+extern IzotApiError IzotPersistentExitTransaction(const IzotPersistentSegmentType type);
 
 #endif  /* defined(DEFINED_IZOTPERSISTENTFLASHDIRECT_H) */
-/* end of file. */
-
  
