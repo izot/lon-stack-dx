@@ -188,11 +188,8 @@ LtPersistenceLossReason deserializeIsiNvdSegConnectionTable(
 *  deserialize data in _isiPersist
 *
 */
-LtPersistenceLossReason deserializeIsiNvdSegData(
-IzotByte* pBuffer, 
-int len, 
-int nVersion
-)
+LtPersistenceLossReason deserializeIsiNvdSegData(IzotByte* pBuffer, 
+		unsigned int len, unsigned int nVersion)
 {
     LtPersistenceLossReason reason = LT_PERSISTENCE_OK;
 
@@ -249,8 +246,7 @@ void savePersistentData(IzotPersistentSegmentType type)
 	    hdr.checksum = computeChecksum(pImage, imageLen);
 	    hdr.length = imageLen;
 
-		IzotPersistentHandle f = 
-                              IzotOpenForWrite(type, sizeof(hdr) + hdr.length);
+		IzotPersistentHandle f = IzotOpenForWrite(type, sizeof(hdr) + hdr.length);
 		if (f != NULL) {
 			if (IzotWrite(f, 0, sizeof(hdr), &hdr) != 0 ||
 				IzotWrite(f, sizeof(hdr), hdr.length, pImage) != 0)	{
