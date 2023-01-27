@@ -155,7 +155,7 @@ Returns:   Number of milliseconds since the watch was started.
 Purpose:   Return the number of milliseconds since StartLonWatch()
 		   was called.
 ******************************************************************/
-void LonWatchElapsed(LonWatch *watch)
+IzotUbits16 LonWatchElapsed(LonWatch *watch)
 {
 	IzotUbits16 duration = 0;
 	if (watch->start) {
