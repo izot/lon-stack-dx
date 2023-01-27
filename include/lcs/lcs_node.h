@@ -920,11 +920,9 @@ IzotUbits16  DecodeBufferSize(IzotByte bufSizeIn);
 IzotUbits16  DecodeBufferCnt(IzotByte bufCntIn);
 IzotUbits16  DecodeRptTimer(IzotByte rptTimerIn);
 IzotUbits16  DecodeRcvTimer(IzotByte rcvTimerIn);
-IzotUbits16  DecodeTxTimer(IzotByte  txTimerIn
-#if 0
-, IzotByte longTimer
-#endif
-);
+IzotUbits16  DecodeTxTimer(IzotByte  txTimerIn);
+// Deleted from DecodeTxTimer: "", IzotByte longTimer"
+
 IzotDatapointConfig *AccessNV(IzotUbits16 indexIn);
 void UpdateNV(IzotDatapointConfig *nvStructInp, IzotUbits16 indexIn);
 IzotAliasConfig *AccessAlias(IzotUbits16 indexIn);
@@ -945,6 +943,7 @@ IzotByte NodeConfigured(void);		// Node is honoring its configuration
 IzotByte NodeUnConfigured(void);		// Node is not running and not honoring configuration (not necessarily the same as !NodeConfigured())
 void	LCS_LogRxStat(AltPathFlags altPath, RxStatType type);
 void	NM_Init(void);
+IzotBool IsPhysicalResetRequested(void);
 
 // APIs that follow the AREA_<Name> convention:
 void	LCS_RecordError(IzotSystemError err);
@@ -958,7 +957,7 @@ IzotByte izot_get_device_state(void);
 IzotByte izot_get_service_pin_mode(void);
 uint8_t	izot_get_device_mode(void);
 
-extern const IzotApiError IzotGetUniqueId(IzotUniqueId* const pId);
+extern IzotApiError IzotGetUniqueId(IzotUniqueId* const pId);
 extern void IzotMsgArrived(const IzotReceiveAddress* const pAddress,
                    const IzotCorrelator correlator,
                    const IzotBool priority,
@@ -970,10 +969,10 @@ extern void IzotResponseArrived(const IzotResponseAddress* const pAddress,
                         const unsigned tag,
                         const IzotByte code,
                         const IzotByte* const pData, const unsigned dataLength);
-extern const IzotBool IzotFilterMsgArrived(const IzotReceiveAddress* const pAddress, const IzotCorrelator correlator,
+extern IzotBool IzotFilterMsgArrived(const IzotReceiveAddress* const pAddress, const IzotCorrelator correlator,
 									const IzotBool priority, const IzotServiceType serviceType, const IzotBool authenticated,
 									const IzotByte code, const IzotByte* const pData, const unsigned dataLength);
-extern const IzotBool IzotFilterResponseArrived(const IzotResponseAddress* const pAddress, const unsigned tag,
+extern IzotBool IzotFilterResponseArrived(const IzotResponseAddress* const pAddress, const unsigned tag,
 								const IzotByte code, const IzotByte* const pData, const unsigned dataLength);									
 
 #if DEBUG_LCS
