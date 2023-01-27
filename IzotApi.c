@@ -80,8 +80,8 @@ LonTimer isi_tick_timer;
   Section: Static
   ------------------------------------------------------------------------------*/
 static uint32_t SiDataLength;
-const static IzotByte C[8] = {0x85, 0x93, 0x12, 0xFE, 0xDD, 0xD0, 0xDF, 0x55};
-const static IzotByte K[6] = {0x57, 0x91, 0xBC, 0x23, 0xF2, 0x01};
+// static IzotByte C[8] = {0x85, 0x93, 0x12, 0xFE, 0xDD, 0xD0, 0xDF, 0x55};
+// static IzotByte K[6] = {0x57, 0x91, 0xBC, 0x23, 0xF2, 0x01};
 
 /*------------------------------------------------------------------------------
   Section: Function Prototypes
@@ -144,7 +144,7 @@ uint32_t GetSiDataLength(void)
  *  Remarks:
  *  Suspend the task for the specified number of clock ticks.
  */
-IZOT_EXTERNAL_FN void IzotSleep(int ticks)
+IZOT_EXTERNAL_FN void IzotSleep(unsigned int ticks)
 {
     OsalSleep(ticks);
 }
@@ -156,8 +156,7 @@ IZOT_EXTERNAL_FN void IzotSleep(int ticks)
  *  Remarks:
  *
  */
-void IzotServiceLedStatus(IzotServiceLedState state, 
-        IzotServiceLedPhysicalState physicalState)
+void IzotServiceLedStatus(IzotServiceLedState state, IzotServiceLedPhysicalState physicalState)
 {
     if(izot_service_led_handler) {
         izot_service_led_handler(state, physicalState);
@@ -200,9 +199,8 @@ IZOT_EXTERNAL_FN void IzotEventPump(void)
 #endif
 
     IzotSleep(1);
-    if (gp->serviceLedState != SERVICE_BLINKING && (((gp->serviceLedState != gp->prevServiceLedState) && 
-            (gp->serviceLedState != (IzotServiceLedState)0xff)) || ((gp->serviceLedPhysical != gp->preServiceLedPhysical) && 
-            (gp->serviceLedPhysical != (IzotServiceLedPhysicalState)0xff)))) {
+    if (gp->serviceLedState != SERVICE_BLINKING && (((gp->serviceLedState != gp->prevServiceLedState)
+            && ((gp->serviceLedPhysical != gp->preServiceLedPhysical))))) {
         IzotServiceLedStatus(gp->serviceLedState, gp->serviceLedPhysical); // expose the Connect button state to the callback function
         
         gp->prevServiceLedState = gp->serviceLedState;
@@ -234,7 +232,7 @@ IZOT_EXTERNAL_FN void IzotEventPump(void)
  *  The *Unique ID* is also known as the *Neuron ID*, however, *Neuron ID* is
  *  a deprecated term.
  */
-IZOT_EXTERNAL_FN const IzotApiError IzotGetUniqueId(IzotUniqueId* const uId)
+IZOT_EXTERNAL_FN IzotApiError IzotGetUniqueId(IzotUniqueId* const uId)
 {
     IzotApiError ret = IzotApiNoError;
     unsigned char mac[6] = {0};
@@ -264,7 +262,7 @@ IZOT_EXTERNAL_FN const IzotApiError IzotGetUniqueId(IzotUniqueId* const uId)
  *  This function provides the version of the IzoT Device Stack.  Note that
  *  this function can be called at any time.
  */
-IZOT_EXTERNAL_FN const IzotApiError IzotGetVersion(unsigned* const pMajorVersion, unsigned* const pMinorVersion,
+IZOT_EXTERNAL_FN IzotApiError IzotGetVersion(unsigned* const pMajorVersion, unsigned* const pMinorVersion,
 unsigned* const pBuildNumber)
 {
     IzotApiError error = IzotApiNoError;
@@ -304,7 +302,7 @@ unsigned* const pBuildNumber)
  * <IzotDatapointUpdateOccurred> events, but will receive a
  * <IzotDatapointUpdateCompleted> event with the success parameter set to TRUE.
  */
-IZOT_EXTERNAL_FN const IzotApiError IzotPollByIndex(signed index)
+IZOT_EXTERNAL_FN IzotApiError IzotPollByIndex(signed index)
 {
     PollNV(index);
     return IzotApiNoError;
@@ -368,7 +366,7 @@ IZOT_EXTERNAL_FN volatile void* IzotGetDatapointValue(const unsigned index)
  *
  *  Not all Izot stacks support the sync attribute.
  */
-IZOT_EXTERNAL_FN const IzotApiError IzotPropagateByIndex(signed index)
+IZOT_EXTERNAL_FN IzotApiError IzotPropagateByIndex(signed index)
 {
     PropagateNV(index);
     return IzotApiNoError;
@@ -385,7 +383,7 @@ IZOT_EXTERNAL_FN const IzotApiError IzotPropagateByIndex(signed index)
  *  Use this function to propagate a service pin message to the network.
  *  The function will fail if the device is not yet fully initialized.
  */
-IZOT_EXTERNAL_FN const IzotApiError IzotSendServicePin(void)
+IZOT_EXTERNAL_FN IzotApiError IzotSendServicePin(void)
 {
     ManualServiceRequestMessage();
     return IzotApiNoError;
@@ -426,7 +424,7 @@ IZOT_EXTERNAL_FN const IzotApiError IzotSendServicePin(void)
  *  If the message is a request, <IzotResponseArrived> event handlers are
  *  called when corresponding responses arrive.
  */
-IZOT_EXTERNAL_FN const IzotApiError IzotSendMsg(
+IZOT_EXTERNAL_FN IzotApiError IzotSendMsg(
         const unsigned tag, const IzotBool priority,
         const IzotServiceType serviceType,
         const IzotBool authenticated,
@@ -469,7 +467,7 @@ IZOT_EXTERNAL_FN const IzotApiError IzotSendMsg(
  *  response is to be sent after returning from that routine.  A response code 
  *  should be in the 0x00..0x2f range.
  */
-IZOT_EXTERNAL_FN const IzotApiError IzotSendResponse(
+IZOT_EXTERNAL_FN IzotApiError IzotSendResponse(
         const IzotCorrelator correlator, const IzotByte code,
         const IzotByte* const pData, const unsigned length)
 {
@@ -498,7 +496,7 @@ IZOT_EXTERNAL_FN const IzotApiError IzotSendResponse(
  *  send a response to every message with a service type of request, or release
  *  the correlator, but not both.
  */
-IZOT_EXTERNAL_FN const IzotApiError IzotReleaseCorrelator(const IzotCorrelator correlator)
+IZOT_EXTERNAL_FN IzotApiError IzotReleaseCorrelator(const IzotCorrelator correlator)
 {
     return IzotApiNotAllowed;
 }
@@ -528,7 +526,7 @@ IZOT_EXTERNAL_FN const IzotApiError IzotReleaseCorrelator(const IzotCorrelator c
  *  device. The status will be stored in the <IzotStatus> structure provided.
  */
 
-IZOT_EXTERNAL_FN const IzotApiError IzotQueryStatus(IzotStatus* const pStatus)
+IZOT_EXTERNAL_FN IzotApiError IzotQueryStatus(IzotStatus* const pStatus)
 {
     IZOT_SET_UNSIGNED_WORD_FROM_BYTES(pStatus->TransmitErrors, nmp->stats.stats[0], nmp->stats.stats[1]);
     IZOT_SET_UNSIGNED_WORD_FROM_BYTES(pStatus->TransactionTimeouts, nmp->stats.stats[2], nmp->stats.stats[3]);
@@ -562,7 +560,7 @@ IZOT_EXTERNAL_FN const IzotApiError IzotQueryStatus(IzotStatus* const pStatus)
  *  This function can be used to clear the IzoT device status and statistics
  *  records.
  */
-IZOT_EXTERNAL_FN const IzotApiError IzotClearStatus(void)
+IZOT_EXTERNAL_FN IzotApiError IzotClearStatus(void)
 {
     memset(&nmp->stats, 0, sizeof(nmp->stats));
     nmp->resetCause = IzotResetCleared;
@@ -587,7 +585,7 @@ IZOT_EXTERNAL_FN const IzotApiError IzotClearStatus(void)
  *  The configuration is stored in the <IzotConfigData> structure
  *  provided.
  */
-IZOT_EXTERNAL_FN const IzotApiError IzotQueryConfigData(IzotConfigData* const pConfig)
+IZOT_EXTERNAL_FN IzotApiError IzotQueryConfigData(IzotConfigData* const pConfig)
 {
     memcpy(pConfig, &eep->configData, sizeof(IzotConfigData));
 
@@ -608,7 +606,7 @@ IZOT_EXTERNAL_FN const IzotApiError IzotQueryConfigData(IzotConfigData* const pC
  *  Call this function to update the device's configuration data based on the
  *  configuration stored in the <IzotConfigData> structure.
  */
-IZOT_EXTERNAL_FN const IzotApiError IzotUpdateConfigData(const IzotConfigData* const pConfig)
+IZOT_EXTERNAL_FN IzotApiError IzotUpdateConfigData(const IzotConfigData* const pConfig)
 {
     memcpy(&eep->configData, pConfig, sizeof(IzotConfigData));
     RecomputeChecksum();
@@ -641,7 +639,7 @@ IZOT_EXTERNAL_FN const IzotApiError IzotUpdateConfigData(const IzotConfigData* c
  *  You can also use the shorthand functions <IzotGoOnline>, <IzotGoOffline>,
  *  <IzotGoConfigured>, and <IzotGoUnconfigured>.
 */
-IZOT_EXTERNAL_FN const IzotApiError IzotSetNodeMode(const IzotNodeMode mode, const IzotNodeState state)
+IZOT_EXTERNAL_FN IzotApiError IzotSetNodeMode(const IzotNodeMode mode, const IzotNodeState state)
 {
     switch (mode) {
     case IzotApplicationOffLine: // Go to soft offline state
@@ -700,7 +698,7 @@ IZOT_EXTERNAL_FN const IzotApiError IzotSetNodeMode(const IzotNodeMode mode, con
  *  Call this function to request a copy of a local domain table record.
  *  The information is returned through the <IzotDomain> structure provided.
  */
-IZOT_EXTERNAL_FN const IzotApiError IzotQueryDomainConfig(unsigned index, IzotDomain* const pDomain)
+IZOT_EXTERNAL_FN IzotApiError IzotQueryDomainConfig(unsigned index, IzotDomain* const pDomain)
 {
     IzotDomain *p = (IzotDomain *)AccessDomain(index);
     memcpy(pDomain, p, sizeof(IzotDomain));
@@ -721,7 +719,7 @@ IZOT_EXTERNAL_FN const IzotApiError IzotQueryDomainConfig(unsigned index, IzotDo
  *  Remarks:
  *  This function can be used to update one record of the domain table.
  */
-IZOT_EXTERNAL_FN const IzotApiError IzotUpdateDomainConfig(unsigned index, const IzotDomain* const pDomain)
+IZOT_EXTERNAL_FN IzotApiError IzotUpdateDomainConfig(unsigned index, const IzotDomain* const pDomain)
 {
     IzotByte ret;
     IzotDomain *p = AccessDomain(index);
@@ -733,8 +731,8 @@ IZOT_EXTERNAL_FN const IzotApiError IzotUpdateDomainConfig(unsigned index, const
     
     if (index == 0) {
         if (pDomain->Subnet != 0 && p->Subnet != pDomain->Subnet) {
-            uint32_t oldaddr = 0xEFC00000 | p->Subnet;
-            uint32_t newaddr = 0xEFC00000 | pDomain->Subnet;
+            uint32_t oldaddr = BROADCAST_PREFIX | p->Subnet;
+            uint32_t newaddr = BROADCAST_PREFIX | pDomain->Subnet;
             RemoveIPMembership(oldaddr);
             AddIpMembership(newaddr);
         }
@@ -761,7 +759,7 @@ IZOT_EXTERNAL_FN const IzotApiError IzotUpdateDomainConfig(unsigned index, const
  *  <IzotApiError>
  */
 
-IZOT_EXTERNAL_FN const IzotApiError IzotUpdateDomain(unsigned index, unsigned length, const IzotByte* domainId, unsigned subnet, unsigned node)
+IZOT_EXTERNAL_FN IzotApiError IzotUpdateDomain(unsigned index, unsigned length, const IzotByte* domainId, unsigned subnet, unsigned node)
 {
 	IzotDomain Domain;
     IzotApiError apiError = IzotApiNoError;
@@ -813,7 +811,7 @@ IZOT_EXTERNAL_FN const IzotApiError IzotUpdateDomain(unsigned index, unsigned le
  *  data. The configuration is stored in the <IzotAddress> structure
  *  provided.
  */
-IZOT_EXTERNAL_FN const IzotApiError IzotQueryAddressConfig(unsigned index, IzotAddress* const pAddress)
+IZOT_EXTERNAL_FN IzotApiError IzotQueryAddressConfig(unsigned index, IzotAddress* const pAddress)
 {
     IzotAddress *p = (IzotAddress *)AccessAddress(index);
     memcpy(pAddress, p, sizeof(IzotAddress));
@@ -835,15 +833,15 @@ IZOT_EXTERNAL_FN const IzotApiError IzotQueryAddressConfig(unsigned index, IzotA
  *  Remarks:
  *  Use this function to write a record to the local address table.
  */
-IZOT_EXTERNAL_FN const IzotApiError IzotUpdateAddressConfig(unsigned index, const IzotAddress* const pAddress)
+IZOT_EXTERNAL_FN IzotApiError IzotUpdateAddressConfig(unsigned index, const IzotAddress* const pAddress)
 {
     uint32_t oldaddr, newaddr;
-    oldaddr = 0xEFC00100 | eep->addrTable[index].Group.Group;
+    oldaddr = BROADCAST_PREFIX | 0x100 | eep->addrTable[index].Group.Group;
     UpdateAddress((const IzotAddress*)pAddress, index);
         
     // If new update request for this entry is group entry 
     // then add the new group address
-    newaddr = 0xEFC00100 | eep->addrTable[index].Group.Group;
+    newaddr = BROADCAST_PREFIX | 0x100 | eep->addrTable[index].Group.Group;
     if (IZOT_GET_ATTRIBUTE(eep->addrTable[index].Group, IZOT_ADDRESS_GROUP_TYPE) == 1 && oldaddr != newaddr) {
         RemoveIPMembership(oldaddr);
         AddIpMembership(newaddr);
@@ -873,7 +871,7 @@ IZOT_EXTERNAL_FN const IzotApiError IzotUpdateAddressConfig(unsigned index, cons
  *  of datapoint index values typically used with the application
  *  framework, because C language enumerations are signed integers.
  */
-IZOT_EXTERNAL_FN const IzotApiError IzotQueryDpConfig(signed index, IzotDatapointConfig* const pDatapointConfig)
+IZOT_EXTERNAL_FN IzotApiError IzotQueryDpConfig(signed index, IzotDatapointConfig* const pDatapointConfig)
 {
     memcpy(pDatapointConfig, &eep->nvConfigTable[index], sizeof(IzotDatapointConfig));
 
@@ -898,7 +896,7 @@ IZOT_EXTERNAL_FN const IzotApiError IzotQueryDpConfig(signed index, IzotDatapoin
  *  of datapoint index values typically used with the application
  *  framework, because C language enumerations are signed integers.
  */
-IZOT_EXTERNAL_FN const IzotApiError IzotUpdateDpConfig(signed index, const IzotDatapointConfig* const pDatapointConfig)
+IZOT_EXTERNAL_FN IzotApiError IzotUpdateDpConfig(signed index, const IzotDatapointConfig* const pDatapointConfig)
 {
     memcpy(&eep->nvConfigTable[index], pDatapointConfig, sizeof(IzotDatapointConfig));
     RecomputeChecksum();
@@ -930,7 +928,7 @@ IZOT_EXTERNAL_FN const IzotApiError IzotUpdateDpConfig(signed index, const IzotD
  * This function does not update the datapoint configuration flags.  Use IzotDatapointFlags() for setting flags.
  */
 
-IZOT_EXTERNAL_FN const IzotApiError IzotDatapointSetup(IzotDatapointDefinition* const pDatapointDef, 
+IZOT_EXTERNAL_FN IzotApiError IzotDatapointSetup(IzotDatapointDefinition* const pDatapointDef, 
         volatile void const *value, IzotDatapointSize size, uint16_t snvtId, uint16_t arrayCount, 
         const char *name, const char *sdString, uint8_t maxRate, uint8_t meanRate, const uint8_t *ibol) 
 {
@@ -968,7 +966,7 @@ IZOT_EXTERNAL_FN const IzotApiError IzotDatapointSetup(IzotDatapointDefinition* 
  * This function only updates the datapoint configuration flags.  Use IzotDatapointSetup() for setting non-flags.
  */
 
-IZOT_EXTERNAL_FN const IzotApiError IzotDatapointFlags(IzotDatapointConfig* const pDatapointConfig,
+IZOT_EXTERNAL_FN IzotApiError IzotDatapointFlags(IzotDatapointConfig* const pDatapointConfig,
         IzotBool priority, IzotDatapointDirection direction, IzotBool authentication, IzotBool aes)
 {
     IzotApiError lastError = IzotApiNoError;
@@ -1001,7 +999,7 @@ IZOT_EXTERNAL_FN const IzotApiError IzotDatapointFlags(IzotDatapointConfig* cons
  * IzotDatapointFlags) setting other datapoint configuration.
  */
 
-IZOT_EXTERNAL_FN const IzotApiError IzotDatapointBind(IzotDatapointConfig* const pDatapointConfig, 
+IZOT_EXTERNAL_FN IzotApiError IzotDatapointBind(IzotDatapointConfig* const pDatapointConfig, 
         IzotByte address, IzotWord selector, IzotBool turnAround, IzotServiceType service)
 {
     IzotApiError lastError = IzotApiNoError;
@@ -1032,7 +1030,7 @@ IZOT_EXTERNAL_FN const IzotApiError IzotDatapointBind(IzotDatapointConfig* const
  *  The configuration is stored in the <IzotAliasEcsConfig> structure
  *  provided.
  */
-IZOT_EXTERNAL_FN const IzotApiError IzotQueryAliasConfig(unsigned index, IzotAliasConfig* const pAlias)
+IZOT_EXTERNAL_FN IzotApiError IzotQueryAliasConfig(unsigned index, IzotAliasConfig* const pAlias)
 {
     memcpy(pAlias, &eep->nvAliasTable[index], sizeof(IzotAliasConfig));
     return IzotApiNoError;
@@ -1052,7 +1050,7 @@ IZOT_EXTERNAL_FN const IzotApiError IzotQueryAliasConfig(unsigned index, IzotAli
  *  Remarks:
  *  This function writes a record in the local alias table.
  */
-IZOT_EXTERNAL_FN const IzotApiError IzotUpdateAliasConfig(unsigned index, const IzotAliasConfig* const pAlias)
+IZOT_EXTERNAL_FN IzotApiError IzotUpdateAliasConfig(unsigned index, const IzotAliasConfig* const pAlias)
 {
     memcpy(&eep->nvAliasTable[index], pAlias, sizeof(IzotAliasConfig));
     RecomputeChecksum();
@@ -1082,7 +1080,7 @@ IZOT_EXTERNAL_FN const IzotApiError IzotUpdateAliasConfig(unsigned index, const 
  *  of datapoint index values typically used with the application
  *  framework, because C language enumerations are signed integers.
  */
-IZOT_EXTERNAL_FN const IzotApiError IzotDatapointIsBoundByIndex(signed index, IzotBool* const pIsBound)
+IZOT_EXTERNAL_FN IzotApiError IzotDatapointIsBoundByIndex(signed index, IzotBool* const pIsBound)
 {
 	if(IsNVBound(index)) {
 		*pIsBound = TRUE;
@@ -1108,7 +1106,7 @@ IZOT_EXTERNAL_FN const IzotApiError IzotDatapointIsBoundByIndex(signed index, Iz
  *  A message tag is bound if the associated address type is anything other
  *  than *IzotAddressUnassigned*.
  */
-IZOT_EXTERNAL_FN const IzotApiError IzotMtIsBound(const unsigned tag, IzotBool* const pIsBound)
+IZOT_EXTERNAL_FN IzotApiError IzotMtIsBound(const unsigned tag, IzotBool* const pIsBound)
 {
 	if(IsTagBound(tag)) {
 		*pIsBound = TRUE;
@@ -1157,7 +1155,7 @@ IZOT_EXTERNAL_FN const IzotApiError IzotMtIsBound(const unsigned tag, IzotBool* 
  *  However, the application must call this function whenever it updates
  *  application-specific persistent data directly.
  */
-IZOT_EXTERNAL_FN const IzotApiError IzotPersistentAppSegmentHasBeenUpdated(void)
+IZOT_EXTERNAL_FN IzotApiError IzotPersistentAppSegmentHasBeenUpdated(void)
 {
     SchedulePersistentData();
     return IzotApiNoError;
@@ -1175,7 +1173,7 @@ IZOT_EXTERNAL_FN const IzotApiError IzotPersistentAppSegmentHasBeenUpdated(void)
  *  persistent data writes have been completed.  The application might do
  *  this, for example, in response to a <IzotPersistentStarvation> event.
  */
-IZOT_EXTERNAL_FN const IzotApiError IzotPersistentFlushData(void)
+IZOT_EXTERNAL_FN IzotApiError IzotPersistentFlushData(void)
 {
     CommitPersistentData();
     return IzotApiNoError;
@@ -1216,7 +1214,7 @@ const unsigned IzotGetAppSegmentSize(void)
  *  but may be used by persistent data event handlers (implemented by the
  *  application) to reserve space for persistent data segments.
  */
-IZOT_EXTERNAL_FN const int IzotPersistentGetMaxSize(IzotPersistentSegmentType segmentType)
+IZOT_EXTERNAL_FN int IzotPersistentGetMaxSize(IzotPersistentSegmentType segmentType)
 {
 	int length = 0;
     switch(segmentType) {
@@ -1317,7 +1315,7 @@ static void UnlockDevice(void)
  *  A typical application framework calls this function within a general
  *  initialization function (often called IzotInit()).
  */
-IZOT_EXTERNAL_FN const IzotApiError IzotCreateStack(const IzotStackInterfaceData* const pInterface, 
+IZOT_EXTERNAL_FN IzotApiError IzotCreateStack(const IzotStackInterfaceData* const pInterface, 
 const IzotControlData * const pControlData)
 {
     IzotApiError err = IzotApiNoError;
@@ -1399,7 +1397,7 @@ const IzotControlData * const pControlData)
  *  and is called once for each static datapoint.  This function can be
  *  called only after <IzotCreateStack>, but before <IzotStartStack>.
  */
-IZOT_EXTERNAL_FN const IzotApiError IzotRegisterStaticDatapoint(IzotDatapointDefinition* const pDatapointDef) {
+IZOT_EXTERNAL_FN IzotApiError IzotRegisterStaticDatapoint(IzotDatapointDefinition* const pDatapointDef) {
     IzotApiError err = IzotApiNoError;
 
     NVDefinition d;
@@ -1508,7 +1506,7 @@ IZOT_EXTERNAL_FN IzotApiError IzotRegisterMemoryWindow(const unsigned windowAddr
  *  When the IzotStartStack() function returns with success, the device stack
  *  is fully operational and all persistent data (if any) has been applied.
  */
-IZOT_EXTERNAL_FN const IzotApiError IzotStartStack(void)
+IZOT_EXTERNAL_FN IzotApiError IzotStartStack(void)
 {
     // Load persistent NVs from NVM
     if (IzotGetAppSegmentSize() != IzotApiNoError) {
@@ -1558,7 +1556,7 @@ IZOT_EXTERNAL_FN void IzotDestroyStack(void)
  *  The read-only data will be stored in the <IzotReadOnlyData> structure
  *  provided.
  */
-IZOT_EXTERNAL_FN const IzotApiError IzotQueryReadOnlyData(IzotReadOnlyData* const pReadOnlyData)
+IZOT_EXTERNAL_FN IzotApiError IzotQueryReadOnlyData(IzotReadOnlyData* const pReadOnlyData)
 {
     memcpy(pReadOnlyData, (IzotReadOnlyData*)&eep->readOnlyData, 
     sizeof(IzotReadOnlyData));
@@ -2110,15 +2108,15 @@ void IzotMsgCompleted(const unsigned tag, const IzotBool success)
  *  Without an application-specific handler, this event does nothing (no
  *  incoming messages are filtered, all are permitted to the application).
  */
-const IzotBool IzotFilterMsgArrived(
-const IzotReceiveAddress* const pAddress,
-const IzotCorrelator correlator, 
-const IzotBool priority,
-const IzotServiceType serviceType, 
-const IzotBool authenticated,
-const IzotByte code, 
-const IzotByte* const pData, 
-const unsigned dataLength)
+IzotBool IzotFilterMsgArrived(
+        const IzotReceiveAddress* const pAddress,
+        const IzotCorrelator correlator, 
+        const IzotBool priority,
+        const IzotServiceType serviceType, 
+        const IzotBool authenticated,
+        const IzotByte code, 
+        const IzotByte* const pData, 
+        const unsigned dataLength)
 {
     if (izot_filter_msg_arrived) {
         return izot_filter_msg_arrived(pAddress, correlator, priority, serviceType, authenticated, code, pData, 
@@ -2152,12 +2150,12 @@ const unsigned dataLength)
  *  event. Without an application-specific handler, this event does nothing
  *  (no incoming response is filtered, all are permitted to the application).
  */
-const IzotBool IzotFilterResponseArrived(
-const IzotResponseAddress* const pAddress,
-const unsigned tag, 
-const IzotByte code,
-const IzotByte* const pData, 
-const unsigned dataLength)
+IzotBool IzotFilterResponseArrived(
+        const IzotResponseAddress* const pAddress,
+        const unsigned tag, 
+        const IzotByte code,
+        const IzotByte* const pData, 
+        const unsigned dataLength)
 {
     if (izot_filter_response_arrived) {
         return izot_filter_response_arrived(pAddress, tag, code, pData, dataLength);
@@ -2309,7 +2307,7 @@ IzotApiError IzotMemoryWrite(const unsigned address, const unsigned size, const 
  *  Remarks:
  *
  */
-const IzotPersistentHandle IzotOpenForRead(const IzotPersistentSegmentType type)
+IzotPersistentHandle IzotOpenForRead(const IzotPersistentSegmentType type)
 {
     if (izot_open_for_read_handler) {
         return izot_open_for_read_handler(type);
@@ -2325,9 +2323,7 @@ const IzotPersistentHandle IzotOpenForRead(const IzotPersistentSegmentType type)
  *  Remarks:
  *
  */
-const IzotPersistentHandle IzotOpenForWrite(
-const IzotPersistentSegmentType type, 
-const size_t size)
+IzotPersistentHandle IzotOpenForWrite(const IzotPersistentSegmentType type, const size_t size)
 {
     if (izot_open_for_write_handler) {
         return izot_open_for_write_handler(type, size);
@@ -2357,7 +2353,7 @@ void IzotClose(const IzotPersistentHandle handle)
  *  Remarks:
  *
  */
-const IzotApiError IzotRead(const IzotPersistentHandle handle, const size_t offset, const size_t size, 
+IzotApiError IzotRead(const IzotPersistentHandle handle, const size_t offset, const size_t size, 
 void * const pBuffer) 
 {
     if (izot_read_handler) {
@@ -2374,7 +2370,7 @@ void * const pBuffer)
  *  Remarks:
  *
  */
-const IzotApiError IzotWrite(const IzotPersistentHandle handle, const size_t offset, const size_t size, 
+IzotApiError IzotWrite(const IzotPersistentHandle handle, const size_t offset, const size_t size, 
 const void* const pData)
 {
     if (izot_write_handler) {
@@ -2391,7 +2387,7 @@ const void* const pData)
  *  Remarks:
  *
  */
-const IzotBool IzotIsInTransaction(const IzotPersistentSegmentType type)
+IzotBool IzotIsInTransaction(const IzotPersistentSegmentType type)
 {
     if (izot_is_in_tx_handler) {
         return izot_is_in_tx_handler(type);
@@ -2407,7 +2403,7 @@ const IzotBool IzotIsInTransaction(const IzotPersistentSegmentType type)
  *  Remarks:
  *
  */
-const IzotApiError IzotEnterTransaction(const IzotPersistentSegmentType type)
+IzotApiError IzotEnterTransaction(const IzotPersistentSegmentType type)
 {
     if (izot_enter_tx_handler) {
         return izot_enter_tx_handler(type);
@@ -2423,7 +2419,7 @@ const IzotApiError IzotEnterTransaction(const IzotPersistentSegmentType type)
  *  Remarks:
  *
  */
-const IzotApiError IzotExitTransaction(const IzotPersistentSegmentType type)
+IzotApiError IzotExitTransaction(const IzotPersistentSegmentType type)
 {
     if (izot_exit_tx_handler) {
         return izot_exit_tx_handler(type);
@@ -2472,7 +2468,7 @@ const IzotApiError IzotExitTransaction(const IzotPersistentSegmentType type)
  *  Remarks:
  *
  */
-IZOT_EXTERNAL_FN const IzotApiError IzotGetCurrentDatapointSizeRegistrar(IzotGetCurrentDatapointSizeFunction handler)
+IZOT_EXTERNAL_FN IzotApiError IzotGetCurrentDatapointSizeRegistrar(IzotGetCurrentDatapointSizeFunction handler)
 {
     if (handler) {
         izot_get_dp_size_handler = handler;
@@ -2489,7 +2485,7 @@ IZOT_EXTERNAL_FN const IzotApiError IzotGetCurrentDatapointSizeRegistrar(IzotGet
  *  Remarks:
  *
  */
-IZOT_EXTERNAL_FN const IzotApiError IzotResetRegistrar(IzotResetFunction handler)
+IZOT_EXTERNAL_FN IzotApiError IzotResetRegistrar(IzotResetFunction handler)
 {
     if (handler) {
         izot_reset_handler = handler;
@@ -2506,7 +2502,7 @@ IZOT_EXTERNAL_FN const IzotApiError IzotResetRegistrar(IzotResetFunction handler
  *  Remarks:
  *
  */
-IZOT_EXTERNAL_FN const IzotApiError IzotWinkRegistrar(IzotWinkFunction handler)
+IZOT_EXTERNAL_FN IzotApiError IzotWinkRegistrar(IzotWinkFunction handler)
 {
     if (handler) {
         izot_wink_handler = handler;
@@ -2523,7 +2519,7 @@ IZOT_EXTERNAL_FN const IzotApiError IzotWinkRegistrar(IzotWinkFunction handler)
  *  Remarks:
  *
  */
-IZOT_EXTERNAL_FN const IzotApiError IzotOfflineRegistrar(IzotOfflineFunction handler)
+IZOT_EXTERNAL_FN IzotApiError IzotOfflineRegistrar(IzotOfflineFunction handler)
 {
     if (handler) {
         izot_offline_handler = handler;
@@ -2540,7 +2536,7 @@ IZOT_EXTERNAL_FN const IzotApiError IzotOfflineRegistrar(IzotOfflineFunction han
  *  Remarks:
  *
  */
-IZOT_EXTERNAL_FN const IzotApiError IzotOnlineRegistrar(IzotOnlineFunction handler)
+IZOT_EXTERNAL_FN IzotApiError IzotOnlineRegistrar(IzotOnlineFunction handler)
 {
     if (handler) {
         izot_online_handler = handler;
@@ -2557,7 +2553,7 @@ IZOT_EXTERNAL_FN const IzotApiError IzotOnlineRegistrar(IzotOnlineFunction handl
  *  Remarks:
  *
  */
-IZOT_EXTERNAL_FN const IzotApiError IzotDatapointUpdateOccurredRegistrar(IzotDatapointUpdateOccurredFunction handler)
+IZOT_EXTERNAL_FN IzotApiError IzotDatapointUpdateOccurredRegistrar(IzotDatapointUpdateOccurredFunction handler)
 {
     if (handler) {
         izot_dp_update_occurred_handler = handler;
@@ -2574,7 +2570,7 @@ IZOT_EXTERNAL_FN const IzotApiError IzotDatapointUpdateOccurredRegistrar(IzotDat
  *  Remarks:
  *
  */
-IZOT_EXTERNAL_FN const IzotApiError IzotDatapointUpdateCompletedRegistrar(IzotDatapointUpdateCompletedFunction handler)
+IZOT_EXTERNAL_FN IzotApiError IzotDatapointUpdateCompletedRegistrar(IzotDatapointUpdateCompletedFunction handler)
 {
     if (handler) {
         izot_dp_update_completed_handler = handler;
@@ -2591,7 +2587,7 @@ IZOT_EXTERNAL_FN const IzotApiError IzotDatapointUpdateCompletedRegistrar(IzotDa
  *  Remarks:
  *
  */
-IZOT_EXTERNAL_FN const IzotApiError IzotMsgArrivedRegistrar(IzotMsgArrivedFunction handler)
+IZOT_EXTERNAL_FN IzotApiError IzotMsgArrivedRegistrar(IzotMsgArrivedFunction handler)
 {
     if (handler) {
         izot_msg_arrived_handler = handler;
@@ -2608,7 +2604,7 @@ IZOT_EXTERNAL_FN const IzotApiError IzotMsgArrivedRegistrar(IzotMsgArrivedFuncti
  *  Remarks:
  *
  */
-IZOT_EXTERNAL_FN const IzotApiError IzotResponseArrivedRegistrar(IzotResponseArrivedFunction handler)
+IZOT_EXTERNAL_FN IzotApiError IzotResponseArrivedRegistrar(IzotResponseArrivedFunction handler)
 {
     if (handler) {
         izot_response_arrived_handler = handler;
@@ -2625,7 +2621,7 @@ IZOT_EXTERNAL_FN const IzotApiError IzotResponseArrivedRegistrar(IzotResponseArr
  *  Remarks:
  *
  */
-IZOT_EXTERNAL_FN const IzotApiError IzotMsgCompletedRegistrar(IzotMsgCompletedFunction handler)
+IZOT_EXTERNAL_FN IzotApiError IzotMsgCompletedRegistrar(IzotMsgCompletedFunction handler)
 {
     if (handler) {
         izot_msg_completed_handler = handler;
@@ -2642,7 +2638,7 @@ IZOT_EXTERNAL_FN const IzotApiError IzotMsgCompletedRegistrar(IzotMsgCompletedFu
  *  Remarks:
  *
  */
-IZOT_EXTERNAL_FN const IzotApiError IzotMemoryReadRegistrar(IzotMemoryReadFunction handler)
+IZOT_EXTERNAL_FN IzotApiError IzotMemoryReadRegistrar(IzotMemoryReadFunction handler)
 {
     if (handler) {
         izot_memory_read_handler = handler;
@@ -2659,7 +2655,7 @@ IZOT_EXTERNAL_FN const IzotApiError IzotMemoryReadRegistrar(IzotMemoryReadFuncti
  *  Remarks:
  *
  */
-IZOT_EXTERNAL_FN const IzotApiError IzotMemoryWriteRegistrar(IzotMemoryWriteFunction handler)
+IZOT_EXTERNAL_FN IzotApiError IzotMemoryWriteRegistrar(IzotMemoryWriteFunction handler)
 {
     if (handler) {
         izot_memory_write_handler = handler;
@@ -2693,7 +2689,7 @@ IZOT_EXTERNAL_FN IzotApiError IzotServiceLedStatusRegistrar(IzotServiceLedStatus
  *  Remarks:
  *
  */
-IZOT_EXTERNAL_FN const IzotApiError IzotPersistentOpenForReadRegistrar(IzotPersistentOpenForReadFunction handler)
+IZOT_EXTERNAL_FN IzotApiError IzotPersistentOpenForReadRegistrar(IzotPersistentOpenForReadFunction handler)
 {
     if (handler) {
         izot_open_for_read_handler = handler;
@@ -2710,7 +2706,7 @@ IZOT_EXTERNAL_FN const IzotApiError IzotPersistentOpenForReadRegistrar(IzotPersi
  *  Remarks:
  *
  */
-IZOT_EXTERNAL_FN const IzotApiError IzotPersistentOpenForWriteRegistrar(IzotPersistentOpenForWriteFunction handler)
+IZOT_EXTERNAL_FN IzotApiError IzotPersistentOpenForWriteRegistrar(IzotPersistentOpenForWriteFunction handler)
 {
     if (handler) {
         izot_open_for_write_handler = handler;
@@ -2727,7 +2723,7 @@ IZOT_EXTERNAL_FN const IzotApiError IzotPersistentOpenForWriteRegistrar(IzotPers
  *  Remarks:
  *
  */
-IZOT_EXTERNAL_FN const IzotApiError IzotPersistentCloseRegistrar(IzotPersistentCloseFunction handler)
+IZOT_EXTERNAL_FN IzotApiError IzotPersistentCloseRegistrar(IzotPersistentCloseFunction handler)
 {
     if (handler) {
         izot_close_handler = handler;
@@ -2744,7 +2740,7 @@ IZOT_EXTERNAL_FN const IzotApiError IzotPersistentCloseRegistrar(IzotPersistentC
  *  Remarks:
  *
  */
-IZOT_EXTERNAL_FN const IzotApiError IzotPersistentDeleteRegistrar(IzotPersistentDeleteFunction handler)
+IZOT_EXTERNAL_FN IzotApiError IzotPersistentDeleteRegistrar(IzotPersistentDeleteFunction handler)
 {
     if (handler) {
         izot_delete_handler = handler;
@@ -2761,7 +2757,7 @@ IZOT_EXTERNAL_FN const IzotApiError IzotPersistentDeleteRegistrar(IzotPersistent
  *  Remarks:
  *
  */
-IZOT_EXTERNAL_FN const IzotApiError IzotPersistentReadRegistrar(IzotPersistentReadFunction handler)
+IZOT_EXTERNAL_FN IzotApiError IzotPersistentReadRegistrar(IzotPersistentReadFunction handler)
 {
     if (handler) {
         izot_read_handler = handler;
@@ -2778,7 +2774,7 @@ IZOT_EXTERNAL_FN const IzotApiError IzotPersistentReadRegistrar(IzotPersistentRe
  *  Remarks:
  *
  */
-IZOT_EXTERNAL_FN const IzotApiError IzotPersistentWriteRegistrar(IzotPersistentWriteFunction handler)
+IZOT_EXTERNAL_FN IzotApiError IzotPersistentWriteRegistrar(IzotPersistentWriteFunction handler)
 {
     if (handler) {
         izot_write_handler = handler;
@@ -2795,8 +2791,7 @@ IZOT_EXTERNAL_FN const IzotApiError IzotPersistentWriteRegistrar(IzotPersistentW
  *  Remarks:
  *
  */
-IZOT_EXTERNAL_FN const IzotApiError IzotPersistentIsInTransactionRegistrar(
-IzotPersistentIsInTransactionFunction handler)
+IZOT_EXTERNAL_FN IzotApiError IzotPersistentIsInTransactionRegistrar(IzotPersistentIsInTransactionFunction handler)
 {
     if (handler) {
         izot_is_in_tx_handler = handler;
@@ -2813,8 +2808,7 @@ IzotPersistentIsInTransactionFunction handler)
  *  Remarks:
  *
  */
-IZOT_EXTERNAL_FN const IzotApiError IzotPersistentEnterTransactionRegistrar(
-IzotPersistentEnterTransactionFunction handler)
+IZOT_EXTERNAL_FN IzotApiError IzotPersistentEnterTransactionRegistrar(IzotPersistentEnterTransactionFunction handler)
 {
     if (handler) {
         izot_enter_tx_handler = handler;
@@ -2831,7 +2825,7 @@ IzotPersistentEnterTransactionFunction handler)
  *  Remarks:
  *
  */
-IZOT_EXTERNAL_FN const IzotApiError IzotPersistentExitTransactionRegistrar(IzotPersistentExitTransactionFunction handler)
+IZOT_EXTERNAL_FN IzotApiError IzotPersistentExitTransactionRegistrar(IzotPersistentExitTransactionFunction handler)
 {
     if (handler) {
         izot_exit_tx_handler = handler;
@@ -2848,7 +2842,7 @@ IZOT_EXTERNAL_FN const IzotApiError IzotPersistentExitTransactionRegistrar(IzotP
  *  Remarks:
  *
  */
-const IzotApiError IzotPersistentSerializeSegmentRegistrar(IzotPersistentSerializeSegmentFunction handler)
+IZOT_EXTERNAL_FN IzotApiError IzotPersistentSerializeSegmentRegistrar(IzotPersistentSerializeSegmentFunction handler)
 {
     if (handler) {
         izot_serialize_handler = handler;
@@ -2865,7 +2859,7 @@ const IzotApiError IzotPersistentSerializeSegmentRegistrar(IzotPersistentSeriali
  *  Remarks:
  *
  */
-const IzotApiError IzotPersistentDeserializeSegmentRegistrar(IzotPersistentDeserializeSegmentFunction handler)
+IZOT_EXTERNAL_FN IzotApiError IzotPersistentDeserializeSegmentRegistrar(IzotPersistentDeserializeSegmentFunction handler)
 {
     if (handler) {
         izot_deserialize_handler = handler;
@@ -2882,8 +2876,8 @@ const IzotApiError IzotPersistentDeserializeSegmentRegistrar(IzotPersistentDeser
  *  Remarks:
  *
  */
-IZOT_EXTERNAL_FN const IzotApiError IzotPersistentGetApplicationSegmentSizeRegistrar(
-IzotPersistentGetApplicationSegmentSizeFunction handler)
+IZOT_EXTERNAL_FN IzotApiError IzotPersistentGetApplicationSegmentSizeRegistrar(
+        IzotPersistentGetApplicationSegmentSizeFunction handler)
 {
     if (handler) {
         izot_get_app_seg_size_handler = handler;
@@ -2900,7 +2894,7 @@ IzotPersistentGetApplicationSegmentSizeFunction handler)
  *  Remarks:
  *
  */
-IZOT_EXTERNAL_FN const IzotApiError IzotFilterMsgArrivedRegistrar(IzotFilterMsgArrivedFunction handler)
+IZOT_EXTERNAL_FN IzotApiError IzotFilterMsgArrivedRegistrar(IzotFilterMsgArrivedFunction handler)
 {
     if (handler) {
         izot_filter_msg_arrived = handler;
@@ -2917,7 +2911,7 @@ IZOT_EXTERNAL_FN const IzotApiError IzotFilterMsgArrivedRegistrar(IzotFilterMsgA
  *  Remarks:
  *
  */
-IZOT_EXTERNAL_FN const IzotApiError IzotFilterResponseArrivedRegistrar(IzotFilterResponseArrivedFunction handler)
+IZOT_EXTERNAL_FN IzotApiError IzotFilterResponseArrivedRegistrar(IzotFilterResponseArrivedFunction handler)
 {
     if (handler) {
         izot_filter_response_arrived = handler;
@@ -2934,7 +2928,7 @@ IZOT_EXTERNAL_FN const IzotApiError IzotFilterResponseArrivedRegistrar(IzotFilte
  *  Remarks:
  *
  */
-IZOT_EXTERNAL_FN const IzotApiError IzotFilterMsgCompletedRegistrar(IzotFilterMsgCompletedFunction handler)
+IZOT_EXTERNAL_FN IzotApiError IzotFilterMsgCompletedRegistrar(IzotFilterMsgCompletedFunction handler)
 {
     if (handler) {
         izot_filter_msg_completed = handler;
