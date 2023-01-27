@@ -66,6 +66,7 @@ IzotBool    is_connected;            // Flag to define network connected or not
 /*------------------------------------------------------------------------------
 Section: Static
 ------------------------------------------------------------------------------*/
+#if PROCESSOR_IS(MC200)
 static int        app_udp_socket = -1;
 static int        provisioned;
 static struct fs *fs;
@@ -73,6 +74,8 @@ static char       ssid_uap[MAX_SSID_LEN];
 static char       dhcp_host_name[MAX_HOST_NAME_LEN];
 static uint8_t    connecting = 0;
 static uint32_t   previous, current = 0;
+#endif
+
 
 /*
  * *****************************************************************************
