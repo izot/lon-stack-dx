@@ -72,7 +72,7 @@ ISI_EXTERNAL_FN IsiCallbackVectors theIsiCallbackVectors;
  * This function has no forwarder. Calling this function when the ISI engine
  * is already stopped has no action.
  */
-extern const IsiApiError IsiStop(void);
+extern IsiApiError IsiStop(void);
 
 /*
  * Function: IsiStart
@@ -101,15 +101,14 @@ extern const IsiApiError IsiStop(void);
  * you start the ISI engine in your reset task when self-installation is
  * enabled, and you stop the ISI engine when self-installation is disabled.
  */
-ISI_EXTERNAL_FN const IsiApiError IsiStart(
-unsigned apiVersion, 
-IsiType type, 
-IsiFlags flags, 
-unsigned connections, 
-unsigned didLength, 
-const IzotByte* pDid, 
-unsigned repeatCount
-);
+ISI_EXTERNAL_FN IsiApiError IsiStart(
+        unsigned apiVersion, 
+        IsiType type, 
+        IsiFlags flags, 
+        unsigned connections, 
+        unsigned didLength, 
+        const IzotByte* pDid, 
+        unsigned repeatCount);
 
 /*
  * Function: IsiTick
@@ -126,7 +125,7 @@ unsigned repeatCount
  * you start the ISI engine in your reset task when self-installation is
  * enabled, and you stop the ISI engine when self-installation is disabled.
  */
-ISI_EXTERNAL_FN const IsiApiError IsiTick();
+ISI_EXTERNAL_FN IsiApiError IsiTick();
 
 /*
  * Function: IsiReturnToFactoryDefaults
@@ -153,7 +152,7 @@ ISI_EXTERNAL_FN const IsiApiError IsiTick();
  * stack's reset event. Typical applications use this event to start the ISI 
  * engine, if desired.
  */
-ISI_EXTERNAL_FN const IsiApiError IsiReturnToFactoryDefaults(void);
+ISI_EXTERNAL_FN IsiApiError IsiReturnToFactoryDefaults(void);
 
 /*
  * Function: IsiFetchDomain
@@ -167,7 +166,7 @@ ISI_EXTERNAL_FN const IsiApiError IsiReturnToFactoryDefaults(void);
  * server. The ISI engine must be running for this function to have any effect,
  * and this function only operates on a domain address server.
  */
-ISI_EXTERNAL_FN const IsiApiError IsiFetchDomain(void);
+ISI_EXTERNAL_FN IsiApiError IsiFetchDomain(void);
 
 /*
  * Function: IsiFetchDevice
@@ -192,7 +191,7 @@ ISI_EXTERNAL_FN const IsiApiError IsiFetchDomain(void);
  * to have any effect, and this function only operates on a domain 
  * address server.
  */
-ISI_EXTERNAL_FN const IsiApiError IsiFetchDevice(void);
+ISI_EXTERNAL_FN IsiApiError IsiFetchDevice(void);
 
 /*
  * Function: IsiOpenEnrollment
@@ -210,7 +209,7 @@ ISI_EXTERNAL_FN const IsiApiError IsiFetchDevice(void);
  * No forwarder is provided for this function. The ISI engine must be running
  * and in the idle state.
  */
-ISI_EXTERNAL_FN const IsiApiError IsiOpenEnrollment(unsigned Assembly);
+ISI_EXTERNAL_FN IsiApiError IsiOpenEnrollment(unsigned Assembly);
 
 /*
  * Function: IsiCreateEnrollment
@@ -234,7 +233,7 @@ ISI_EXTERNAL_FN const IsiApiError IsiOpenEnrollment(unsigned Assembly);
  * have any effect. For a connection host, the ISI engine must be in the
  * approved state. Other devices must be in the pending state.
  */
-ISI_EXTERNAL_FN const IsiApiError IsiCreateEnrollment(unsigned Assembly);
+ISI_EXTERNAL_FN IsiApiError IsiCreateEnrollment(unsigned Assembly);
 
 /*
  * Function: IsiExtendEnrollment
@@ -259,7 +258,7 @@ ISI_EXTERNAL_FN const IsiApiError IsiCreateEnrollment(unsigned Assembly);
  * have any effect. For a connection host, the ISI engine must be in the 
  * approved state. Other devices must be in the pending state.
  */
-ISI_EXTERNAL_FN const IsiApiError IsiExtendEnrollment(unsigned assembly);
+ISI_EXTERNAL_FN IsiApiError IsiExtendEnrollment(unsigned assembly);
 
 /*
  * Function: IsiCancelEnrollment
@@ -276,7 +275,7 @@ ISI_EXTERNAL_FN const IsiApiError IsiExtendEnrollment(unsigned assembly);
  * The function has no effect unless the ISI engine is running and in the 
  * pending or approved state.
  */
-ISI_EXTERNAL_FN const IsiApiError IsiCancelEnrollment(void);
+ISI_EXTERNAL_FN IsiApiError IsiCancelEnrollment(void);
 
 /*
  * Function: IsiLeaveEnrollment
@@ -295,7 +294,7 @@ ISI_EXTERNAL_FN const IsiApiError IsiCancelEnrollment(void);
  * No forwarder is provided for this function. This function has no effect if
  * the ISI engine is stopped.
  */
-ISI_EXTERNAL_FN const IsiApiError IsiLeaveEnrollment(unsigned Assembly);
+ISI_EXTERNAL_FN IsiApiError IsiLeaveEnrollment(unsigned Assembly);
 
 /*
  * Function: IsiDeleteEnrollment
@@ -313,7 +312,7 @@ ISI_EXTERNAL_FN const IsiApiError IsiLeaveEnrollment(unsigned Assembly);
  * connection to remove them from the connection as well.
  * This function has no effect if the ISI engine is stopped.
  */
-ISI_EXTERNAL_FN const IsiApiError IsiDeleteEnrollment(unsigned Assembly);
+ISI_EXTERNAL_FN IsiApiError IsiDeleteEnrollment(unsigned Assembly);
 
 /*
  * Function: IsiIsBecomingHost
@@ -476,9 +475,8 @@ ISI_EXTERNAL_FN unsigned IsiGetWidth(unsigned Assembly);
  * assemblies. This function operates only when the ISI engine is running.
  */
 ISI_EXTERNAL_FN void IsiCreateCsmo(
-unsigned Assembly, 
-IsiCsmoData* const pCsmoData
-);
+        unsigned Assembly, 
+        IsiCsmoData* const pCsmoData);
 
 /*
  * Callback:   IsiGetPrimaryGroup
@@ -526,10 +524,9 @@ ISI_EXTERNAL_FN unsigned IsiGetPrimaryGroup(unsigned Assembly);
  * The function operates only when the ISI engine is running.
  */
 ISI_EXTERNAL_FN unsigned IsiGetAssembly(
-const IsiCsmoData* pCsmoData, 
-IzotBool Auto, 
-unsigned Assembly
-);
+        const IsiCsmoData* pCsmoData, 
+        IzotBool Auto, 
+        unsigned Assembly);
 
 /*
  * Function: IsiInitiateAutoEnrollment
@@ -551,9 +548,8 @@ unsigned Assembly
  * This function does nothing when the ISI engine is stopped.
  */
 ISI_EXTERNAL_FN IsiApiError IsiInitiateAutoEnrollment(
-const IsiCsmoData* pCsmaData, 
-unsigned Assembly
-);
+        const IsiCsmoData* pCsmaData, 
+        unsigned Assembly);
 
 /*
  * Function: IsiIsConnected
@@ -732,10 +728,9 @@ ISI_EXTERNAL_FN void IsiSetTracefile(const char* pFilename, IzotBool append);
  *
  */
 ISI_EXTERNAL_FN IsiApiError IsiControlCommand(
-const IzotUniqueId* pId, 
-unsigned Assembly, 
-IsiControl command
-);
+        const IzotUniqueId* pId, 
+        unsigned Assembly, 
+        IsiControl command);
 
 /*
  *  In IzoT, ISI callback functions are registered
@@ -778,9 +773,7 @@ IsiControl command
  *  IsiApiError
  * 
  */
-ISI_EXTERNAL_FN const IsiApiError IsiCreateCsmoRegistrar(
-IsiCreateCsmoFunction handler
-);
+ISI_EXTERNAL_FN IsiApiError IsiCreateCsmoRegistrar(IsiCreateCsmoFunction handler);
 
 /*
  *  Function: IsiGetAssemblyRegistrar
@@ -790,9 +783,7 @@ IsiCreateCsmoFunction handler
  *  IsiApiError
  * 
  */
-ISI_EXTERNAL_FN const IsiApiError IsiGetAssemblyRegistrar(
-IsiGetAssemblyFunction handler
-);
+ISI_EXTERNAL_FN IsiApiError IsiGetAssemblyRegistrar(IsiGetAssemblyFunction handler);
 
 /*
  *  Function: IsiGetDpIndexRegistrar
@@ -802,9 +793,7 @@ IsiGetAssemblyFunction handler
  *  IsiApiError
  * 
  */
-ISI_EXTERNAL_FN const IsiApiError IsiGetDpIndexRegistrar(
-IsiGetDpIndexFunction handler
-);
+ISI_EXTERNAL_FN IsiApiError IsiGetDpIndexRegistrar(IsiGetDpIndexFunction handler);
 
 /*
  *  Function: IsiGetPrimaryGroupRegistrar
@@ -814,9 +803,7 @@ IsiGetDpIndexFunction handler
  *  IsiApiError
  * 
  */
-ISI_EXTERNAL_FN const IsiApiError IsiGetPrimaryGroupRegistrar(
-IsiGetPrimaryGroupFunction handler
-);
+ISI_EXTERNAL_FN IsiApiError IsiGetPrimaryGroupRegistrar(IsiGetPrimaryGroupFunction handler);
 
 /*
  *  Function: IsiGetWidthRegistrar
@@ -826,9 +813,7 @@ IsiGetPrimaryGroupFunction handler
  *  IsiApiError
  * 
  */
-ISI_EXTERNAL_FN const IsiApiError IsiGetWidthRegistrar(
-IsiGetWidthFunction handler
-);
+ISI_EXTERNAL_FN IsiApiError IsiGetWidthRegistrar(IsiGetWidthFunction handler);
 
 /*
  *  Function: IsiQueryHeartbeatRegistrar
@@ -838,9 +823,7 @@ IsiGetWidthFunction handler
  *  IsiApiError
  * 
  */
-ISI_EXTERNAL_FN const IsiApiError IsiQueryHeartbeatRegistrar(
-IsiQueryHeartbeatFunction handler
-);
+ISI_EXTERNAL_FN IsiApiError IsiQueryHeartbeatRegistrar(IsiQueryHeartbeatFunction handler);
 
 /*
  *  Function: IsiUpdateDiagnosticsRegistrar
@@ -850,9 +833,7 @@ IsiQueryHeartbeatFunction handler
  *  IsiApiError
  * 
  */
-ISI_EXTERNAL_FN const IsiApiError IsiUpdateDiagnosticsRegistrar(
-IsiUpdateDiagnosticsFunction handler
-);
+ISI_EXTERNAL_FN IsiApiError IsiUpdateDiagnosticsRegistrar(IsiUpdateDiagnosticsFunction handler);
 
 /*
  *  Function: IsiUpdateUserInterfaceRegistrar
@@ -862,9 +843,7 @@ IsiUpdateDiagnosticsFunction handler
  *  IsiApiError
  * 
  */
-ISI_EXTERNAL_FN const IsiApiError IsiUpdateUserInterfaceRegistrar(
-IsiUpdateUserInterfaceFunction handler
-);
+ISI_EXTERNAL_FN IsiApiError IsiUpdateUserInterfaceRegistrar(IsiUpdateUserInterfaceFunction handler);
 
 /*
  *  Function: IsiDeregisterAllCallbacks
