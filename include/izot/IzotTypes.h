@@ -2933,9 +2933,7 @@ typedef IZOT_STRUCT_BEGIN(IzotControlData)
  *  this event. Without an application-specific handler, the stack assumes
  *  that each datapoint's declared size always equals its current size.
  */
-typedef const unsigned (*IzotGetCurrentDatapointSizeFunction)(
-    const signed index
-);
+typedef unsigned (*IzotGetCurrentDatapointSizeFunction)(const signed index);
 
 /*
  *  Direct memory file support events
@@ -2966,11 +2964,8 @@ typedef const unsigned (*IzotGetCurrentDatapointSizeFunction)(
  *  Applications must generally implement both the IzotMemoryRead and
  *  IzotMemoryWrite events, or none.
  */
-typedef const IzotApiError (*IzotMemoryReadFunction)(
-    const unsigned address,
-    const unsigned size,
-    void* const pData
-);
+typedef IzotApiError (*IzotMemoryReadFunction)(const unsigned address,
+        const unsigned size, void* const pData);
 
 /*
  *  Callback: IzotMemoryWrite
@@ -3001,11 +2996,8 @@ typedef const IzotApiError (*IzotMemoryReadFunction)(
  *  Applications must generally implement both the IzotMemoryRead and
  *  IzotMemoryWrite events, or none.
  */
-typedef const IzotApiError (*IzotMemoryWriteFunction)(
-    const unsigned address,
-    const unsigned size,
-    const void* const pData
-);
+typedef IzotApiError (*IzotMemoryWriteFunction)(const unsigned address,
+        const unsigned size, const void* const pData);
 
 /*
  *  Persistent data support events
@@ -3045,9 +3037,7 @@ typedef const IzotApiError (*IzotMemoryWriteFunction)(
  *  event. Without an application-specific handler, this event always fails
  *  (the handle is always zero).
  */
-typedef const IzotPersistentHandle (*IzotPersistentOpenForReadFunction)(
-    const IzotPersistentSegmentType type
-);
+typedef IzotPersistentHandle (*IzotPersistentOpenForReadFunction)(const IzotPersistentSegmentType type);
 
 /*
  *  Callback: IzotPersistentOpenForWrite
@@ -3082,9 +3072,8 @@ typedef const IzotPersistentHandle (*IzotPersistentOpenForReadFunction)(
  *  event. Without an application-specific handler, this event always fails
  *  (the handle is always zero).
  */
-typedef const IzotPersistentHandle (*IzotPersistentOpenForWriteFunction)(
-    const IzotPersistentSegmentType type,
-    const size_t size);
+typedef IzotPersistentHandle (*IzotPersistentOpenForWriteFunction)(
+        const IzotPersistentSegmentType type, const size_t size);
 
 /*
  *  Callback: IzotPersistentClose
@@ -3152,11 +3141,8 @@ typedef void (*IzotPersistentDeleteFunction)(
  *  Without an application-specific handler, this event always fails (no
  *  data available to read).
  */
-typedef const IzotApiError (*IzotPersistentReadFunction)(
-    const IzotPersistentHandle handle,
-    const size_t offset,
-    const size_t size,
-    void * const pBuffer);
+typedef IzotApiError (*IzotPersistentReadFunction)(const IzotPersistentHandle handle,
+    const size_t offset, const size_t size, void * const pBuffer);
 
 
 /*
@@ -3182,11 +3168,8 @@ typedef const IzotApiError (*IzotPersistentReadFunction)(
  *  Use <IzotPersistentWriteRegistrar> to register a handler for this event.
  *  Without an application-specific handler, this event always fails.
  */
-typedef const IzotApiError (*IzotPersistentWriteFunction)(
-    const IzotPersistentHandle handle,
-    const size_t offset,
-    const size_t size,
-    const void * const pData);
+typedef IzotApiError (*IzotPersistentWriteFunction) (const IzotPersistentHandle handle,
+    const size_t offset, const size_t size, const void * const pData);
 
 /*
  *  Callback: IzotPersistentIsInTransaction
@@ -3208,8 +3191,7 @@ typedef const IzotApiError (*IzotPersistentWriteFunction)(
  *  this event. Without an application-specific handler, this event always
  *  returns TRUE.
  */
-typedef const IzotBool (*IzotPersistentIsInTransactionFunction)(
-    const IzotPersistentSegmentType type);
+typedef IzotBool (*IzotPersistentIsInTransactionFunction)(const IzotPersistentSegmentType type);
 
 /*
  *  Callback: IzotPersistentEnterTransaction
@@ -3233,8 +3215,7 @@ typedef const IzotBool (*IzotPersistentIsInTransactionFunction)(
  *  this event. Without an application-specific handler, this event always
  *  fails.
  */
-typedef const IzotApiError (*IzotPersistentEnterTransactionFunction)(
-    const IzotPersistentSegmentType type);
+typedef IzotApiError (*IzotPersistentEnterTransactionFunction)(const IzotPersistentSegmentType type);
 
 /*
  *  Callback: IzotPersistentExitTransaction
@@ -3251,8 +3232,7 @@ typedef const IzotApiError (*IzotPersistentEnterTransactionFunction)(
  *  Use <IzotPersistentExitTransactionRegistrar> to register a handler for this
  *  event. Without an application-specific handler, this event always fails.
  */
-typedef const IzotApiError (*IzotPersistentExitTransactionFunction)(
-    const IzotPersistentSegmentType type);
+typedef IzotApiError (*IzotPersistentExitTransactionFunction)(const IzotPersistentSegmentType type);
 
 /*
  *  Callback: IzotPersistentGetApplicationSegmentSize
@@ -3267,8 +3247,7 @@ typedef const IzotApiError (*IzotPersistentExitTransactionFunction)(
  *  for this event. Without an application-specific handler, the application's
  *  persistent data segment is assumed to be empty (zero bytes long).
  */
-typedef const unsigned (*IzotPersistentGetApplicationSegmentSizeFunction)(
-    void);
+typedef unsigned (*IzotPersistentGetApplicationSegmentSizeFunction)(void);
 
 /*
  *  Callback: IzotPersistentDeserializeSegment
@@ -3287,9 +3266,8 @@ typedef const unsigned (*IzotPersistentGetApplicationSegmentSizeFunction)(
  *  this event. Without an application-specific handler, this event always
  *  fails.
  */
-typedef const IzotApiError (*IzotPersistentDeserializeSegmentFunction)(
-    const void * const pData,
-    const size_t       size);
+typedef IzotApiError (*IzotPersistentDeserializeSegmentFunction) (
+    const void * const pData, const size_t size);
 
 /*
  *  Callback: IzotPersistentSerializeSegment
@@ -3308,9 +3286,7 @@ typedef const IzotApiError (*IzotPersistentDeserializeSegmentFunction)(
  *  this event. Without an application-specific handler, this event always
  *  fails.
  */
-typedef const IzotApiError (*IzotPersistentSerializeSegmentFunction)(
-    void * const       pData,
-    const size_t       size);
+typedef IzotApiError (*IzotPersistentSerializeSegmentFunction)(void * const pData, const size_t size);
 
 /*
  * ******************************************************************************
@@ -3605,15 +3581,15 @@ typedef void (*IzotServiceLedStatusFunction)(
  *  Without an application-specific handler, this event does nothing (no
  *  incoming messages are filtered, all are permitted to the application).
  */
-typedef const IzotBool (*IzotFilterMsgArrivedFunction)(
-    const IzotReceiveAddress* const pAddress,
-    const IzotCorrelator correlator,
-    const IzotBool priority,
-    const IzotServiceType serviceType,
-    const IzotBool authenticated,
-    const IzotByte code,
-    const IzotByte* const pData,
-    const unsigned dataLength);
+typedef IzotBool (*IzotFilterMsgArrivedFunction)(
+        const IzotReceiveAddress* const pAddress,
+        const IzotCorrelator correlator,
+        const IzotBool priority,
+        const IzotServiceType serviceType,
+        const IzotBool authenticated,
+        const IzotByte code,
+        const IzotByte* const pData,
+        const unsigned dataLength);
 
 /*
  *  Event: IzotFilterResponseArrived
@@ -3639,12 +3615,12 @@ typedef const IzotBool (*IzotFilterMsgArrivedFunction)(
  *  event. Without an application-specific handler, this event does nothing
  *  (no incoming response is filtered, all are permitted to the application).
  */
-typedef const IzotBool(*IzotFilterResponseArrivedFunction)(
-    const IzotResponseAddress* const pAddress,
-    const unsigned tag,
-    const IzotByte code,
-    const IzotByte* const pData,
-    const unsigned dataLength);
+typedef IzotBool(*IzotFilterResponseArrivedFunction)(
+        const IzotResponseAddress* const pAddress,
+        const unsigned tag,
+        const IzotByte code,
+        const IzotByte* const pData,
+        const unsigned dataLength);
 
 /*
  *  Event: IzotFilterMsgCompleted
@@ -3671,9 +3647,7 @@ typedef const IzotBool(*IzotFilterResponseArrivedFunction)(
  *  event. Without an application-specific handler, this event does nothing
  *  (no completion event is filtered, all are permitted to the application).
  */
-typedef const IzotBool(*IzotFilterMsgCompletedFunction)(
-    const unsigned tag,
-    const IzotBool success);
+typedef IzotBool(*IzotFilterMsgCompletedFunction)(const unsigned tag, const IzotBool success);
 
 typedef void (*IzotisiTickFunction)(void);
 
@@ -3765,6 +3739,14 @@ typedef void (*IzotisiTickFunction)(void);
     this constant will not be used.
 *******************************************************************************/
 #define MALLOC_SIZE     10050
+
+/*------------------------------------------------------------------------------
+ LON/IP constants.
+ ------------------------------------------------------------------------------*/
+#define BROADCAST_PREFIX       0xEFC00000
+#define IP_ADDRESS_LEN         4
+#define MAX_NV_LEN_SUPPORTED   228
+#define IBOL_FINISH            0xFF
 
 /*-------------------------------------------------------------------
     Queue entry structure.
