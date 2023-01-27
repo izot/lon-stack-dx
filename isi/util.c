@@ -60,7 +60,7 @@ extern volatile void* IzotGetDatapointValue(const unsigned index);
  *  configuration of index.
  *
  ***************************************************************************/
-const IzotDomain* access_domain(int index)
+IzotDomain* access_domain(int index)
 {
     IzotDomain* pDomain = NULL;
 
@@ -261,7 +261,7 @@ unsigned int getRandom(void)
  *
  *  Operation: Using LTS IzotQueryAddressConfig function to return ptr of index
  ***************************************************************************/
-const IzotAddress*	access_address(int index)
+IzotAddress*	access_address(int index)
 {
     IzotAddress* pAddress = (IzotAddress*)&addrTable;
 
@@ -403,7 +403,7 @@ void _IsiSetCurrentType(IsiType type)
     gIsiType = type;
 }
 
-const unsigned get_nv_length(const unsigned index)
+unsigned int get_nv_length(const unsigned index)
 {
     return IzotGetCurrentDatapointSize(index);
 }
