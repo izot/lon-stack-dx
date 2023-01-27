@@ -69,7 +69,7 @@ typedef enum
                                 // an event.
     OSALSTS_CREATE_TASK_FAILED,	// Failed to create a task.
     OSALSTS_SLEEP_ERROR,		// Failed to sleep.
-    OSALSTS_NOT_IMPLEMENTED,    // Function is not implemented.
+    OSALSTS_NOT_IMPLEMENTED     // Function is not implemented.
 } OsalStatus;
 
 /*
@@ -117,7 +117,7 @@ extern OsalTickCount GetTicksPerSecond(void);
  *  See Also:
  *  <IzotGetTickCount>.
  */
-extern OsalStatus OsalSleep(int ticks);
+extern OsalStatus OsalSleep(unsigned int ticks);
 
 /*
  * Function:   OsalMalloc
