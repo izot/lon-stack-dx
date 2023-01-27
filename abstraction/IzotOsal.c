@@ -32,12 +32,15 @@
 #include "IzotOsal.h"
 
 #if PLATFORM_IS(FRTOS)
-#include <wm_os.h>
+    #include <wm_os.h>
 #else
-#include <stdio.h>
-#include <stdlib.h>
-#include <time.h>
-#include <unistd.h>
+    #if PLATFORM_IS(RPI)
+// TBD    #include <Timer.h>
+    #endif
+    #include <stdio.h>
+    #include <stdlib.h>
+    #include <time.h>
+    #include <unistd.h>
 #endif
 
 /*
@@ -101,7 +104,7 @@ OsalTickCount GetTicksPerSecond(void){
  * <IzotGetTickCount>.
  * 
  */
-OsalStatus OsalSleep(int ticks)
+OsalStatus OsalSleep(unsigned int ticks)
 {
     if (ticks <= MAX_TIMEOUT_TICKS) {
 #if PLATFORM_IS(FRTOS)
@@ -132,13 +135,13 @@ OsalStatus OsalSleep(int ticks)
             ticksRemaining -= timeout;
             
             // Wait for "timeout" tick counts.      
-#if PLATFORM_IS(FRTOS)
-            os_thread_sleep(os_msec_to_ticks(timeout));
-#elif PLATFORM_IS(RPI)
-        delay(ticks);
-#else
-            nanosleep((const struct timespec[]){{(int)(timeout / 1000), (timeout % 1000) * 1000000L}}, NULL);
-#endif
+            #if PLATFORM_IS(FRTOS)
+                os_thread_sleep(os_msec_to_ticks(timeout));
+            #elif PLATFORM_IS(RPI)
+                delay(ticks);
+            #else
+                nanosleep((const struct timespec[]){{(int)(timeout / 1000), (timeout % 1000) * 1000000L}}, NULL);
+            #endif
 
             if (ticksRemaining) {
                 // Recalculate how many ticks are really remaining to prevent 
@@ -177,7 +180,7 @@ void *OsalMalloc(unsigned int size)
 #if PLATFORM_IS(FRTOS)
     return os_mem_alloc(size);
 #else
-    malloc(size);
+    return malloc(size);
 #endif  // PLATFORM_IS(FRTOS)
 }
 
