@@ -1248,9 +1248,9 @@ extern IzotAliasConfig alias_config;
 extern IzotDomain domainTable[MAX_DOMAINS];  // retrieve using IzotQueryDomainConfig(const unsigned index, IzotDomain* const pDomain);
 extern IzotAddress addrTable;    // [NUM_ADDR_TBL_ENTRIES];    // retrieve using IzotQueryAddressConfig(const unsigned index, IzotAddress* const pAddress);
 extern unsigned int getRandom(void);
-extern const IzotAddress* access_address	(int index);
-extern const IzotDomain* access_domain(int index);
-extern const unsigned get_nv_length(const unsigned index);
+extern IzotAddress* access_address (int index);
+extern IzotDomain* access_domain(int index);
+extern unsigned get_nv_length(const unsigned index);
 extern IzotByte* get_nv_value(const unsigned index);
 extern IsiApiError set_node_mode(unsigned mode, unsigned state);
 
@@ -1423,7 +1423,7 @@ extern void _IsiSetSubnet(unsigned subnetId);
 extern void _IsiSetNode(unsigned nodeId);
 
 
-extern const IzotBool isiFilterMsgArrived(const IzotReceiveAddress* const pAddress,
+extern IzotBool isiFilterMsgArrived(const IzotReceiveAddress* const pAddress,
                           const IzotCorrelator correlator,
                           const IzotBool priority,
                           const IzotServiceType serviceType,
@@ -1431,10 +1431,10 @@ extern const IzotBool isiFilterMsgArrived(const IzotReceiveAddress* const pAddre
                           const IzotByte code,
                           const IzotByte* const pData, const unsigned dataLength);
 
-extern const IzotBool isiFilterResponseArrived(const IzotResponseAddress* const pAddress, const unsigned tag, 
+extern IzotBool isiFilterResponseArrived(const IzotResponseAddress* const pAddress, const unsigned tag, 
                         const IzotByte code, const IzotByte* const pData, const unsigned dataLength);
 	
-extern const IzotBool isiFilterMsgCompleted(const unsigned tag, const IzotBool success);
+extern IzotBool isiFilterMsgCompleted(const unsigned tag, const IzotBool success);
 
 extern IsiApiError initializeData(IsiBootType bootType);
 extern LtPersistenceLossReason restorePersistentData(IzotPersistentSegmentType type);
