@@ -162,8 +162,8 @@ static IzotByte getDomainLenEncoding(int domainLen)
 static void RestoreIpMembership(void)
 {
     IzotByte i;
-    uint32_t mc_addr = 0xEFC00100;
-    uint32_t bc_addr = 0XEFC00000;
+    uint32_t mc_addr = BROADCAST_PREFIX | 0x100;
+    uint32_t bc_addr = BROADCAST_PREFIX;
     
     // Group multicast membership
     for (i = 0; i < eep->readOnlyData.Extended; i++) {
@@ -449,19 +449,19 @@ static void Ipv4SendAnnouncement(IzotByte *msg, IzotByte len)
  *
  */
 static void Ipv4ConvertLsUdptoLTVX(IzotByte ipv6, IzotByte *pUdpPayload, uint16_t udpLen, const IzotByte *pSourceAddr, 
-uint16_t sourcPort,const IzotByte *pDestAddr, uint16_t destPort,
-IzotByte *pNpdu, uint16_t *pLtVxLen
-#if IPV4_SUPPORT_ARBITRARY_ADDRESSES
-    , void *lsMappingHandle
-#endif
-)
+        uint16_t sourcPort,const IzotByte *pDestAddr, uint16_t destPort,
+        IzotByte *pNpdu, uint16_t *pLtVxLen
+        #if IPV4_SUPPORT_ARBITRARY_ADDRESSES
+            , void *lsMappingHandle
+        #endif
+        )
 {
     IzotByte *pLsUdpPayload = pUdpPayload;
     IzotByte *p = pNpdu;
-    IzotByte npduHdr;
+    IzotByte npduHdr = 0;
     IzotByte lsUdpHdr0 = 0; // First byte of LS/UDP header.
-    IzotByte lsUdpHdr1;     // Second byte of LS/UDP header
-    IzotByte domainLen;
+    IzotByte lsUdpHdr1 = 0; // Second byte of LS/UDP header
+    IzotByte domainLen = 0;
     const IzotByte *pDomain;
     IzotByte failed = 0;
 
@@ -723,10 +723,10 @@ IzotByte *pNpdu, uint16_t *pLtVxLen
             SetLonTimer(&AnnouncementTimer, 0);
             SetLonTimer(&AgingTimer, 0);
             
-            AnnounceTimer = pLsUdpPayload[2] << 24 || pLsUdpPayload[3] << 16 || 
-            pLsUdpPayload[4] << 8 || pLsUdpPayload[5];
-            AddrMappingAgingTimer = pLsUdpPayload[8] << 24 || pLsUdpPayload[9] << 16 || 
-            pLsUdpPayload[10] << 8 || pLsUdpPayload[11];
+            AnnounceTimer = pLsUdpPayload[2] << 24 | pLsUdpPayload[3] << 16
+                    | pLsUdpPayload[4] << 8 | pLsUdpPayload[5];
+            AddrMappingAgingTimer = pLsUdpPayload[8] << 24 | pLsUdpPayload[9] << 16
+                    | pLsUdpPayload[10] << 8 | pLsUdpPayload[11];
                                     
             // Set the new timer
             SetLonTimer(&AnnouncementTimer, AnnounceTimer * 1000);
