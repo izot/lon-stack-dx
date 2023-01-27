@@ -81,14 +81,6 @@
 #include "lcs_netmgmt.h"
 
 /*------------------------------------------------------------------------------
- Section: Constant Definitions
- ------------------------------------------------------------------------------*/
-#define BROADCAST_PREFIX       0xEFC00000
-#define IP_ADDRESS_LEN         4
-#define MAX_NV_LEN_SUPPORTED   228
-#define IBOL_FINISH            0xFF
-
-/*------------------------------------------------------------------------------
  Section: Type Definitions
  ------------------------------------------------------------------------------*/
 
@@ -438,7 +430,7 @@ void HandleNMUpdateAddr(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
         if (IZOT_GET_ATTRIBUTE(eep->addrTable[indexIn].Group, 
         IZOT_ADDRESS_GROUP_TYPE) == 1) 
         {
-            oldaddr = 0xEFC00100 | eep->addrTable[indexIn].Group.Group;
+            oldaddr = BROADCAST_PREFIX | 0x100 | eep->addrTable[indexIn].Group.Group;
             removeFlag = 1;
         }
         
@@ -446,7 +438,7 @@ void HandleNMUpdateAddr(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
                                                             apduPtr->data[0]);
             
         // Get the new group id
-        newaddr = 0xEFC00100 | eep->addrTable[indexIn].Group.Group;
+        newaddr = BROADCAST_PREFIX | 0x100 | eep->addrTable[indexIn].Group.Group;
         if (IZOT_GET_ATTRIBUTE(eep->addrTable[indexIn].Group, 
         IZOT_ADDRESS_GROUP_TYPE) == 1 && oldaddr != newaddr) 
         {
