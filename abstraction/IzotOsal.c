@@ -35,7 +35,7 @@
     #include <wm_os.h>
 #else
     #if PLATFORM_IS(RPI)
-// TBD    #include <Timer.h>
+        #include <Arduino.h>
     #endif
     #include <stdio.h>
     #include <stdlib.h>
