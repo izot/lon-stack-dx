@@ -231,4 +231,6 @@ extern IzotApiError IzotRead(const IzotPersistentHandle handle, const size_t off
  */
 extern int IzotPersistentGetMaxSize(IzotPersistentSegmentType segmentType);
 
+extern IzotBool isPersistentDataScheduled(void);
+
 #endif /*_PERSISTENT_H*/
