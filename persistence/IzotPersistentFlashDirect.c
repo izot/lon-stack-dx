@@ -165,9 +165,7 @@ static const char *GetPersistentName(IzotPersistentSegmentType type);
  *  used for each segment. The application can invalidate a handle when 
  *  <IzotPersistentClose> is called for that handle.  
  */
-const IzotPersistentHandle IzotPersistentOpenForRead(
-const IzotPersistentSegmentType type
-)
+IzotPersistentHandle IzotPersistentOpenForRead(const IzotPersistentSegmentType type)
 {
     // This function does nothing more than translate the segment type to a 
     // handle. The actual flash data is opened and closed on each access.
@@ -201,10 +199,7 @@ const IzotPersistentSegmentType type
  *
  *  An error value is returned if the data cannot be written.
  */
-const IzotPersistentHandle IzotPersistentOpenForWrite(
-const IzotPersistentSegmentType type, 
-const size_t size
-)
+IzotPersistentHandle IzotPersistentOpenForWrite(const IzotPersistentSegmentType type, const size_t size)
 {
     IzotApiError sts = IzotApiNoError;
     void *fd;
@@ -318,12 +313,8 @@ void IzotPersistentDelete(const IzotPersistentSegmentType type)
  *  the segment. The offset in each subsequent call will be incremented by
  *  the size of the previous call.
  */
-const IzotApiError IzotPersistentRead(
-const IzotPersistentHandle handle, 
-const size_t offset, 
-const size_t size, 
-void * const pBuffer
-) 
+IzotApiError IzotPersistentRead(const IzotPersistentHandle handle, const size_t offset, 
+        const size_t size, void * const pBuffer) 
 {
     IzotApiError sts = IzotApiNoError;
     void *fd;
@@ -396,12 +387,8 @@ void * const pBuffer
  *  the segment. The offset in each subsequent call will be incremented by
  *  the size of the previous call.
  */
-const IzotApiError IzotPersistentWrite (
-const IzotPersistentHandle handle, 
-const size_t offset, 
-const size_t size, 
-const void* const pData
-) 
+IzotApiError IzotPersistentWrite(const IzotPersistentHandle handle, const size_t offset, 
+        const size_t size, const void* const pData) 
 {
     IzotApiError sts = IzotApiNoError;
     void *fd;
@@ -496,7 +483,7 @@ const void* const pData
  *  TRUE, the Izot Device Stack API will discard the segment, otherwise, the IZOT 
  *  Device Stack API will attempt to read the persistent data. 
  */
-const IzotBool IzotPersistentIsInTransaction(const IzotPersistentSegmentType type)
+IzotBool IzotPersistentIsInTransaction(const IzotPersistentSegmentType type)
 {
     // inTransaction is set to TRUE.  Any error reading the transaction record 
     // will be interpreted as being in a transaction - that is, the data 
@@ -563,9 +550,7 @@ const IzotBool IzotPersistentIsInTransaction(const IzotPersistentSegmentType typ
  *  the non-persistent image, and schedules writes to update the non-volatile 
  *  storage at a later time.  
  */
-const IzotApiError IzotPersistentEnterTransaction(
-const IzotPersistentSegmentType type
-)
+IzotApiError IzotPersistentEnterTransaction(const IzotPersistentSegmentType type)
 {
     IzotApiError sts = IzotApiNoError;
     void *fd = NULL;
@@ -636,9 +621,7 @@ const IzotPersistentSegmentType type
  *  <IzotPersistentWrite> has returned success and there are no further 
  *  updates required.   
  */
-const IzotApiError IzotPersistentExitTransaction(
-const IzotPersistentSegmentType type
-)
+IzotApiError IzotPersistentExitTransaction(const IzotPersistentSegmentType type)
 {
     IzotApiError sts = IzotApiNoError;
     void *fd = NULL;
