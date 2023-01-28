@@ -1184,7 +1184,7 @@ void SetLsAddressFromIpAddr(void)
         domain.Id[2] = 0;
     }
     
-    if ((ownIpAddress[2] >= 1 && ownIpAddress[2] <= 255) && (ownIpAddress[3] >= 1 && ownIpAddress[3] <= 127)) {
+    if ((ownIpAddress[2] >= 1) && (ownIpAddress[3] >= 1 && ownIpAddress[3] <= 127)) {
         domain.Subnet = ownIpAddress[2];
         // 3 byte domain
         IZOT_SET_ATTRIBUTE(domain, IZOT_DOMAIN_NODE, ownIpAddress[3]);  
