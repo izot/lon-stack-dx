@@ -675,7 +675,7 @@ IZOT_EXTERNAL_FN IzotApiError IzotDatapointSetup(IzotDatapointDefinition* const 
  * This function only updates the datapoint configuration flags.  Use IzotDatapointSetup() for setting non-flags.
  */
 
-IZOT_EXTERNAL_FN IzotApiError IzotDatapointFlags(IzotDatapointConfig* const pDatapointConfig,
+IZOT_EXTERNAL_FN IzotApiError IzotDatapointConfiguration(IzotDatapointConfig DatapointConfig,
         IzotBool priority, IzotDatapointDirection direction, IzotBool authentication, IzotBool aes);
 
 /*
@@ -695,7 +695,7 @@ IZOT_EXTERNAL_FN IzotApiError IzotDatapointFlags(IzotDatapointConfig* const pDat
  * IzotDatapointFlags) setting other datapoint configuration.
  */
 
-IZOT_EXTERNAL_FN IzotApiError IzotDatapointBind(IzotDatapointConfig* const pDatapointConfig, 
+IZOT_EXTERNAL_FN IzotApiError IzotDatapointBind(IzotDatapointConfig DatapointConfig, 
         IzotByte address, IzotWord selector, IzotBool turnAround, IzotServiceType service);
 
 /*
@@ -1392,6 +1392,17 @@ IZOT_EXTERNAL_FN IzotApiError IzotFilterMsgCompletedRegistrar(IzotFilterMsgCompl
  *
  */
 IZOT_EXTERNAL_FN void IzotDeregisterAllCallbacks(void);
+
+
+IZOT_EXTERNAL_FN void IzotDatapointUpdateOccurred(const unsigned index, const IzotReceiveAddress* const pSourceAddress);
+
+IZOT_EXTERNAL_FN void IzotReset(const IzotResetNotification* const pResetNotification);
+
+IZOT_EXTERNAL_FN void IzotServiceLedStatus(IzotServiceLedState state, IzotServiceLedPhysicalState physicalState);
+
+IZOT_EXTERNAL_FN IzotBool IzotFilterMsgCompleted(const unsigned tag, const IzotBool success);
+
+IZOT_EXTERNAL_FN void IzotMsgCompleted(const unsigned tag, const IzotBool success);
 
 #ifdef  __cplusplus
 }
