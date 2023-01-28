@@ -577,41 +577,41 @@ typedef struct
 typedef struct
 {
 	/* Track if this stack is initialized */
-	IzotBool       initialized;
+	IzotBool        initialized;
 
     /* Number of bytes used so far */
-    IzotUbits16    mallocUsedSize;
+    IzotUbits16     mallocUsedSize;
 
     /* Array of storage space for dynamic allocation of buffers etc */
-    IzotByte       mallocStorage[MALLOC_SIZE];
+    IzotByte        mallocStorage[MALLOC_SIZE];
 
     /* Variables for Transaction Control Sublayer */
     TransCtrlRecord priTransCtrlRec;
 
     TransCtrlRecord nonpriTransCtrlRec;
 
-    TransNum       priTransID;
-    TransNum       nonpriTransID;
+    TransNum        priTransID;
+    TransNum        nonpriTransID;
 
-    TIDTableEntry priTbl[TID_TABLE_SIZE];
-    TIDTableEntry nonpriTbl[TID_TABLE_SIZE];
+    TIDTableEntry   priTbl[TID_TABLE_SIZE];
+    TIDTableEntry   nonpriTbl[TID_TABLE_SIZE];
     /* # entries currently used */
-    IzotUbits16    priTblSize;
-    IzotUbits16    nonpriTblSize;
+    IzotUbits16     priTblSize;
+    IzotUbits16     nonpriTblSize;
 
     /* Timer to delay Transport/Session layers after an external or
        power-up reset. */
-    LonTimer       tsDelayTimer;
+    LonTimer        tsDelayTimer;
 
     /* Transmit and Receive Records */
-    TransmitRecord xmitRec;
-    TransmitRecord priXmitRec;
+    TransmitRecord  xmitRec;
+    TransmitRecord  priXmitRec;
 
     ReceiveRecord  *recvRec;  /* Pool of records */
-    IzotUbits16    recvRecCnt;        /* How many Records allocated? */
+    IzotUbits16     recvRecCnt;        /* How many Records allocated? */
 
-    RequestId      reqId; /* Running count for request numbers */
-    IzotByte       prevChallenge[8]; /* Used in generation of new challenge. */
+    RequestId       reqId; /* Running count for request numbers */
+    IzotByte        prevChallenge[8]; /* Used in generation of new challenge. */
 
     /* Various Queues */
     /**************************************************************
@@ -624,93 +624,93 @@ typedef struct
       Buffer Sizes and Count Values are available in readOnlyData
       ************************************************************/
     /* Input Queues For App Layer */
-    Queue          appInQ;
-	Queue	       appCeRspInQ;	// Completion Event and Response queue
-    IzotUbits16    appInBufSize;
-    IzotUbits16    appInQCnt;
+    Queue           appInQ;
+	Queue	        appCeRspInQ;	// Completion Event and Response queue
+    IzotUbits16     appInBufSize;
+    IzotUbits16     appInQCnt;
 
     /* Output Queue For APP Layer */
-    Queue          appOutQ;
-    IzotUbits16    appOutBufSize;
-    IzotUbits16    appOutQCnt;
+    Queue           appOutQ;
+    IzotUbits16     appOutBufSize;
+    IzotUbits16     appOutQCnt;
 
     /* Output Priority Queue for APP Layer */
-    Queue          appOutPriQ;
-    IzotUbits16    appOutPriBufSize;
-    IzotUbits16    appOutPriQCnt;
+    Queue           appOutPriQ;
+    IzotUbits16     appOutPriBufSize;
+    IzotUbits16     appOutPriQCnt;
 
     /* Input Queue For Transport, Session, Authentication Layers */
-    Queue          tsaInQ;
-    IzotUbits16    tsaInBufSize;
-    IzotUbits16    tsaInQCnt;
+    Queue           tsaInQ;
+    IzotUbits16     tsaInBufSize;
+    IzotUbits16     tsaInQCnt;
 
     /* Output Queue For Transport, Session, Authentication Layers */
-    Queue          tsaOutQ;
-    IzotUbits16    tsaOutBufSize;
-    IzotUbits16    tsaOutQCnt;
+    Queue           tsaOutQ;
+    IzotUbits16     tsaOutBufSize;
+    IzotUbits16     tsaOutQCnt;
 
     /* Output Priority Queue For Transport, Session, Auth Layers */
-    Queue          tsaOutPriQ;
-    IzotUbits16    tsaOutPriBufSize;
-    IzotUbits16    tsaOutPriQCnt;
+    Queue           tsaOutPriQ;
+    IzotUbits16     tsaOutPriBufSize;
+    IzotUbits16     tsaOutPriQCnt;
 
     /* Output Queue for Responses. Just one queue is sufficient.
        Priority or Non-priority is determined based on request */
-    Queue          tsaRespQ;
-    IzotUbits16    tsaRespBufSize;
-    IzotUbits16    tsaRespQCnt;
+    Queue           tsaRespQ;
+    IzotUbits16     tsaRespBufSize;
+    IzotUbits16     tsaRespQCnt;
 
     /* Input Queue For network Layer */
-    Queue          nwInQ;
-    IzotUbits16    nwInBufSize;
-    IzotUbits16    nwInQCnt;
+    Queue           nwInQ;
+    IzotUbits16     nwInBufSize;
+    IzotUbits16     nwInQCnt;
 
     /* Temporary queue pointers */
     Queue          *nwCurrent;
     Queue          *lkCurrent;
 
     /* Output Queue For network Layer */
-    Queue          nwOutQ;
-    IzotUbits16    nwOutBufSize;
-    IzotUbits16    nwOutQCnt;
+    Queue           nwOutQ;
+    IzotUbits16     nwOutBufSize;
+    IzotUbits16     nwOutQCnt;
 
     /* Output Priority Queue For network Layer */
     /* Buffer size is same as the buffer size for Output Queue */
-    Queue          nwOutPriQ;
-    IzotUbits16    nwOutPriBufSize;
-    IzotUbits16    nwOutPriQCnt;
+    Queue           nwOutPriQ;
+    IzotUbits16     nwOutPriBufSize;
+    IzotUbits16     nwOutPriQCnt;
 #ifdef LINK_LAYER
     /* Input Queue For Link Layer */
     IzotByte       *lkInQ;
-    IzotUbits16    lkInBufSize; /* Size of buffer in lkInPDUQ */
-    IzotUbits16    lkInQCnt;    /* # of Buffers allocated. */
+    IzotUbits16     lkInBufSize; /* Size of buffer in lkInPDUQ */
+    IzotUbits16     lkInQCnt;    /* # of Buffers allocated. */
     IzotByte       *lkInQHeadPtr;
     IzotByte       *lkInQTailPtr;
 #endif
     /* Output Queue For Link Layer */
-    Queue          lkOutQ;
-    IzotUbits16    lkOutBufSize;
-    IzotUbits16    lkOutQCnt;
+    Queue           lkOutQ;
+    IzotUbits16     lkOutBufSize;
+    IzotUbits16     lkOutQCnt;
 
     /* Output Priority Queue For Link Layer */
     /* Buffer size is same as the buffer size for Output Queue */
-    Queue          lkOutPriQ;
-    IzotUbits16    lkOutPriBufSize;
-    IzotUbits16    lkOutPriQCnt;
+    Queue           lkOutPriQ;
+    IzotUbits16     lkOutPriBufSize;
+    IzotUbits16     lkOutPriQCnt;
 
 #if LINK_IS(MIP)
     /* Output Queue For Physical Layer */
     IzotByte       *phyOutQ; /* Not a regular Queue unlike others */
-    IzotUbits16    phyOutBufSize;
-    IzotUbits16    phyOutQCnt;
+    IzotUbits16     phyOutBufSize;
+    IzotUbits16     phyOutQCnt;
     IzotByte       *phyOutQHeadPtr;
     IzotByte       *phyOutQTailPtr;
 
     /* Output Priority Queue For Physical Layer */
     /* Buffer size is same as the buffer size for Output Queue */
     IzotByte       *phyOutPriQ; /* Not a regular Queue unlike others */
-    IzotUbits16    phyOutPriBufSize;
-    IzotUbits16    phyOutPriQCnt;
+    IzotUbits16     phyOutPriBufSize;
+    IzotUbits16     phyOutPriQCnt;
     IzotByte       *phyOutPriQHeadPtr;
     IzotByte       *phyOutPriQTailPtr;
 #endif
@@ -835,28 +835,28 @@ typedef struct
 
 typedef struct
 {
-	IzotByte				domain;
-	IzotByte				address;
-	IzotByte				nv;
-	IzotByte				alias;
+	IzotByte            domain;
+	IzotByte            address;
+	IzotByte            nv;
+	IzotByte            alias;
 } Dimensions;
 
 typedef struct
 {
-    IzotReadOnlyData  	readOnlyData;
-    IzotConfigData   	configData;
-    IzotDomain        	domainTable[MAX_DOMAINS];
-    IzotAddress      	addrTable[NUM_ADDR_TBL_ENTRIES];
-    IzotDatapointConfig	nvConfigTable[NV_TABLE_SIZE];
-    IzotAliasConfig 	nvAliasTable[NV_ALIAS_TABLE_SIZE];
+    IzotReadOnlyData    readOnlyData;
+    IzotConfigData      configData;
+    IzotDomain          domainTable[MAX_DOMAINS];
+    IzotAddress         addrTable[NUM_ADDR_TBL_ENTRIES];
+    IzotDatapointConfig nvConfigTable[NV_TABLE_SIZE];
+    IzotAliasConfig     nvAliasTable[NV_ALIAS_TABLE_SIZE];
     /* Checksum for config structure */
-    IzotByte   			configCheckSum; /* Exclusive or of successive bytes in
+    IzotByte            configCheckSum; /* Exclusive or of successive bytes in
                              config structure */
-    IzotSystemError    	errorLog;
-	Dimensions			dimensions;
-	IzotByte			nvInitCount;
-	IzotByte			nodeState;
-	uint32_t			signature;
+    IzotSystemError     errorLog;
+	Dimensions          dimensions;
+	IzotByte            nvInitCount;
+	IzotByte            nodeState;
+	uint32_t            signature;
 } EEPROM;
 
 #pragma pack(pop)
@@ -870,12 +870,12 @@ typedef struct
 typedef struct
 {
      /* RAM starts here */
-    StatsStruct   stats;
-    SNVTstruct    snvt;
-    IzotByte      resetCause;
-    NVFixedStruct nvFixedTable[NV_TABLE_SIZE];
-    IzotUbits16        nvTableSize; /* Config or Fixed */
-	RxStats		  rxStat;
+    StatsStruct         stats;
+    SNVTstruct          snvt;
+    IzotByte            resetCause;
+    NVFixedStruct       nvFixedTable[NV_TABLE_SIZE];
+    IzotUbits16         nvTableSize; /* Config or Fixed */
+	RxStats             rxStat;
 } NmMap; /* Memory Map */
 
 #define IZOT_DATAPOINT_PERSIST_MASK  	    0x01    /* Added for to store persistent flag */
@@ -887,8 +887,8 @@ typedef struct
 #define IZOT_DATAPOINT_CHANGEABLE_TYPE_FIELD Attribute
 typedef struct __attribute__ ((packed))
 {
-    const IzotByte   *ibolSeq;
-    IzotByte          Attribute;
+    const IzotByte     *ibolSeq;
+    IzotByte            Attribute;
 } IzotDpProperty;
 /*-------------------------------------------------------------------
   Section: Global Variables
@@ -904,15 +904,15 @@ extern   SNVTCapabilityInfo  capability_info;
 extern   SNVTCapabilityInfo *snvt_capability_info;
 extern   SIHeaderExt         header_ext;
 extern   SIHeaderExt        *si_header_ext;
-extern   IzotDpProperty     izot_dp_prop[NV_TABLE_SIZE];
+extern   IzotDpProperty      izot_dp_prop[NV_TABLE_SIZE];
 
 /*-------------------------------------------------------------------
   Section: Function Prototypes
   -------------------------------------------------------------------*/
-IzotDomain *AccessDomain(IzotByte indexIn);
-Status  UpdateDomain(const IzotDomain *domainInp, IzotByte indexIn, IzotByte includeKey);
+IzotDomain  *AccessDomain(IzotByte indexIn);
+Status   UpdateDomain(const IzotDomain *domainInp, IzotByte indexIn, IzotByte includeKey);
 IzotAddress *AccessAddress(IzotUbits16 indexIn);
-Status  UpdateAddress(const IzotAddress *addrEntryInp, IzotUbits16 indexIn);
+Status   UpdateAddress(const IzotAddress *addrEntryInp, IzotUbits16 indexIn);
 IzotUbits16  AddrTableIndex(IzotByte domainIndexIn, IzotByte groupIn);
 IzotByte IsGroupMember(IzotByte domainIndex, IzotByte groupIn,
                       IzotByte *groupMemberOut);
@@ -924,38 +924,40 @@ IzotUbits16  DecodeTxTimer(IzotByte  txTimerIn);
 // Deleted from DecodeTxTimer: "", IzotByte longTimer"
 
 IzotDatapointConfig *AccessNV(IzotUbits16 indexIn);
-void UpdateNV(IzotDatapointConfig *nvStructInp, IzotUbits16 indexIn);
+void     UpdateNV(IzotDatapointConfig *nvStructInp, IzotUbits16 indexIn);
 IzotAliasConfig *AccessAlias(IzotUbits16 indexIn);
-void    UpdateAlias(IzotAliasConfig *aliasStructInp, IzotUbits16 indexIn);
-IzotUbits16  AliasTableIndex(char varNameIn[]);
-void   *AllocateStorage(IzotUbits16 size);
-void    NodeReset(IzotByte firstReset);
-void	NodeReset_wrapper(void);
-Status  InitEEPROM(uint32_t signature);
-IzotByte   CheckSum8(void *data, IzotUbits16 lengthIn);
-IzotByte   ComputeConfigCheckSum(void);
-IzotBits16   GetPrimaryIndex(IzotBits16 nvIndexIn);
+void     UpdateAlias(IzotAliasConfig *aliasStructInp, IzotUbits16 indexIn);
+IzotUbits16 AliasTableIndex(char varNameIn[]);
+void    *AllocateStorage(IzotUbits16 size);
+void     NodeReset(IzotByte firstReset);
+void	 NodeReset_wrapper(void);
+Status   InitEEPROM(uint32_t signature);
+IzotByte CheckSum8(void *data, IzotUbits16 lengthIn);
+IzotByte ComputeConfigCheckSum(void);
+IzotBits16 GetPrimaryIndex(IzotBits16 nvIndexIn);
 IzotDatapointConfig *GetNVStructPtr(IzotBits16 nvIndexIn);
 IzotByte IsTagBound(IzotByte tagin);
 IzotByte IsNVBound(IzotBits16 nvIndexIn);
 IzotByte AppPgmRuns(void);
-IzotByte NodeConfigured(void);		// Node is honoring its configuration
+void     MsgCompletes(Status status, MsgTag tag);
+IzotByte NodeConfigured(void);		    // Node is honoring its configuration
 IzotByte NodeUnConfigured(void);		// Node is not running and not honoring configuration (not necessarily the same as !NodeConfigured())
-void	LCS_LogRxStat(AltPathFlags altPath, RxStatType type);
-void	NM_Init(void);
+void	 LCS_LogRxStat(AltPathFlags altPath, RxStatType type);
+void	 NM_Init(void);
 IzotBool IsPhysicalResetRequested(void);
+void     PhysicalResetRequested(void);
 
 // APIs that follow the AREA_<Name> convention:
-void	LCS_RecordError(IzotSystemError err);
-void	LCS_WriteNvm(void);
-EchErr	LCS_ReadNvm(void);
-void    LCS_WriteNvs(void);
-EchErr  LCS_ReadNvs(void);
-void	LCS_InitAddress(void);
-void 	LCS_InitAlias(void);
+void	 LCS_RecordError(IzotSystemError err);
+void	 LCS_WriteNvm(void);
+EchErr	 LCS_ReadNvm(void);
+void     LCS_WriteNvs(void);
+EchErr   LCS_ReadNvs(void);
+void	 LCS_InitAddress(void);
+void 	 LCS_InitAlias(void);
 IzotByte izot_get_device_state(void);
 IzotByte izot_get_service_pin_mode(void);
-uint8_t	izot_get_device_mode(void);
+uint8_t	 izot_get_device_mode(void);
 
 extern IzotApiError IzotGetUniqueId(IzotUniqueId* const pId);
 extern void IzotMsgArrived(const IzotReceiveAddress* const pAddress,
