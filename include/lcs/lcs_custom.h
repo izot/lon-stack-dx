@@ -135,8 +135,6 @@ typedef struct
     AuthKey key[MAX_DOMAINS];  /* 6 byte authentication key */
 
     /* Address Table Info. Enter all 5 byte values */
-    /* Note: LonBuilder will overwrite the first 15 entries during
-       Load/Start. This was used for only for testing purpose */
     /* Alias tables are not handled by some management tools
        and hence this initialization might be useful. */
 } CustomData;
