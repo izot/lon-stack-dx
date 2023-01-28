@@ -966,15 +966,15 @@ IZOT_EXTERNAL_FN IzotApiError IzotDatapointSetup(IzotDatapointDefinition* const 
  * This function only updates the datapoint configuration flags.  Use IzotDatapointSetup() for setting non-flags.
  */
 
-IZOT_EXTERNAL_FN IzotApiError IzotDatapointFlags(IzotDatapointConfig* const pDatapointConfig,
+IZOT_EXTERNAL_FN IzotApiError IzotDatapointConfiguration(IzotDatapointConfig DatapointConfig,
         IzotBool priority, IzotDatapointDirection direction, IzotBool authentication, IzotBool aes)
 {
     IzotApiError lastError = IzotApiNoError;
 
-    IZOT_SET_ATTRIBUTE_P(pDatapointConfig, IZOT_DATAPOINT_PRIORITY, priority);
-    IZOT_SET_ATTRIBUTE_P(pDatapointConfig, IZOT_DATAPOINT_DIRECTION, direction);
-    IZOT_SET_ATTRIBUTE_P(pDatapointConfig, IZOT_DATAPOINT_AUTHENTICATION, authentication);
-    IZOT_SET_ATTRIBUTE_P(pDatapointConfig, IZOT_DATAPOINT_AES, aes);
+    IZOT_SET_ATTRIBUTE(DatapointConfig, IZOT_DATAPOINT_PRIORITY, priority);
+    IZOT_SET_ATTRIBUTE(DatapointConfig, IZOT_DATAPOINT_DIRECTION, direction);
+    IZOT_SET_ATTRIBUTE(DatapointConfig, IZOT_DATAPOINT_AUTHENTICATION, authentication);
+    IZOT_SET_ATTRIBUTE(DatapointConfig, IZOT_DATAPOINT_AES, aes);
 
     return(lastError);
 }
@@ -996,20 +996,20 @@ IZOT_EXTERNAL_FN IzotApiError IzotDatapointFlags(IzotDatapointConfig* const pDat
  *
  * Remarks:
  * This function only updates the datapoint connection information.  Use IzotDatapointSetup() and
- * IzotDatapointFlags) setting other datapoint configuration.
+ * IzotDatapointConfiguration) setting other datapoint configuration.
  */
 
-IZOT_EXTERNAL_FN IzotApiError IzotDatapointBind(IzotDatapointConfig* const pDatapointConfig, 
+IZOT_EXTERNAL_FN IzotApiError IzotDatapointBind(IzotDatapointConfig DatapointConfig, 
         IzotByte address, IzotWord selector, IzotBool turnAround, IzotServiceType service)
 {
     IzotApiError lastError = IzotApiNoError;
 
-    IZOT_SET_ATTRIBUTE_P(pDatapointConfig, IZOT_DATAPOINT_ADDRESS_HIGH, address >> 4);
-    IZOT_SET_ATTRIBUTE_P(pDatapointConfig, IZOT_DATAPOINT_ADDRESS_LOW, address);
-    IZOT_SET_ATTRIBUTE_P(pDatapointConfig, IZOT_DATAPOINT_SELHIGH, high_byte(IZOT_GET_UNSIGNED_WORD(selector)));
-    pDatapointConfig->SelectorLow = low_byte(IZOT_GET_UNSIGNED_WORD(selector));
-    IZOT_SET_ATTRIBUTE_P(pDatapointConfig, IZOT_DATAPOINT_TURNAROUND, turnAround);
-    IZOT_SET_ATTRIBUTE_P(pDatapointConfig, IZOT_DATAPOINT_SERVICE, service);
+    IZOT_SET_ATTRIBUTE(DatapointConfig, IZOT_DATAPOINT_ADDRESS_HIGH, address >> 4);
+    IZOT_SET_ATTRIBUTE(DatapointConfig, IZOT_DATAPOINT_ADDRESS_LOW, address);
+    IZOT_SET_ATTRIBUTE(DatapointConfig, IZOT_DATAPOINT_SELHIGH, high_byte(IZOT_GET_UNSIGNED_WORD(selector)));
+    DatapointConfig.SelectorLow = low_byte(IZOT_GET_UNSIGNED_WORD(selector));
+    IZOT_SET_ATTRIBUTE(DatapointConfig, IZOT_DATAPOINT_TURNAROUND, turnAround);
+    IZOT_SET_ATTRIBUTE(DatapointConfig, IZOT_DATAPOINT_SERVICE, service);
 
     return(lastError);
 }
@@ -1189,7 +1189,7 @@ IZOT_EXTERNAL_FN IzotApiError IzotPersistentFlushData(void)
  *  Remarks:
  *  
  */
-const unsigned IzotGetAppSegmentSize(void)
+unsigned IzotGetAppSegmentSize(void)
 {
 	if(izot_get_app_seg_size_handler) {
 		return izot_get_app_seg_size_handler();
@@ -1319,7 +1319,9 @@ IZOT_EXTERNAL_FN IzotApiError IzotCreateStack(const IzotStackInterfaceData* cons
 const IzotControlData * const pControlData)
 {
     IzotApiError err = IzotApiNoError;
-    char oldProgId[8]; 
+#if LINK_IS(WIFI)
+    char oldProgId[8];
+#endif 
 
     // Currently only a few of these fields are used by LCS.  Note also that
     // LCS is a multi-stack model and IZOT is a single stack model.  For now,
@@ -1336,7 +1338,7 @@ const IzotControlData * const pControlData)
     cp->addressCnt = pInterface->Addresses;
     cp->szSelfDoc = (char *)pInterface->NodeSdString;
     memcpy(cp->progId, pInterface->ProgramId, sizeof(cp->progId));
-    memcpy(cp->location, "loc1", sizeof(cp->location));
+    memset(cp->location, 0, sizeof(cp->location));
     cp->len[0] = 0;
     memset(cp->domainId[0], 0, IZOT_DOMAIN_ID_MAX_LENGTH);
     cp->subnet[0] = rand()%255 + 1; // Avoid 0.
@@ -1399,8 +1401,9 @@ const IzotControlData * const pControlData)
  */
 IZOT_EXTERNAL_FN IzotApiError IzotRegisterStaticDatapoint(IzotDatapointDefinition* const pDatapointDef) {
     IzotApiError err = IzotApiNoError;
-
     NVDefinition d;
+    IzotBits16 returnValue;
+
     UInt16 flags = pDatapointDef->Flags;
     memset(&d, 0, sizeof(d));
     d.snvtType = pDatapointDef->SnvtId;
@@ -1453,10 +1456,13 @@ IZOT_EXTERNAL_FN IzotApiError IzotRegisterStaticDatapoint(IzotDatapointDefinitio
     if (d.snvtExt) {
         d.snvtDesc |= 0x80;
     }
-    pDatapointDef->NvIndex = AddNV(&d);
-    if (pDatapointDef->NvIndex == -1) {
+    returnValue = AddNV(&d);
+    if (returnValue == -1) {
         err = IzotApiInvalidParameter;
+    } else {
+        pDatapointDef->NvIndex = returnValue;
     }
+
     return err;
 }
 
@@ -1667,11 +1673,11 @@ IzotByte* pNode)
  */
 IZOT_EXTERNAL_FN IzotBool IzotIsFirstRun(void)
 {
-    char first_run[1] = "";
     int result = FALSE;
  
 #if PROCESSOR_IS(MC200)
     // Check if first run, if so, set variable
+    char first_run[1] = "";
     
     psm_get_single(IZOT_MOD_NAME, "first_run", first_run, 2);
     
@@ -2189,9 +2195,7 @@ IzotBool IzotFilterResponseArrived(
  *  event. Without an application-specific handler, this event does nothing
  *  (no completion event is filtered, all are permitted to the application).
  */
-const IzotBool IzotFilterMsgCompleted(
-const unsigned tag, 
-const IzotBool success)
+IzotBool IzotFilterMsgCompleted(const unsigned tag, const IzotBool success)
 {
     if (izot_filter_msg_completed) {
         return izot_filter_msg_completed(tag, success);
