@@ -1285,6 +1285,8 @@ void HandleNmeUpdateNvByIndex(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr
     if(err == NM_resp_success) {
         IzotUbits16 dplength = dataLength;
         IzotByte hdi[MAX_NV_LEN_SUPPORTED];
+        IzotByte arg1 = 0;
+        IzotByte arg2 = 0;
 
         if (izot_dp_prop[matchingPrimaryIndex].ibolSeq) {
             int byte_index = 0;
@@ -1297,7 +1299,9 @@ void HandleNmeUpdateNvByIndex(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr
                     byte_index++;
                 }
                 byte_index++;
-                dplength += ibol_seq[byte_index++] * ibol_seq[byte_index++];
+                arg1 = ibol_seq[byte_index++];
+                arg2 = ibol_seq[byte_index++];
+                dplength += arg1 * arg2;
             }
             memcpy(&apduPtr->data[3], &hdi, dplength);
         }
