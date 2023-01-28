@@ -119,5 +119,7 @@ extern int HalFlashDrvRead(
 void *fd, IzotByte *buf, uint32_t len, uint32_t addr
 );
 
+extern void HalReboot(void);
+
 #endif  /* defined(DEFINED_IZOTHAL_H) */
 /* end of file. */

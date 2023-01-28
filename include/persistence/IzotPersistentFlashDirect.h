@@ -214,5 +214,8 @@ extern IzotApiError IzotPersistentEnterTransaction(const IzotPersistentSegmentTy
  */
 extern IzotApiError IzotPersistentExitTransaction(const IzotPersistentSegmentType type);
 
+extern void ErasePersistenceData(void);
+extern void ErasePersistenceConfig(void);
+
 #endif  /* defined(DEFINED_IZOTPERSISTENTFLASHDIRECT_H) */
  

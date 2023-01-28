@@ -116,5 +116,8 @@ void APPReceive(void);
 Status SendResponse(RequestId reqId, IzotByte code, int len, IzotByte *pData);
 Status SendNullResponse(RequestId reqId);
 Status AllocSendUnackd(PktCtrl ctrl, MsgTag tag, IzotSendAddress* pSrc, DestinType code, IzotByte data0, int len, IzotByte *pData);
+uint32_t GetSiDataLength(void);
+void IzotPrepareNetworkData(IzotByte *ndi, IzotUbits16 dpIndex, IzotUbits16 dpLen, IzotByte *hdi);
+IzotApiError IzotNdiToHdi(const IzotByte *ndi, IzotByte *hdi, const IzotByte *ibol);
 
 #endif  // _LCS_APP_H

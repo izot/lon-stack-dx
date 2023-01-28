@@ -315,5 +315,16 @@ extern LonTimer  iupMd5EventTimer;
 extern int  InitUpdateProcess(void);
 extern int  VerifyImage(void);
 extern void SwitchOverImage(void);
+extern void ComputeMD5Digest(void);
+extern void CalculateMD5(void);
+extern void CommitImage(void);
+extern void HandleNmeIupInit(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr);
+extern void HandleNmeIupTransfer(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr);
+extern void HandleNmeIupConfirm(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr);
+extern void HandleNmeIupValidate(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr);
+extern void HandleNmeIupSwitchOver(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr);
+extern void HandleNmeIupStatus(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr);
+extern void HandleNmeIupCommit(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr);
+extern void HandleNmeIupTransferAck(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr);
 
 #endif	// _IUP_H
