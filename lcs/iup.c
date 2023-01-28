@@ -92,12 +92,15 @@ LonTimer  iupCommitFirmwareTimer;
 /*------------------------------------------------------------------------------
  Section: Static
  ------------------------------------------------------------------------------*/
+#if PLATFORM_IS(FRTOS)
 static IupPersistent  iupPersistData;
 static uint32_t       iupPersistDataLen = sizeof(iupPersistData);
 static IzotUbits16    iupRcvdPckCount;
 static IzotByte       validationOnceStarted;
-static IzotByte       saltBytes[SALT_LENGTH];
 static IzotByte       digestBytes[MD5_DIGEST_LENGTH];
+#endif
+
+static IzotByte       saltBytes[SALT_LENGTH];
 static IzotByte       digestmatch;
 static MD5Context     md5c;
 static uint32_t       fileSizeTemp;
