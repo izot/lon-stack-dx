@@ -1,7 +1,7 @@
 //
 // IPv4ToLsUdp.c
 //
-// Copyright (C) 2022 EnOcean
+// Copyright (C) 2023 EnOcean
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in 
@@ -23,6 +23,7 @@
 
 #include "IPv4ToLsUdp.h"
 
+
 /*------------------------------------------------------------------------------
 Section: Macros
 ------------------------------------------------------------------------------*/
@@ -33,6 +34,8 @@ Section: Macros
 #endif
 
 #define MAX_DATA_LEN  255
+
+
 /*------------------------------------------------------------------------------
 Section: Constant Definitions
 ------------------------------------------------------------------------------*/
@@ -52,12 +55,13 @@ typedef enum
 } LtAddressFormat;
 #endif
 
+
 /*------------------------------------------------------------------------------
 Section: Globals
 ------------------------------------------------------------------------------*/
 void *ls_mapping;
-IzotUbits16 AnnounceTimer         = 60;    // in seconds
-IzotUbits16 AddrMappingAgingTimer = 0;    // in seconds
+IzotUbits16 AnnounceTimer         = 60000;  // in milliseconds
+IzotUbits16 AddrMappingAgingTimer = 0;    	// in milliseconds
 
 
 #if UIP_CONF_IPV6
@@ -69,6 +73,7 @@ IzotUbits16 AddrMappingAgingTimer = 0;    // in seconds
     const IzotByte ipv4_zero_len_domain_prefix[] = {IPV4_DOMAIN_LEN_0_PREFIX_0, IPV4_DOMAIN_LEN_0_PREFIX_1};
 #endif
 
+
 /*------------------------------------------------------------------------------
 Section: Statics
 ------------------------------------------------------------------------------*/
@@ -76,6 +81,7 @@ Section: Statics
 static const IzotByte domainLengthTable[4] = { 0, 1, 3, 6 }; 
 static LonTimer        AnnouncementTimer;
 static LonTimer        AgingTimer;
+
 
 /*
  * SECTION: FUNCTIONS
@@ -427,6 +433,23 @@ static void Ipv4SendAnnouncement(IzotByte *msg, IzotByte len)
 }
 #endif
 
+//
+// StartProtocolTimer
+//
+// Extract a 32-bit seconds value from a message and convert it to milliseconds
+// (as required by SetLonTimer).  Check for overflow and cap.
+//
+void StartProtocolTimer(LonTimer *pTimer, IzotUbits16 *pTimeout, IzotByte *pMsg)
+{
+    IzotUbits32 seconds = pMsg[0]<<24 | pMsg[1]<<16 | pMsg[2]<<8 | pMsg[3];
+    if (seconds > 65) {
+        seconds = 65;
+    }
+    *pTimeout = seconds * 1000;      // Save timer duration for later resumption
+    SetLonTimer(pTimer, 0);          // Stop the timer first
+    SetLonTimer(pTimer, *pTimeout);  // And start it up
+}
+
 /* 
  *  Callback: Ipv4ConvertLsUdptoLTVX
  *  Convert the LS/UDP packet found in the Contiki global uip_buf to an LTV0
@@ -719,18 +742,8 @@ static void Ipv4ConvertLsUdptoLTVX(IzotByte ipv6, IzotByte *pUdpPayload, uint16_
         if ((lsUdpHdr1 & IPV4_LSUDP_NPDU_MASK_PDUFMT) == ENCLOSED_PDU_TYPE_APDU && 
         pLsUdpPayload[0] == IPV4_EXP_MSG_CODE && pduLen >= 12 && pLsUdpPayload[1] == 
         IPV4_EXP_SET_LS_ADDR_MAPPING_ANNOUNCEMENT_PARAM) {
-            // Stop the timer first
-            SetLonTimer(&AnnouncementTimer, 0);
-            SetLonTimer(&AgingTimer, 0);
-            
-            AnnounceTimer = pLsUdpPayload[2] << 24 | pLsUdpPayload[3] << 16
-                    | pLsUdpPayload[4] << 8 | pLsUdpPayload[5];
-            AddrMappingAgingTimer = pLsUdpPayload[8] << 24 | pLsUdpPayload[9] << 16
-                    | pLsUdpPayload[10] << 8 | pLsUdpPayload[11];
-                                    
-            // Set the new timer
-            SetLonTimer(&AnnouncementTimer, AnnounceTimer * 1000);
-            SetLonTimer(&AgingTimer, AddrMappingAgingTimer * 1000);
+			StartProtocolTimer(&AnnouncementTimer, &AnnounceTimer, &pLsUdpPayload[2]);
+			StartProtocolTimer(&AgingTimer, &AddrMappingAgingTimer, &pLsUdpPayload[8]);
         }
 #endif
         memcpy(p, pLsUdpPayload, pduLen);
@@ -921,8 +934,8 @@ void LsUDPReset(void)
         return;
     }
 
-    SetLonTimer(&AnnouncementTimer, AnnounceTimer*1000);
-    SetLonTimer(&AgingTimer, AddrMappingAgingTimer*1000);
+    SetLonTimer(&AnnouncementTimer, AnnounceTimer);
+    SetLonTimer(&AgingTimer, AddrMappingAgingTimer);
 
     return;
 }
@@ -953,14 +966,14 @@ void LsUDPSend(void)
     if (LonTimerExpired(&AnnouncementTimer)) {
         SendAnnouncement();
         // Set the announcement timer again
-        SetLonTimer(&AnnouncementTimer, AnnounceTimer * 1000);
+        SetLonTimer(&AnnouncementTimer, AnnounceTimer);
     }
     
     // Check for the LS/IP address mapping aging
     if (LonTimerExpired(&AgingTimer)) {
         ClearMapping();
         // Set the aging timer again
-        SetLonTimer(&AgingTimer, AddrMappingAgingTimer * 1000);
+        SetLonTimer(&AgingTimer, AddrMappingAgingTimer);
     }
     
     
@@ -1207,9 +1220,10 @@ void SetLsAddressFromIpAddr(void)
 int UdpInit(void)
 {
     int ret = IzotApiNoError;
-    int err;
     
 #if PROCESSOR_IS(MC200)
+    int err;
+    
     // Init the debug UART
     wmstdio_init(UART0_ID, 0);
     
