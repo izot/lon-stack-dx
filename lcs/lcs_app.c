@@ -1832,10 +1832,14 @@ IzotApiError IzotNdiToHdi(const IzotByte *ndi, IzotByte *hdi, const IzotByte *ib
     uint16_t ndo = 0;
     uint16_t size = 0;
     uint16_t elements = 0;
+    IzotByte arg1 = 0;
+    IzotByte arg2 = 0;
 
     while (ibol[i] != IBOL_FINISH) {
         if(ibol[i] & 0x80) {
-            ndo = ((ibol[i++] & 0x7F) << 8) | ibol[i++] ;
+            arg1 = ibol[i++];
+            arg2 = ibol[i++];
+            ndo = ((arg1 & 0x7F) << 8) | arg2;
         } else {
             ndo = ibol[i++];
         }
@@ -1879,10 +1883,14 @@ static void IzotHdiToNdi(const IzotByte *ibol_seq, IzotByte *src, IzotByte *dst,
     uint16_t ndo = 0;
     uint16_t size = 0;
     uint16_t elements = 0;
+    IzotByte arg1 = 0;
+    IzotByte arg2 = 0;
     
     while (ibol_seq[i] != IBOL_FINISH) {
         if(ibol_seq[i] & 0x80) {
-            ndo = ((ibol_seq[i++] & 0x7F) << 8) | ibol_seq[i++] ;
+            arg1 = ibol_seq[i++];
+            arg2 = ibol_seq[i++];
+            ndo = ((arg1 & 0x7F) << 8) | arg2;
         } else {
             ndo = ibol_seq[i++];
         }
@@ -2301,6 +2309,8 @@ static void ProcessNVUpdate(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
         
         if (izot_dp_prop[matchingPrimaryIndex].ibolSeq) 
         {
+            IzotByte arg1 = 0;
+            IzotByte arg2 = 0;
             int byte_index = 0;
             const IzotByte *ibol_seq = izot_dp_prop[matchingPrimaryIndex].ibolSeq;
             
@@ -2313,7 +2323,9 @@ static void ProcessNVUpdate(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
                     byte_index++;
                 }
                 byte_index++;
-                dplength += ibol_seq[byte_index++] * ibol_seq[byte_index++];
+                arg1 = ibol_seq[byte_index++];
+                arg2 = ibol_seq[byte_index++];
+                dplength += arg1 * arg2;
             }
 
             memcpy(&apduPtr->data[1], &hdi, dplength);
