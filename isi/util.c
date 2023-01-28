@@ -47,7 +47,6 @@ unsigned m_z = thisRandomInit;  	 //for random_t() //changed datatype to ignore 
  *===========================================================================*/
 
 extern unsigned IzotGetCurrentDatapointSize(const unsigned index);
-extern void IzotReset(const IzotResetNotification* const pResetNotification);
 extern volatile void* IzotGetDatapointValue(const unsigned index);
 
 
