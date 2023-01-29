@@ -1,7 +1,7 @@
 //
 // IzotTypes.h
 //
-// Copyright (C) 2022 EnOcean
+// Copyright (C) 2023 EnOcean
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in 
@@ -35,6 +35,8 @@
 #ifndef _IZOT_PLATFORM_H
 #   error You must include IzotPlatform.h first
 #endif  /* _IZOT_PLATFORM_H */
+
+#include "IapTypes.h"       // IAP type definitions
 
 
 /*
