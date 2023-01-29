@@ -1,7 +1,7 @@
 //
 // echversion.h
 //
-// Copyright (C) 2022 EnOcean
+// Copyright (C) 2023 EnOcean
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in 
@@ -27,7 +27,10 @@
  *
  * Abstract:
  *  This file defines build versions.  It can be customized by different
- *  products to define different version numbers, if necessary.
+ *  products to define different version numbers, if necessary.  This file
+ *  was customized for LON Stack DX starting with the 2.0 release of
+ *  LON Stack DX.  The 1.0 release of the LON Stack DX incorrectly reported
+ *  the major release number as 4.
  */
 
 #ifndef ECHVERSION_H
@@ -47,7 +50,7 @@
 //
 
 #ifndef RELEASE_NUMBER_MAJOR
-#  define RELEASE_NUMBER_MAJOR      4       // :MAJOR:   DO NOT DELETE THIS MARKER!
+#  define RELEASE_NUMBER_MAJOR      2       // :MAJOR:   DO NOT DELETE THIS MARKER!
 #endif
 #ifndef RELEASE_NUMBER_MINOR1
 #  define RELEASE_NUMBER_MINOR1     0       // :MINOR1:  DO NOT DELETE THIS MARKER!
@@ -69,7 +72,7 @@
 #define DEVEL_BIND_NUM 255
 
 // Pull-in (standard) macros for operating on these versions numbers
-#define VER_PRODUCT             "LON_DX"
+#define VER_PRODUCT             "LON Stack DX"
 
 #define COPYRIGHT_FROM			2009
 

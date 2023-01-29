@@ -1,7 +1,7 @@
 //
 // vermacro.h
 //
-// Copyright (C) 2022 EnOcean
+// Copyright (C) 2023 EnOcean
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in 
@@ -52,7 +52,7 @@
  *   by passing options to the compiler.
  */
 #ifndef COPYRIGHT_TO
-#  define COPYRIGHT_TO              2022
+#  define COPYRIGHT_TO              2023
 #endif
 
 /*
@@ -140,7 +140,7 @@
 
 // argument to ProductName string table resource
 #ifndef VER_PRODUCT
-    #define VER_PRODUCT             "LON DX Stack"
+    #define VER_PRODUCT             "LON Stack DX"
 #endif
 
 // backwards-compatibility macros - use the VER_ versions for new code
