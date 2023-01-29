@@ -36,11 +36,13 @@ Comments:  Sets the timer to the specified value. The interval
 		   repeating timer.  Use SetLonRepeatTimer() to stop
 		   any repeats.
 ******************************************************************/
-void SetLonTimer(LonTimer *timerOut, IzotUbits16 initValueIn)
+void SetLonTimer(LonTimer *timerOut, IzotUbits32 initValueIn)
 {
 	if (initValueIn) {
+		// Limit duration to prevent expiration overflow
+		initValueIn = min(initValueIn, 0x7FFFFFFF);
     	timerOut->repeatTimeout = 0;
-    	timerOut->expiration = IzotGetTickCount() + initValueIn;
+    	timerOut->expiration = (IzotGetTickCount() & 0x7FFFFFFF) + initValueIn;
 
 		if (timerOut->expiration == 0) {
 			// Zero signals that a timer is not running so disallow it.
@@ -60,8 +62,10 @@ Comments:  Sets the timer to the specified value. The interval
 		   can be up to about 24 days.  Set the value to 0 to stop 
 		   the current time interval and any repeats.
 ******************************************************************/
-void SetLonRepeatTimer(LonTimer *timerOut, IzotUbits16 initValueIn)
+void SetLonRepeatTimer(LonTimer *timerOut, IzotUbits32 initValueIn)
 {
+    // Limit duration to prevent expiration overflow
+    initValueIn = min(initValueIn, 0x7FFFFFFF);
 	SetLonTimer(timerOut, initValueIn);
 	if (initValueIn) {
     	timerOut->repeatTimeout = initValueIn;

@@ -35,8 +35,8 @@
 #include "lcs_eia709_1.h"
 // #include "lcs_node.h"
 
-void    SetLonTimer(LonTimer *timerOut, IzotUbits16 initValueIn);
-void    SetLonRepeatTimer(LonTimer *timerOut, IzotUbits16 initValueIn);
+void    SetLonTimer(LonTimer *timerOut, IzotUbits32 initValueIn);
+void    SetLonRepeatTimer(LonTimer *timerOut, IzotUbits32 initValueIn);
 // Returns true once upon expiration.
 IzotByte LonTimerExpired(LonTimer *timerInOut);
 // Returns true as long as timer is running.

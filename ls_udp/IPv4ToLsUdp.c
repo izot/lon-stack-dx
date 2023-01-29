@@ -60,8 +60,8 @@ typedef enum
 Section: Globals
 ------------------------------------------------------------------------------*/
 void *ls_mapping;
-IzotUbits16 AnnounceTimer         = 60000;  // in milliseconds
-IzotUbits16 AddrMappingAgingTimer = 0;    	// in milliseconds
+IzotUbits32 AnnounceTimer         = 60000;  // in milliseconds
+IzotUbits32 AddrMappingAgingTimer = 0;    	// in milliseconds
 
 
 #if UIP_CONF_IPV6
@@ -434,17 +434,16 @@ static void Ipv4SendAnnouncement(IzotByte *msg, IzotByte len)
 #endif
 
 //
-// StartProtocolTimer
-//
+// Function: StartProtocolTimer
 // Extract a 32-bit seconds value from a message and convert it to milliseconds
 // (as required by SetLonTimer).  Check for overflow and cap.
 //
-void StartProtocolTimer(LonTimer *pTimer, IzotUbits16 *pTimeout, IzotByte *pMsg)
+#define MAX_PROTOCOL_TIMER_SECONDS (IzotUbits32) (0x7FFFFFFF / 1000)
+
+void StartProtocolTimer(LonTimer *pTimer, IzotUbits32 *pTimeout, IzotByte *pMsg)
 {
     IzotUbits32 seconds = pMsg[0]<<24 | pMsg[1]<<16 | pMsg[2]<<8 | pMsg[3];
-    if (seconds > 65) {
-        seconds = 65;
-    }
+    seconds = min(seconds, MAX_PROTOCOL_TIMER_SECONDS);
     *pTimeout = seconds * 1000;      // Save timer duration for later resumption
     SetLonTimer(pTimer, 0);          // Stop the timer first
     SetLonTimer(pTimer, *pTimeout);  // And start it up
