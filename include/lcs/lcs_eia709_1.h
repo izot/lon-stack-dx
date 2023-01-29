@@ -38,8 +38,13 @@
 /*------------------------------------------------------------------------------
   Section: Macro Definitions
   ------------------------------------------------------------------------------*/
-#define MIN(x,y) (((x)<(y))?(x):(y))
-#define MAX(x,y) (((x)>(y))?(x):(y))
+#ifndef MIN
+   #define MIN(x,y) (((x)<(y))?(x):(y))
+#endif
+
+#ifndef MAX
+   #define MAX(x,y) (((x)>(y))?(x):(y))
+#endif
 
 /* Statistics */
 typedef enum __attribute__ ((packed))

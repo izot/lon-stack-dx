@@ -152,8 +152,12 @@ extern "C" {
 /*------------------------------------------------------------------------------
 Section: Macro Definitions
 ------------------------------------------------------------------------------*/
-#define MIN(x,y) (((x)<(y))?(x):(y))
-#define MAX(x,y) (((x)>(y))?(x):(y))
+#ifndef MIN
+    #define MIN(x,y) (((x)<(y))?(x):(y))
+#endif
+#ifndef MAX
+    #define MAX(x,y) (((x)>(y))?(x):(y))
+#endif
 
 #define max(a, b) MAX(a, b)
 #define min(a, b) MIN(a, b)
