@@ -31,9 +31,6 @@
 
 #include "IzotConfig.h"         // Project-specific configuration
 #include "IzotApi.h"            // LON Stack API definition
-#include "IzotTypes.h"          // LON Stack and IAP type definitions
-#include "lcs_custom.h"
-#include "lcs_api.h"
 
 #ifdef  __cplusplus
 extern "C" {
@@ -41,8 +38,8 @@ extern "C" {
 
 // Function prototypes.
 
-extern "C" IzotApiError SetUpExample1(void);
-extern "C" IzotApiError LoopExample1(void);
+extern IzotApiError SetUpExample1(void);
+extern IzotApiError LoopExample1(void);
 
 // Domain definition.  
 
