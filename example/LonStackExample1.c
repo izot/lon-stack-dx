@@ -26,8 +26,7 @@
 // Abstract:
 // Simple example application for the LON Stack.
 
-
-#include "LonStackExample1.h"   // Example definitions
+#include "LonStackExample1.h"   // Example declarations
 
 
 //
@@ -48,6 +47,7 @@ SNVT_elapsed_tm heartbeatIn = {{0, 0}, 0, 0, 2, {0, 0}};
 #define HEARTBEAT_IN_ADDRESS 0
 #define HEARTBEAT_IN_SELECTOR 0
 IzotDatapointDefinition heartbeatInDef; // Used to create definition and get NV index.  Copied into NV config table.
+IzotDatapointConfig heartbeatInConfig;  // Used to create NV configuration.  Copied into NV config table.
 const char* heartbeatInName = "heartbeatIn";
 const char* heartbeatInSD = "Heartbeat Interval Input";
 
@@ -56,6 +56,7 @@ SNVT_flow_p flow1In;
 #define FLOW1_IN_ADDRESS 0
 #define FLOW1_IN_SELECTOR 1
 IzotDatapointDefinition flow1InDef;    // Used to create definition and get NV index.  Copied into NV config table.
+IzotDatapointConfig flow1InConfig;  // Used to create NV configuration.  Copied into NV config table.
 const char* flow1InName = "flow1In";
 const char* flow1InSD = "Flow 1 Input";
 
@@ -64,6 +65,7 @@ SNVT_flow_f flow2In;
 #define FLOW2_IN_ADDRESS 0
 #define FLOW2_IN_SELECTOR 2
 IzotDatapointDefinition flow2InDef;    // Used to create definition and get NV index.  Copied into NV config table.
+IzotDatapointConfig flow2InConfig;  // Used to create NV configuration.  Copied into NV config table.
 const char* flow2InName = "flow2In";
 const char* flow2InSD = "Flow 2 Input";
 
@@ -72,6 +74,7 @@ SNVT_temp_p temp1In;
 #define TEMP1_IN_ADDRESS 0
 #define TEMP1_IN_SELECTOR 3
 IzotDatapointDefinition temp1InDef;    // Used to create definition and get NV index.  Copied into NV config table.
+IzotDatapointConfig temp1InConfig;  // Used to create NV configuration.  Copied into NV config table.
 const char* temp1InName = "temp1In";
 const char* temp1InSD = "Temp 1 Input";
 
@@ -80,6 +83,7 @@ SNVT_temp_f temp2In;
 #define TEMP2_IN_ADDRESS 0
 #define TEMP2_IN_SELECTOR 4
 IzotDatapointDefinition temp2InDef;    // Used to create definition and get NV index.  Copied into NV config table.
+IzotDatapointConfig temp2InConfig;  // Used to create NV configuration.  Copied into NV config table.
 const char* temp2InName = "temp2In";
 const char* temp2InSD = "Temp 2 Input";
 
@@ -88,6 +92,7 @@ SNVT_flow_p flow1Out;
 #define FLOW1_OUT_ADDRESS 0
 #define FLOW1_OUT_SELECTOR 1
 IzotDatapointDefinition flow1OutDef;    // Used to create definition and get NV index.  Copied into NV config table.
+IzotDatapointConfig flow1OutConfig;  // Used to create NV configuration.  Copied into NV config table.
 const char* flow1OutName = "flow1Out";
 const char* flow1OutSD = "Flow 1 Output";
 
@@ -96,6 +101,7 @@ SNVT_flow_f flow2Out;
 #define FLOW2_OUT_ADDRESS 0
 #define FLOW2_OUT_SELECTOR 2
 IzotDatapointDefinition flow2OutDef;    // Used to create definition and get NV index.  Copied into NV config table.
+IzotDatapointConfig flow2OutConfig;  // Used to create NV configuration.  Copied into NV config table.
 const char* flow2OutName = "flow2Out";
 const char* flow2OutSD = "Flow 2 Output";
 
@@ -104,6 +110,7 @@ SNVT_temp_p temp1Out;
 #define TEMP1_OUT_ADDRESS 0
 #define TEMP1_OUT_SELECTOR 3
 IzotDatapointDefinition temp1OutDef;    // Used to create definition and get NV index.  Copied into NV config table.
+IzotDatapointConfig temp1OutConfig;  // Used to create NV configuration.  Copied into NV config table.
 const char* temp1OutName = "temp1Out";
 const char* temp1OutSD = "Temp 1 Output";
 
@@ -112,6 +119,7 @@ SNVT_temp_f temp2Out;
 #define TEMP2_OUT_ADDRESS 0
 #define TEMP2_OUT_SELECTOR 4
 IzotDatapointDefinition temp2OutDef;    // Used to create definition and get NV index.  Copied into NV config table.
+IzotDatapointConfig temp2OutConfig;  // Used to create NV configuration.  Copied into NV config table.
 const char* temp2OutName = "temp2Out";
 const char* temp2OutSD = "Temp 2 Output";
 
@@ -134,6 +142,12 @@ static LonTimer HeartbeatTimer;
 IzotApiError SetUpAddressTable(void);
 IzotApiError SetUpStaticNVs(void);
 void Example1DatapointUpdateOccurred(const unsigned index, const IzotReceiveAddress* const pSourceAddress);
+void SetHeartbeatTimer(void);
+void HeartbeatInUpdateOccurred(const unsigned index, const IzotReceiveAddress* const pSourceAddress);
+void Flow1InUpdateOccurred(const unsigned index, const IzotReceiveAddress* const pSourceAddress);
+void Flow2InUpdateOccurred(const unsigned index, const IzotReceiveAddress* const pSourceAddress);
+void Temp1InUpdateOccurred(const unsigned index, const IzotReceiveAddress* const pSourceAddress);
+void Temp2InUpdateOccurred(const unsigned index, const IzotReceiveAddress* const pSourceAddress);
 
 
 //
@@ -180,7 +194,7 @@ IzotApiError SetUpExample1(void)
     success =  IZOT_SUCCESS(lastError = IzotCreateStack(&LonStackInterface, &LonStackControlData)) 
             && IZOT_SUCCESS(lastError = SetUpStaticNVs()) 
             && IZOT_SUCCESS(lastError = IzotStartStack())
-            && IZOT_SUCCESS(lastError = IzotUpdateDomain(0, EXAMPLE_DOMAIN_LENGTH, &domainId, EXAMPLE_SUBNET, EXAMPLE_NODE))
+            && IZOT_SUCCESS(lastError = IzotUpdateDomain(0, EXAMPLE_DOMAIN_LENGTH, (IzotByte*) &domainId, EXAMPLE_SUBNET, EXAMPLE_NODE))
             && IZOT_SUCCESS(lastError = SetUpAddressTable())
             && IZOT_SUCCESS(lastError = IzotDatapointUpdateOccurredRegistrar(&Example1DatapointUpdateOccurred));
 
@@ -235,7 +249,7 @@ IzotApiError LoopExample1(void)
 
 IzotApiError SetUpAddressTable(void)
 {
-    IzotAddress AddressTableEntry; 
+    IzotAddress AddressTableEntry = {}; 
     IzotApiError lastError = IzotApiNoError;
 
     AddressTableEntry.SubnetNode.Type = IzotAddressSubnetNode;
@@ -264,7 +278,7 @@ IzotApiError SetUpStaticNVs(void)
 
     // Specify static configuration with: IzotDatapointSetup(IzotDatapointDefinition* pDatapointDef, volatile void const *value, IzotDatapointSize size, 
     //      uint16_t snvtId, uint16_t arrayCount, const char *name, const char *sdString, uint8_t maxRate, uint8_t meanRate, const uint8_t *ibol)
-    // Specify flag configuration with: IzotDatapointConfig(IzotDatapointDefinition* pDatapointDef, IzotBool priority, IzotDatapointDirectiond irection, 
+    // Specify flag configuration with: IzotDatapointConfiguration(IzotDatapointConfig DatapointConfig, IzotBool priority, IzotDatapointDirectiond irection, 
     //      IzotBool authentication, IzotBool aes)
     // Specify connection configuration with: IzotDatapointBind(IzotDatapointDefinition* pDatapointDef, IzotByte address, IzotWord selector, 
     //      IzotBool turnAround, IzotServiceTypeservice)
@@ -273,8 +287,8 @@ IzotApiError SetUpStaticNVs(void)
     IZOT_SET_UNSIGNED_WORD(selector, HEARTBEAT_IN_SELECTOR);
     success =  IZOT_SUCCESS(lastError = IzotDatapointSetup(&heartbeatInDef, &heartbeatIn, sizeof(heartbeatIn), SNVT_flow_p_index, 0, heartbeatInName,  
                heartbeatInSD, IZOT_DATAPOINT_RATE_UNKNOWN, IZOT_DATAPOINT_RATE_UNKNOWN, NULL))
-            && IZOT_SUCCESS(lastError = IzotDatapointFlags(heartbeatInDef.Flags, FALSE, IzotDatapointDirectionIsInput, FALSE, FALSE))
-            && IZOT_SUCCESS(lastError = IzotDatapointBind(heartbeatInDef.Flags, HEARTBEAT_IN_ADDRESS, selector, FALSE, IzotServiceAcknowledged))
+            && IZOT_SUCCESS(lastError = IzotDatapointConfiguration(heartbeatInConfig, FALSE, IzotDatapointDirectionIsInput, FALSE, FALSE))
+            && IZOT_SUCCESS(lastError = IzotDatapointBind(heartbeatInConfig, HEARTBEAT_IN_ADDRESS, selector, FALSE, IzotServiceAcknowledged))
             && IZOT_SUCCESS(lastError = IzotRegisterStaticDatapoint(&heartbeatInDef));
     if (!success) {
         return(lastError);
@@ -284,8 +298,8 @@ IzotApiError SetUpStaticNVs(void)
     IZOT_SET_UNSIGNED_WORD(selector, FLOW1_IN_SELECTOR);
     success =  IZOT_SUCCESS(lastError = IzotDatapointSetup(&flow1InDef, &flow1In, sizeof(flow1In), SNVT_flow_p_index, 0, flow1InName,  
                flow1InSD, IZOT_DATAPOINT_RATE_UNKNOWN, IZOT_DATAPOINT_RATE_UNKNOWN, NULL))
-            && IZOT_SUCCESS(lastError = IzotDatapointFlags(flow1InDef.Flags, FALSE, IzotDatapointDirectionIsInput, FALSE, FALSE))
-            && IZOT_SUCCESS(lastError = IzotDatapointBind(flow1InDef.Flags, FLOW1_IN_ADDRESS, selector, FALSE, IzotServiceAcknowledged))
+            && IZOT_SUCCESS(lastError = IzotDatapointConfiguration(flow1InConfig, FALSE, IzotDatapointDirectionIsInput, FALSE, FALSE))
+            && IZOT_SUCCESS(lastError = IzotDatapointBind(flow1InConfig, FLOW1_IN_ADDRESS, selector, FALSE, IzotServiceAcknowledged))
             && IZOT_SUCCESS(lastError = IzotRegisterStaticDatapoint(&flow1InDef));
     if (!success) {
         return(lastError);
@@ -295,8 +309,8 @@ IzotApiError SetUpStaticNVs(void)
     IZOT_SET_UNSIGNED_WORD(selector, FLOW2_IN_SELECTOR);
     success =  IZOT_SUCCESS(lastError = IzotDatapointSetup(&flow2InDef, &flow2In, sizeof(flow2In), SNVT_flow_f_index, 0, flow2InName,  
                flow2InSD, IZOT_DATAPOINT_RATE_UNKNOWN, IZOT_DATAPOINT_RATE_UNKNOWN, NULL))
-            && IZOT_SUCCESS(lastError = IzotDatapointFlags(flow2InDef.Flags, FALSE, IzotDatapointDirectionIsInput, FALSE, FALSE))
-            && IZOT_SUCCESS(lastError = IzotDatapointBind(flow2InDef.Flags, FLOW2_IN_ADDRESS, selector, FALSE, IzotServiceAcknowledged))
+            && IZOT_SUCCESS(lastError = IzotDatapointConfiguration(flow2InConfig, FALSE, IzotDatapointDirectionIsInput, FALSE, FALSE))
+            && IZOT_SUCCESS(lastError = IzotDatapointBind(flow2InConfig, FLOW2_IN_ADDRESS, selector, FALSE, IzotServiceAcknowledged))
             && IZOT_SUCCESS(lastError = IzotRegisterStaticDatapoint(&flow2InDef));
     if (!success) {
         return(lastError);
@@ -306,8 +320,8 @@ IzotApiError SetUpStaticNVs(void)
     IZOT_SET_UNSIGNED_WORD(selector, TEMP1_IN_SELECTOR);
     success =  IZOT_SUCCESS(lastError = IzotDatapointSetup(&temp1InDef, &temp1In, sizeof(temp1In), SNVT_flow_p_index, 0, temp1InName, temp1InSD, 
                IZOT_DATAPOINT_RATE_UNKNOWN, IZOT_DATAPOINT_RATE_UNKNOWN, NULL))
-            && IZOT_SUCCESS(lastError = IzotDatapointFlags(temp1InDef.Flags, FALSE, IzotDatapointDirectionIsInput, FALSE, FALSE))
-            && IZOT_SUCCESS(lastError = IzotDatapointBind(temp1InDef.Flags, TEMP1_IN_ADDRESS, selector, FALSE, IzotServiceAcknowledged))
+            && IZOT_SUCCESS(lastError = IzotDatapointConfiguration(temp1InConfig, FALSE, IzotDatapointDirectionIsInput, FALSE, FALSE))
+            && IZOT_SUCCESS(lastError = IzotDatapointBind(temp1InConfig, TEMP1_IN_ADDRESS, selector, FALSE, IzotServiceAcknowledged))
             && IZOT_SUCCESS(lastError = IzotRegisterStaticDatapoint(&temp1InDef));
     if (!success) {
         return(lastError);
@@ -317,8 +331,8 @@ IzotApiError SetUpStaticNVs(void)
     IZOT_SET_UNSIGNED_WORD(selector, TEMP2_IN_SELECTOR);
     success =  IZOT_SUCCESS(lastError = IzotDatapointSetup(&temp2InDef, &temp2In, sizeof(temp2In), SNVT_flow_f_index, 0, temp2InName, temp2InSD, 
                IZOT_DATAPOINT_RATE_UNKNOWN, IZOT_DATAPOINT_RATE_UNKNOWN, NULL))
-            && IZOT_SUCCESS(lastError = IzotDatapointFlags(temp2InDef.Flags, FALSE, IzotDatapointDirectionIsInput, FALSE, FALSE))
-            && IZOT_SUCCESS(lastError = IzotDatapointBind(temp2InDef.Flags, TEMP2_IN_ADDRESS, selector, FALSE, IzotServiceAcknowledged))
+            && IZOT_SUCCESS(lastError = IzotDatapointConfiguration(temp2InConfig, FALSE, IzotDatapointDirectionIsInput, FALSE, FALSE))
+            && IZOT_SUCCESS(lastError = IzotDatapointBind(temp2InConfig, TEMP2_IN_ADDRESS, selector, FALSE, IzotServiceAcknowledged))
             && IZOT_SUCCESS(lastError = IzotRegisterStaticDatapoint(&temp2InDef));
     if (!success) {
         return(lastError);
@@ -328,8 +342,8 @@ IzotApiError SetUpStaticNVs(void)
     IZOT_SET_UNSIGNED_WORD(selector, FLOW1_OUT_SELECTOR);
     success =  IZOT_SUCCESS(lastError = IzotDatapointSetup(&flow1OutDef, &flow1Out, sizeof(flow1Out), SNVT_flow_p_index, 0, flow1OutName, flow1OutSD, 
                IZOT_DATAPOINT_RATE_UNKNOWN, IZOT_DATAPOINT_RATE_UNKNOWN, NULL))
-            && IZOT_SUCCESS(lastError = IzotDatapointFlags(flow1OutDef.Flags, FALSE, IzotDatapointDirectionIsOutput, FALSE, FALSE))
-            && IZOT_SUCCESS(lastError = IzotDatapointBind(flow1OutDef.Flags, FLOW1_OUT_ADDRESS, selector, FALSE, IzotServiceAcknowledged))
+            && IZOT_SUCCESS(lastError = IzotDatapointConfiguration(flow1OutConfig, FALSE, IzotDatapointDirectionIsOutput, FALSE, FALSE))
+            && IZOT_SUCCESS(lastError = IzotDatapointBind(flow1OutConfig, FLOW1_OUT_ADDRESS, selector, FALSE, IzotServiceAcknowledged))
             && IZOT_SUCCESS(lastError = IzotRegisterStaticDatapoint(&flow1OutDef));
     if (!success) {
         return(lastError);
@@ -339,8 +353,8 @@ IzotApiError SetUpStaticNVs(void)
     IZOT_SET_UNSIGNED_WORD(selector, FLOW2_OUT_SELECTOR);
     success =  IZOT_SUCCESS(lastError = IzotDatapointSetup(&flow2OutDef, &flow2Out, sizeof(flow2Out), SNVT_flow_f_index, 0, flow2OutName, flow2OutSD, 
                IZOT_DATAPOINT_RATE_UNKNOWN, IZOT_DATAPOINT_RATE_UNKNOWN, NULL))
-            && IZOT_SUCCESS(lastError = IzotDatapointFlags(flow2OutDef.Flags, FALSE, IzotDatapointDirectionIsOutput, FALSE, FALSE))
-            && IZOT_SUCCESS(lastError = IzotDatapointBind(flow2OutDef.Flags, FLOW2_OUT_ADDRESS, selector, FALSE, IzotServiceAcknowledged))
+            && IZOT_SUCCESS(lastError = IzotDatapointConfiguration(flow2OutConfig, FALSE, IzotDatapointDirectionIsOutput, FALSE, FALSE))
+            && IZOT_SUCCESS(lastError = IzotDatapointBind(flow2OutConfig, FLOW2_OUT_ADDRESS, selector, FALSE, IzotServiceAcknowledged))
             && IZOT_SUCCESS(lastError = IzotRegisterStaticDatapoint(&flow2OutDef));
     if (!success) {
         return(lastError);
@@ -350,8 +364,8 @@ IzotApiError SetUpStaticNVs(void)
     IZOT_SET_UNSIGNED_WORD(selector, TEMP1_OUT_SELECTOR);
     success =  IZOT_SUCCESS(lastError = IzotDatapointSetup(&temp1OutDef, &temp1Out, sizeof(temp1Out), SNVT_flow_p_index, 0, temp1OutName, temp1OutSD, 
                IZOT_DATAPOINT_RATE_UNKNOWN, IZOT_DATAPOINT_RATE_UNKNOWN, NULL))
-            && IZOT_SUCCESS(lastError = IzotDatapointFlags(temp1OutDef.Flags, FALSE, IzotDatapointDirectionIsOutput, FALSE, FALSE))
-            && IZOT_SUCCESS(lastError = IzotDatapointBind(temp1OutDef.Flags, TEMP1_OUT_ADDRESS, selector, FALSE, IzotServiceAcknowledged))
+            && IZOT_SUCCESS(lastError = IzotDatapointConfiguration(temp1OutConfig, FALSE, IzotDatapointDirectionIsOutput, FALSE, FALSE))
+            && IZOT_SUCCESS(lastError = IzotDatapointBind(temp1OutConfig, TEMP1_OUT_ADDRESS, selector, FALSE, IzotServiceAcknowledged))
             && IZOT_SUCCESS(lastError = IzotRegisterStaticDatapoint(&temp1OutDef));
     if (!success) {
         return(lastError);
@@ -361,8 +375,8 @@ IzotApiError SetUpStaticNVs(void)
     IZOT_SET_UNSIGNED_WORD(selector, TEMP2_OUT_SELECTOR);
     success =  IZOT_SUCCESS(lastError = IzotDatapointSetup(&temp2OutDef, &temp2Out, sizeof(temp2Out), SNVT_flow_f_index, 0, temp2OutName, temp2OutSD, 
                IZOT_DATAPOINT_RATE_UNKNOWN, IZOT_DATAPOINT_RATE_UNKNOWN, NULL))
-            && IZOT_SUCCESS(lastError = IzotDatapointFlags(temp2OutDef.Flags, FALSE, IzotDatapointDirectionIsOutput, FALSE, FALSE))
-            && IZOT_SUCCESS(lastError = IzotDatapointBind(temp2OutDef.Flags, TEMP2_OUT_ADDRESS, selector, FALSE, IzotServiceAcknowledged))
+            && IZOT_SUCCESS(lastError = IzotDatapointConfiguration(temp2OutConfig, FALSE, IzotDatapointDirectionIsOutput, FALSE, FALSE))
+            && IZOT_SUCCESS(lastError = IzotDatapointBind(temp2OutConfig, TEMP2_OUT_ADDRESS, selector, FALSE, IzotServiceAcknowledged))
             && IZOT_SUCCESS(lastError = IzotRegisterStaticDatapoint(&temp2OutDef));
     if (!success) {
         return(lastError);
