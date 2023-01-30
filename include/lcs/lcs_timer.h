@@ -33,7 +33,10 @@
 #include "IzotPlatform.h"
 #include "IzotTypes.h"
 #include "lcs_eia709_1.h"
-// #include "lcs_node.h"
+
+// Set LON timer maximum duration to 1/4 maximum full range for a 32-bit
+// millisecond timer which is about 12 days
+#define LON_TIMER_MAX_DURATION 0x3FFFFFFF
 
 void    SetLonTimer(LonTimer *timerOut, IzotUbits32 initValueIn);
 void    SetLonRepeatTimer(LonTimer *timerOut, IzotUbits32 initValueIn);
@@ -41,6 +44,6 @@ void    SetLonRepeatTimer(LonTimer *timerOut, IzotUbits32 initValueIn);
 IzotByte LonTimerExpired(LonTimer *timerInOut);
 // Returns true as long as timer is running.
 IzotByte LonTimerRunning(LonTimer *timerInOut);
-IzotUbits16 LonTimerRemaining(LonTimer *timerInOut);
+IzotUbits32 LonTimerRemaining(LonTimer *timerInOut);
 
 #endif // _TIMER_H

@@ -39,10 +39,10 @@ Comments:  Sets the timer to the specified value. The interval
 void SetLonTimer(LonTimer *timerOut, IzotUbits32 initValueIn)
 {
 	if (initValueIn) {
-		// Limit duration to prevent expiration overflow
-		initValueIn = min(initValueIn, 0x7FFFFFFF);
+		// Limit duration to handle 32-bit overflow
+		initValueIn = min(initValueIn, LON_TIMER_MAX_DURATION);
     	timerOut->repeatTimeout = 0;
-    	timerOut->expiration = (IzotGetTickCount() & 0x7FFFFFFF) + initValueIn;
+    	timerOut->expiration = IzotGetTickCount() + initValueIn;
 
 		if (timerOut->expiration == 0) {
 			// Zero signals that a timer is not running so disallow it.
@@ -64,8 +64,8 @@ Comments:  Sets the timer to the specified value. The interval
 ******************************************************************/
 void SetLonRepeatTimer(LonTimer *timerOut, IzotUbits32 initValueIn)
 {
-    // Limit duration to prevent expiration overflow
-    initValueIn = min(initValueIn, 0x7FFFFFFF);
+    // Limit duration to handle 32-bit overflow
+    initValueIn = min(initValueIn, LON_TIMER_MAX_DURATION);
 	SetLonTimer(timerOut, initValueIn);
 	if (initValueIn) {
     	timerOut->repeatTimeout = initValueIn;
@@ -85,19 +85,12 @@ Comments:  V1 used TMR_Expired().
 ******************************************************************/
 IzotByte LonTimerExpired(LonTimer *timerInOut)
 {
-    IzotBits32 delta = (IzotBits32) (timerInOut->expiration - IzotGetTickCount());
-    IzotByte isExpired = timerInOut->expiration && delta <= 0;
+    IzotBool isExpired = LonTimerRemaining(timerInOut) == 0;
+
     if (isExpired) {
         timerInOut->expiration = 0;
         if (timerInOut->repeatTimeout) {
-            IzotUbits16 t = timerInOut->repeatTimeout;
-            if ((IzotBits32) (t + delta) < 0) {
-                // The repeat timeout is behind the current time.  Set the
-                // delta to 0 to miss a tick.
-                delta = 0;
-            }
-            SetLonTimer(timerInOut, t + delta);
-            timerInOut->repeatTimeout = t;
+            SetLonTimer(timerInOut, timerInOut->repeatTimeout);
         }
     }
     return isExpired;
@@ -124,11 +117,24 @@ Returns:   Number of milliseconds left on the timer.
 Purpose:   Return the number of milliseconds left on a timer, or
 		   return 0 if the timer is not running or expired.
 ******************************************************************/
-IzotUbits16 LonTimerRemaining(LonTimer *timerInOut)
+IzotUbits32 LonTimerRemaining(LonTimer *timerInOut)
 {
-	IzotUbits16 remaining = 0;
+	IzotUbits32 currentTickCount = IzotGetTickCount();
+	IzotUbits32 delta = 0;
+	IzotUbits32 remaining = 0;
+
 	if (LonTimerRunning(timerInOut)) {
-		remaining = timerInOut->expiration - IzotGetTickCount();
+		if (currentTickCount <= timerInOut->expiration) {
+			remaining = timerInOut->expiration - currentTickCount;
+		} else {
+			delta = currentTickCount - timerInOut->expiration;
+			if (delta < LON_TIMER_MAX_DURATION) {
+				remaining = 0;
+			} else {
+				// Adjust for overflow
+				remaining = IZOT_UBITS_32_MAX - delta;
+			}
+		}
 	}
 	return remaining;
 }
@@ -159,11 +165,17 @@ Returns:   Number of milliseconds since the watch was started.
 Purpose:   Return the number of milliseconds since StartLonWatch()
 		   was called.
 ******************************************************************/
-IzotUbits16 LonWatchElapsed(LonWatch *watch)
+IzotUbits32 LonWatchElapsed(LonWatch *watch)
 {
-	IzotUbits16 duration = 0;
+	IzotUbits32 currentTickCount = IzotGetTickCount();
+	IzotUbits32 duration = 0;
+
 	if (watch->start) {
-		duration = IzotGetTickCount() - watch->start;
+		duration = currentTickCount - watch->start;
+		if (currentTickCount < watch->start) {
+			// Adjust for overflow
+			duration += IZOT_UBITS_32_MAX;
+		}
 	}
 	return duration;
 }
