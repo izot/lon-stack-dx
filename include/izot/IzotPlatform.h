@@ -173,6 +173,8 @@
 	typedef unsigned long	IzotUbits32;        /* 32-bits          */
     typedef signed   long	IzotBits32;			/* 32-bits, signed  */
 	
+    #define IZOT_UBITS_32_MAX 0xFFFFFFFF
+    
     #include <stdint.h>
     typedef uint8_t         IzotByte;
 
