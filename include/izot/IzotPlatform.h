@@ -308,7 +308,9 @@
     typedef signed   short  IzotBits16;			/* 16-bits, signed  */
 	typedef unsigned long	IzotUbits32;        /* 32-bits          */
     typedef signed   long	IzotBits32;			/* 32-bits, signed  */
-	
+		
+    #define IZOT_UBITS_32_MAX 0xFFFFFFFF
+
     typedef uint8_t         IzotByte;
 
     /*
@@ -443,7 +445,9 @@
     typedef signed   short  IzotBits16;			/* 16-bits, signed  */
 	typedef unsigned long	IzotUbits32;        /* 32-bits          */
     typedef signed   long	IzotBits32;			/* 32-bits, signed  */
-	
+		
+    #define IZOT_UBITS_32_MAX 0xFFFFFFFF
+
     typedef uint8_t         IzotByte;
 
     /*
@@ -558,6 +562,9 @@
         IzotWord  lsw;    /* low-order word, the least significant word, the 0x5678 in 0x12345678 */
     } IZOT_STRUCT_END(IzotDoubleWord);
 
+	
+    #define IZOT_UBITS_32_MAX 0xFFFFFFFF
+
     typedef int32_t    IzotBool;
     typedef uint8_t    IzotBool8;
     #ifndef TRUE
@@ -631,6 +638,9 @@
         IzotWord  msw;    /* high-order word, the most significant word, the 0x1234 in 0x12345678 */
         IzotWord  lsw;    /* low-order word, the least significant word, the 0x5678 in 0x12345678 */
     } IZOT_STRUCT_END(IzotDoubleWord);
+
+	
+    #define IZOT_UBITS_32_MAX 0xFFFFFFFF
 
     typedef int        IzotBool;
     typedef uint8_t    IzotBool8;
@@ -715,6 +725,9 @@
     } IZOT_STRUCT_END(IzotDoubleWord);
 
     typedef int        IzotBool;
+    	
+    #define IZOT_UBITS_32_MAX 0xFFFFFFFF
+
     typedef uint8_t    IzotBool8;
     #ifndef TRUE
         #define TRUE   1
@@ -799,6 +812,9 @@
     } IZOT_STRUCT_END(IzotDoubleWord);
 
     typedef int        IzotBool;
+    	
+    #define IZOT_UBITS_32_MAX 0xFFFFFFFF
+
     typedef uint8_t    IzotBool8;
     #ifndef TRUE
         #define TRUE   1
@@ -867,6 +883,8 @@
     typedef signed short   int16_t;
     typedef unsigned long  uint32_t;
     typedef signed long    int32_t;
+	
+    #define IZOT_UBITS_32_MAX 0xFFFFFFFF
 
     typedef uint8_t        IzotByte;
 
@@ -965,6 +983,8 @@
     typedef signed short   int16_t;
     typedef unsigned long  uint32_t;
     typedef signed long    int32_t;
+	
+    #define IZOT_UBITS_32_MAX 0xFFFFFFFF
 
     typedef uint8_t        IzotByte;
 
@@ -1076,6 +1096,9 @@
     } IZOT_STRUCT_END(IzotDoubleWord);
 
     typedef int        IzotBool;
+    	
+    #define IZOT_UBITS_32_MAX 0xFFFFFFFF
+
     typedef uint8_t    IzotBool8;
     #ifndef TRUE
         #define TRUE   1
