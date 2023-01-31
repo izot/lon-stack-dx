@@ -41,9 +41,9 @@
 void    SetLonTimer(LonTimer *timerOut, IzotUbits32 initValueIn);
 void    SetLonRepeatTimer(LonTimer *timerOut, IzotUbits32 initValueIn);
 // Returns true once upon expiration.
-IzotByte LonTimerExpired(LonTimer *timerInOut);
+IzotBool LonTimerExpired(LonTimer *timerInOut);
 // Returns true as long as timer is running.
-IzotByte LonTimerRunning(LonTimer *timerInOut);
+IzotBool LonTimerRunning(LonTimer *timerInOut);
 IzotUbits32 LonTimerRemaining(LonTimer *timerInOut);
 
 #endif // _TIMER_H
