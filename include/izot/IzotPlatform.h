@@ -52,7 +52,7 @@
  *
  *  -------- Portability Principles -----
  *
- *  The LON DX Stack API uses portable type definitions where necessary,
+ *  The LON Stack DX API uses portable type definitions where necessary,
  *  and uses native types, including C-99 types, where possible. Portable
  *  types are primarily used in the definition of protocol and network data
  *  structures, because these definitions must generally match the protocol
@@ -109,7 +109,7 @@
     #define PLATFORM_ID PLATFORM_ID_RPI
 #endif
 
-#if PLATFORM_IS(RPI) && PLATFORM_ID_RPI
+#if PLATFORM_IS(RPI)
     /*
      * Raspberry Pi platform using the arm-linux-gnueabihf toolchain.  Little-endian.
      */
@@ -248,21 +248,6 @@
     #define BYTE_ORDER LITTLE_ENDIAN
 
     /*
-     * Indicate that a compiler/platform has been defined in this file.
-     */
-    #if !defined(_IZOT_PLATFORM_DEFINED)
-        #define _IZOT_PLATFORM_DEFINED
-    #else
-        #error Multiple platform definitions
-    #endif
-
-    /*
-     * If stdint.h is supported, simply #include this here,
-     * replacing the following definitions.
-     */
-	 #include "stdint.h"
-    
-    /*
      * IZOT_(ENUM|STRUCT|UNION)_BEGIN and *_END macros are used to begin and
      * end type definitions for enumerations, structures and unions. These
      * must be defined such that the resulting type uses byte-alignment
@@ -311,6 +296,7 @@
 		
     #define IZOT_UBITS_32_MAX 0xFFFFFFFF
 
+    #include "stdint.h"
     typedef uint8_t         IzotByte;
 
     /*
@@ -380,21 +366,6 @@
     #define BYTE_ORDER LITTLE_ENDIAN
 
     /*
-     * Indicate that a compiler/platform has been defined in this file.
-     */
-    #if !defined(_IZOT_PLATFORM_DEFINED)
-        #define _IZOT_PLATFORM_DEFINED
-    #else
-        #error Multiple platform definitions
-    #endif
-
-    /*
-     * If stdint.h is supported, simply #include this here,
-     * replacing the following definitions.
-     */
-	 #include "stdint.h"
-    
-    /*
      * IZOT_(ENUM|STRUCT|UNION)_BEGIN and *_END macros are used to begin and
      * end type definitions for enumerations, structures and unions. These
      * must be defined such that the resulting type uses byte-alignment
@@ -448,6 +419,7 @@
 		
     #define IZOT_UBITS_32_MAX 0xFFFFFFFF
 
+    #include "stdint.h"
     typedef uint8_t         IzotByte;
 
     /*
@@ -523,17 +495,19 @@
     #define BYTE_ORDER LITTLE_ENDIAN
 
     /*
-     * indicate a compiler/platform has been defined
+     * IZOT_(ENUM|STRUCT|UNION)_BEGIN and *_END macros for beginning and
+     * ending type definitions for enumerations, structures and unions. These
+     * must be defined such that the resulting type uses byte-alignment
+     * without padding.
+     *
+     * The *_NESTED_* macros define unions or structures within surrounding
+     * union or structure definitions. These may require different
+     * modifiers to accomplish the same compact, byte-aligned, image.
+     *
+     * IZOT_ENUM implements a variable of an enumeration type. This
+     * can expand to the actual enumeration type, if the compiler supports
+     * a signed 8-bit enumerated type. Most compilers will map this to int8_t.
      */
-    #if !defined(_IZOT_PLATFORM_DEFINED)
-        #define _IZOT_PLATFORM_DEFINED
-    #else
-        #error Multiple platform definitions
-    #endif
-
-   #include <stdint.h>
-   typedef uint8_t       IzotByte;
-
     #define IZOT_ENUM_BEGIN(n)   enum
     #define IZOT_ENUM_END(n)     n
     #define IZOT_ENUM(n)         IzotByte
@@ -550,6 +524,9 @@
     #define IZOT_UNION_NESTED_BEGIN(n)   union
     #define IZOT_UNION_NESTED_END(n)     __attribute__((__packed__, aligned(1))) n
 
+    #include <stdint.h>
+    typedef uint8_t       IzotByte;
+	
     typedef IZOT_STRUCT_BEGIN(IzotWord)
     {
         IzotByte  msb;    /* high-order byte, the most significant byte, the 0x12 in 0x1234 */
@@ -562,7 +539,6 @@
         IzotWord  lsw;    /* low-order word, the least significant word, the 0x5678 in 0x12345678 */
     } IZOT_STRUCT_END(IzotDoubleWord);
 
-	
     #define IZOT_UBITS_32_MAX 0xFFFFFFFF
 
     typedef int32_t    IzotBool;
@@ -600,17 +576,19 @@
     #define BYTE_ORDER LITTLE_ENDIAN
 
     /*
-     * indicate a compiler/platform has been defined
+     * IZOT_(ENUM|STRUCT|UNION)_BEGIN and *_END macros for beginning and
+     * ending type definitions for enumerations, structures and unions. These
+     * must be defined such that the resulting type uses byte-alignment
+     * without padding.
+     *
+     * The *_NESTED_* macros define unions or structures within surrounding
+     * union or structure definitions. These may require different
+     * modifiers to accomplish the same compact, byte-aligned, image.
+     *
+     * IZOT_ENUM implements a variable of an enumeration type. This
+     * can expand to the actual enumeration type, if the compiler supports
+     * a signed 8-bit enumerated type. Most compilers will map this to int8_t.
      */
-    #if !defined(_IZOT_PLATFORM_DEFINED)
-        #define _IZOT_PLATFORM_DEFINED
-    #else
-        #error Multiple platform definitions
-    #endif
-
-    #include <stdint.h>
-    typedef uint8_t             IzotByte;
-
     #define IZOT_ENUM_BEGIN(n)   enum
     #define IZOT_ENUM_END(n)     n
     #define IZOT_ENUM(n)         IzotByte
@@ -627,6 +605,9 @@
     #define IZOT_UNION_NESTED_BEGIN(n)   union
     #define IZOT_UNION_NESTED_END(n)     n
 
+    #include <stdint.h>
+    typedef uint8_t             IzotByte;
+
     typedef IZOT_STRUCT_BEGIN(IzotWord)
     {
         IzotByte  msb;    /* high-order byte, the most significant byte, the 0x12 in 0x1234 */
@@ -639,7 +620,6 @@
         IzotWord  lsw;    /* low-order word, the least significant word, the 0x5678 in 0x12345678 */
     } IZOT_STRUCT_END(IzotDoubleWord);
 
-	
     #define IZOT_UBITS_32_MAX 0xFFFFFFFF
 
     typedef int        IzotBool;
@@ -678,24 +658,25 @@
     #define BYTE_ORDER LITTLE_ENDIAN
 
     /*
-     * indicate a compiler/platform has been defined
-     */
-    #if !defined(_IZOT_PLATFORM_DEFINED)
-        #define _IZOT_PLATFORM_DEFINED
-    #else
-        #error Multiple platform definitions
-    #endif
-
-    /*
      * Definition for ARM7 specific pragmas, definitions, and so on.
      * For example, packing directives to align objects on byte boundary.
      */
     #define INCLUDE_IZOT_BEGIN_END
 
-    #include <stdint.h>
-
-    typedef uint8_t             IzotByte;
-
+    /*
+     * IZOT_(ENUM|STRUCT|UNION)_BEGIN and *_END macros for beginning and
+     * ending type definitions for enumerations, structures and unions. These
+     * must be defined such that the resulting type uses byte-alignment
+     * without padding.
+     *
+     * The *_NESTED_* macros define unions or structures within surrounding
+     * union or structure definitions. These may require different
+     * modifiers to accomplish the same compact, byte-aligned, image.
+     *
+     * IZOT_ENUM implements a variable of an enumeration type. This
+     * can expand to the actual enumeration type, if the compiler supports
+     * a signed 8-bit enumerated type. Most compilers will map this to int8_t.
+     */
     #define IZOT_ENUM_BEGIN(n)   enum
     #define IZOT_ENUM_END(n)     n
     #define IZOT_ENUM(n)         n
@@ -712,6 +693,9 @@
     #define IZOT_UNION_NESTED_BEGIN(n)   union
     #define IZOT_UNION_NESTED_END(n)     n
 
+    #include <stdint.h>
+    typedef uint8_t    IzotByte;
+
     typedef IZOT_STRUCT_BEGIN(IzotWord)
     {
         IzotByte  msb;    /* high-order byte, the most significant byte, the 0x12 in 0x1234 */
@@ -724,10 +708,9 @@
         IzotWord  lsw;    /* low-order word, the least significant word, the 0x5678 in 0x12345678 */
     } IZOT_STRUCT_END(IzotDoubleWord);
 
-    typedef int        IzotBool;
-    	
     #define IZOT_UBITS_32_MAX 0xFFFFFFFF
 
+    typedef int        IzotBool;
     typedef uint8_t    IzotBool8;
     #ifndef TRUE
         #define TRUE   1
@@ -762,26 +745,19 @@
     #define BYTE_ORDER LITTLE_ENDIAN
 
     /*
-     * indicate a compiler/platform has been defined
+     * IZOT_(ENUM|STRUCT|UNION)_BEGIN and *_END macros for beginning and
+     * ending type definitions for enumerations, structures and unions. These
+     * must be defined such that the resulting type uses byte-alignment
+     * without padding.
+     *
+     * The *_NESTED_* macros define unions or structures within surrounding
+     * union or structure definitions. These may require different
+     * modifiers to accomplish the same compact, byte-aligned, image.
+     *
+     * IZOT_ENUM implements a variable of an enumeration type. This
+     * can expand to the actual enumeration type, if the compiler supports
+     * a signed 8-bit enumerated type. Most compilers will map this to int8_t.
      */
-    #if !defined(_IZOT_PLATFORM_DEFINED)
-        #define _IZOT_PLATFORM_DEFINED
-    #else
-        #error Multiple platform definitions
-    #endif
-
-   /*
-     * If stdint.h is supported, simply #include this here,
-     * replacing the following definitions.
-     */
-    typedef unsigned char  uint8_t;
-    typedef signed char    int8_t;
-    typedef unsigned short uint16_t;
-    typedef signed short   int16_t;
-    typedef unsigned long  uint32_t;
-    typedef signed long    int32_t;
-
-    typedef uint8_t        IzotByte;
 
     #define IZOT_ENUM_BEGIN(n)   enum
     #define IZOT_ENUM_END(n)     n
@@ -799,6 +775,19 @@
     #define IZOT_UNION_NESTED_BEGIN(n)   union
     #define IZOT_UNION_NESTED_END(n)     n
 
+    /*
+     * If stdint.h is supported, simply #include this here,
+     * replacing the following definitions.
+     */
+    typedef unsigned char  uint8_t;
+    typedef signed char    int8_t;
+    typedef unsigned short uint16_t;
+    typedef signed short   int16_t;
+    typedef unsigned long  uint32_t;
+    typedef signed long    int32_t;
+
+    typedef uint8_t    IzotByte;
+
     typedef IZOT_STRUCT_BEGIN(IzotWord)
     {
         IzotByte  msb;    /* high-order byte, the most significant byte, the 0x12 in 0x1234 */
@@ -811,10 +800,9 @@
         IzotWord  lsw;    /* low-order word, the least significant word, the 0x5678 in 0x12345678 */
     } IZOT_STRUCT_END(IzotDoubleWord);
 
-    typedef int        IzotBool;
-    	
     #define IZOT_UBITS_32_MAX 0xFFFFFFFF
 
+    typedef int        IzotBool;
     typedef uint8_t    IzotBool8;
     #ifndef TRUE
         #define TRUE   1
@@ -849,13 +837,19 @@
     #define BYTE_ORDER LITTLE_ENDIAN
 
     /*
-     * Indicate that a compiler/platform has been defined
+     * IZOT_(ENUM|STRUCT|UNION)_BEGIN and *_END macros for beginning and
+     * ending type definitions for enumerations, structures and unions. These
+     * must be defined such that the resulting type uses byte-alignment
+     * without padding.
+     *
+     * The *_NESTED_* macros define unions or structures within surrounding
+     * union or structure definitions. These may require different
+     * modifiers to accomplish the same compact, byte-aligned, image.
+     *
+     * IZOT_ENUM implements a variable of an enumeration type. This
+     * can expand to the actual enumeration type, if the compiler supports
+     * a signed 8-bit enumerated type. Most compilers will map this to int8_t.
      */
-    #if !defined(_IZOT_PLATFORM_DEFINED)
-        #define _IZOT_PLATFORM_DEFINED
-    #else
-        #error Multiple platform definitions
-    #endif
 
     #define IZOT_ENUM_BEGIN(n)   enum
     #define IZOT_ENUM_END(n)     n
@@ -933,15 +927,6 @@
     // Specify little-endian byte order.
     #undef BYTE_ORDER
     #define BYTE_ORDER LITTLE_ENDIAN
-
-    /*
-     * Indicate that a compiler/platform has been defined in this file.
-     */
-    #if !defined(_IZOT_PLATFORM_DEFINED)
-        #define _IZOT_PLATFORM_DEFINED
-    #else
-        #error Multiple platform definitions
-    #endif
 
     /*
      * IZOT_(ENUM|STRUCT|UNION)_BEGIN and *_END macros are used to begin and
@@ -1064,9 +1049,20 @@
     #undef BYTE_ORDER
     #define BYTE_ORDER LITTLE_ENDIAN
 
-    #include <stdint.h>
-    typedef uint8_t     IzotByte;
-
+    /*
+     * IZOT_(ENUM|STRUCT|UNION)_BEGIN and *_END macros for beginning and
+     * ending type definitions for enumerations, structures and unions. These
+     * must be defined such that the resulting type uses byte-alignment
+     * without padding.
+     *
+     * The *_NESTED_* macros define unions or structures within surrounding
+     * union or structure definitions. These may require different
+     * modifiers to accomplish the same compact, byte-aligned, image.
+     *
+     * IZOT_ENUM implements a variable of an enumeration type. This
+     * can expand to the actual enumeration type, if the compiler supports
+     * a signed 8-bit enumerated type. Most compilers will map this to int8_t.
+     */
     #define IZOT_ENUM_BEGIN(n)   enum
     #define IZOT_ENUM_END(n)     n
     #define IZOT_ENUM(n)         IzotByte
@@ -1083,6 +1079,9 @@
     #define IZOT_UNION_NESTED_BEGIN(n)   union
     #define IZOT_UNION_NESTED_END(n)     __attribute((__packed__)) n
 
+    #include <stdint.h>
+    typedef uint8_t     IzotByte;
+
     typedef IZOT_STRUCT_BEGIN(IzotWord)
     {
         IzotByte  msb;    /* high-order byte, the most significant byte, the 0x12 in 0x1234 */
@@ -1095,10 +1094,9 @@
         IzotWord  lsw;    /* low-order word, the least significant word, the 0x5678 in 0x12345678 */
     } IZOT_STRUCT_END(IzotDoubleWord);
 
-    typedef int        IzotBool;
-    	
     #define IZOT_UBITS_32_MAX 0xFFFFFFFF
 
+    typedef int        IzotBool;
     typedef uint8_t    IzotBool8;
     #ifndef TRUE
         #define TRUE   1
