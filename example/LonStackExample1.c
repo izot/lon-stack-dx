@@ -34,9 +34,62 @@
 //
 
 // LON Stack Interface and Control Data
-IzotStackInterfaceData LonStackInterface;
-IzotControlData LonStackControlData;
+#define STACK_INTERFACEDATA_VERSION    0
+#define STACK_CONTROLDATA_VERSION      0
 
+static uint8_t siDataBuffer[300];
+
+static const IzotStackInterfaceData LonStackInterface = {
+   STACK_INTERFACEDATA_VERSION, // Format version number
+   0x5a7abe7f,                  // 32-bit unique application identifier
+   {0x9F, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x01},    // Program ID
+   9,                           // Number of static NVs
+   9,                           // Max number of static + dynamic NVs
+   2,                           // Number of domains (1 or 2)
+   15,                          // Number of address table entries (0 -- 4096)
+   3,                           // Number of alias table entries (0 -- 8192)
+   0,                           // Number of bindable message tags (0 -- 4096)
+   "Custom",                    // Device self-documentation (SD) string
+   10,                          // Average number of bytes to reserve for
+                                // dynamic NV SD data
+   siDataBuffer,                // Pointer to self-identification (SI) data
+   sizeof(siDataBuffer)         // Size of SI data in bytes
+};
+
+static const IzotControlData LonStackControlData = {
+   STACK_CONTROLDATA_VERSION,   // Format version number
+   0,                           // See IZOT_CONTROL_FLAG
+   5,                           // Number of seconds to wait after receiving
+                                // an update to non-volatile config data before
+                                // writing the data (1 -- 60)
+   {  // Transceiver type and communication parameters
+      IzotTransceiverTypeDefault,   // Transceiver type -- use default for LON/IP
+      {                         // Comm parameters -- not used for LON/IP
+         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+      }
+   },
+   {
+      {  // Application buffer configuration
+         1,                     // Number of priority output message buffers (1 -- 100)
+         5,                     // Number of non-priority output message buffers (0 -- 100)
+         10                     // Number of input message buffers (0 -- 100)
+      },
+      {  // Link-layer buffer configuration (shared by input and output)
+         5                      // Number of link-layer buffers (1 -- 100)
+      },
+      {  /* Transceiver buffer configuration */
+         114,                   // Input network buffer size (66 minimum) 
+         114,                   // Output network buffer size (66 minimum)
+         2,                     // Number of priority output network buffers
+         2,                     // Number of non-priority output network buffers
+         5                      // Number of input network buffers
+      }
+   },
+   30,                          // Number of receive transaction records (1 -- 200)
+   10,                          // Number of transmit transaction records (1 -- 8192)
+   24576                        // Transmit transaction ID lifetime
+};
 
 //
 // Section: NV Definitions
