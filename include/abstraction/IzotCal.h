@@ -59,24 +59,22 @@ Section: Function Prototypes
 ------------------------------------------------------------------------------*/
 /*
  * Function: CalStart
- * This function starts the wlan connection for the FreeRtos
-
+ * Start the a WLAN connection for the FreeRTOS.
  */
 extern int CalStart(void);
 
 /*
- * Function: SetCurrentIP
+ * Function: ReportNewIP
  *
- * This function will send the announcement whenever new ip is
- * assigned to the device
+ * Report a new IP address.
  */
-extern void SetCurrentIP(void);
+extern void ReportNewIP(void);
 
 /*
  * Function: InitSocket
  *
- * Open priority and non priority sockets and 
- * also add mac filter for broadcast message
+ * Open priority and non-priority sockets and add a MAC filter for
+ * broadcast messages.
  */
 extern int InitSocket(int port);
 
@@ -90,14 +88,14 @@ extern void RemoveIPMembership(uint32_t addr);
 /*
  * Function: AddIpMembership
  *
- * Add membership of given address in multicast group.
+ * Add membership of the specified IP address in a multicast group.
  */
 extern void AddIpMembership(uint32_t addr);
 
 /*
  * Function: CalSend
  *
- * This API is used to send data on udp socket
+ * Send data on a UDP socket.
  */
 extern void CalSend(
 uint32_t port, IzotByte* addr, IzotByte* pData, uint16_t dataLength
@@ -106,12 +104,10 @@ uint32_t port, IzotByte* addr, IzotByte* pData, uint16_t dataLength
 /*
  * Function: CalReceive
  *
- * This API is used to receive data on udp socket.
- * Keep the udp socket non blockable.
+ * Receive data from a UDP socket.  Keep the DUP socket non-blockable.
  */
 extern int CalReceive(IzotByte* pData, IzotByte* pSourceAddr);
 
 extern void CheckNetworkStatus(void);
 
 #endif  /* defined(DEFINED_IZOTCAL_H) */
-/* end of file. */

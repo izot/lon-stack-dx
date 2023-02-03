@@ -1,7 +1,7 @@
 //
 // IzotCal.c
 //
-// Copyright (C) 2022 EnOcean
+// Copyright (C) 2023 EnOcean
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in 
@@ -474,14 +474,14 @@ int CalStart(void)
 }
 
 /*
- * Function: SetCurrentIP
+ * Function: ReportNewIP
  *
  * This function will send an announcement whenever a new IP address is
  * assigned to the device
  */
-void SetCurrentIP(void)
+void ReportNewIP(void)
 {
-#if PROCESSOR_IS(MC200)
+#if PLATFORM_IS(FRTOS)
     char ip[16];
     u32_t tempIp;
     
@@ -496,18 +496,18 @@ void SetCurrentIP(void)
     CAL_Printf("Source IP set as %d.%d.%d.%d\r\n",ownIpAddress[0],
                          ownIpAddress[1],ownIpAddress[2],ownIpAddress[3]);
     CAL_Printf("\r\n");
-#endif  // PROCESSOR_IS(MC200)
+#endif  // PLATFORM_IS(FRTOS)
 }
 
 /*
  * Function: InitSocket
  *
- * Open priority and non priority sockets and 
- * add MAC filter for broadcast messages
+ * Open priority and non-priority UDP sockets and add MAC filter for
+ * broadcast messages.
  */
 int InitSocket(int port)
 {
-#if PROCESSOR_IS(MC200)
+#if PLATFORM_IS(FRTOS)
     struct sockaddr_in     sinme;
     
     // Open UDP socket for queue at start-up
@@ -541,9 +541,9 @@ int InitSocket(int port)
         net_close(app_udp_socket);
         return -1;
     }
-#else   // PROCESSOR_IS(MC200)
+#else   // PLATFORM_IS(FRTOS)
     #pragma message("Implement code to open priority and non priority sockets and add MAC filter for broadcast messages")
-#endif  // PROCESSOR_IS(MC200)
+#endif  // PLATFORM_IS(FRTOS)
 
     return 0;
 }
@@ -551,11 +551,11 @@ int InitSocket(int port)
 /*
  * Function: RemoveIPMembership
  *
- * Remove membership of given address in multicast group.
+ * Remove membership of the specified address from a multicast group.
  */
 void RemoveIPMembership(uint32_t addr)
 {
-#if PROCESSOR_IS(MC200)
+#if PLATFORM_IS(FRTOS)
     IzotByte mcast_mac[MLAN_MAC_ADDR_LENGTH];
     
     // Multicast address group structure
@@ -577,7 +577,9 @@ void RemoveIPMembership(uint32_t addr)
     }
     
     CAL_Printf("Removed Membership of %X \r\n",addr);wmstdio_flush();
-#endif  // PROCESSOR_IS(MC200)
+#else   // PLATFORM_IS(FRTOS)
+    #pragma message("Implement code to remove address membership from a multicast group")
+#endif  // PLATFORM_IS(FRTOS)
 }
 
 /*
@@ -587,7 +589,7 @@ void RemoveIPMembership(uint32_t addr)
  */
 void AddIpMembership(uint32_t addr)
 {
-#if PROCESSOR_IS(MC200)
+#if PLATFORM_IS(FRTOS)
     IzotByte mcast_mac[MLAN_MAC_ADDR_LENGTH];
     
     // Multicast address group structure
@@ -610,20 +612,20 @@ void AddIpMembership(uint32_t addr)
     }
     
     CAL_Printf("Added Membership of %X \r\n", addr);
-#else   // PROCESSOR_IS(MC200)
+#else   // PLATFORM_IS(FRTOS)
     #pragma message("Implement code to add address membership to a multicast group")
-#endif  // PROCESSOR_IS(MC200)
+#endif  // PLATFORM_IS(FRTOS)
 }
 
 /*
  * Function: CalSend
  *
- * This API is used to send data on udp socket
+ * Send data on a UDP socket.
  */
 void CalSend(uint32_t port, IzotByte* addr, IzotByte* pData, 
 uint16_t dataLength)
 {
-#if PROCESSOR_IS(MC200)
+#if PLATFORM_IS(FRTOS)
     IzotByte            loopch = 0;
     int                 sock = -1;
     int                 reuse = 1;
@@ -683,22 +685,21 @@ uint16_t dataLength)
     }
 #endif
     net_close(sock);
-#else   // PROCESSOR_IS(MC200)
+#else   // PLATFORM_IS(FRTOS)
     #pragma message("Implement code to send a UDP packet")
-#endif  // PROCESSOR_IS(MC200)
+#endif  // PLATFORM_IS(FRTOS)
 }
 
 /*
  * Function: CalReceive
  *
- * This API is used to receive data on udp socket.
- * Keep the udp socket non blockable.
+ * Receive data from a UDP socket.  Keep the socket non-blockable.
  */
 int CalReceive(IzotByte* pData, IzotByte* pSourceAddr)
 {
     int                 dataLength = 0;
 
-#if PROCESSOR_IS(MC200)
+#if PLATFORM_IS(FRTOS)
     struct sockaddr_in  from;
     int                 fromLen = sizeof(from);
     uint32_t            SrcIP;
@@ -728,8 +729,8 @@ int CalReceive(IzotByte* pData, IzotByte* pSourceAddr)
         pSourceAddr[2] = (IzotByte)((SrcIP & 0x0000FF00) >> 8);
         pSourceAddr[3] = (IzotByte)(SrcIP & 0x000000FF);
     }
-#else   // PROCESSOR_IS(MC200)
+#else   // PLATFORM_IS(FRTOS)
     #pragma message("Implement code to received data on a UDP socket")
-#endif  // PROCESSOR_IS(MC200)
+#endif  // PROCESSOR_IS(MC200)PLATFORM_IS(FRTOS)
     return dataLength;
 }

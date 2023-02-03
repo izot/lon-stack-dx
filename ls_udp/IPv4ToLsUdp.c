@@ -1143,7 +1143,7 @@ void LsUDPReceive(void)
 void SendAnnouncement(void)
 {
     IzotDomain *temp = &eep->domainTable[0];
-    SetCurrentIP();
+    ReportNewIP();
     
     IzotByte    ls_derived_src_ip[IPV4_ADDRESS_LEN];
     Ipv4GenerateLsSubnetNodeAddr(
