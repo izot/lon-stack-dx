@@ -87,8 +87,8 @@
 /*------------------------------------------------------------------------------
  Section: Globals
  ------------------------------------------------------------------------------*/
-extern IzotUbits16 AnnounceTimer;
-extern IzotUbits16 AddrMappingAgingTimer;
+extern IzotUbits32 AnnounceTimer;
+extern IzotUbits32 AddrMappingAgingTimer;
 
 /*------------------------------------------------------------------------------
  Section: Static

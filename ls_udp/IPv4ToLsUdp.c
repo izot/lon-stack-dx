@@ -60,8 +60,8 @@ typedef enum
 Section: Globals
 ------------------------------------------------------------------------------*/
 void *ls_mapping;
-IzotUbits32 AnnounceTimer         = 60000;  // in milliseconds
-IzotUbits32 AddrMappingAgingTimer = 0;    	// in milliseconds
+IzotUbits32 AnnounceTimer         = 60000;  // Initial duration in milliseconds
+IzotUbits32 AddrMappingAgingTimer = 0;    	// Initial duration in milliseconds
 
 
 #if UIP_CONF_IPV6
@@ -79,8 +79,8 @@ Section: Statics
 ------------------------------------------------------------------------------*/
 // Encoded domain length
 static const IzotByte domainLengthTable[4] = { 0, 1, 3, 6 }; 
-static LonTimer        AnnouncementTimer;
-static LonTimer        AgingTimer;
+static LonTimer       AnnouncementTimer;
+static LonTimer       AgingTimer;
 
 
 /*
@@ -445,13 +445,12 @@ void StartProtocolTimer(LonTimer *pTimer, IzotUbits32 *pTimeout, IzotByte *pMsg)
     IzotUbits32 seconds = pMsg[0]<<24 | pMsg[1]<<16 | pMsg[2]<<8 | pMsg[3];
     seconds = min(seconds, MAX_PROTOCOL_TIMER_SECONDS);
     *pTimeout = seconds * 1000;      // Save timer duration for later resumption
-    SetLonTimer(pTimer, 0);          // Stop the timer first
-    SetLonTimer(pTimer, *pTimeout);  // And start it up
+    SetLonRepeatTimer(pTimer, *pTimeout, *pTimeout);
 }
 
 /* 
  *  Callback: Ipv4ConvertLsUdptoLTVX
- *  Convert the LS/UDP packet found in the Contiki global uip_buf to an LTV0
+ *  Convert the LON/IP UDP packet found in the Contiki global uip_buf to an LTV0
  *  or LTV2 NPDU and return it in the buffer provided.
  * 
  *  Parameters:
@@ -933,8 +932,8 @@ void LsUDPReset(void)
         return;
     }
 
-    SetLonTimer(&AnnouncementTimer, AnnounceTimer);
-    SetLonTimer(&AgingTimer, AddrMappingAgingTimer);
+    SetLonRepeatTimer(&AnnouncementTimer, AnnounceTimer, AnnounceTimer);
+    SetLonRepeatTimer(&AgingTimer, AddrMappingAgingTimer, AddrMappingAgingTimer);
 
     return;
 }
@@ -961,22 +960,17 @@ void LsUDPSend(void)
     IzotByte       DestAddr[IPV4_ADDRESS_LEN];    // buffer to store dest ip
     uint16_t       lsUdpLen;                    // size of lsudp payload formed
 
-    // Check for the announcement timer
+    // Check for announcement timer expiration
     if (LonTimerExpired(&AnnouncementTimer)) {
         SendAnnouncement();
-        // Set the announcement timer again
-        SetLonTimer(&AnnouncementTimer, AnnounceTimer);
     }
     
-    // Check for the LS/IP address mapping aging
+    // Check for LON/IP address mapping aging timer expiration
     if (LonTimerExpired(&AgingTimer)) {
         ClearMapping();
-        // Set the aging timer again
-        SetLonTimer(&AgingTimer, AddrMappingAgingTimer);
     }
     
-    
-    // First, make variables point to the right queue.
+    // Make variables point to the right queue.
     if (!QueueEmpty(&gp->lkOutPriQ)) {
         priority        = TRUE;
         lkSendQueuePtr  = &gp->lkOutPriQ;
@@ -995,11 +989,11 @@ void LsUDPSend(void)
     
     IzotDomain *temp = &eep->domainTable[lkSendParamPtr->DomainIndex];
     
-    // Prepare the LS derived source ip address
+    // Prepare the LON/IP derived source IP address
     Ipv4GenerateLsSubnetNodeAddr(temp->Id, (IzotByte)IZOT_GET_ATTRIBUTE_P(temp, IZOT_DOMAIN_ID_LENGTH), 
     temp->Subnet, (IzotByte)IZOT_GET_ATTRIBUTE_P(temp, IZOT_DOMAIN_NODE), SourceAddr);
     
-    // Copy the NPDU.
+    // Copy the NPDU
     if (lkSendParamPtr->pduSize <= MAX_PDU_SIZE) {
         memcpy(&LtVx2lsUdpPayload[1], npduPtr, lkSendParamPtr->pduSize);
     } else {
@@ -1007,8 +1001,8 @@ void LsUDPSend(void)
         return;
     }
     
-    // Convert the LTVX payload into LSUDP payload and 
-    // Set the destination IP address
+    // Convert the LTVX payload into LSUDP payload and set the
+    // destination IP address
     lsUdpLen = Ipv4ConvertLTVXtoLsUdp(
                 LtVx2lsUdpPayload, // Ptr to LTVX PDU to be sent
                 lkSendParamPtr->pduSize + 1, // Size of LTVX PDU to be sent
@@ -1032,13 +1026,11 @@ void LsUDPSend(void)
 
 /* 
  *  Callback: LsUDPReceive
- *  To receive the incoming LPDUs and process them.
+ *  Receive and process incoming LPDUs.
  *
- *  Parameters:
+ *  Parameters: none
  *
- *  Returns:
- *  <void>.   
- *
+ *  Returns: <void>  
  */
 void LsUDPReceive(void)
 {
@@ -1056,7 +1048,7 @@ void LsUDPReceive(void)
         return;
     }
     
-    // Receive the udp data from UDP port
+    // Receive the UDP data from UDP port
     lsudpLen = CalReceive(npduPtr, SourceAddr);
     
     if (lsudpLen > 0 && lsudpLen < 3) {
@@ -1064,35 +1056,35 @@ void LsUDPReceive(void)
         return;
     }
     
-    // Do nothing
+    // Do nothing if there is no data
     if (lsudpLen <= 0) {
         return;
     }
     
-    // Got a good packet.
+    // Count a good packet
     INCR_STATS(LcsL2Rx); 
 
-    // Get the priority bit from LSUDP packet
+    // Get the priority bit from LON/IP UDP packet
     priority = npduPtr[1] & IPV4_LSUDP_NPDU_MASK_PRIORITY;
     
-    // We need to receive this message
+    // Receive the message
     if (QueueFull(&gp->nwInQ)) {
-        // We are losing this packet
+        // Count a lost packet
         INCR_STATS(LcsMissed);
     } else {
-        // buffer to store LTVX payload
+        // Buffer to store LTVX payload
         IzotByte    LtVxPayload[MAX_PDU_SIZE];
          
         memset(&LtVxPayload[0], 0, MAX_PDU_SIZE);
         
-        // Convert the LTV1 payload into LTV0 payload
-        Ipv4ConvertLsUdptoLTVX(0, npduPtr, // Ptr to lsudp packet received
-                    lsudpLen, // size of lsudp packet received
+        // Convert the LTV1 payload into an LTV0 payload
+        Ipv4ConvertLsUdptoLTVX(0, npduPtr, // Ptr to LON/IP UDP packet received
+                    lsudpLen,   // Size of LON/IP UDP packet received
                     SourceAddr, // Source IP address
-                    0, // Source Port
-                    NULL, 0, // Destination IP address and Port
+                    0,          // Source port
+                    NULL, 0,    // Destination IP address and port
                     LtVxPayload, // Buffer to store LTVX PDU to be formed
-                    &LtVxLen, //will be the size of LTVX pdu
+                    &LtVxLen,   // Will be the size of LTVX pdu
 #if IPV4_SUPPORT_ARBITRARY_ADDRESSES
                     &ls_mapping // Mapping handle
 #endif
@@ -1132,27 +1124,24 @@ void LsUDPReceive(void)
 }
 
 /* 
- *  Callback: SendAnnouncement
- *  Sends the announcement in the network
- *
+ *  Function: SendAnnouncement
+ *  Send a LON/IP address announcement to the network
  *
  *  Returns:
  *  <void>.   
- *
  */
 void SendAnnouncement(void)
 {
     IzotDomain *temp = &eep->domainTable[0];
-    ReportNewIP();
-    
     IzotByte    ls_derived_src_ip[IPV4_ADDRESS_LEN];
+
+    (void) SetCurrentIP();
     Ipv4GenerateLsSubnetNodeAddr(
             (IzotByte *)temp->Id, 
-                (IzotByte)IZOT_GET_ATTRIBUTE_P(temp, IZOT_DOMAIN_ID_LENGTH), 
-                    (IzotByte)temp->Subnet, 
-                        (IzotByte)IZOT_GET_ATTRIBUTE_P(temp, IZOT_DOMAIN_NODE), 
-                            ls_derived_src_ip
-                                );
+            (IzotByte)IZOT_GET_ATTRIBUTE_P(temp, IZOT_DOMAIN_ID_LENGTH), 
+            (IzotByte)temp->Subnet, 
+            (IzotByte)IZOT_GET_ATTRIBUTE_P(temp, IZOT_DOMAIN_NODE), 
+            ls_derived_src_ip);
     Ipv4SendMulticastAnnouncement(ls_derived_src_ip);
 }
 
@@ -1209,8 +1198,7 @@ void SetLsAddressFromIpAddr(void)
 
 /* 
  *  Callback: UdpInit
- *  Initialize the Izot Framework with the relevat details
- *
+ *  Initialize the Izot Framework with the relevant details
  *
  *  Returns:
  *  LonApiError on unsuccessful exit LonApiNoError otherwise.
@@ -1219,38 +1207,38 @@ void SetLsAddressFromIpAddr(void)
 int UdpInit(void)
 {
     int ret = IzotApiNoError;
-    
-#if PROCESSOR_IS(MC200)
-    int err;
-    
-    // Init the debug UART
-    wmstdio_init(UART0_ID, 0);
-    
-    // Init the wlan service
-    err = wm_wlan_init();
-    if (err != IzotApiNoError) {
-        return err;
-    }
-#endif  // PROCESSOR_IS(MC200)
 
-    // Init the LCS Stack
+ #if LINK_IS(WIFI)   
+     #if PROCESSOR_IS(MC200)
+        // Init the debug UART
+        wmstdio_init(UART0_ID, 0);
+    
+        // Init the wlan service
+        int err = wm_wlan_init();
+        if (err != IzotApiNoError) {
+            return err;
+        }
+    #endif  // PROCESSOR_IS(MC200)
+#endif  // LINK_IS(WIFI)
+
+    // Init the LON Stack
     LCS_Init(IzotPowerUpReset);
     
-#if PROCESSOR_IS(MC200)
-    // Start the wlan
+#if LINK_IS(WIFI) || LINK_IS(ETHERNET)
+    // Start the link
     ret = CalStart();
     if (ret != IzotApiNoError) {
         return ret;
     }
 
-    // Init the udp socket for communication
+    // Initialize the UDP socket for communication
     ret = InitSocket(IPV4_LS_UDP_PORT); 
     if (ret < 0) {
         DBG_vPrintf(TRUE, "Sockets not created\r\n");
         return IzotApiNoIpAddress;
     }
     DBG_vPrintf(TRUE, "Sockets created\r\n");
-#endif  // PROCESSOR_IS(MC200)
+#endif  // LINK_IS(WIFI) || LINK_IS(ETHERNET)
   
     // restore multicast membership
     RestoreIpMembership();

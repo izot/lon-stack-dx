@@ -25,8 +25,7 @@
  * Title: IP Connectivity Abstaction Layer file
  *
  * Abstract:
- * This file contains the platform dependent APIs. This file contains
- * has APIs for FreeRTOS to send data on a udp socket.
+ * This file contains the platform dependent functions for the data link.
  */
 
 #include "IzotCal.h"
@@ -50,30 +49,44 @@
 /*------------------------------------------------------------------------------
 Section: Macro
 ------------------------------------------------------------------------------*/
-#define MAX_SSID_LEN      15
-#define MAX_HOST_NAME_LEN 10
-#define MAC_ID_LEN        6
-#define UAP_PASSPHRASE    "echelonizot"
-#define FTFS_API_VERSION  100
-#define FTFS_PART_NAME    "ftfs"
+#if LINK_IS(WIFI)
+    #define MAX_SSID_LEN      15
+    #define MAX_HOST_NAME_LEN 10
+    #define MAC_ID_LEN        6
+    #define UAP_PASSPHRASE    "TBD"
+#endif  // LINK_IS(WIFI)
 
-/*------------------------------------------------------------------------------
-Section: Global
-------------------------------------------------------------------------------*/
+#if PLATFORM_IS(FRTOS)
+    #define FTFS_API_VERSION  100
+    #define FTFS_PART_NAME    "ftfs"
+#endif  // PLATFORM_IS(FRTOS)
+
+
+/*
+ * *****************************************************************************
+ * SECTION: GLOBAL
+ * *****************************************************************************
+ */
+
 IzotByte    ownIpAddress[IPV4_ADDRESS_LEN]; // Buffer to store the IP addresse
-IzotBool    is_connected;            // Flag to define network connected or not
+IzotBool    is_connected;            // Flag to report IP link connectivity
 
-/*------------------------------------------------------------------------------
-Section: Static
-------------------------------------------------------------------------------*/
-#if PROCESSOR_IS(MC200)
+
+/*
+ * *****************************************************************************
+ * SECTION: STATIC
+ * *****************************************************************************
+ */
+
+static LonTimer linkCheckTimer;
+
+#if LINK_IS(WIFI) && PROCESSOR_IS(MC200)
 static int        app_udp_socket = -1;
 static int        provisioned;
 static struct fs *fs;
 static char       ssid_uap[MAX_SSID_LEN];
 static char       dhcp_host_name[MAX_HOST_NAME_LEN];
 static uint8_t    connecting = 0;
-static uint32_t   previous, current = 0;
 #endif
 
 
@@ -81,15 +94,14 @@ static uint32_t   previous, current = 0;
  * *****************************************************************************
  * SECTION: FUNCTIONS
  * *****************************************************************************
- *
  */
  
  #if PROCESSOR_IS(MC200)
 /*
  * Function: appln_critical_error_handler
  * 
- * This function is defined for handling critical error.
- * For this application, we just stall and do nothing when
+ * This function is defined for handling a critical error.
+ * For the MC200, the functions stalls and does nothing when
  * a critical error occurs.
  */
 void appln_critical_error_handler(void *data)
@@ -98,7 +110,10 @@ void appln_critical_error_handler(void *data)
         ;
     // do nothing -- stall
 }
+#endif  // PROCESSOR_IS(MC200)
 
+
+#if LINK_IS(WIFI)
 /* 
  * Function: EventWlanInitDone
  * 
@@ -195,6 +210,7 @@ static void EventWlanInitDone(void *data)
         CAL_Printf("Error: wlan_cli_init failed\r\n");
 }
 
+
 /*
  * Function: EventUapStarted
  *
@@ -218,6 +234,7 @@ static void EventUapStarted(void *data)
     is_connected = 0;
 }
 
+
 /*
  * Function: EventNormalConnecting
  *
@@ -229,6 +246,8 @@ static void EventNormalConnecting(void *data)
     net_dhcp_hostname_set(dhcp_host_name);
     CAL_Printf("Connecting to provisioned Network\r\n");
 }
+#endif  // LINK_IS(WIFI)
+
 
 /*
  * Function: EventNormalConnected
@@ -243,42 +262,35 @@ static void EventNormalConnecting(void *data)
  */ 
 static void EventNormalConnected(void *data)
 {
-    char ip[16];
-    u32_t tempIp;
-    
-    // Stop Micro-AP mode if still ON.
+#if LINK_IS(WIFI) && PROCESSOR_IS(MC200)
+    // Stop Micro-AP mode if still ON
     if (is_uap_started()) {
         app_uap_stop();
     }
     
     app_network_ip_get(ip);
-    CAL_Printf("Connected to provisioned network with ip address =%s\r\n", ip);
+#endif  // LINK_IS(WIFI) && PROCESSOR_IS(MC200)
 
-    // Convert IP address string (both versions) to numeric. Auto-detect version from the string.
-    inet_aton(ip, &tempIp);
-    
-    ownIpAddress[0] = (IzotByte)(tempIp);
-    ownIpAddress[1] = (IzotByte)(tempIp >> 8);
-    ownIpAddress[2] = (IzotByte)(tempIp >> 16);
-    ownIpAddress[3] = (IzotByte)(tempIp >> 24);    
-    CAL_Printf("Source IP set as %d.%d.%d.%d\r\n", ownIpAddress[0], ownIpAddress[1], ownIpAddress[2], ownIpAddress[3]);
-    
+#if LINK_IS(ETHERNET) || LINK_IS(WIFI)
     readIupPersistData();
-    OsalSleep(10);
+    // Sleep deleted: OsalSleep(10);
     is_connected = 1;
     
-    // send announcement
+    // Set current LON/IP address and send announcement
     SendAnnouncement();
-        
-    //SetLsAddressFromIpAddr();
+
+    // Set LON address from LON/IP address        
+    SetLsAddressFromIpAddr();
+#endif  // LINK_IS(ETHERNET) || LINK_IS(WIFI)
 }
+
 
 /*
  * Function: EventNormalUserDisconnect
  *
  * Event handler for AF_EVT_NORMAL_DISCONNECTED - Station interface
- * disconnected.
- * Stop the network services which need not be running in disconnected mode.
+ * disconnected.  Stop the network services which are not required
+ * while disconnected.
  */
 static void EventNormalUserDisconnect(void *data)
 {
@@ -286,10 +298,11 @@ static void EventNormalUserDisconnect(void *data)
     CAL_Printf("Disconnected\r\n");
 }
 
+
 /*
  * Function: EventNormalLinkLost
  *
- * Network link has been lost.
+ * Handle data link loss.
  */
 static void EventNormalLinkLost(void *data)
 {
@@ -297,16 +310,20 @@ static void EventNormalLinkLost(void *data)
     CAL_Printf("Link Lost\r\n");
 }
 
+
 /*
  * Function: EventNormalDHCPRenew
  *
- * DHCP has been renewed.
+ * Handle possible IP address change after the DHCP-assigned
+ * address is renewed.
  */
 static void EventNormalDHCPRenew(void *data)
 {
     CAL_Printf("DHCP renew\r\n");
 }
 
+
+#if LINK_IS(WIFI) && PROCESSOR_IS(MC200)
 /*
  * Function: EventNormalResetProv
  *
@@ -325,6 +342,7 @@ static void EventNormalResetProv(void *data)
     is_connected = 0;
 }
 
+
 /*
  * Function: EventProvDone
  *
@@ -335,6 +353,7 @@ static void EventProvDone(void *data)
     app_provisioning_stop();
     CAL_Printf("Provisioning successful\r\n");
 }
+
 
 /*
  * Function: EventProvClientDone
@@ -347,25 +366,40 @@ static void EventProvClientDone(void *data)
     dhcp_server_stop();
 }
 
+#endif  // LINK_IS(WIFI) && PROCESSOR_IS(MC200)
+
+
+/*
+ * Function: CheckNetworkStatus
+ *
+ * Check for a change of status for the data link.  Handle
+ * a change of data link status from not connected to connected.
+ */
 void CheckNetworkStatus(void)
 {
-    int ret;
-    current = IzotGetTickCount();
-    
-    if (current >= previous) {
-        if (!is_sta_connected() && is_uap_started()) {
-            ret = app_load_configured_network();
-			if (!ret) {
-				app_sta_start();
+    if (LonTimerExpired(&linkCheckTimer)) {
+        #if LINK_IS(WIFI) && PROCESSOR_IS(MC200)
+            if (!is_sta_connected() && is_uap_started()) {
+                int ret = app_load_configured_network();
+                if (!ret) {
+                    app_sta_start();
+                }
+            } else {
+                if (is_uap_started()) {
+                    app_uap_stop();
+                }
             }
-        } else {
-            if (is_uap_started()) {
-                app_uap_stop();
-            }
-        }
-        previous = current + 300000;
+        #endif  // LINK_IS(WIFI) && PROCESSOR_IS(MC200)
+        #if LINK_IS(ETHERNET) || LINK_IS(WIFI)
+            #pragma message("Implement code to test for an IP link transition from not connected to connected")
+            // if (!is_connected && <link is connected>) }
+                // Link has changed from not connected to connected; handle the change
+                // EventNormalConnected(NULL);
+            // }
+        #endif  // LINK_IS(ETHERNET) || LINK_IS(WIFI)
     }
 }
+
 
 /*
  * Function: common_event_handler
@@ -375,6 +409,7 @@ void CheckNetworkStatus(void)
  */
 int common_event_handler(int event, void *data)
 {
+#if LINK_IS(WIFI) && PROCESSOR_IS(MC200)
     switch (event) {
     case AF_EVT_WLAN_INIT_DONE:
         EventWlanInitDone(data);
@@ -410,6 +445,8 @@ int common_event_handler(int event, void *data)
         break;
     }
 
+#endif  // LINK_IS(WIFI) && PROCESSOR_IS(MC200)
+
     return 0;
 }
 
@@ -420,6 +457,7 @@ int common_event_handler(int event, void *data)
  */
 static void InitModules()
 {
+#if LINK_IS(WIFI) && PROCESSOR_IS(MC200)
     int ret;
 
     // Initialize CLI Command
@@ -439,21 +477,22 @@ static void InitModules()
     app_sys_register_diag_handler();
     
     set_reconnect_iter(5);
+#endif  // LINK_IS(WIFI) && PROCESSOR_IS(MC200)
 }
-#endif  // PROCESSOR_IS(MC200)
 
 /*
  * Function: CalStart
- * This function starts the wlan connection for the FreeRtos
+ * This function starts the data link
 
  */
 int CalStart(void)
 {
     int ret = IzotApiNoError;
     
-#if PROCESSOR_IS(MC200)
     InitModules();
-    
+    SetLonRepeatTimer(&linkCheckTimer, 1, LINK_TEST_INTERVAL);
+
+#if LINK_IS(WIFI) && PROCESSOR_IS(MC200)
     // Start the application framework
     if (app_framework_start(common_event_handler) != WM_SUCCESS) {
         CAL_Printf("Failed to start application framework\r\n");
@@ -469,34 +508,46 @@ int CalStart(void)
         }
     }
     set_reconnect_iter(30);
-#endif  // PROCESSOR_IS(MC200)
+#endif  // LINK_IS(WIFI) && PROCESSOR_IS(MC200)
     return ret;
 }
 
+
 /*
- * Function: ReportNewIP
- *
- * This function will send an announcement whenever a new IP address is
- * assigned to the device
+ * Function: SetCurrentIP
+ * Set the current IP address.
+ * 
+ * Returns: TRUE if the IP address changed since the last call.
  */
-void ReportNewIP(void)
+IzotBool SetCurrentIP(void)
 {
-#if PLATFORM_IS(FRTOS)
+    IzotUbits32 currentIpAddress = 0;
+    static IzotUbits32 lastIpAddress = 0;
+    IzotBool ipAddressChanged = FALSE;
+
+#if LINK_IS(WIFI) && PLATFORM_IS(FRTOS)
     char ip[16];
-    u32_t tempIp;
     
     app_network_ip_get(ip);
-    CAL_Printf("Connected to provisioned network with ip address =%s\r\n", ip);
-    inet_aton(ip, &tempIp);
-    
-    ownIpAddress[0] = (IzotByte)(tempIp);
-    ownIpAddress[1] = (IzotByte)(tempIp >> 8);
-    ownIpAddress[2] = (IzotByte)(tempIp >> 16);
-    ownIpAddress[3] = (IzotByte)(tempIp >> 24);
-    CAL_Printf("Source IP set as %d.%d.%d.%d\r\n",ownIpAddress[0],
-                         ownIpAddress[1],ownIpAddress[2],ownIpAddress[3]);
-    CAL_Printf("\r\n");
-#endif  // PLATFORM_IS(FRTOS)
+    CAL_Printf("Connected to provisioned network with IP address =%s\r\n", ip);
+    inet_aton(ip, &currentIpAddress);
+#else   // LINK_IS(WIFI) && PLATFORM_IS(FRTOS)
+    #pragma message("Implement code to get the current IP address")
+    // currentIpAddress = <Get current IP address>;
+#endif  // LINK_IS(WIFI) && PLATFORM_IS(FRTOS)
+
+    ipAddressChanged = currentIpAddress != lastIpAddress;
+
+    ownIpAddress[0] = (IzotByte)(currentIpAddress);
+    ownIpAddress[1] = (IzotByte)(currentIpAddress >> 8);
+    ownIpAddress[2] = (IzotByte)(currentIpAddress >> 16);
+    ownIpAddress[3] = (IzotByte)(currentIpAddress >> 24);
+
+    if (ipAddressChanged) {
+        CAL_Printf("Source IP set to %d.%d.%d.%d\r\n",ownIpAddress[0],
+                             ownIpAddress[1],ownIpAddress[2],ownIpAddress[3]);
+    }
+    return ipAddressChanged;
 }
 
 /*

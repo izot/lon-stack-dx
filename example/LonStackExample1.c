@@ -494,7 +494,9 @@ void Temp2InUpdateOccurred(const unsigned index, const IzotReceiveAddress* const
 // Set the repeating heartbeat timer using only the seconds and milliseconds values from the heartbeatIn NV.
 void SetHeartbeatTimer(void)
 {
-    SetLonRepeatTimer(&HeartbeatTimer, (heartbeatIn.second * 1000) + (IZOT_GET_UNSIGNED_WORD(heartbeatIn.millisecond)));
+    IzotUbits32 heartbeatInterval = (heartbeatIn.second * 1000) + (IZOT_GET_UNSIGNED_WORD(heartbeatIn.millisecond));
+    
+    SetLonRepeatTimer(&HeartbeatTimer, heartbeatInterval, heartbeatInterval);
 }
 
 

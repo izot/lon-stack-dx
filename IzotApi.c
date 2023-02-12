@@ -186,7 +186,7 @@ void IzotServiceLedStatus(IzotServiceLedState state, IzotServiceLedPhysicalState
 */
 IZOT_EXTERNAL_FN void IzotEventPump(void)
 {
-#if LINK_IS(WIFI)
+#if LINK_IS(WIFI) || LINK_IS(ETHERNET)
     CheckNetworkStatus();
 
 	if(is_connected) {    
@@ -1244,6 +1244,8 @@ IZOT_EXTERNAL_FN int IzotPersistentGetMaxSize(IzotPersistentSegmentType segmentT
  * 
  */
 #if LINK_IS(WIFI)
+#define FLICKER_INTERVAL 200    // LED flicker interval in milliseconds
+
 static void UnlockDevice(void)
 {
 	uint8_t temp_y[8] = {0};
@@ -1262,7 +1264,7 @@ static void UnlockDevice(void)
     
     if (memcmp(digestKeyFlash, temp_y, sizeof(digestKeyFlash))) {
         gp->serviceLedState = SERVICE_FLICKER;
-        SetLonRepeatTimer(&flickr_timer, 200);
+        SetLonRepeatTimer(&flickr_timer, FLICKER_INTERVAL, FLICKER_INTERVAL);
     }
     
 	while (memcmp(digestKeyFlash, temp_y, sizeof(digestKeyFlash))) {
@@ -1357,7 +1359,7 @@ const IzotControlData * const pControlData)
     AliasTableCount = pInterface->Aliases;
     BindableMTagCount = pInterface->BindableMsgTags;
     
-    // Start the wlan network and initialize the udp socket for communication
+    // Start the IP stack if enabled and initialize a UDP socket for communication
     err = UdpInit();
     if (err != IzotApiNoError) {
         return err;

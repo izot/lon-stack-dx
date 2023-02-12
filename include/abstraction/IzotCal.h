@@ -38,8 +38,14 @@
 /*------------------------------------------------------------------------------
 Section: Macros
 ------------------------------------------------------------------------------*/
-#define TRUE             1
-#define IPV4_ADDRESS_LEN 4
+#define TRUE             	1
+#define IPV4_ADDRESS_LEN 	4
+
+#if LINK_IS(WIFI)
+	#define LINK_TEST_INTERVAL	300000
+#else
+	#define LINK_TEST_INTERVAL	  3000
+#endif	// LINK_IS(WIFI)
 
 #ifdef CAL_DEBUG
 	#define CAL_Printf(format,args...) wmprintf(args)
@@ -59,16 +65,17 @@ Section: Function Prototypes
 ------------------------------------------------------------------------------*/
 /*
  * Function: CalStart
- * Start the a WLAN connection for the FreeRTOS.
+ * Start the IP link.
  */
 extern int CalStart(void);
 
 /*
- * Function: ReportNewIP
- *
- * Report a new IP address.
+ * Function: SetCurrentIP
+ * Set the current IP address.
+ * 
+ * Returns: TRUE if the IP address changed since the last call.
  */
-extern void ReportNewIP(void);
+extern IzotBool SetCurrentIP(void);
 
 /*
  * Function: InitSocket

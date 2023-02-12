@@ -603,13 +603,11 @@ IzotByte domainLen, IzotByte subnetId, IzotByte nodeId, IzotByte *pAddr
 );
 
 /* 
- *  Callback: SendAnnouncement
- *  Sends the announcement in the network
- *
+ *  Function: SendAnnouncement
+ *  Send a LON/IP address announcement to the network
  *
  *  Returns:
  *  <void>.   
- *
  */
 extern void SendAnnouncement(void);
 

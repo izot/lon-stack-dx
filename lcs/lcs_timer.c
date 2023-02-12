@@ -56,22 +56,21 @@ void SetLonTimer(LonTimer *timerOut, IzotUbits32 initValueIn)
 /*****************************************************************
 Function:  SetLonRepeatTimer
 Returns:   None
-Purpose:   Sets a repeating timer value to a given value in
-		   milliseconds and repeating at the same interval.
-Comments:  Sets the timer to the specified value. The interval
-		   can be up to about 24 days.  Set the value to 0 to stop 
-		   the current time interval and any repeats.
+Purpose:   Sets a repeating timer value to an initial value for
+		   the first interval in milliseconds and repeating at the 
+		   a repeat interval specified in milliseconds.
+Comments:  The intervals can be up to about 24 days.  Set both 
+		   values to 0 to stop the current time interval and any 
+		   repeats.
 ******************************************************************/
-void SetLonRepeatTimer(LonTimer *timerOut, IzotUbits32 initValueIn)
+void SetLonRepeatTimer(LonTimer *timerOut, IzotUbits32 initValueIn, IzotUbits32 repeatValueIn)
 {
-    // Limit duration
+    // Limit durations
     initValueIn = min(initValueIn, LON_TIMER_MAX_DURATION);
+	repeatValueIn = min(repeatValueIn, LON_TIMER_MAX_DURATION);
+
 	SetLonTimer(timerOut, initValueIn);
-	if (initValueIn) {
-    	timerOut->repeatTimeout = initValueIn;
- 	} else {
-		timerOut->repeatTimeout = 0;
-	}
+   	timerOut->repeatTimeout = repeatValueIn;
 }
 
 /*****************************************************************
