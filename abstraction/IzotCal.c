@@ -396,6 +396,7 @@ void CheckNetworkStatus(void)
                 // Link has changed from not connected to connected; handle the change
                 // EventNormalConnected(NULL);
             // }
+            (void) SetCurrentIP();
         #endif  // LINK_IS(ETHERNET) || LINK_IS(WIFI)
     }
 }
@@ -490,7 +491,7 @@ int CalStart(void)
     int ret = IzotApiNoError;
     
     InitModules();
-    SetLonRepeatTimer(&linkCheckTimer, 1, LINK_TEST_INTERVAL);
+    SetLonRepeatTimer(&linkCheckTimer, 1, LINK_CHECK_INTERVAL);
 
 #if LINK_IS(WIFI) && PROCESSOR_IS(MC200)
     // Start the application framework

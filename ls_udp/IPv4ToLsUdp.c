@@ -60,8 +60,10 @@ typedef enum
 Section: Globals
 ------------------------------------------------------------------------------*/
 void *ls_mapping;
-IzotUbits32 AnnounceTimer         = 60000;  // Initial duration in milliseconds
-IzotUbits32 AddrMappingAgingTimer = 0;    	// Initial duration in milliseconds
+IzotUbits32 AnnounceTimer         = 0;      // Initial IP address anouncement
+                                            // timer duration in milliseconds
+IzotUbits32 AddrMappingAgingTimer = 0;    	// Initial address mapping aging
+                                            // timer duration in milliseconds
 
 
 #if UIP_CONF_IPV6

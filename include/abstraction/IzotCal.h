@@ -38,13 +38,14 @@
 /*------------------------------------------------------------------------------
 Section: Macros
 ------------------------------------------------------------------------------*/
-#define TRUE             	1
-#define IPV4_ADDRESS_LEN 	4
+#define TRUE             			1
+#define IPV4_ADDRESS_LEN 			4
+#define IP_ADDRESS_CHECK_INTERVAL	60000
 
 #if LINK_IS(WIFI)
-	#define LINK_TEST_INTERVAL	300000
+	#define LINK_CHECK_INTERVAL	300000
 #else
-	#define LINK_TEST_INTERVAL	  3000
+	#define LINK_CHECK_INTERVAL	  3000
 #endif	// LINK_IS(WIFI)
 
 #ifdef CAL_DEBUG
