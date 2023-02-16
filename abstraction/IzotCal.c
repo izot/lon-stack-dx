@@ -510,6 +510,11 @@ int CalStart(void)
     }
     set_reconnect_iter(30);
 #endif  // LINK_IS(WIFI) && PROCESSOR_IS(MC200)
+
+#if LINK_IS(ETHERNET) || LINK_IS(WIFI)
+    EventNormalConnected(NULL);
+#endif  // LINK_IS(ETHERNET) || LINK_IS(WIFI)
+
     return ret;
 }
 
