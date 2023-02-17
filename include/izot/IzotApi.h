@@ -675,8 +675,10 @@ IZOT_EXTERNAL_FN IzotApiError IzotDatapointSetup(IzotDatapointDefinition* const 
  * This function only updates the datapoint configuration flags.  Use IzotDatapointSetup() for setting non-flags.
  */
 
-IZOT_EXTERNAL_FN IzotApiError IzotDatapointConfiguration(IzotDatapointConfig DatapointConfig,
-        IzotBool priority, IzotDatapointDirection direction, IzotBool authentication, IzotBool aes);
+IZOT_EXTERNAL_FN IzotApiError IzotDatapointConfiguration(IzotDatapointDefinition* const pDatapointDef,
+        IzotDatapointConfig* const pDatapointConfig, IzotBool priority, 
+        IzotDatapointDirection direction, IzotBool isProperty, IzotBool persistent, 
+        IzotBool changeable, IzotBool authenticated, IzotBool aes);
 
 /*
  * Function: IzotDatapointBind
@@ -695,8 +697,8 @@ IZOT_EXTERNAL_FN IzotApiError IzotDatapointConfiguration(IzotDatapointConfig Dat
  * IzotDatapointFlags) setting other datapoint configuration.
  */
 
-IZOT_EXTERNAL_FN IzotApiError IzotDatapointBind(IzotDatapointConfig DatapointConfig, 
-        IzotByte address, IzotWord selector, IzotBool turnAround, IzotServiceType service);
+IZOT_EXTERNAL_FN IzotApiError IzotDatapointBind(int nvIndex, IzotByte address, IzotWord selector, 
+                IzotBool turnAround, IzotServiceType service);
 
 /*
  * Function: IzotQueryAliasConfig

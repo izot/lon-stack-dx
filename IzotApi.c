@@ -910,7 +910,7 @@ IZOT_EXTERNAL_FN IzotApiError IzotUpdateDpConfig(signed index, const IzotDatapoi
  * Sets the static configuration for a datapoint (NV).
  *
  * Parameters:
- *  pDatapointConfig - datapoint configuration
+ *  pDatapointDef - datapoint definition
  *  value - datapoint value
  *  size - datapoint size in bytes
  *  snvtId - standard type index; set to 0 for a non-standard type
@@ -922,10 +922,11 @@ IZOT_EXTERNAL_FN IzotApiError IzotUpdateDpConfig(signed index, const IzotDatapoi
  *  ibol - memory address for file-based configuration properties; set to NULL if none
  *  
  * Returns:
- * <IzotApiError>.
+ *  <IzotApiError>
  *
  * Remarks:
- * This function does not update the datapoint configuration flags.  Use IzotDatapointFlags() for setting flags.
+ *  This function does not update the datapoint definition flags or the datapoint configuration.
+ *  Use IzotDatapointConfiguration() for those.
  */
 
 IZOT_EXTERNAL_FN IzotApiError IzotDatapointSetup(IzotDatapointDefinition* const pDatapointDef, 
@@ -949,35 +950,52 @@ IZOT_EXTERNAL_FN IzotApiError IzotDatapointSetup(IzotDatapointDefinition* const 
 }
 
 /*
- * Function: IzotDatapointFlags
- * Sets the static configuration flags for a datapoint (NV).
- *
+ * Function: IzotDatapointConfiguration
+ * Sets the datapoint definition flags for a datapoint (NV)
+ * 
  * Parameters:
- *  pDatapointConfig - datapoint configuration
+ *  pDatapointDef - pointer to datapoint definition (includes Flags field)
+ *  pDatapointConfig - pointer to datapoint configuration
  *  priority - set to TRUE for a priority datapoint (NV)
  *  direction - input or output
- *  authentication - set to TRUE for authenticated transactions
+ *  isProperty - set to TRUE for property datapoints (configuration properties)
+ *  persistent - set to TRUE for persistent datapoints
+ *  changeable - set to TRUE for changeable type datapoints
+ *  authenticated - set to TRUE for authenticated transactions
  *  aes - set to TRUE for AES encryption
- *  
+ * 
  * Returns:
- * <IzotApiError>.
+ *  <IzotApiError>
  *
  * Remarks:
- * This function only updates the datapoint configuration flags.  Use IzotDatapointSetup() for setting non-flags.
+ *  This function only updates the datapoint definition flags and datapoint configuration.
+ *  Use IzotDatapointSetup() for setting non-flags and other settings.
  */
 
-IZOT_EXTERNAL_FN IzotApiError IzotDatapointConfiguration(IzotDatapointConfig DatapointConfig,
-        IzotBool priority, IzotDatapointDirection direction, IzotBool authentication, IzotBool aes)
+
+IZOT_EXTERNAL_FN IzotApiError IzotDatapointConfiguration(IzotDatapointDefinition* const pDatapointDef,
+        IzotDatapointConfig* const pDatapointConfig, IzotBool priority, 
+        IzotDatapointDirection direction, IzotBool isProperty, IzotBool persistent, 
+        IzotBool changeable, IzotBool authenticated, IzotBool aes) 
 {
     IzotApiError lastError = IzotApiNoError;
+    UInt16 flags = pDatapointDef->Flags;
 
-    IZOT_SET_ATTRIBUTE(DatapointConfig, IZOT_DATAPOINT_PRIORITY, priority);
-    IZOT_SET_ATTRIBUTE(DatapointConfig, IZOT_DATAPOINT_DIRECTION, direction);
-    IZOT_SET_ATTRIBUTE(DatapointConfig, IZOT_DATAPOINT_AUTHENTICATION, authentication);
-    IZOT_SET_ATTRIBUTE(DatapointConfig, IZOT_DATAPOINT_AES, aes);
+    flags = (flags & ~IZOT_DATAPOINT_PRIORITY) | (priority ? IZOT_DATAPOINT_PRIORITY : 0);
+    IZOT_SET_ATTRIBUTE_P(pDatapointConfig, IZOT_DATAPOINT_PRIORITY, priority);
+    flags = (flags & ~IZOT_DATAPOINT_IS_OUTPUT) 
+            | ((direction == IzotDatapointDirectionIsOutput) ? IZOT_DATAPOINT_IS_OUTPUT : 0);
+    IZOT_SET_ATTRIBUTE_P(pDatapointConfig, IZOT_DATAPOINT_DIRECTION, direction);
+    flags = (flags & ~IZOT_DATAPOINT_CONFIG_CLASS) | (isProperty ? IZOT_DATAPOINT_CONFIG_CLASS : 0);
+    flags = (flags & ~IZOT_DATAPOINT_PERSISTENT) | (persistent ? IZOT_DATAPOINT_PERSISTENT : 0);
+    flags = (flags & ~IZOT_DATAPOINT_CHANGEABLE) | (changeable ? IZOT_DATAPOINT_CHANGEABLE : 0);
+    flags = (flags & ~IZOT_DATAPOINT_AUTHENTICATED) | (authenticated ? IZOT_DATAPOINT_AUTHENTICATED : 0);
+    IZOT_SET_ATTRIBUTE_P(pDatapointConfig, IZOT_DATAPOINT_AUTHENTICATION, authenticated);
+    IZOT_SET_ATTRIBUTE_P(pDatapointConfig, IZOT_DATAPOINT_AES, aes);
 
     return(lastError);
 }
+
 
 /*
  * Function: IzotDatapointBind
@@ -999,17 +1017,23 @@ IZOT_EXTERNAL_FN IzotApiError IzotDatapointConfiguration(IzotDatapointConfig Dat
  * IzotDatapointConfiguration) setting other datapoint configuration.
  */
 
-IZOT_EXTERNAL_FN IzotApiError IzotDatapointBind(IzotDatapointConfig DatapointConfig, 
-        IzotByte address, IzotWord selector, IzotBool turnAround, IzotServiceType service)
+IZOT_EXTERNAL_FN IzotApiError IzotDatapointBind(int nvIndex, IzotByte address, IzotWord selector, 
+        IzotBool turnAround, IzotServiceType service)
 {
     IzotApiError lastError = IzotApiNoError;
+    IzotDatapointConfig DatapointConfig;
 
-    IZOT_SET_ATTRIBUTE(DatapointConfig, IZOT_DATAPOINT_ADDRESS_HIGH, address >> 4);
-    IZOT_SET_ATTRIBUTE(DatapointConfig, IZOT_DATAPOINT_ADDRESS_LOW, address);
-    IZOT_SET_ATTRIBUTE(DatapointConfig, IZOT_DATAPOINT_SELHIGH, high_byte(IZOT_GET_UNSIGNED_WORD(selector)));
-    DatapointConfig.SelectorLow = low_byte(IZOT_GET_UNSIGNED_WORD(selector));
-    IZOT_SET_ATTRIBUTE(DatapointConfig, IZOT_DATAPOINT_TURNAROUND, turnAround);
-    IZOT_SET_ATTRIBUTE(DatapointConfig, IZOT_DATAPOINT_SERVICE, service);
+    lastError = IzotQueryDpConfig(nvIndex, &DatapointConfig);
+
+    if (lastError != IzotApiNoError) {
+        IZOT_SET_ATTRIBUTE_P(&DatapointConfig, IZOT_DATAPOINT_ADDRESS_HIGH, address >> 4);
+        IZOT_SET_ATTRIBUTE_P(&DatapointConfig, IZOT_DATAPOINT_ADDRESS_LOW, address);
+        IZOT_SET_ATTRIBUTE_P(&DatapointConfig, IZOT_DATAPOINT_SELHIGH, high_byte(IZOT_GET_UNSIGNED_WORD(selector)));
+        DatapointConfig.SelectorLow = low_byte(IZOT_GET_UNSIGNED_WORD(selector));
+        IZOT_SET_ATTRIBUTE_P(&DatapointConfig, IZOT_DATAPOINT_TURNAROUND, turnAround);
+        IZOT_SET_ATTRIBUTE_P(&DatapointConfig, IZOT_DATAPOINT_SERVICE, service);
+        lastError = IzotUpdateDpConfig(nvIndex, &DatapointConfig);
+    }
 
     return(lastError);
 }
