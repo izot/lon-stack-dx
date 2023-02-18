@@ -950,8 +950,8 @@ IZOT_EXTERNAL_FN IzotApiError IzotDatapointSetup(IzotDatapointDefinition* const 
 }
 
 /*
- * Function: IzotDatapointConfiguration
- * Sets the datapoint definition flags for a datapoint (NV)
+ * Function: IzotDatapointFlags
+ * Sets the datapoint definition flags for a datapoint (NV).
  * 
  * Parameters:
  *  pDatapointDef - pointer to datapoint definition (includes Flags field)
@@ -962,36 +962,30 @@ IZOT_EXTERNAL_FN IzotApiError IzotDatapointSetup(IzotDatapointDefinition* const 
  *  persistent - set to TRUE for persistent datapoints
  *  changeable - set to TRUE for changeable type datapoints
  *  authenticated - set to TRUE for authenticated transactions
- *  aes - set to TRUE for AES encryption
  * 
  * Returns:
  *  <IzotApiError>
  *
  * Remarks:
- *  This function only updates the datapoint definition flags and datapoint configuration.
- *  Use IzotDatapointSetup() for setting non-flags and other settings.
+ *  This function only updates the datapoint definition flags.
+ *  Use IzotDatapointSetup() for setting datapoint definition fields not included
+ *  in the flags.
  */
 
 
-IZOT_EXTERNAL_FN IzotApiError IzotDatapointConfiguration(IzotDatapointDefinition* const pDatapointDef,
-        IzotDatapointConfig* const pDatapointConfig, IzotBool priority, 
-        IzotDatapointDirection direction, IzotBool isProperty, IzotBool persistent, 
-        IzotBool changeable, IzotBool authenticated, IzotBool aes) 
+IZOT_EXTERNAL_FN IzotApiError IzotDatapointFlags(IzotDatapointDefinition* const pDatapointDef,
+        IzotBool priority, IzotDatapointDirection direction, IzotBool isProperty, IzotBool persistent, IzotBool changeable, IzotBool authenticated) 
 {
     IzotApiError lastError = IzotApiNoError;
     UInt16 flags = pDatapointDef->Flags;
 
-    flags = (flags & ~IZOT_DATAPOINT_PRIORITY) | (priority ? IZOT_DATAPOINT_PRIORITY : 0);
-    IZOT_SET_ATTRIBUTE_P(pDatapointConfig, IZOT_DATAPOINT_PRIORITY, priority);
-    flags = (flags & ~IZOT_DATAPOINT_IS_OUTPUT) 
+    pDatapointDef->Flags = (flags & ~IZOT_DATAPOINT_PRIORITY) | (priority ? IZOT_DATAPOINT_PRIORITY : 0);
+    pDatapointDef->Flags = (flags & ~IZOT_DATAPOINT_IS_OUTPUT) 
             | ((direction == IzotDatapointDirectionIsOutput) ? IZOT_DATAPOINT_IS_OUTPUT : 0);
-    IZOT_SET_ATTRIBUTE_P(pDatapointConfig, IZOT_DATAPOINT_DIRECTION, direction);
-    flags = (flags & ~IZOT_DATAPOINT_CONFIG_CLASS) | (isProperty ? IZOT_DATAPOINT_CONFIG_CLASS : 0);
-    flags = (flags & ~IZOT_DATAPOINT_PERSISTENT) | (persistent ? IZOT_DATAPOINT_PERSISTENT : 0);
-    flags = (flags & ~IZOT_DATAPOINT_CHANGEABLE) | (changeable ? IZOT_DATAPOINT_CHANGEABLE : 0);
-    flags = (flags & ~IZOT_DATAPOINT_AUTHENTICATED) | (authenticated ? IZOT_DATAPOINT_AUTHENTICATED : 0);
-    IZOT_SET_ATTRIBUTE_P(pDatapointConfig, IZOT_DATAPOINT_AUTHENTICATION, authenticated);
-    IZOT_SET_ATTRIBUTE_P(pDatapointConfig, IZOT_DATAPOINT_AES, aes);
+    pDatapointDef->Flags = (flags & ~IZOT_DATAPOINT_CONFIG_CLASS) | (isProperty ? IZOT_DATAPOINT_CONFIG_CLASS : 0);
+    pDatapointDef->Flags = (flags & ~IZOT_DATAPOINT_PERSISTENT) | (persistent ? IZOT_DATAPOINT_PERSISTENT : 0);
+    pDatapointDef->Flags = (flags & ~IZOT_DATAPOINT_CHANGEABLE) | (changeable ? IZOT_DATAPOINT_CHANGEABLE : 0);
+    pDatapointDef->Flags = (flags & ~IZOT_DATAPOINT_AUTHENTICATED) | (authenticated ? IZOT_DATAPOINT_AUTHENTICATED : 0);
 
     return(lastError);
 }
@@ -999,25 +993,24 @@ IZOT_EXTERNAL_FN IzotApiError IzotDatapointConfiguration(IzotDatapointDefinition
 
 /*
  * Function: IzotDatapointBind
- * Binds a datapoint (NV).  Binding is the process of creating a connection to or from a datapoint
- * from or to one or more datapoints.
+ *  Binds a datapoint (NV).  Binding is the process of creating a connection to or from a datapoint
+ *  from or to one or more datapoints.
  *
  * Parameters:
- *  pDatapointConfig - datapoint configuration
- *  address - address table index
+ *  nvIndex - datapoint (NV) index (index into the NV configuration table)
+ *  address - address table index (index into the address table)
  *  selector - NV selector
  *  turnaround - turnaroud flag; set to TRUE if source or destination is on same device
  *  service - delivery service
  *  
  * Returns:
- * <IzotApiError>.
+ *  <IzotApiError>.
  *
  * Remarks:
- * This function only updates the datapoint connection information.  Use IzotDatapointSetup() and
- * IzotDatapointConfiguration) setting other datapoint configuration.
+ *  This function only updates the datapoint connection information.  Use IzotDatapointSetup() and
+ *  IzotDatapointFlags() for setting other datapoint configuration.
  */
-
-IZOT_EXTERNAL_FN IzotApiError IzotDatapointBind(int nvIndex, IzotByte address, IzotWord selector, 
+IZOT_EXTERNAL_FN IzotApiError IzotDatapointBind(int nvIndex, IzotByte address, IzotUbits16 selector, 
         IzotBool turnAround, IzotServiceType service)
 {
     IzotApiError lastError = IzotApiNoError;
@@ -1028,8 +1021,8 @@ IZOT_EXTERNAL_FN IzotApiError IzotDatapointBind(int nvIndex, IzotByte address, I
     if (lastError != IzotApiNoError) {
         IZOT_SET_ATTRIBUTE_P(&DatapointConfig, IZOT_DATAPOINT_ADDRESS_HIGH, address >> 4);
         IZOT_SET_ATTRIBUTE_P(&DatapointConfig, IZOT_DATAPOINT_ADDRESS_LOW, address);
-        IZOT_SET_ATTRIBUTE_P(&DatapointConfig, IZOT_DATAPOINT_SELHIGH, high_byte(IZOT_GET_UNSIGNED_WORD(selector)));
-        DatapointConfig.SelectorLow = low_byte(IZOT_GET_UNSIGNED_WORD(selector));
+        IZOT_SET_ATTRIBUTE_P(&DatapointConfig, IZOT_DATAPOINT_SELHIGH, high_byte(selector));
+        DatapointConfig.SelectorLow = low_byte(selector);
         IZOT_SET_ATTRIBUTE_P(&DatapointConfig, IZOT_DATAPOINT_TURNAROUND, turnAround);
         IZOT_SET_ATTRIBUTE_P(&DatapointConfig, IZOT_DATAPOINT_SERVICE, service);
         lastError = IzotUpdateDpConfig(nvIndex, &DatapointConfig);
@@ -1414,13 +1407,13 @@ const IzotControlData * const pControlData)
  * Function: IzotRegisterStaticDatapoint
  * Registers a static datapoint with the IzoT Device Stack.
  *
- *  Parameters:
+ * Parameters:
  *  pDatapointDef - pointer to a <IzotDatapointDefinition> structure
  *
- *  Returns:
+ * Returns:
  *  <IzotApiError>.
  *
- *  Remarks:
+ * Remarks:
  *  This function registers a static datapoint with the IzoT Device Stack API,
  *  and is called once for each static datapoint.  This function can be
  *  called only after <IzotCreateStack>, but before <IzotStartStack>.

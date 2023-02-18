@@ -31,16 +31,16 @@
 #include "IzotCal.h"
 
 #if PLATFORM_IS(FRTOS)
-#include <app_framework.h>
-#include <appln_cb.h>
-#include <wm_net.h>
-#include <wm_os.h>
+// Deleted to eliminate warning: #include <app_framework.h>
+// Deleted to eliminate warning: #include <appln_cb.h>
+// Deleted to eliminate warning: #include <wm_net.h>
+// Deleted to eliminate warning: #include <wm_os.h>
 #endif
 
 #if PROCESSOR_IS(MC200)
-#include <board.h>
-#include <mdev_gpio.h>
-#include <mdev_pinmux.h>
+// Deleted to eliminate warning: #include <board.h>
+// Deleted to eliminate warning: #include <mdev_gpio.h>
+// Deleted to eliminate warning: #include <mdev_pinmux.h>
 #endif
 
 #include "IPv4ToLsUdp.h"

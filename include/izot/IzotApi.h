@@ -659,26 +659,30 @@ IZOT_EXTERNAL_FN IzotApiError IzotDatapointSetup(IzotDatapointDefinition* const 
 
 /*
  * Function: IzotDatapointFlags
- * Sets the static configuration flags for a datapoint (NV).
- *
+ * Sets the datapoint definition flags for a datapoint (NV).
+ * 
  * Parameters:
- * index - datapoint index
- * priority - set to TRUE for a priority datapoint (NV)
- * direction - input or output
- * authentication - set to TRUE for authenticated transactions
- * aes - set to TRUE for AES encryption
+ *  pDatapointDef - pointer to datapoint definition (includes Flags field)
+ *  pDatapointConfig - pointer to datapoint configuration
+ *  priority - set to TRUE for a priority datapoint (NV)
+ *  direction - input or output
+ *  isProperty - set to TRUE for property datapoints (configuration properties)
+ *  persistent - set to TRUE for persistent datapoints
+ *  changeable - set to TRUE for changeable type datapoints
+ *  authenticated - set to TRUE for authenticated transactions
  * 
  * Returns:
- * <IzotApiError>.
+ *  <IzotApiError>
  *
  * Remarks:
- * This function only updates the datapoint configuration flags.  Use IzotDatapointSetup() for setting non-flags.
+ *  This function only updates the datapoint definition flags.
+ *  Use IzotDatapointSetup() for setting datapoint definition fields not included
+ *  in the flags.
  */
 
-IZOT_EXTERNAL_FN IzotApiError IzotDatapointConfiguration(IzotDatapointDefinition* const pDatapointDef,
-        IzotDatapointConfig* const pDatapointConfig, IzotBool priority, 
-        IzotDatapointDirection direction, IzotBool isProperty, IzotBool persistent, 
-        IzotBool changeable, IzotBool authenticated, IzotBool aes);
+IZOT_EXTERNAL_FN IzotApiError IzotDatapointFlags(IzotDatapointDefinition* const pDatapointDef,
+        IzotBool priority, IzotDatapointDirection direction, IzotBool isProperty, 
+        IzotBool persistent, IzotBool changeable, IzotBool authenticated);
 
 /*
  * Function: IzotDatapointBind
@@ -697,7 +701,7 @@ IZOT_EXTERNAL_FN IzotApiError IzotDatapointConfiguration(IzotDatapointDefinition
  * IzotDatapointFlags) setting other datapoint configuration.
  */
 
-IZOT_EXTERNAL_FN IzotApiError IzotDatapointBind(int nvIndex, IzotByte address, IzotWord selector, 
+IZOT_EXTERNAL_FN IzotApiError IzotDatapointBind(int nvIndex, IzotByte address, IzotUbits16 selector, 
                 IzotBool turnAround, IzotServiceType service);
 
 /*

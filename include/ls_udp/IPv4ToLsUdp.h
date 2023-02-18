@@ -39,12 +39,12 @@ extern "C" {            // Assume C declarations for C++
 #include "lcs.h"
 
 #if PLATFORM_IS(FRTOS)
-#include <wm_net.h>
-#include <wlan.h>
-#include <wmtime.h>
-#include <wm_os.h>
-#include <arch/sys.h>
-#include <dhcp-server.h>
+// Deleted to eliminate warning: #include <wm_net.h>
+// Deleted to eliminate warning: #include <wlan.h>
+// Deleted to eliminate warning: #include <wmtime.h>
+// Deleted to eliminate warning: #include <wm_os.h>
+// Deleted to eliminate warning: #include <arch/sys.h>
+// Deleted to eliminate warning: #include <dhcp-server.h>
 #endif
 
 
