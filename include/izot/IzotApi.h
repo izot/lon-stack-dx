@@ -1079,7 +1079,7 @@ IZOT_EXTERNAL_FN IzotBool IzotIsFirstRun(void);
  * Returns:
  * The system tick count.
  */
-IZOT_EXTERNAL_FN unsigned IzotGetTickCount(void);
+IZOT_EXTERNAL_FN OsalTickCount IzotGetTickCount(void);
 
 /*
  * LON Stack DX implements event handlers as optional global

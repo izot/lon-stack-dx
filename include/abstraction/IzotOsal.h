@@ -29,6 +29,8 @@
  * APIs for FreeRTOS to get timing information.
  */
 
+#include <stddef.h>
+
 #include "IzotConfig.h"
 #include "IzotPlatform.h"
 
@@ -78,7 +80,7 @@ typedef enum
  *  the OS.
  *  See <IzotGetTickCount> and <GetTicksPerSecond>.
  */
-typedef unsigned int OsalTickCount;
+typedef uint32_t OsalTickCount;
 
 /*
  * SECTION: Timing FUNCTIONS

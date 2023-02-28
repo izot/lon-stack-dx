@@ -900,7 +900,7 @@ static IzotApiError EraseSegment(void *fd, const IzotPersistentSegmentType type,
 #ifdef FLASH_DEBUG
 static void PrintTimeStamp()
 {
-    int time = IzotGetTickCount()*1000/GetTicksPerSecond();
+    uint32_t time = IzotGetTickCount()*1000/GetTicksPerSecond();
     FLASH_PRINTF("[%d.%.3d]", time/1000, time % 1000);
 }
 

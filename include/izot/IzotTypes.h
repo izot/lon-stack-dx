@@ -3765,14 +3765,14 @@ typedef struct {
 // Structure: LonTimer
 typedef struct __attribute__ ((packed))
 {
-	IzotUbits16	expiration;		// Time to expire
-	IzotUbits16	repeatTimeout;  // Repeat timeout on expiration (0 means not repeating)
+	IzotUbits32	expiration;		// Time to expire
+	IzotUbits32	repeatTimeout;  // Repeat timeout on expiration (0 means not repeating)
 } LonTimer;
 
 // Structure: LonWatch
 typedef struct
 {
-	IzotUbits16	start;			// Time watch started
+	IzotUbits32	start;			// Time watch started
 } LonWatch;
 
 
