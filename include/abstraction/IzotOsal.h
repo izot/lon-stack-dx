@@ -78,7 +78,7 @@ typedef enum
  *  the OS.
  *  See <IzotGetTickCount> and <GetTicksPerSecond>.
  */
-typedef unsigned int OsalTickCount;
+typedef uint32_t OsalTickCount;
 
 /*
  * SECTION: Timing FUNCTIONS
