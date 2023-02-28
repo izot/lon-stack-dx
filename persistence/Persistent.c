@@ -66,10 +66,10 @@ static IzotBool      PersitenceList[IzotPersistentSegNumSegmentTypes];
  * This function calculates the time remaining for the flushing .
 
  */
-static unsigned guardBandRemainig(void)
+static uint32_t guardBandRemainig(void)
 {
-    unsigned timeElapsed = IzotGetTickCount() - lastUpdate;
-    unsigned timeRemaining;
+    uint32_t timeElapsed = IzotGetTickCount() - lastUpdate;
+    uint32_t timeRemaining;
     if (timeElapsed <= m_guardBandDuration) {
         timeRemaining = m_guardBandDuration - timeElapsed;
     } else {
