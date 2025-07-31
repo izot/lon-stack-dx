@@ -1,7 +1,7 @@
 //
 // lcs.c
 //
-// Copyright (C) 2022 EnOcean
+// Copyright (C) 2022-2025 EnOcean
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in 
@@ -26,7 +26,7 @@
 //
 
 //
-// Any APP wishing to use LCS must do the following:
+// Any app using LCS must do the following:
 // 1. Call LCS_Init() during initialization
 // 2. Call LCS_Service() as often as practical (e.g., once per millisecond)
 //
@@ -43,8 +43,12 @@ extern void TPSend(void);
 extern void SNSend(void);
 extern void AuthSend(void);
 extern void NWSend(void);
+#if LINK_IS(WIFI) || LINK_IS(ETHERNET)
 extern void LsUDPSend(void);
+#endif // LINK_IS(WIFI) || LINK_IS(ETHERNET)
+#if LINK_IS(MIP)
 extern void PHYSend(void);
+#endif // LINK_IS(MIP)
 
 // Receive functions for the layers
 extern void APPReceive(void);
@@ -52,8 +56,12 @@ extern void TPReceive(void);
 extern void SNReceive(void);
 extern void AuthReceive(void);
 extern void NWReceive(void);
+#if LINK_IS(WIFI) || LINK_IS(ETHERNET)
 extern void LsUDPReceive(void);
+#endif // LINK_IS(WIFI) || LINK_IS(ETHERNET)
+#if LINK_IS(MIP)
 extern void PHYReceive(void);
+#endif // LINK_IS(MIP)
 
 extern void IzotOffline(void);
 
@@ -127,14 +135,14 @@ void LCS_Service()
 		TPSend();
 		AuthSend();
 		NWSend();
-		#if LINK_IS(MIP)
+		#if LINK_IS(MIP) || LINK_IS(USB)
 			LKSend();
 		#else
 			LsUDPSend();
 		#endif
 		
 		// Call all the Receive functions.
-		#if LINK_IS(MIP)
+		#if LINK_IS(MIP) || LINK_IS(USB)
 			LKReceive();
 		#else
 			LsUDPReceive();

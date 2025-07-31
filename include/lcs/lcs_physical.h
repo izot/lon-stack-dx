@@ -25,17 +25,19 @@
      Reference:        ISO/IEC 14908-1, Section 4, 4.3
 
        Purpose:        Data Structures for native LON Physical Layer.
-                       Not used for LON/IP.
+                       Not used for LON/IP or LON USB link.
 *********************************************************************/
 #ifndef _PHYSICAL_H
 #define _PHYSICAL_H
+
+#include "IzotConfig.h"
 
 #if LINK_IS(MIP)
 
 /*------------------------------------------------------------------------------
   Section: Includes
   ------------------------------------------------------------------------------*/
-#include <eia709_1.h> /* needed for NUM_COMM_PARAMS */
+#include <lcs_eia709_1.h> /* needed for NUM_COMM_PARAMS */
 
 /*-------------------------------------------------------------------
   Section: Constant Definitions

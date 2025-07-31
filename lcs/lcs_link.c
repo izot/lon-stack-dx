@@ -1,7 +1,7 @@
 //
 // lcs_link.c
 //
-// Copyright (C) 2023 EnOcean
+// Copyright (C) 2023-2025 EnOcean
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in 
@@ -30,7 +30,7 @@
 
 #include "lcs_link.h"
 
-#if LINK_IS(MIP)
+#if LINK_IS(MIP) || LINK_IS(USB)
 
 /*------------------------------------------------------------------------------
   Section: Includes
@@ -485,4 +485,4 @@ void LKFetchXcvr(void)
 	xcvrFetch = vldv_write(vniHandle[plcVni], (L2Frame*)&sicbOut, (short)(sicbOut.len+2)) != LDV_OK;
 }
 
-#endif  // LINK_IS(MIP)
+#endif  // LINK_IS(MIP) || LINK_IS(USB)

@@ -1,7 +1,7 @@
 //
 // lcs_node.h
 //
-// Copyright (C) 2022 EnOcean
+// Copyright (C) 2022-2025 EnOcean
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in 
@@ -698,7 +698,7 @@ typedef struct
     IzotUbits16     lkOutPriBufSize;
     IzotUbits16     lkOutPriQCnt;
 
-#if LINK_IS(MIP)
+#if LINK_IS(MIP) || LINK_IS(USB)
     /* Output Queue For Physical Layer */
     IzotByte       *phyOutQ; /* Not a regular Queue unlike others */
     IzotUbits16     phyOutBufSize;

@@ -1,7 +1,7 @@
 //
 // IzotConfig.h
 //
-// Copyright (C) 2023 EnOcean
+// Copyright (C) 2023-2025 EnOcean
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in 
@@ -64,6 +64,7 @@
 // #if PROCESSOR_IS(MC200)
 // #if LINK_IS(WIFI)
 // #if LINK_IS(MIP)
+// #if LINK_IS(USB)
 // #if ISI_IS(SIMPLE)
 // #if ISI_IS(SIMPLE) || ISI_IS(DA)
 // #if IUP_IS(V1)
@@ -118,6 +119,7 @@
 #define LINK_ID_ETHERNET    0   // LON/IP Ethernet data link
 #define LINK_ID_WIFI        1	// LON/IP Wi-Fi data link
 #define LINK_ID_MIP         2 	// Neuron MIP data link
+#define LINK_ID_USB         3   // U60 FT-compatible USB data link
 
 // ISI IDs -- default is no LON Interoperable Self-Installation (ISI)
 #define ISI_ID_NO_ISI  0   // ISI disabled

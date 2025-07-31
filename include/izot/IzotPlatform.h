@@ -1,7 +1,7 @@
 //
 // IzotPlatform.h
 //
-// Copyright (C) 2023 EnOcean
+// Copyright (C) 2023-2025 EnOcean
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in 
@@ -105,7 +105,8 @@
 #include <stddef.h>
 
 
-#if !defined(PLATFORM_ID) && defined(__ARMEL__)
+// #if !defined(PLATFORM_ID) && defined(__ARMEL__) -- __ARMEL__ test removed 7/31/25
+#if !defined(PLATFORM_ID)
     #define PLATFORM_ID PLATFORM_ID_RPI
 #endif
 

@@ -1,7 +1,7 @@
 //
 // IzotIsiTypes.h
 //
-// Copyright (C) 2022 EnOcean
+// Copyright (C) 2022-2025 EnOcean
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in 
@@ -538,7 +538,7 @@ typedef IZOT_STRUCT_BEGIN(IsiMessage)
 // as defined above, which contains an ISI specific IsiMessageCode to further 
 // distringuish the individual ISI message types. 
 // DO NOT CONFUSE THE 709.1 APPLICATION MESSAGE CODE WITH THE IsiMessageCode enumeration!
-extern IzotByte const isiApplicationMessageCode;
+extern const IzotByte isiApplicationMessageCode;
 
 //  Basic ISI API macros
 #define ISI_DEFAULT_GROUP   128u
