@@ -493,12 +493,14 @@ void LKGetTransceiverParams(int index, XcvrParam *p)
 //
 void LKFetchXcvr(void)
 {
+    #if LINK_IS(MIP)
 	const int msgLen = 1;
 	const L2Frame sicbOut = {nicbLOCALNM, 14+msgLen, 0x70|LNM_TAG, 0x00, msgLen, 
 							 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 							 ND_opcode_base|ND_QUERY_XCVR};
 	// If write fails, we'll try again next time.
 	xcvrFetch = vldv_write(vniHandle[plcVni], (L2Frame*)&sicbOut, (short)(sicbOut.len+2)) != LDV_OK;
+    #endif // LINK_IS(MIP)
 }
 
 #endif  // LINK_IS(MIP) || LINK_IS(USB)
