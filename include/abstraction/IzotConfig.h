@@ -69,6 +69,8 @@
 // #if ISI_IS(SIMPLE) || ISI_IS(DA)
 // #if IUP_IS(V1)
 // #if SECURITY_IS(V2)
+// #if DEBUG_IS(SERIAL)
+// #if DEBUG_IS(LCD)
 
 #if !defined(_IZOT_CONFIG_H)
 #define _IZOT_CONFIG_H
@@ -87,7 +89,7 @@
 #define ISI_IS(isiid) (ISI_ID == ISI_ID_ ## isiid)
 #define IUP_IS(iupid) (IUP_ID == IUP_ID_ ## iupid)
 #define SECURITY_IS(secid) (SECURITY_ID == SECURITY_ID_ ## secid)
-
+#define DEBUG_IS(dbgid) (DEBUG_ID == DEBUG_ID_ ##dbgid)
 
 // Available IDs.  You can add new IDs to this list.  The value  0 is
 // reserved for the default value of each.  Any ID defined with a value
@@ -134,23 +136,26 @@
 #define SECURITY_ID_V1 0    // LON Security V1 (authentication only)
 #define SECURITY_ID_V2 1	// LON Security V2 (AES encryption)
 
+// Debug IDs -- default is no debug output
+#define DEBUG_ID_NONE   0   // Debug output disabled
+#define DEBUG_ID_SERIAL 1   // Debug output to serial console
+#define DEBUG_ID_LCD    2   // Debug output to LCD
+
 
 // Project-specific IDs -- to change any of these for a project,
 // change the "0" to a macro name defined above with a matching
-// prefix.  There is no default for the PLATFORM_ID.  IzotPlatform.h
+// prefix.  If a default is not defined for PLATFORM_ID, IzotPlatform.h
 // will determine the platform ID based on pre-defined platform
-// macros for different platforms.  If one is not identified, you 
-// must define one.  To do that, uncomment the following line and
-// change the TBD, or add an equivalent definition in your
-// application.
-//
-// #define PLATFORM_ID   TBD
+// macros for different platforms.
 
+#define PLATFORM_ID   PLATFORM_ID_RPI
 #define PRODUCT_ID 	  0
 #define PROCESSOR_ID  0
-#define LINK_ID 	  0
+#define LINK_ID 	  LINK_ID_USB
 #define ISI_ID 		  0
 #define IUP_ID        0
 #define SECURITY_ID   0
+#define DEBUG_ID      0
+
 
 #endif  // defined(_IZOT_CONFIG_H) 
