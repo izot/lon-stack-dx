@@ -679,7 +679,7 @@ typedef struct
     Queue           nwOutPriQ;
     IzotUbits16     nwOutPriBufSize;
     IzotUbits16     nwOutPriQCnt;
-#ifdef LINK_LAYER
+#if LINK_IS(MIP) || LINK_IS(USB)
     /* Input Queue For Link Layer */
     IzotByte       *lkInQ;
     IzotUbits16     lkInBufSize; /* Size of buffer in lkInPDUQ */
