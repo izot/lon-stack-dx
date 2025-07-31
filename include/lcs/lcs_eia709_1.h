@@ -51,6 +51,7 @@ typedef enum __attribute__ ((packed))
 {
   	LcsTxError,
 	LcsTxFailure,
+   LcsRxError,
 	LcsRxTxFull,
 	LcsLost,
 	LcsMissed,
