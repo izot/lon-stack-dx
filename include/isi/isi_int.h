@@ -2,7 +2,7 @@
 //
 // isi_int.h
 //
-// Copyright (C) 2022 EnOcean
+// Copyright (C) 2022-2025 EnOcean
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in 
