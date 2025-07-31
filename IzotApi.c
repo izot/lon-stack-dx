@@ -1342,9 +1342,10 @@ const IzotControlData * const pControlData)
     char oldProgId[8];
 #endif 
 
-    // Currently only a few of these fields are used by LCS.  Note also that
-    // LCS is a multi-stack model and IZOT is a single stack model.  For now,
-    // if you use these functions, they only apply to stack[0].
+    // Only a few of these fields are used by the LON EX Stack.  The
+    // API implements partial support for a multi-stack model, but 
+    // the stack is limited to a single stack model.  Only stack[0]
+    // is supported.
     
     setAppSignature(pInterface->Signature);
     SetPeristenceGaurdBand(pControlData->PersistentFlushGuardTimeout*1000);
@@ -1375,7 +1376,7 @@ const IzotControlData * const pControlData)
     DataPointCount = pInterface->StaticDatapoints;
     AliasTableCount = pInterface->Aliases;
     BindableMTagCount = pInterface->BindableMsgTags;
-    
+
     // Start the IP stack if enabled and initialize a UDP socket for communication
     err = UdpInit();
     if (err != IzotApiNoError) {
