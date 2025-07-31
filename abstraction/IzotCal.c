@@ -275,12 +275,14 @@ static void EventNormalConnected(void *data)
     readIupPersistData();
     // Sleep deleted: OsalSleep(10);
     is_connected = 1;
-    
+
     // Set current LON/IP address and send announcement
     SendAnnouncement();
 
+#if 0
     // Set LON address from LON/IP address        
     SetLsAddressFromIpAddr();
+#endif
 #endif  // LINK_IS(ETHERNET) || LINK_IS(WIFI)
 }
 
@@ -540,6 +542,7 @@ IzotBool SetCurrentIP(void)
 #else   // LINK_IS(WIFI) && PLATFORM_IS(FRTOS)
     #pragma message("Implement code to get the current IP address")
     // currentIpAddress = <Get current IP address>;
+    currentIpAddress = 0xC0A80101;  // 192.168.1.1 for testing
 #endif  // LINK_IS(WIFI) && PLATFORM_IS(FRTOS)
 
     ipAddressChanged = currentIpAddress != lastIpAddress;
