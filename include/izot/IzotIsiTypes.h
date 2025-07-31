@@ -414,7 +414,7 @@ typedef IZOT_STRUCT_BEGIN(IsiCtrq)
 
 typedef IZOT_STRUCT_BEGIN(IsiCtrp) 
 {
-    IzotUbits8         Success;
+    IzotByte         Success;
     IzotUniqueId     NeuronID;
 } IZOT_STRUCT_END(IsiCtrp);
 
