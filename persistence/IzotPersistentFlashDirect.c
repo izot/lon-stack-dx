@@ -1,7 +1,7 @@
 //
 // IzotPersitentFlashDirect.c
 //
-// Copyright (C) 2023 EnOcean
+// Copyright (C) 2023-2025 EnOcean
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in 
