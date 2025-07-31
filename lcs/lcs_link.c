@@ -44,7 +44,7 @@
 #include "lcs_node.h"
 #include "lcs_queue.h"
 #include "lcs_netmgmt.h"
-#include "link.h"
+
 /*------------------------------------------------------------------------------
   Section: Constant Definitions
   ------------------------------------------------------------------------------*/
@@ -54,9 +54,9 @@
   ------------------------------------------------------------------------------*/
 typedef struct
 {
-	Byte cmd;
-	Byte len;
-	Byte pdu[MAX_PDU_SIZE];
+	IzotByte cmd;
+	IzotByte len;
+	IzotByte pdu[MAX_PDU_SIZE];
 } L2Frame;
 
 /* Need a structure that represents the 1 byte header portion for
@@ -121,9 +121,9 @@ Comments:  Sets gp->resetOk to FALSE if unable to reset properly.
 *******************************************************************************/
 void LKReset(void)
 {
-    uint16 queueItemSize;
-    Byte   *p; /* Used to initialize lkInQ. */
-    uint16 i;
+    IzotUbits16 queueItemSize;
+    IzotByte   *p; /* Used to initialize lkInQ. */
+    IzotUbits16 i;
 
     /****************************************************************************
        Allocate and initialize the input queue.
@@ -140,11 +140,11 @@ void LKReset(void)
        Total # bytes in addition to NPDU is thus 6 bytes.
     ****************************************************************************/
     gp->lkInBufSize   =
-        DecodeBufferSize((uint8)eep->readOnlyData.nwInBufSize) + 6;
+        DecodeBufferSize((IzotUbits16)gp->nwInBufSize) + 6;
     gp->lkInQCnt      =
-        DecodeBufferCnt((uint8)eep->readOnlyData.nwInBufCnt);
+        DecodeBufferCnt((IzotUbits16)gp->nwInQCnt);
 
-    gp->lkInQ = AllocateStorage((uint16)(gp->lkInBufSize * gp->lkInQCnt));
+    gp->lkInQ = AllocateStorage((IzotUbits16)(gp->lkInBufSize * gp->lkInQCnt));
     if (gp->lkInQ == NULL)
     {
         ErrorMsg("LKReset: Unable to init the input queue.\n");
@@ -163,9 +163,9 @@ void LKReset(void)
 
     /* Allocate and initialize the output queue. */
     gp->lkOutBufSize  =
-        DecodeBufferSize((uint8)eep->readOnlyData.nwOutBufSize);
+        DecodeBufferSize((IzotUbits16)gp->nwOutBufSize);
     gp->lkOutQCnt     =
-        DecodeBufferCnt((uint8)eep->readOnlyData.nwOutBufCnt);
+        DecodeBufferCnt((IzotUbits16)gp->nwOutQCnt);
     queueItemSize    = gp->lkOutBufSize + sizeof(LKSendParam);
 
     if (QueueInit(&gp->lkOutQ, queueItemSize, gp->lkOutQCnt)
@@ -179,7 +179,7 @@ void LKReset(void)
     /* Allocate and initialize the priority output queue. */
     gp->lkOutPriBufSize = gp->lkOutBufSize;
     gp->lkOutPriQCnt  =
-        DecodeBufferCnt((uint8)eep->readOnlyData.nwOutBufPriCnt);
+        DecodeBufferCnt((IzotUbits16)gp->nwOutPriQCnt);
     queueItemSize    = gp->lkOutPriBufSize + sizeof(LKSendParam);
 
     if (QueueInit(&gp->lkOutPriQ, queueItemSize, gp->lkOutPriQCnt)
@@ -196,6 +196,7 @@ void LKReset(void)
 		
 		vldv_open(vni[i].szName, &handle);
 	
+        #if LINK_IS(MIP)
 		if (vni[i].isPlc)
 		{
 			Bool requestNid = true;
@@ -221,6 +222,8 @@ void LKReset(void)
 				}
 			}
 		}
+        #endif // LINK_IS(MIP)
+
   	    vniHandle[i] = handle;
 	}
 
@@ -246,7 +249,7 @@ void LKSend(void)
     Queue           *lkSendQueuePtr;
     Byte            *npduPtr;
     LPDUHeader      *lpduHeaderPtr;
-    Boolean          priority;
+    Bool             priority;
 	L2Frame		     sicb;
 	int				 i;
 
@@ -255,6 +258,7 @@ void LKSend(void)
 	  	LKFetchXcvr();
 	}
 	
+    #if LINK_IS(MIP)
 	if (setPhase)
 	{
 	    L2Frame mode = {nicbPHASE|2, 0};
@@ -263,7 +267,8 @@ void LKSend(void)
 		    setPhase = false;
 		}
 	}
-	
+	#endif // LINK_IS(MIP)
+
     /* First, make variables point to the right queue. */
     if (!QueueEmpty(&gp->lkOutPriQ))
     {
@@ -323,10 +328,10 @@ Comments:  Each item of the queue gp->lkInQ has the following form:
 void LKReceive(void)
 {
     NWReceiveParam *nwReceiveParamPtr;
-    Byte           *npduPtr;
+    IzotByte       *npduPtr;
     LPDUHeader     *lpduHeaderPtr;
-    Byte           *tempPtr;
-    uint16          lpduSize;
+    IzotByte       *tempPtr;
+    IzotUbits16     lpduSize;
 	L2Frame			sicb;
 	int				i;
 	XcvrParam		xcvrParams;
@@ -346,6 +351,7 @@ void LKReceive(void)
 	  	return;
 	}
 	
+    #if LINK_IS(MIP)
 	if (sicb.cmd == nicbRESPONSE && (sicb.pdu[0]&0x0F) == LNM_TAG && sicb.pdu[14] == (ND_resp_success|ND_QUERY_XCVR))
 	{
 	  	// This is the response to a xcvr register read (done in LKFetchXcvr()).  Save the result.
@@ -387,14 +393,25 @@ void LKReceive(void)
 
     INCR_STATS(LcsL2Rx); /* Got a good packet. */
 
+    /* Check if the packet is for us. */
+    if (sicb.cmd != nicbINCOMING_L2M2 || sicb.pdu[0] != nicbLOCALNM) {
+        INCR_STATS(LcsMissed);
+        return;
+    }
+    #endif // LINK_IS(MIP)
+
+    /* Check if the packet is too small. */
+    if (lpduSize < 8) {
+        INCR_STATS(LcsRxError);
+        return;
+    }
+
+    /* Check if the queue is full. */
 	/* We need to receive this message. */
-    if (QueueFull(&gp->nwInQ))
-    {
+    if (QueueFull(&gp->nwInQ)) {
         /* We are losing this packet. */
         INCR_STATS(LcsMissed);
-    }
-    else
-    {
+    } else {
         nwReceiveParamPtr = QueueTail(&gp->nwInQ);
         npduPtr           = (Byte *)(nwReceiveParamPtr + 1);
 
@@ -402,7 +419,9 @@ void LKReceive(void)
         nwReceiveParamPtr->altPath  = lpduHeaderPtr->altPath;
         tempPtr = (Byte *)((char *)lpduHeaderPtr + 1);
         nwReceiveParamPtr->pduSize  = lpduSize - 3;
+        #if LINK_IS(MIP)
 		nwReceiveParamPtr->xcvrParams = xcvrParams;
+        #endif // LINK_IS(MIP)
 
         /* Copy the NPDU. */
         /* if it was in link layer's queue, then the size should be
@@ -435,23 +454,20 @@ Returns:   16 bit CRC computed.
 Purpose:   To compute the 16 bit CRC for a given buffer.
 Comments:  None.
 *******************************************************************************/
-void CRC16(Byte bufInOut[], uint16 sizeIn)
+void CRC16(Byte bufInOut[], IzotUbits16 sizeIn)
 {
-    uint16 poly = 0x1021;       /* Generator Polynomial. */
-    uint16 crc = 0xffff;
-    uint16 i,j;
+    IzotUbits16 poly = 0x1021;       /* Generator Polynomial. */
+    IzotUbits16 crc = 0xffff;
+    IzotUbits16 i,j;
     unsigned char byte, crcbit, databit;
 
-    for (i = 0; i < sizeIn; i++)
-    {
+    for (i = 0; i < sizeIn; i++) {
         byte = bufInOut[i];
-        for (j = 0; j < 8; j++)
-        {
+        for (j = 0; j < 8; j++) {
             crcbit = crc & 0x8000 ? 1 : 0;
             databit = byte & 0x80 ? 1 : 0;
             crc = crc << 1;
-            if (crcbit != databit)
-            {
+            if (crcbit != databit) {
                 crc = crc ^ poly;
             }
             byte = byte << 1;
