@@ -228,7 +228,7 @@ void LKReset(void)
 	}
 
 	// Start a timer to periodically fetch xcvr params plus kick off a fetch to get things initialized.
-	StartLonRepeatTimer(&xcvrTimer, 10000);
+	SetLonRepeatTimer(&xcvrTimer, 10000);
 	LKFetchXcvr();
 	
     return;
