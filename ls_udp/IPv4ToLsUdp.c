@@ -1,7 +1,7 @@
 //
 // IPv4ToLsUdp.c
 //
-// Copyright (C) 2023 EnOcean
+// Copyright (C) 2023-2025 EnOcean
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in 
@@ -411,7 +411,7 @@ static void Ipv4SendAnnouncement(IzotByte *msg, IzotByte len)
 {
     LKSendParam  *lkSendParamPtr; /* Param in lkOutQ or lkPriOutQ.   */
     IzotByte     *npduPtr;        /* Pointer to NPDU being formed.   */
-    
+
     if (!QueueFull(&gp->lkOutQ)) {
         lkSendParamPtr  = QueueTail(&gp->lkOutQ);
     } else {
@@ -421,17 +421,20 @@ static void Ipv4SendAnnouncement(IzotByte *msg, IzotByte len)
     // ptr to NPDU constructed.
     npduPtr = (IzotByte *)(lkSendParamPtr + 1);
 
+#if 0
+// TBD: following block crashes
     // Write the parameters for the link layer.
     lkSendParamPtr->deltaBL = 0;
     lkSendParamPtr->altPath = 0;
     lkSendParamPtr->pduSize = len - 1;
     lkSendParamPtr->DomainIndex = 0;
-    
+
     // Copy the pdu
     memcpy(npduPtr, &msg[1], len - 1);
     
     EnQueue(&gp->lkOutQ);
     INCR_STATS(LcsL3Tx);
+#endif
 }
 #endif
 
@@ -816,6 +819,7 @@ static void Ipv4SendMulticastAnnouncement(const IzotByte *pDesiredIpAddress)
 #endif
     msg[len++] = IPV4_EXP_MSG_CODE;
     msg[len++] = IPV4_EXP_DEVICE_LS_ADDR_MAPPING_ANNOUNCEMENT; 
+
     Ipv4SendAnnouncement(msg, len);    
 }
 #endif
@@ -1138,12 +1142,14 @@ void SendAnnouncement(void)
     IzotByte    ls_derived_src_ip[IPV4_ADDRESS_LEN];
 
     (void) SetCurrentIP();
+
     Ipv4GenerateLsSubnetNodeAddr(
             (IzotByte *)temp->Id, 
             (IzotByte)IZOT_GET_ATTRIBUTE_P(temp, IZOT_DOMAIN_ID_LENGTH), 
             (IzotByte)temp->Subnet, 
             (IzotByte)IZOT_GET_ATTRIBUTE_P(temp, IZOT_DOMAIN_NODE), 
             ls_derived_src_ip);
+
     Ipv4SendMulticastAnnouncement(ls_derived_src_ip);
 }
 
@@ -1159,7 +1165,9 @@ void SendAnnouncement(void)
 void SetLsAddressFromIpAddr(void)
 {
     IzotDomain domain;
-    
+
+#if 0
+
     memset(&domain, 0, sizeof(IzotDomain));
     
     if (ownIpAddress[0] == IPV4_DOMAIN_LEN_0_PREFIX_0 && ownIpAddress[1] == IPV4_DOMAIN_LEN_0_PREFIX_1) {
@@ -1192,10 +1200,11 @@ void SetLsAddressFromIpAddr(void)
 
     IZOT_SET_ATTRIBUTE(domain, IZOT_DHCP_FLAG, 1);
     IZOT_SET_ATTRIBUTE(domain, IZOT_AUTH_TYPE, AUTH_OMA);
-    
+
     UpdateDomain(&domain, 0, 0);
     RecomputeChecksum();
     LCS_WriteNvm();
+#endif
 }
 
 /* 
@@ -1225,7 +1234,7 @@ int UdpInit(void)
 
     // Init the LON Stack
     LCS_Init(IzotPowerUpReset);
-    
+
 #if LINK_IS(WIFI) || LINK_IS(ETHERNET)
     // Start the link
     ret = CalStart();
@@ -1242,8 +1251,10 @@ int UdpInit(void)
     DBG_vPrintf(TRUE, "Sockets created\r\n");
 #endif  // LINK_IS(WIFI) || LINK_IS(ETHERNET)
   
+#if 0
     // restore multicast membership
     RestoreIpMembership();
-    
+#endif
+
     return ret;
 }
