@@ -227,9 +227,11 @@ void LKReset(void)
   	    vniHandle[i] = handle;
 	}
 
+    #if LINK_IS(MIP)
 	// Start a timer to periodically fetch xcvr params plus kick off a fetch to get things initialized.
-	SetLonRepeatTimer(&xcvrTimer, 10000);
+	SetLonRepeatTimer(&xcvrTimer, 10000, 10000);
 	LKFetchXcvr();
+    #endif // LINK_IS(MIP)
 	
     return;
 }
