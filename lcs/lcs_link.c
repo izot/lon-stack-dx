@@ -44,6 +44,7 @@
 #include "lcs_node.h"
 #include "lcs_queue.h"
 #include "lcs_netmgmt.h"
+#include "Ldv32.h"
 
 /*------------------------------------------------------------------------------
   Section: Constant Definitions
@@ -360,11 +361,13 @@ void LKReceive(void)
 		memcpy(&vniXcvrParam[plcVni], &sicb.pdu[15], sizeof(vniXcvrParam[0]));
 		return;
 	}
-		
+	#endif // LINK_IS(MIP)
+
     lpduSize 		  =	sicb.len-3;	// Subtract 2 for register info and 1 for zero crossing info
     lpduHeaderPtr     = (LPDUHeader*)&sicb.pdu[1];	// Offset is 1 because of zero crossing info
 	
-   	/* Throw away packets that are smaller than 8 bytes long. */
+   	#if LINK_IS(MIP)
+	/* Throw away packets that are smaller than 8 bytes long. */
 	/* For pseudo L2 MIP, CRC errors are reported with a short length. */
 	if (sicb.cmd == nicbINCOMING_L2M2 && lpduSize < 8 ||
 		(sicb.cmd&0xF0) == (nicbERROR&0xF0))
@@ -382,7 +385,8 @@ void LKReceive(void)
 		}
 	  	return;
 	}
-	
+	#endif // LINK_IS(MIP)
+
 	// Fill in the packet specific register info
 	tempPtr = &sicb.pdu[sicb.len-2];
 	xcvrParams.data[2] = *tempPtr++;
@@ -395,6 +399,7 @@ void LKReceive(void)
 
     INCR_STATS(LcsL2Rx); /* Got a good packet. */
 
+    #if LINK_IS(MIP)
     /* Check if the packet is for us. */
     if (sicb.cmd != nicbINCOMING_L2M2 || sicb.pdu[0] != nicbLOCALNM) {
         INCR_STATS(LcsMissed);
@@ -407,7 +412,7 @@ void LKReceive(void)
         INCR_STATS(LcsRxError);
         return;
     }
-
+    
     /* Check if the queue is full. */
 	/* We need to receive this message. */
     if (QueueFull(&gp->nwInQ)) {
