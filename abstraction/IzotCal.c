@@ -271,7 +271,7 @@ static void EventNormalConnected(void *data)
     app_network_ip_get(ip);
 #endif  // LINK_IS(WIFI) && PROCESSOR_IS(MC200)
 
-#if LINK_IS(ETHERNET) || LINK_IS(WIFI)
+#if LINK_IS(ETHERNET) || LINK_IS(WIFI) || LINK_IS(USB)
     readIupPersistData();
     // Sleep deleted: OsalSleep(10);
     is_connected = 1;
@@ -283,7 +283,7 @@ static void EventNormalConnected(void *data)
     // Set LON address from LON/IP address        
     SetLsAddressFromIpAddr();
 #endif
-#endif  // LINK_IS(ETHERNET) || LINK_IS(WIFI)
+#endif  // LINK_IS(ETHERNET) || LINK_IS(WIFI) || LINK_IS(USB)
 }
 
 
@@ -392,14 +392,14 @@ void CheckNetworkStatus(void)
                 }
             }
         #endif  // LINK_IS(WIFI) && PROCESSOR_IS(MC200)
-        #if LINK_IS(ETHERNET) || LINK_IS(WIFI)
+        #if LINK_IS(ETHERNET) || LINK_IS(WIFI) || LINK_IS(USB)
             #pragma message("Implement code to test for an IP link transition from not connected to connected")
             // if (!is_connected && <link is connected>) }
                 // Link has changed from not connected to connected; handle the change
                 // EventNormalConnected(NULL);
             // }
             (void) SetCurrentIP();
-        #endif  // LINK_IS(ETHERNET) || LINK_IS(WIFI)
+        #endif  // LINK_IS(ETHERNET) || LINK_IS(WIFI) || LINK_IS(USB)
     }
 }
 
@@ -513,9 +513,9 @@ int CalStart(void)
     set_reconnect_iter(30);
 #endif  // LINK_IS(WIFI) && PROCESSOR_IS(MC200)
 
-#if LINK_IS(ETHERNET) || LINK_IS(WIFI)
+#if LINK_IS(ETHERNET) || LINK_IS(WIFI) || LINK_IS(USB)
     EventNormalConnected(NULL);
-#endif  // LINK_IS(ETHERNET) || LINK_IS(WIFI)
+#endif  // LINK_IS(ETHERNET) || LINK_IS(WIFI) || LINK_IS(USB)
 
     return ret;
 }

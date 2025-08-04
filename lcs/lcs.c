@@ -43,9 +43,9 @@ extern void TPSend(void);
 extern void SNSend(void);
 extern void AuthSend(void);
 extern void NWSend(void);
-#if LINK_IS(WIFI) || LINK_IS(ETHERNET)
+#if LINK_IS(WIFI) || LINK_IS(ETHERNET) || LINK_IS(USB)
 extern void LsUDPSend(void);
-#endif // LINK_IS(WIFI) || LINK_IS(ETHERNET)
+#endif // LINK_IS(WIFI) || LINK_IS(ETHERNET) || LINK_IS(USB)
 #if LINK_IS(MIP)
 extern void PHYSend(void);
 #endif // LINK_IS(MIP)
@@ -56,9 +56,9 @@ extern void TPReceive(void);
 extern void SNReceive(void);
 extern void AuthReceive(void);
 extern void NWReceive(void);
-#if LINK_IS(WIFI) || LINK_IS(ETHERNET)
+#if LINK_IS(WIFI) || LINK_IS(ETHERNET) || LINK_IS(USB)
 extern void LsUDPReceive(void);
-#endif // LINK_IS(WIFI) || LINK_IS(ETHERNET)
+#endif // LINK_IS(WIFI) || LINK_IS(ETHERNET) || LINK_IS(USB)
 #if LINK_IS(MIP)
 extern void PHYReceive(void);
 #endif // LINK_IS(MIP)
@@ -135,18 +135,18 @@ void LCS_Service()
 		TPSend();
 		AuthSend();
 		NWSend();
-		#if LINK_IS(MIP) || LINK_IS(USB)
+		#if LINK_IS(MIP)
 			LKSend();
-		#else
+		#else // !LINK_IS(MIP)
 			LsUDPSend();
-		#endif
+		#endif // LINK_IS(MIP)
 		
 		// Call all the Receive functions.
-		#if LINK_IS(MIP) || LINK_IS(USB)
+		#if LINK_IS(MIP)
 			LKReceive();
-		#else
+		#else // !LINK_IS(MIP)
 			LsUDPReceive();
-		#endif
+		#endif // LINK_IS(MIP)
 		NWReceive();
 		AuthReceive();
 		TPReceive();

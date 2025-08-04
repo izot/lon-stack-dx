@@ -679,14 +679,14 @@ typedef struct
     Queue           nwOutPriQ;
     IzotUbits16     nwOutPriBufSize;
     IzotUbits16     nwOutPriQCnt;
-#if LINK_IS(MIP) || LINK_IS(USB)
+#if LINK_IS(MIP)
     /* Input Queue For Link Layer */
     IzotByte       *lkInQ;
     IzotUbits16     lkInBufSize; /* Size of buffer in lkInPDUQ */
     IzotUbits16     lkInQCnt;    /* # of Buffers allocated. */
     IzotByte       *lkInQHeadPtr;
     IzotByte       *lkInQTailPtr;
-#endif
+#endif // LINK_IS(MIP)
     /* Output Queue For Link Layer */
     Queue           lkOutQ;
     IzotUbits16     lkOutBufSize;
@@ -698,7 +698,7 @@ typedef struct
     IzotUbits16     lkOutPriBufSize;
     IzotUbits16     lkOutPriQCnt;
 
-#if LINK_IS(MIP) || LINK_IS(USB)
+#if LINK_IS(MIP)
     /* Output Queue For Physical Layer */
     IzotByte       *phyOutQ; /* Not a regular Queue unlike others */
     IzotUbits16     phyOutBufSize;
@@ -713,7 +713,7 @@ typedef struct
     IzotUbits16     phyOutPriQCnt;
     IzotByte       *phyOutPriQHeadPtr;
     IzotByte       *phyOutPriQTailPtr;
-#endif
+#endif // LINK_IS(MIP)
 
     /* API Flags */
     IzotByte msgReceive;    /* TRUE when data in gp->msgIn  */

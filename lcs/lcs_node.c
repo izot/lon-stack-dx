@@ -528,7 +528,7 @@ void NodeReset(IzotByte firstReset)
 
 #if LINK_IS(MIP)
     PHYInitSPM(firstReset);
-#endif
+#endif // LINK_IS(MIP)
 
     if (firstReset)
     {

@@ -30,7 +30,7 @@
 
 #include "lcs_link.h"
 
-#if LINK_IS(MIP) || LINK_IS(USB)
+#if LINK_IS(MIP)
 
 /*------------------------------------------------------------------------------
   Section: Includes
@@ -69,7 +69,7 @@ typedef struct
 		  deltaBL,		6)
 } LPDUHeader;
 
-#define NUM_VNI 2
+#define NUM_VNI 1
 static LinkHandle 	vniHandle[NUM_VNI];
 static XcvrParam 	vniXcvrParam[NUM_VNI];
 static LonTimer 	xcvrTimer;
@@ -91,7 +91,7 @@ const VniDef vni[NUM_VNI] =
 	{"PLC", true},	// Note that vldv.c assumes that names starting with 'P' are PLC channels!
 #endif	  
 #else
-	{"LON2", true}
+	{"LON1", false}
 #endif
 };
 
@@ -197,7 +197,6 @@ void LKReset(void)
 		
 		vldv_open(vni[i].szName, &handle);
 	
-        #if LINK_IS(MIP)
 		if (vni[i].isPlc)
 		{
 			Bool requestNid = true;
@@ -223,16 +222,12 @@ void LKReset(void)
 				}
 			}
 		}
-        #endif // LINK_IS(MIP)
-
   	    vniHandle[i] = handle;
 	}
 
-    #if LINK_IS(MIP)
 	// Start a timer to periodically fetch xcvr params plus kick off a fetch to get things initialized.
 	SetLonRepeatTimer(&xcvrTimer, 10000, 10000);
 	LKFetchXcvr();
-    #endif // LINK_IS(MIP)
 	
     return;
 }
@@ -261,7 +256,6 @@ void LKSend(void)
 	  	LKFetchXcvr();
 	}
 	
-    #if LINK_IS(MIP)
 	if (setPhase)
 	{
 	    L2Frame mode = {nicbPHASE|2, 0};
@@ -270,7 +264,6 @@ void LKSend(void)
 		    setPhase = false;
 		}
 	}
-	#endif // LINK_IS(MIP)
 
     /* First, make variables point to the right queue. */
     if (!QueueEmpty(&gp->lkOutPriQ))
@@ -354,19 +347,16 @@ void LKReceive(void)
 	  	return;
 	}
 	
-    #if LINK_IS(MIP)
 	if (sicb.cmd == nicbRESPONSE && (sicb.pdu[0]&0x0F) == LNM_TAG && sicb.pdu[14] == (ND_resp_success|ND_QUERY_XCVR))
 	{
 	  	// This is the response to a xcvr register read (done in LKFetchXcvr()).  Save the result.
 		memcpy(&vniXcvrParam[plcVni], &sicb.pdu[15], sizeof(vniXcvrParam[0]));
 		return;
 	}
-	#endif // LINK_IS(MIP)
 
     lpduSize 		  =	sicb.len-3;	// Subtract 2 for register info and 1 for zero crossing info
     lpduHeaderPtr     = (LPDUHeader*)&sicb.pdu[1];	// Offset is 1 because of zero crossing info
 	
-   	#if LINK_IS(MIP)
 	/* Throw away packets that are smaller than 8 bytes long. */
 	/* For pseudo L2 MIP, CRC errors are reported with a short length. */
 	if (sicb.cmd == nicbINCOMING_L2M2 && lpduSize < 8 ||
@@ -385,7 +375,6 @@ void LKReceive(void)
 		}
 	  	return;
 	}
-	#endif // LINK_IS(MIP)
 
 	// Fill in the packet specific register info
 	tempPtr = &sicb.pdu[sicb.len-2];
@@ -399,13 +388,11 @@ void LKReceive(void)
 
     INCR_STATS(LcsL2Rx); /* Got a good packet. */
 
-    #if LINK_IS(MIP)
     /* Check if the packet is for us. */
     if (sicb.cmd != nicbINCOMING_L2M2 || sicb.pdu[0] != nicbLOCALNM) {
         INCR_STATS(LcsMissed);
         return;
     }
-    #endif // LINK_IS(MIP)
 
     /* Check if the packet is too small. */
     if (lpduSize < 8) {
@@ -426,10 +413,8 @@ void LKReceive(void)
         nwReceiveParamPtr->altPath  = lpduHeaderPtr->altPath;
         tempPtr = (Byte *)((char *)lpduHeaderPtr + 1);
         nwReceiveParamPtr->pduSize  = lpduSize - 3;
-        #if LINK_IS(MIP)
-		nwReceiveParamPtr->xcvrParams = xcvrParams;
-        #endif // LINK_IS(MIP)
-
+ 		nwReceiveParamPtr->xcvrParams = xcvrParams;
+ 
         /* Copy the NPDU. */
         /* if it was in link layer's queue, then the size should be
            sufficient in network layer's queue as they differ by 3.
@@ -500,14 +485,12 @@ void LKGetTransceiverParams(int index, XcvrParam *p)
 //
 void LKFetchXcvr(void)
 {
-    #if LINK_IS(MIP)
 	const int msgLen = 1;
 	const L2Frame sicbOut = {nicbLOCALNM, 14+msgLen, 0x70|LNM_TAG, 0x00, msgLen, 
 							 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 							 ND_opcode_base|ND_QUERY_XCVR};
 	// If write fails, we'll try again next time.
 	xcvrFetch = vldv_write(vniHandle[plcVni], (L2Frame*)&sicbOut, (short)(sicbOut.len+2)) != LDV_OK;
-    #endif // LINK_IS(MIP)
 }
 
-#endif  // LINK_IS(MIP) || LINK_IS(USB)
+#endif  // LINK_IS(MIP)

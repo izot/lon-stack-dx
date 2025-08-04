@@ -1235,7 +1235,7 @@ int UdpInit(void)
     // Init the LON Stack
     LCS_Init(IzotPowerUpReset);
 
-#if LINK_IS(WIFI) || LINK_IS(ETHERNET)
+#if LINK_IS(WIFI) || LINK_IS(ETHERNET) || LINK_IS(USB)
     // Start the link
     ret = CalStart();
     if (ret != IzotApiNoError) {
@@ -1249,7 +1249,7 @@ int UdpInit(void)
         return IzotApiNoIpAddress;
     }
     DBG_vPrintf(TRUE, "Sockets created\r\n");
-#endif  // LINK_IS(WIFI) || LINK_IS(ETHERNET)
+#endif  // LINK_IS(WIFI) || LINK_IS(ETHERNET) || LINK_IS(USB)
   
 #if 0
     // restore multicast membership

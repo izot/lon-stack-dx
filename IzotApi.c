@@ -186,7 +186,7 @@ void IzotServiceLedStatus(IzotServiceLedState state, IzotServiceLedPhysicalState
 */
 IZOT_EXTERNAL_FN void IzotEventPump(void)
 {
-#if LINK_IS(WIFI) || LINK_IS(ETHERNET)
+#if LINK_IS(WIFI) || LINK_IS(ETHERNET) || LINK_IS(USB)
     CheckNetworkStatus();
 
 	if(is_connected) {    
@@ -1257,8 +1257,6 @@ IZOT_EXTERNAL_FN int IzotPersistentGetMaxSize(IzotPersistentSegmentType segmentT
  *
  * Secures the RFOLC against unauthorized use
  * Uses digest to secure the device
- *
- * 
  */
 #if LINK_IS(WIFI)
 #define FLICKER_INTERVAL 200    // LED flicker interval in milliseconds
