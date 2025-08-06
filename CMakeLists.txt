@@ -125,6 +125,12 @@ write_basic_package_version_file(
     COMPATIBILITY SameMajorVersion
 )
 
+configure_package_config_file(
+  "${CMAKE_CURRENT_SOURCE_DIR}/cmake/lon_stack_dxConfig.cmake"
+  "${CMAKE_CURRENT_BINARY_DIR}/lon_stack_dxConfig.cmake"
+  INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/lon_stack_dx
+)
+
 install(FILES
     "${CMAKE_CURRENT_SOURCE_DIR}/cmake/lon_stack_dxConfig.cmake"
     "${CMAKE_CURRENT_BINARY_DIR}/lon_stack_dxConfigVersion.cmake"
