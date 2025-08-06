@@ -31,8 +31,8 @@
 
 #include <stddef.h>
 
-#include "IzotConfig.h"
-#include "IzotPlatform.h"
+#include "abstraction/IzotConfig.h"
+#include "izot/IzotPlatform.h"
 
 #if !defined(DEFINED_IZOTOSAL_H)
 #define DEFINED_IZOTOSAL_H

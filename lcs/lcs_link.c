@@ -39,11 +39,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lcs_eia709_1.h"
-#include "lcs_timer.h"
-#include "lcs_node.h"
-#include "lcs_queue.h"
-#include "lcs_netmgmt.h"
+#include "lcs/lcs_eia709_1.h"
+#include "lcs/lcs_timer.h"
+#include "lcs/lcs_node.h"
+#include "lcs/lcs_queue.h"
+#include "lcs/lcs_netmgmt.h"
 #include "Ldv32.h"
 
 /*------------------------------------------------------------------------------

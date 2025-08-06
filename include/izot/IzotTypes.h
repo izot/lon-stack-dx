@@ -36,7 +36,7 @@
 #   error You must include IzotPlatform.h first
 #endif  /* _IZOT_PLATFORM_H */
 
-#include "IapTypes.h"       // IAP type definitions
+#include "izot/IapTypes.h"       // IAP type definitions
 
 
 /*

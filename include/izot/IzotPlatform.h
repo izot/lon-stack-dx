@@ -297,7 +297,7 @@
 		
     #define IZOT_UBITS_32_MAX 0xFFFFFFFF
 
-    #include "stdint.h"
+    #include <stdint.h>
     typedef uint8_t         IzotByte;
 
     /*
@@ -420,7 +420,7 @@
 		
     #define IZOT_UBITS_32_MAX 0xFFFFFFFF
 
-    #include "stdint.h"
+    #include <stdint.h>
     typedef uint8_t         IzotByte;
 
     /*
@@ -1150,9 +1150,9 @@ typedef IzotUbits16  nulong;
 
 typedef IzotByte     BitField;
 
-#include "bitfield.h"
-#include "lcs_timer.h"
-#include "lcs_node.h"
+#include "common/bitfield.h"
+#include "lcs/lcs_timer.h"
+#include "lcs/lcs_node.h"
 
 #endif  /* _IZOT_PLATFORM_H */
 

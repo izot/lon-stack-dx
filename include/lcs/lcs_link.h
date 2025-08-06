@@ -34,10 +34,10 @@
 /*------------------------------------------------------------------------------
   Section: Includes
   ------------------------------------------------------------------------------*/
-#include "IzotConfig.h"
-#include "IzotApi.h"
-#include "lcs_timer.h"
-#include "lcs_node.h"
+#include "abstraction/IzotConfig.h"
+#include "izot/IzotApi.h"
+#include "lcs/lcs_timer.h"
+#include "lcs/lcs_node.h"
 
 /*------------------------------------------------------------------------------
   Section: Constant Definitions

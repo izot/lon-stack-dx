@@ -29,7 +29,7 @@
  * This file is part of the LON Stack API.
  */
 
-#include "IzotApi.h"
+#include "izot/IzotApi.h"
 
 #ifdef  __cplusplus
 extern "C" {

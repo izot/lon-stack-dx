@@ -34,20 +34,20 @@
 Section: Includes
 ------------------------------------------------------------------------------*/
 #include <string.h>
-#include "IzotConfig.h"
-#include "IzotPlatform.h"
-#include "IzotTypes.h"
-#include "endian.h"
-#include "lcs_api.h"
-#include "lcs_timer.h"
-#include "lcs_eia709_1.h"
-#include "lcs_node.h"
-#include "lcs_netmgmt.h"
-#include "lcs_network.h"
-#include "lcs_proxy.h"
-#include "lcs_queue.h"
-#include "lcs_tsa.h"
-#include "iup.h"
+#include "abstraction/IzotConfig.h"
+#include "izot/IzotPlatform.h"
+#include "izot/IzotTypes.h"
+#include "abstraction/endian.h"
+#include "lcs/lcs_api.h"
+#include "lcs/lcs_timer.h"
+#include "lcs/lcs_eia709_1.h"
+#include "lcs/lcs_node.h"
+#include "lcs/lcs_netmgmt.h"
+#include "lcs/lcs_network.h"
+#include "lcs/lcs_proxy.h"
+#include "lcs/lcs_queue.h"
+#include "lcs/lcs_tsa.h"
+#include "lcs/iup.h"
 
 /*------------------------------------------------------------------------------
 Section: Constant Definitions

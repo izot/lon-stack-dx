@@ -37,22 +37,20 @@ Section: Includes
 
 #include <stdio.h>
 #include <string.h>
-#include "endian.h"
-#include "err.h"
-#include "IzotConfig.h"
-#include "IzotApi.h"
-#include "IzotCal.h"
-#include "iup.h"
-#include "lcs_api.h"
-#include "lcs_app.h"
-#include "lcs_eia709_1.h"
-#include "lcs_timer.h"
-#include "lcs_node.h"
-#include "lcs_queue.h"
-#include "lcs_tsa.h"
-#include "lcs_network.h"
-#include "lcs_api.h"
-
+#include "abstraction/endian.h"
+#include "common/err.h"
+#include "abstraction/IzotConfig.h"
+#include "izot/IzotApi.h"
+#include "abstraction/IzotCal.h"
+#include "lcs/iup.h"
+#include "lcs/lcs_api.h"
+#include "lcs/lcs_app.h"
+#include "lcs/lcs_eia709_1.h"
+#include "lcs/lcs_timer.h"
+#include "lcs/lcs_node.h"
+#include "lcs/lcs_queue.h"
+#include "lcs/lcs_tsa.h"
+#include "lcs/lcs_network.h"
 
 #if PROCESSOR_IS(MC200)
 #include <wmstdio.h>

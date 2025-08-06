@@ -31,8 +31,8 @@
 #ifndef MODULE_PLATFORM_H
 #define	MODULE_PLATFORM_H
 
-#include "IzotConfig.h"
-#include "IzotPlatform.h"
+#include "abstraction/IzotConfig.h"
+#include "izot/IzotPlatform.h"
 
 // Macro for addresses that can be > 64K -- these are not currently used
 #if PLATFORM_IS(SIM)

@@ -37,10 +37,10 @@
 extern "C" {
 #endif
 
-#include "IzotConfig.h"
-#include "IzotPlatform.h"
-#include "IzotTypes.h"
-#include "IzotIsiTypes.h"
+#include "abstraction/IzotConfig.h"
+#include "izot/IzotPlatform.h"
+#include "izot/IzotTypes.h"
+#include "izot/IzotIsiTypes.h"
 
 /*------------------------------------------------------------------------------
 Section: Macros

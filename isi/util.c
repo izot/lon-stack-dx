@@ -28,7 +28,7 @@
 
 #include <stdio.h>
 #include <stdarg.h>
-#include "isi_int.h"
+#include "isi/isi_int.h"
 
 #if PROCESSOR_IS(MC200)
 #include <wmtime.h>

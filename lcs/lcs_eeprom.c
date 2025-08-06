@@ -30,13 +30,13 @@ Section: Includes
 #include <stdio.h>
 #include <string.h>
 #include <stddef.h>
-#include "IzotConfig.h"
-#include "IzotApi.h"
-#include "IzotTypes.h"
-#include "lcs_eia709_1.h"
-#include "lcs_timer.h"
-#include "lcs_node.h"
-#include "Persistent.h"
+#include "abstraction/IzotConfig.h"
+#include "izot/IzotApi.h"
+#include "izot/IzotTypes.h"
+#include "lcs/lcs_eia709_1.h"
+#include "lcs/lcs_timer.h"
+#include "lcs/lcs_node.h"
+#include "persistence/Persistent.h"
 
 /*------------------------------------------------------------------------------
 Section: Constant Definitions

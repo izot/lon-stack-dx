@@ -30,7 +30,7 @@
  * requirements.
  */
 
-#include "IzotPersistentFlashDirect.h"
+#include "persistence/IzotPersistentFlashDirect.h"
 
 /*------------------------------------------------------------------------------
 Section: Macros

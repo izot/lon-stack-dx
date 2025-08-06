@@ -31,7 +31,7 @@
 #ifndef __VLDV_H
 #define __VLDV_H
 
-#include "EchelonStandardDefinitions.h"
+#include "common/EchelonStandardDefinitions.h"
 
 // Local NI commands
 #define nicbRESPONSE		0x16

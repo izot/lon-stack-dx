@@ -38,12 +38,12 @@
   ------------------------------------------------------------------------------*/
 #include <stdio.h>
 #include <stddef.h>
-#include "IzotConfig.h"
-#include "IzotApi.h"
-#include "IzotTypes.h"
-#include "lcs_eia709_1.h"   /* To get Byte, Boolean & Status         */
-#include "lcs_timer.h"      /* For LonTimer required by lcs_node.h   */
-#include "lcs_node.h"       /* To get AllocateStorage.               */
+#include "abstraction/IzotConfig.h"
+#include "izot/IzotApi.h"
+#include "izot/IzotTypes.h"
+#include "lcs/lcs_eia709_1.h"   /* To get Byte, Boolean & Status         */
+#include "lcs/lcs_timer.h"      /* For LonTimer required by lcs_node.h   */
+#include "lcs/lcs_node.h"       /* To get AllocateStorage.               */
 
 
 /*-------------------------------------------------------------------

@@ -56,6 +56,7 @@ set(LON_STACK_DX_HEADERS
     include/isi/isi_int.h
     include/izot/IapTypes.h
     include/izot/IzotApi.h
+    include/izot/IzotIsiApi.h
     include/izot/IzotIsiTypes.h
     include/izot/IzotPlatform.h
     include/izot/IzotTypes.h

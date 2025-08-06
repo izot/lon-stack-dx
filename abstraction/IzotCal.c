@@ -28,7 +28,7 @@
  * This file contains the platform dependent functions for the data link.
  */
 
-#include "IzotCal.h"
+#include "abstraction/IzotCal.h"
 
 #if PLATFORM_IS(FRTOS)
 // Deleted to eliminate warning: #include <app_framework.h>
@@ -43,8 +43,8 @@
 // Deleted to eliminate warning: #include <mdev_pinmux.h>
 #endif
 
-#include "IPv4ToLsUdp.h"
-#include "lcs_api.h"
+#include "ls_udp/IPv4ToLsUdp.h"
+#include "lcs/lcs_api.h"
 
 /*------------------------------------------------------------------------------
 Section: Macro

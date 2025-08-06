@@ -124,7 +124,7 @@ do { \
 // are expected to be reasonable to export with API products.  Those
 // that are not should be included in this file directly.
 //
-#include "EchelonStandardDefinitions.h"
+#include "common/EchelonStandardDefinitions.h"
 
 #endif	// !_ECHELON
 

@@ -40,7 +40,7 @@
 #endif  //  ISI_DEBUG_IMPLEMENT_LIBRARY
 
 #include <string.h>
-#include "IzotIsiApi.h"
+#include "izot/IzotIsiApi.h"
 
 #ifdef  __cplusplus
 extern "C" {

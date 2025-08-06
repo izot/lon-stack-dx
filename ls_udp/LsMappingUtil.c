@@ -22,10 +22,10 @@
 // SOFTWARE.
 
 #include <string.h>
-#include "IzotConfig.h"
-#include "IzotApi.h"
-#include "IPv4ToLsUdp.h"
-#include "IzotCal.h"
+#include "abstraction/IzotConfig.h"
+#include "izot/IzotApi.h"
+#include "ls_udp/IPv4ToLsUdp.h"
+#include "abstraction/IzotCal.h"
 
 /*------------------------------------------------------------------------------
 Section: Macros

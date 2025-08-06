@@ -28,8 +28,8 @@
  * This file contains the Izot Connectivity layer socket APIs.
  */ 
 
-#include "IzotConfig.h"
-#include "IzotPlatform.h"
+#include "abstraction/IzotConfig.h"
+#include "izot/IzotPlatform.h"
 
 #if !defined(DEFINED_IZOTCAL_H)
 #define DEFINED_IZOTCAL_H

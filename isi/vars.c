@@ -34,7 +34,7 @@
 extern "C" {
 #endif
 
-#include "isi_int.h"
+#include "isi/isi_int.h"
 #include <stddef.h>
 
 // eeprom 

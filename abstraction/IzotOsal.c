@@ -29,7 +29,7 @@
  * APIs for FreeRTOS to get timing information.
  */
 
-#include "IzotOsal.h"
+#include "abstraction/IzotOsal.h"
 
 #if PLATFORM_IS(FRTOS)
     #include <wm_os.h>

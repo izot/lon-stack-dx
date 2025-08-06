@@ -34,10 +34,10 @@
  Section: Includes
  ------------------------------------------------------------------------------*/
 #include <stddef.h>
-#include "IzotConfig.h"
-#include "IzotPlatform.h"
-#include "IzotTypes.h"
-// #include "lcs_eia709_1.h" 
+#include "abstraction/IzotConfig.h"
+#include "izot/IzotPlatform.h"
+#include "izot/IzotTypes.h"
+// #include "lcs/lcs_eia709_1.h" 
 
 /*------------------------------------------------------------------------------
   Section: Constant Definitions

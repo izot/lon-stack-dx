@@ -37,16 +37,16 @@ Section: Includes
 #include <stdio.h>
 #include <string.h>
 #include <stddef.h>
-#include "IzotConfig.h"
-#include "IzotPlatform.h"
-#include "IzotTypes.h"
-#include "EchelonStandardDefinitions.h"
-#include "isi_int.h"
-#include "endian.h"
-#include "lcs_api.h"
-#include "lcs_eia709_1.h"
-#include "lcs_queue.h"
-#include "lcs_timer.h"
+#include "abstraction/IzotConfig.h"
+#include "izot/IzotPlatform.h"
+#include "izot/IzotTypes.h"
+#include "common/EchelonStandardDefinitions.h"
+#include "isi/isi_int.h"
+#include "abstraction/endian.h"
+#include "lcs/lcs_api.h"
+#include "lcs/lcs_eia709_1.h"
+#include "lcs/lcs_queue.h"
+#include "lcs/lcs_timer.h"
 
 #ifdef LCS_DEBUG
 	#define DBG_vPrintf(format,args...)		wmprintf(args)

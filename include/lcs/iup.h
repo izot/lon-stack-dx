@@ -33,15 +33,15 @@
 
 #include <stdio.h>
 #include <string.h>
-#include "IzotConfig.h"
-#include "IzotApi.h"
-#include "IzotHal.h"
-#include "endian.h"
-#include "iup.h"
-#include "lcs_api.h"
-#include "lcs_netmgmt.h"
-#include "lcs_timer.h"
-#include "lcs_node.h"
+#include "abstraction/IzotConfig.h"
+#include "izot/IzotApi.h"
+#include "abstraction/IzotHal.h"
+#include "abstraction/endian.h"
+#include "lcs/iup.h"
+#include "lcs/lcs_api.h"
+#include "lcs/lcs_netmgmt.h"
+#include "lcs/lcs_timer.h"
+#include "lcs/lcs_node.h"
 
 #if PROCESSOR_IS(MC200)
     #include <wmstdio.h>

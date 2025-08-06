@@ -1,0 +1,23 @@
+{
+    "files.associations": {
+        "ipv4tolsudp.h": "c",
+        "lcs_api.h": "c",
+        "lcs_timer.h": "c",
+        "izothal.h": "c",
+        "persistent.h": "c",
+        "isi_int.h": "c",
+        "iup.h": "c",
+        "endian.h": "c",
+        "izotconfig.h": "c",
+        "izotosal.h": "c",
+        "izotapi.h": "c",
+        "lcs_app.h": "c",
+        "lcs_node.h": "c",
+        "lcs_network.h": "c",
+        "lcs_queue.h": "c",
+        "lcs_eia709_1.h": "c",
+        "izotplatform.h": "c",
+        "lcs.h": "c",
+        "lcs_proxy.h": "c"
+    }
+}

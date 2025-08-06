@@ -29,10 +29,10 @@
 #define _TIMER_H
 
 #include <stddef.h>
-#include "IzotConfig.h"
-#include "IzotPlatform.h"
-#include "IzotTypes.h"
-#include "lcs_eia709_1.h"
+#include "abstraction/IzotConfig.h"
+#include "izot/IzotPlatform.h"
+#include "izot/IzotTypes.h"
+#include "lcs/lcs_eia709_1.h"
 
 // Set LON timer maximum duration to 1/2 maximum full range for a 32-bit
 // millisecond timer which is about 24 days

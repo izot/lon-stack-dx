@@ -39,7 +39,7 @@
 #define __EchelonStandardDefinitions_h
 
 // Include the address space definitions.
-#include "module_platform.h"
+#include "common/module_platform.h"
 
 typedef int  		Bool;
 

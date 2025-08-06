@@ -29,7 +29,7 @@
  * to the flash memory.
  */
 
-#include "Persistent.h"
+#include "persistence/Persistent.h"
 
 /*------------------------------------------------------------------------------
   Section: Macros

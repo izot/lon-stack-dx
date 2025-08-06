@@ -32,11 +32,11 @@ extern "C" {            // Assume C declarations for C++
 #include <stdio.h>
 #include <string.h>
 
-#include "IzotConfig.h"
-#include "IzotPlatform.h"
-#include "IzotTypes.h"
-#include "IzotCal.h"
-#include "lcs.h"
+#include "abstraction/IzotConfig.h"
+#include "izot/IzotPlatform.h"
+#include "izot/IzotTypes.h"
+#include "abstraction/IzotCal.h"
+#include "lcs/lcs.h"
 
 #if PLATFORM_IS(FRTOS)
 // Deleted to eliminate warning: #include <wm_net.h>

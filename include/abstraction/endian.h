@@ -33,7 +33,7 @@
 #ifndef _ENDIAN_H
 #define _ENDIAN_H
 
-#include "lcs_platform.h"
+#include "lcs/lcs_platform.h"
 
 #undef LITTLE_ENDIAN
 #define LITTLE_ENDIAN 1234

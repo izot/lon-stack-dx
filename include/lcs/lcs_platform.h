@@ -28,9 +28,9 @@
 #ifndef _PLATFORM_H
 #define _PLATFORM_H
 
-#include "IzotConfig.h"
-#include "IzotPlatform.h"
-#include "echversion.h"
+#include "abstraction/IzotConfig.h"
+#include "izot/IzotPlatform.h"
+#include "common/echversion.h"
 
 // The base Neuron firmware version on which this implementation is based.
 #define BASE_FIRMWARE_VERSION   16
@@ -55,7 +55,7 @@
 // Target compiler expects bitfields LSB first.
 #define BITF_LITTLE_ENDIAN
 
-#include "bitfield.h"
+#include "common/bitfield.h"
 
 // Specify a way for the application program to suspend so that other apps can run and we don't consume all the CPU
 #ifdef WIN32

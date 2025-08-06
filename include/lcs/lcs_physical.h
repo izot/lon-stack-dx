@@ -30,14 +30,14 @@
 #ifndef _PHYSICAL_H
 #define _PHYSICAL_H
 
-#include "IzotConfig.h"
+#include "abstraction/IzotConfig.h"
 
 #if LINK_IS(MIP)
 
 /*------------------------------------------------------------------------------
   Section: Includes
   ------------------------------------------------------------------------------*/
-#include <lcs_eia709_1.h> /* needed for NUM_COMM_PARAMS */
+#include "lcs/lcs_eia709_1.h" /* needed for NUM_COMM_PARAMS */
 
 /*-------------------------------------------------------------------
   Section: Constant Definitions

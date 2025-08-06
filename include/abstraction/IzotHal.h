@@ -29,8 +29,8 @@
  * APIs for the 88MC200 for the hardware GPIO and external flash.
  */ 
 
-#include "IzotConfig.h"
-#include "IzotPlatform.h"
+#include "abstraction/IzotConfig.h"
+#include "izot/IzotPlatform.h"
 
 #if !defined(DEFINED_IZOTHAL_H)
 #define DEFINED_IZOTHAL_H

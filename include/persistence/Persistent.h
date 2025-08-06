@@ -33,12 +33,12 @@
 
 #include <stddef.h>
 #include <string.h>
-#include "IzotConfig.h"
-#include "IzotApi.h"
-#include "IzotOsal.h"
-#include "isi_int.h"
-#include "lcs_timer.h"
-#include "lcs_node.h"
+#include "abstraction/IzotConfig.h"
+#include "izot/IzotApi.h"
+#include "abstraction/IzotOsal.h"
+#include "isi/isi_int.h"
+#include "lcs/lcs_timer.h"
+#include "lcs/lcs_node.h"
 
 #if PROCESSOR_IS(MC200)
 #include <wm_os.h>

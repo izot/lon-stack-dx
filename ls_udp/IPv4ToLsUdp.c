@@ -21,7 +21,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-#include "IPv4ToLsUdp.h"
+#include "ls_udp/IPv4ToLsUdp.h"
 
 
 /*------------------------------------------------------------------------------

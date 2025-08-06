@@ -22,15 +22,15 @@
 // SOFTWARE.
 
 #include <stddef.h>
-#include "IzotConfig.h"
-#include "IzotApi.h"
-#include "IzotTypes.h"
-#include "lcs_platform.h"
-#include "lcs_api.h"
-#include "lcs_custom.h"
-#include "lcs_eia709_1.h"
-#include "lcs_timer.h"
-#include "lcs_node.h"
+#include "abstraction/IzotConfig.h"
+#include "izot/IzotApi.h"
+#include "izot/IzotTypes.h"
+#include "lcs/lcs_platform.h"
+#include "lcs/lcs_api.h"
+#include "lcs/lcs_custom.h"
+#include "lcs/lcs_eia709_1.h"
+#include "lcs/lcs_timer.h"
+#include "lcs/lcs_node.h"
 
 // 
 // Public APIs for the LON DX Stack

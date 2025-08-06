@@ -35,9 +35,9 @@
 /*------------------------------------------------------------------------------
 Section: Includes
 ------------------------------------------------------------------------------*/
-#include "lcs_custom.h"
-#include "lcs_eia709_1.h"
-#include "lcs_timer.h"
+#include "lcs/lcs_custom.h"
+#include "lcs/lcs_eia709_1.h"
+#include "lcs/lcs_timer.h"
 
 /*------------------------------------------------------------------------------
 Section: Constant Definitions

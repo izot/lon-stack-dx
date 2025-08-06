@@ -31,7 +31,7 @@
 // 2. Call LCS_Service() as often as practical (e.g., once per millisecond)
 //
 
-#include "lcs.h"
+#include "lcs/lcs.h"
 
 
 // Application init functions

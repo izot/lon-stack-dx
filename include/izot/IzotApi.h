@@ -38,20 +38,20 @@ extern "C" {
 
 #include <stdlib.h>
 #include <string.h>
-#include "IzotConfig.h"
-#include "IzotPlatform.h"
-#include "IzotTypes.h"
-#include "IzotCal.h"
-#include "IzotHal.h"
-#include "IzotOsal.h"
-#include "IzotPersistentFlashDirect.h"
-#include "IPv4ToLsUdp.h"
-#include "isi_int.h"
-#include "lcs_api.h"
-#include "lcs_timer.h"
-#include "lcs_node.h"
-#include "lcs.h"
-#include "Persistent.h"
+#include "abstraction/IzotConfig.h"
+#include "izot/IzotPlatform.h"
+#include "izot/IzotTypes.h"
+#include "abstraction/IzotCal.h"
+#include "abstraction/IzotHal.h"
+#include "abstraction/IzotOsal.h"
+#include "persistence/IzotPersistentFlashDirect.h"
+#include "ls_udp/IPv4ToLsUdp.h"
+#include "isi/isi_int.h"
+#include "lcs/lcs_api.h"
+#include "lcs/lcs_timer.h"
+#include "lcs/lcs_node.h"
+#include "lcs/lcs.h"
+#include "persistence/Persistent.h"
 
 #define IZOT_EXTERNAL_FN extern
 

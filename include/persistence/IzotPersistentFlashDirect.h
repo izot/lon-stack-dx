@@ -34,8 +34,8 @@
 
 #include <stdio.h>
 #include <string.h>
-#include "IzotConfig.h"
-#include "IzotPlatform.h"
+#include "abstraction/IzotConfig.h"
+#include "izot/IzotPlatform.h"
 
 
 /*------------------------------------------------------------------------------
