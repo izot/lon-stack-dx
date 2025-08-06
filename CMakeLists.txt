@@ -63,7 +63,7 @@ set(LON_STACK_DX_HEADERS
     include/lcs/lcs_api.h
     include/lcs/lcs_app.h
     include/lcs/lcs_custom.h
-    include/lcs/eia709_1.h
+    include/lcs/lcs_eia709_1.h
     include/lcs/lcs_link.h
     include/lcs/lcs_netmgmt.h
     include/lcs/lcs_network.h
