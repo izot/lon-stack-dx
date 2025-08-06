@@ -110,7 +110,7 @@
     #define PLATFORM_ID PLATFORM_ID_RPI
 #endif
 
-#if PLATFORM_IS(RPI)
+#if PLATFORM_IS(RPI) || PLATFORM_IS(RPI_PICO)
     /*
      * Raspberry Pi platform using the arm-linux-gnueabihf toolchain.  Little-endian.
      */
@@ -118,11 +118,11 @@
     #if !defined(_IZOT_PLATFORM_DEFINED)
         #define _IZOT_PLATFORM_DEFINED
     #else
-        #error Multiple platform definitions including RPI
+        #error Multiple platform definitions including RPI or RPI_PICO
     #endif
 
-//  #pragma message("Raspberry Pi platform (RPI) selected")
-    #define RASPBERRY_PI_HOSTED       /* Runs on the Raspberry Pi */
+//  #pragma message("Raspberry Pi or Pi Pico platform (RPI or RPI_PICO) selected")
+    #define RASPBERRY_PI_HOSTED       /* Runs on the Raspberry Pi or Pi Pico */
 
     // Specify little-endian byte order.
     #undef BYTE_ORDER

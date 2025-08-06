@@ -34,7 +34,7 @@
 #if PLATFORM_IS(FRTOS)
     #include <wm_os.h>
 #else
-    #if PLATFORM_IS(RPI)
+    #if PLATFORM_IS(RPI_PICO)
         #include <Arduino.h>
     #endif
     #include <stdio.h>
@@ -60,7 +60,7 @@ OsalTickCount IzotGetTickCount(void)
     // Return the OS tick count.
 #if PLATFORM_IS(FRTOS)
     return os_ticks_get();
-#elif PLATFORM_IS(RPI)
+#elif PLATFORM_IS(RPI) || PLATFORM_IS(RPI_PICO)
     unsigned long msecNow;
 
     msecNow = millis();
@@ -109,7 +109,7 @@ OsalStatus OsalSleep(unsigned int ticks)
     if (ticks <= MAX_TIMEOUT_TICKS) {
 #if PLATFORM_IS(FRTOS)
         os_thread_sleep(os_msec_to_ticks(ticks));
-#elif PLATFORM_IS(RPI)
+#elif PLATFORM_IS(RPI) || PLATFORM_IS(RPI_PICO)
         delay(ticks);
 #else
         nanosleep((const struct timespec[]){{(int)(ticks / 1000), (ticks % 1000) * 1000000L}}, NULL);
@@ -137,7 +137,7 @@ OsalStatus OsalSleep(unsigned int ticks)
             // Wait for "timeout" tick counts.      
             #if PLATFORM_IS(FRTOS)
                 os_thread_sleep(os_msec_to_ticks(timeout));
-            #elif PLATFORM_IS(RPI)
+            #elif PLATFORM_IS(RPI) || PLATFORM_IS(RPI_PICO)
                 delay(ticks);
             #else
                 nanosleep((const struct timespec[]){{(int)(timeout / 1000), (timeout % 1000) * 1000000L}}, NULL);

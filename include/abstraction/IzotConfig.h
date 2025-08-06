@@ -61,6 +61,7 @@
 //
 // #if PRODUCT_IS(SLB)
 // #if PLATFORM_IS(RPI)
+// #if PLATFORM_IS(RPI_PICO)
 // #if PROCESSOR_IS(MC200)
 // #if LINK_IS(WIFI)
 // #if LINK_IS(MIP)
@@ -111,7 +112,7 @@
 #define PLATFORM_ID_HITECH           8  // Hi-Tech C (_HITECH)
 #define PLATFORM_ID_COSMIC           9  // Cosmic C (_COSMIC)
 #define PLATFORM_ID_NIOS2_LE        10  // Altera NIOS II GCC Little Endian (GCC_NIOS)
-
+#define PLATFORM_ID_RPI_PICO        11  // Raspberry Pi Pico (RP2040) ARM (__ARM64__)
 
 // Processor IDs -- default is unspecified
 #define PROCESSOR_ID_NA     0
