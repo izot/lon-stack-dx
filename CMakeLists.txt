@@ -68,8 +68,8 @@ set(LON_STACK_DX_HEADERS
     include/lcs/lcs_netmgmt.h
     include/lcs/lcs_network.h
     include/lcs/lcs_node.h
-    include/lcs/physical.h
-    include/lcs/platform.h
+    include/lcs/lcs_physical.h
+    include/lcs/lcs_platform.h
     include/lcs/lcs_proxy.h
     include/lcs/lcs_queue.h
     include/lcs/lcs_tcs.h
