@@ -94,7 +94,8 @@ target_include_directories(lon_stack_dx
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
-target_compile_features(lon_stack_dx PUBLIC cxx_std_17)
+# LON Stack DX is a C-only library, so comment out C++ features
+#target_compile_features(lon_stack_dx PUBLIC cxx_std_17)
 
 # Create namespaced alias target for modern linking
 add_library(lon_stack_dx::lon_stack_dx ALIAS lon_stack_dx)
