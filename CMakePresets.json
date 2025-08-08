@@ -1,0 +1,12 @@
+{
+  "version": 3,
+  "configurePresets": [
+    {
+      "name": "arm64-cross",
+      "description": "Build using 64-bit ARM cross toolchain",
+      "hidden": false,
+      "generator": "Ninja",
+      "toolchainFile": "${sourceDir}/aarch64-toolchain.cmake"
+    }
+  ]  
+}
