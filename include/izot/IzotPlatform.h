@@ -105,14 +105,9 @@
 #include <stddef.h>
 
 
-// #if !defined(PLATFORM_ID) && defined(__ARMEL__) -- __ARMEL__ test removed 7/31/25
-#if !defined(PLATFORM_ID)
-    #define PLATFORM_ID PLATFORM_ID_RPI
-#endif
-
 #if PLATFORM_IS(RPI) || PLATFORM_IS(RPI_PICO)
     /*
-     * Raspberry Pi platform using the arm-linux-gnueabihf toolchain.  Little-endian.
+     * Raspberry Pi platform using the 32-bit arm-linux-gnueabihf toolchain.  Little-endian.
      */
 
     #if !defined(_IZOT_PLATFORM_DEFINED)
@@ -472,14 +467,91 @@
 #endif // PLATFORM_IS(FRTOS_ARM_EABI)
 
 
+#if !defined(PLATFORM_ID) && defined(__aarch64__)
+    #define PLATFORM_ID PLATFORM_ID_LINUX64_ARM_GCC
+#endif
+
+#if PLATFORM_IS(LINUX64_ARM_GCC)
+    /*
+     * 64-bit standard ARM Linux platform using the standard GCC tool 
+     * chain.  Little-endian.
+     */
+
+    #if !defined(_IZOT_PLATFORM_DEFINED)
+        #define _IZOT_PLATFORM_DEFINED
+    #else
+        #error Multiple platform definitions including LINUX64_ARM_GCC
+    #endif
+    #pragma message("Linux 64-bit ARM platform (LINUX64_ARM_GCC) selected")
+    #define LINUX64_HOSTED       /* runs on a Linux64 system */
+
+    // Specify little-endian byte order.
+    #undef BYTE_ORDER
+    #define BYTE_ORDER LITTLE_ENDIAN
+
+    /*
+     * IZOT_(ENUM|STRUCT|UNION)_BEGIN and *_END macros for beginning and
+     * ending type definitions for enumerations, structures and unions. These
+     * must be defined such that the resulting type uses byte-alignment
+     * without padding.
+     *
+     * The *_NESTED_* macros define unions or structures within surrounding
+     * union or structure definitions. These may require different
+     * modifiers to accomplish the same compact, byte-aligned, image.
+     *
+     * IZOT_ENUM implements a variable of an enumeration type. This
+     * can expand to the actual enumeration type, if the compiler supports
+     * a signed 8-bit enumerated type. Most compilers will map this to int8_t.
+     */
+    #define IZOT_ENUM_BEGIN(n)   enum
+    #define IZOT_ENUM_END(n)     n
+    #define IZOT_ENUM(n)         IzotByte
+
+    #define IZOT_STRUCT_BEGIN(n) struct __attribute__((__packed__, aligned(1)))
+    #define IZOT_STRUCT_END(n)   n
+
+    #define IZOT_STRUCT_NESTED_BEGIN(n)  struct __attribute__((__packed__, aligned(1)))
+    #define IZOT_STRUCT_NESTED_END(n)    n
+
+    #define IZOT_UNION_BEGIN(n)  union __attribute__((__packed__, aligned(1)))
+    #define IZOT_UNION_END(n)    n
+
+    #define IZOT_UNION_NESTED_BEGIN(n)   union __attribute__((__packed__, aligned(1)))
+    #define IZOT_UNION_NESTED_END(n)     n
+
+    #include <stdint.h>
+    typedef uint8_t       IzotByte;
+
+    typedef IZOT_STRUCT_BEGIN(IzotWord)
+    {
+        IzotByte  msb;    /* high-order byte, the most significant byte, the 0x12 in 0x1234 */
+        IzotByte  lsb;    /* low-order byte, the least significant byte, the 0x34 in 0x1234 */
+    } IZOT_STRUCT_END(IzotWord);
+
+    typedef IZOT_STRUCT_BEGIN(IzotDoubleWord)
+    {
+        IzotWord  msw;    /* high-order word, the most significant word, the 0x1234 in 0x12345678 */
+        IzotWord  lsw;    /* low-order word, the least significant word, the 0x5678 in 0x12345678 */
+    } IZOT_STRUCT_END(IzotDoubleWord); 
+    #define IZOT_UBITS_32_MAX 0xFFFFFFFF
+    typedef int32_t    IzotBool;
+    typedef uint8_t    IzotBool8;
+    #ifndef TRUE
+        #define TRUE   1
+    #endif
+    #ifndef FALSE
+        #define FALSE  0
+    #endif
+#endif // defined(LINUX64_ARM_GCC)
+
 #if !defined(PLATFORM_ID) && defined(LINUX32_GCC)
     #define PLATFORM_ID PLATFORM_ID_LINUX32_ARM_GCC
 #endif
 
 #if PLATFORM_IS(LINUX32_ARM_GCC)
     /*
-     * This is the correct choice for a 32-bit standard Linux desktop
-     * configuration using the standard GCC tool chain.  Little-endian.
+     * 32-bit standard ARM Linux platform using the standard GCC tool 
+     * chain.  Little-endian.
      */
 
     #if !defined(_IZOT_PLATFORM_DEFINED)
