@@ -28,7 +28,7 @@
                        implemented on a Neuron processor with MIP firmware.
 *******************************************************************************/
 
-#include "lcs_link.h"
+#include "lcs/lcs_link.h"
 
 #if LINK_IS(MIP)
 
