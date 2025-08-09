@@ -149,7 +149,7 @@
 // will determine the platform ID based on pre-defined platform
 // macros for different platforms.
 
-#define PLATFORM_ID   PLATFORM_ID_RPI
+#define PLATFORM_ID   PLATFORM_ID_LINUX64_ARM_GCC
 #define PRODUCT_ID 	  0
 #define PROCESSOR_ID  0
 #define LINK_ID 	  LINK_ID_USB
