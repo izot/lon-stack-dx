@@ -36,7 +36,7 @@
 #include "abstraction/IzotConfig.h"
 #include "izot/IzotApi.h"
 #include "abstraction/IzotHal.h"
-#include "abstraction/endian.h"
+// #include "abstraction/endian.h"
 #include "lcs/iup.h"
 #include "lcs/lcs_api.h"
 #include "lcs/lcs_netmgmt.h"
