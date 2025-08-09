@@ -567,7 +567,7 @@ IzotBool SetCurrentIP(void)
  */
 int InitSocket(int port)
 {
-#if PLATFORM_IS(FRTOS)
+#if PLATFORM_IS(FRTOS_ARM_EABI)
     struct sockaddr_in     sinme;
     
     // Open UDP socket for queue at start-up
