@@ -533,6 +533,8 @@
 	 *
      * Float type variables are handled through a float_type equivalent structure.
      */
+    #include <stdint.h>
+    
     typedef uint8_t     IzotByte;           /* 8-bits           */
     typedef uint8_t 	IzotUbits8;         /* 8-bits           */
     typedef int8_t  	IzotBits8;          /* 8-bits, signed   */
@@ -542,8 +544,6 @@
     typedef int32_t     IzotBits32;         /* 32-bits, signed  */
 	
     #define IZOT_UBITS_32_MAX 0xFFFFFFFF
-
-    #include <stdint.h>
     
     /*
      *  typedef: IzotWord
