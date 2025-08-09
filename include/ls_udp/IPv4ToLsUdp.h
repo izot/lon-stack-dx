@@ -38,7 +38,7 @@ extern "C" {            // Assume C declarations for C++
 #include "abstraction/IzotCal.h"
 #include "lcs/lcs.h"
 
-#if PLATFORM_IS(FRTOS)
+#if PLATFORM_IS(FRTOS_ARM_EABI)
 // Deleted to eliminate warning: #include <wm_net.h>
 // Deleted to eliminate warning: #include <wlan.h>
 // Deleted to eliminate warning: #include <wmtime.h>

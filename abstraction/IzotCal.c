@@ -30,7 +30,7 @@
 
 #include "abstraction/IzotCal.h"
 
-#if PLATFORM_IS(FRTOS)
+#if PLATFORM_IS(FRTOS_ARM_EABI)
 // Deleted to eliminate warning: #include <app_framework.h>
 // Deleted to eliminate warning: #include <appln_cb.h>
 // Deleted to eliminate warning: #include <wm_net.h>
@@ -56,10 +56,10 @@ Section: Macro
     #define UAP_PASSPHRASE    "TBD"
 #endif  // LINK_IS(WIFI)
 
-#if PLATFORM_IS(FRTOS)
+#if PLATFORM_IS(FRTOS_ARM_EABI)
     #define FTFS_API_VERSION  100
     #define FTFS_PART_NAME    "ftfs"
-#endif  // PLATFORM_IS(FRTOS)
+#endif  // PLATFORM_IS(FRTOS_ARM_EABI)
 
 
 /*
@@ -533,17 +533,17 @@ IzotBool SetCurrentIP(void)
     static IzotUbits32 lastIpAddress = 0;
     IzotBool ipAddressChanged = FALSE;
 
-#if LINK_IS(WIFI) && PLATFORM_IS(FRTOS)
+#if LINK_IS(WIFI) && PLATFORM_IS(FRTOS_ARM_EABI)
     char ip[16];
     
     app_network_ip_get(ip);
     CAL_Printf("Connected to provisioned network with IP address =%s\r\n", ip);
     inet_aton(ip, &currentIpAddress);
-#else   // LINK_IS(WIFI) && PLATFORM_IS(FRTOS)
+#else   // LINK_IS(WIFI) && PLATFORM_IS(FRTOS_ARM_EABI)
     #pragma message("Implement code to get the current IP address")
     // currentIpAddress = <Get current IP address>;
     currentIpAddress = 0xC0A80101;  // 192.168.1.1 for testing
-#endif  // LINK_IS(WIFI) && PLATFORM_IS(FRTOS)
+#endif  // LINK_IS(WIFI) && PLATFORM_IS(FRTOS_ARM_EABI)
 
     ipAddressChanged = currentIpAddress != lastIpAddress;
 
@@ -601,9 +601,9 @@ int InitSocket(int port)
         net_close(app_udp_socket);
         return -1;
     }
-#else   // PLATFORM_IS(FRTOS)
+#else   // PLATFORM_IS(FRTOS_ARM_EABI)
     #pragma message("Implement code to open priority and non priority sockets and add MAC filter for broadcast messages")
-#endif  // PLATFORM_IS(FRTOS)
+#endif  // PLATFORM_IS(FRTOS_ARM_EABI)
 
     return 0;
 }
@@ -615,7 +615,7 @@ int InitSocket(int port)
  */
 void RemoveIPMembership(uint32_t addr)
 {
-#if PLATFORM_IS(FRTOS)
+#if PLATFORM_IS(FRTOS_ARM_EABI)
     IzotByte mcast_mac[MLAN_MAC_ADDR_LENGTH];
     
     // Multicast address group structure
@@ -637,9 +637,9 @@ void RemoveIPMembership(uint32_t addr)
     }
     
     CAL_Printf("Removed Membership of %X \r\n",addr);wmstdio_flush();
-#else   // PLATFORM_IS(FRTOS)
+#else   // PLATFORM_IS(FRTOS_ARM_EABI)
     #pragma message("Implement code to remove address membership from a multicast group")
-#endif  // PLATFORM_IS(FRTOS)
+#endif  // PLATFORM_IS(FRTOS_ARM_EABI)
 }
 
 /*
@@ -649,7 +649,7 @@ void RemoveIPMembership(uint32_t addr)
  */
 void AddIpMembership(uint32_t addr)
 {
-#if PLATFORM_IS(FRTOS)
+#if PLATFORM_IS(FRTOS_ARM_EABI)
     IzotByte mcast_mac[MLAN_MAC_ADDR_LENGTH];
     
     // Multicast address group structure
@@ -672,9 +672,9 @@ void AddIpMembership(uint32_t addr)
     }
     
     CAL_Printf("Added Membership of %X \r\n", addr);
-#else   // PLATFORM_IS(FRTOS)
+#else   // PLATFORM_IS(FRTOS_ARM_EABI)
     #pragma message("Implement code to add address membership to a multicast group")
-#endif  // PLATFORM_IS(FRTOS)
+#endif  // PLATFORM_IS(FRTOS_ARM_EABI)
 }
 
 /*
@@ -685,7 +685,7 @@ void AddIpMembership(uint32_t addr)
 void CalSend(uint32_t port, IzotByte* addr, IzotByte* pData, 
 uint16_t dataLength)
 {
-#if PLATFORM_IS(FRTOS)
+#if PLATFORM_IS(FRTOS_ARM_EABI)
     IzotByte            loopch = 0;
     int                 sock = -1;
     int                 reuse = 1;
@@ -745,9 +745,9 @@ uint16_t dataLength)
     }
 #endif
     net_close(sock);
-#else   // PLATFORM_IS(FRTOS)
+#else   // PLATFORM_IS(FRTOS_ARM_EABI)
     #pragma message("Implement code to send a UDP packet")
-#endif  // PLATFORM_IS(FRTOS)
+#endif  // PLATFORM_IS(FRTOS_ARM_EABI)
 }
 
 /*
@@ -759,7 +759,7 @@ int CalReceive(IzotByte* pData, IzotByte* pSourceAddr)
 {
     int                 dataLength = 0;
 
-#if PLATFORM_IS(FRTOS)
+#if PLATFORM_IS(FRTOS_ARM_EABI)
     struct sockaddr_in  from;
     int                 fromLen = sizeof(from);
     uint32_t            SrcIP;
@@ -789,8 +789,8 @@ int CalReceive(IzotByte* pData, IzotByte* pSourceAddr)
         pSourceAddr[2] = (IzotByte)((SrcIP & 0x0000FF00) >> 8);
         pSourceAddr[3] = (IzotByte)(SrcIP & 0x000000FF);
     }
-#else   // PLATFORM_IS(FRTOS)
+#else   // PLATFORM_IS(FRTOS_ARM_EABI)
     #pragma message("Implement code to received data on a UDP socket")
-#endif  // PROCESSOR_IS(MC200)PLATFORM_IS(FRTOS)
+#endif  // PROCESSOR_IS(MC200)PLATFORM_IS(FRTOS_ARM_EABI)
     return dataLength;
 }

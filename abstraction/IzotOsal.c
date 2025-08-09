@@ -31,7 +31,7 @@
 
 #include "abstraction/IzotOsal.h"
 
-#if PLATFORM_IS(FRTOS)
+#if PLATFORM_IS(FRTOS_ARM_EABI)
     #include <wm_os.h>
 #else
     #if PLATFORM_IS(RPI_PICO)
@@ -58,7 +58,7 @@
 OsalTickCount IzotGetTickCount(void)
 {
     // Return the OS tick count.
-#if PLATFORM_IS(FRTOS)
+#if PLATFORM_IS(FRTOS_ARM_EABI)
     return os_ticks_get();
 #elif PLATFORM_IS(RPI) || PLATFORM_IS(RPI_PICO)
     unsigned long msecNow;
@@ -107,7 +107,7 @@ OsalTickCount GetTicksPerSecond(void){
 OsalStatus OsalSleep(unsigned int ticks)
 {
     if (ticks <= MAX_TIMEOUT_TICKS) {
-#if PLATFORM_IS(FRTOS)
+#if PLATFORM_IS(FRTOS_ARM_EABI)
         os_thread_sleep(os_msec_to_ticks(ticks));
 #elif PLATFORM_IS(RPI) || PLATFORM_IS(RPI_PICO)
         delay(ticks);
@@ -135,7 +135,7 @@ OsalStatus OsalSleep(unsigned int ticks)
             ticksRemaining -= timeout;
             
             // Wait for "timeout" tick counts.      
-            #if PLATFORM_IS(FRTOS)
+            #if PLATFORM_IS(FRTOS_ARM_EABI)
                 os_thread_sleep(os_msec_to_ticks(timeout));
             #elif PLATFORM_IS(RPI) || PLATFORM_IS(RPI_PICO)
                 delay(ticks);
@@ -177,11 +177,11 @@ OsalStatus OsalSleep(unsigned int ticks)
  */
 void *OsalMalloc(unsigned int size)
 {
-#if PLATFORM_IS(FRTOS)
+#if PLATFORM_IS(FRTOS_ARM_EABI)
     return os_mem_alloc(size);
 #else
     return malloc(size);
-#endif  // PLATFORM_IS(FRTOS)
+#endif  // PLATFORM_IS(FRTOS_ARM_EABI)
 }
 
 /*
@@ -197,9 +197,9 @@ void *OsalMalloc(unsigned int size)
  */
 void OsalFree(void *ptr)
 {
-#if PLATFORM_IS(FRTOS)
+#if PLATFORM_IS(FRTOS_ARM_EABI)
     os_mem_free(ptr);
 #else
     free(ptr);
-#endif  // PLATFORM_IS(FRTOS)
+#endif  // PLATFORM_IS(FRTOS_ARM_EABI)
 }
