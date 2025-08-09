@@ -109,7 +109,12 @@ typedef uint64_t			UInt64om;
 // specific.  Error code 0 is reserved for the generic area only.
 // In particular, OK should always be 0x0000 regardless of the area.
 //
-typedef uint16_t                        EchErr;
+
+// Workaround EchErr definition problem
+#ifndef ECHERR_DEFINED
+#define ECHERR_DEFINED
+typedef uint16_t EchErr;
+#endif
 
 #define ECHERR_OK						0
 #define ECHERR_OUT_OF_RANGE				1

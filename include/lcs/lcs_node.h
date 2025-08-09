@@ -948,6 +948,12 @@ void	 NM_Init(void);
 IzotBool IsPhysicalResetRequested(void);
 void     PhysicalResetRequested(void);
 
+// Workaround EchErr definition problem
+#ifndef ECHERR_DEFINED
+#define ECHERR_DEFINED
+typedef uint16_t EchErr;
+#endif
+
 // APIs that follow the AREA_<Name> convention:
 void	 LCS_RecordError(IzotSystemError err);
 void	 LCS_WriteNvm(void);
