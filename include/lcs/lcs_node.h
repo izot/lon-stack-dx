@@ -37,6 +37,7 @@ Section: Includes
 #include <stdio.h>
 #include <string.h>
 #include <stddef.h>
+#include <stdint.h>
 #include "abstraction/IzotConfig.h"
 #include "izot/IzotPlatform.h"
 #include "izot/IzotTypes.h"
