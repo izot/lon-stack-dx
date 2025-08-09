@@ -493,7 +493,7 @@
     #define BYTE_ORDER LITTLE_ENDIAN
     #undef __BYTE_ORDER
     #define __BYTE_ORDER __LITTLE_ENDIAN
-    
+
     /*
      * IZOT_(ENUM|STRUCT|UNION)_BEGIN and *_END macros for beginning and
      * ending type definitions for enumerations, structures and unions. These
@@ -533,18 +533,18 @@
 	 *
      * Float type variables are handled through a float_type equivalent structure.
      */
-    typedef unsigned char	IzotUbits8;			/* 8-bits           */
-    typedef signed   char	IzotBits8;			/* 8-bits, signed   */
-	typedef unsigned short  IzotUbits16;		/* 16-bits          */
-    typedef signed   short  IzotBits16;			/* 16-bits, signed  */
-	typedef unsigned long	IzotUbits32;        /* 32-bits          */
-    typedef signed   long	IzotBits32;			/* 32-bits, signed  */
+    typedef uint8_t     IzotByte;           /* 8-bits           */
+    typedef uint8_t 	IzotUbits8;         /* 8-bits           */
+    typedef int8_t  	IzotBits8;          /* 8-bits, signed   */
+	typedef uint16_t    IzotUbits16;        /* 16-bits          */
+    typedef int16_t     IzotBits16;         /* 16-bits, signed  */
+	typedef uint32_t    IzotUbits32;        /* 32-bits          */
+    typedef int32_t     IzotBits32;         /* 32-bits, signed  */
 	
     #define IZOT_UBITS_32_MAX 0xFFFFFFFF
 
     #include <stdint.h>
-    typedef uint8_t       IzotByte;
-
+    
     /*
      *  typedef: IzotWord
      *  Holds a 16-bit numerical value.
@@ -576,8 +576,11 @@
         IzotWord  msw;    /* high-order word, the most significant word, the 0x1234 in 0x12345678 */
         IzotWord  lsw;    /* low-order word, the least significant word, the 0x5678 in 0x12345678 */
     } IZOT_STRUCT_END(IzotDoubleWord);
-
-
+    
+    /*
+     * typedef: IzotBool and IzotBool8
+     * Basic boolean types that accept TRUE and FALSE values.
+     */
     typedef int32_t    IzotBool;
     typedef uint8_t    IzotBool8;
     #ifndef TRUE

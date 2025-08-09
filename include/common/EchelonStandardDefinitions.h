@@ -66,39 +66,39 @@ typedef int  		Bool;
 //
 // Types to use for when the size must be exact.
 //
-typedef unsigned char  		Bool8;
-typedef unsigned char  		Byte;
+typedef uint8_t  		    Bool8;
+typedef uint8_t       		Byte;
 
-typedef signed char    		Int8;
-typedef short   			Int16;
-typedef long    			Int32;
+typedef int8_t      		Int8;
+typedef int16_t   			Int16;
+typedef int32_t    			Int32;
 #ifdef _MSC_VER
 typedef __int64				Int64;
 #else
-typedef long long      		Int64;
+typedef int64_t      		Int64;
 #endif
 
-typedef unsigned char  		UInt8;
-typedef unsigned short 		UInt16;
-typedef unsigned long 		UInt32;
+typedef uint8_t       		UInt8;
+typedef uint16_t     		UInt16;
+typedef uint32_t     		UInt32;
 #ifdef _MSC_VER
 typedef unsigned __int64	UInt64;
 #else
-typedef unsigned long long  UInt64;
+typedef uint64_t            UInt64;
 #endif
 
 //
 // Types to use for integers when the size has to be <n> bits or more (thus the om).
 //
-typedef Int16         	 	Int8om;
-typedef Int16				Int16om;
-typedef Int32				Int32om;
-typedef Int64				Int64om;
+typedef int16_t        	 	Int8om;
+typedef int16_t				Int16om;
+typedef int32_t				Int32om;
+typedef int64_t				Int64om;
 
-typedef UInt16				UInt8om;
-typedef UInt16				UInt16om;
-typedef UInt32				UInt32om;
-typedef UInt64				UInt64om;
+typedef uint16_t			UInt8om;
+typedef uint16_t			UInt16om;
+typedef uint32_t			UInt32om;
+typedef uint64_t			UInt64om;
 
 //
 // Standard error returns.  Convention is that error returns contain
@@ -107,7 +107,7 @@ typedef UInt64				UInt64om;
 // specific.  Error code 0 is reserved for the generic area only.
 // In particular, OK should always be 0x0000 regardless of the area.
 //
-typedef UInt16om                        EchErr;
+typedef uint16_t                        EchErr;
 
 #define ECHERR_OK						0
 #define ECHERR_OUT_OF_RANGE				1
