@@ -66,6 +66,8 @@ typedef int  		Bool;
 //
 // Types to use for when the size must be exact.
 //
+#include <stdint.h>
+
 typedef uint8_t  		    Bool8;
 typedef uint8_t       		Byte;
 
