@@ -107,7 +107,7 @@ typedef UInt64				UInt64om;
 // specific.  Error code 0 is reserved for the generic area only.
 // In particular, OK should always be 0x0000 regardless of the area.
 //
-typedef IzotUbits16						EchErr;
+typedef UInt16om                        EchErr;
 
 #define ECHERR_OK						0
 #define ECHERR_OUT_OF_RANGE				1
