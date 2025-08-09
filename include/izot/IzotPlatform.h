@@ -522,21 +522,60 @@
     #define IZOT_UNION_NESTED_BEGIN(n)   union __attribute__((__packed__, aligned(1)))
     #define IZOT_UNION_NESTED_END(n)     n
 
+    /*
+     * Compiler-dependent types for signed and unsigned 8-bit, 16-bit scalars and 
+     * 32-bit scalars.
+     *
+	 * To enhance portability between different platforms, no aggregate contains
+	 * multi-byte scalars, but instead use multiple byte-sized scalars.
+	 *
+     * Float type variables are handled through a float_type equivalent structure.
+     */
+    typedef unsigned char	IzotUbits8;			/* 8-bits           */
+    typedef signed   char	IzotBits8;			/* 8-bits, signed   */
+	typedef unsigned short  IzotUbits16;		/* 16-bits          */
+    typedef signed   short  IzotBits16;			/* 16-bits, signed  */
+	typedef unsigned long	IzotUbits32;        /* 32-bits          */
+    typedef signed   long	IzotBits32;			/* 32-bits, signed  */
+	
+    #define IZOT_UBITS_32_MAX 0xFFFFFFFF
+
     #include <stdint.h>
     typedef uint8_t       IzotByte;
 
+    /*
+     *  typedef: IzotWord
+     *  Holds a 16-bit numerical value.
+     *
+     *  The IzotWord structure holds a 16-bit unsigned value in big-endian
+     *  ordering through two seperate high-order and low-order bytes.
+     *  Use the <IZOT_SET_SIGNED_WORD> or <IZOT_SET_UNSIGNED_WORD> macro to
+     *  obtain the signed or unsigned numerical value in the correct byte
+     *  ordering.
+     */
     typedef IZOT_STRUCT_BEGIN(IzotWord)
     {
         IzotByte  msb;    /* high-order byte, the most significant byte, the 0x12 in 0x1234 */
         IzotByte  lsb;    /* low-order byte, the least significant byte, the 0x34 in 0x1234 */
     } IZOT_STRUCT_END(IzotWord);
 
+    /*
+     *  typedef: IzotDoubleWord
+     *  Holds a 32-bit numerical value.
+     *
+     *  The IzotDoubleWord structure holds a 32-bit unsigned value in big-endian
+     *  ordering through two seperate high-order and low-order <IzotWord> members.
+     *  Use the <IZOT_SET_SIGNED_DOUBLEWORD> or <IZOT_SET_UNSIGNED_DOUBLEWORD>
+     *  macro to obtain the signed or unsigned numerical value in the correct
+     *  byte ordering.
+     */
     typedef IZOT_STRUCT_BEGIN(IzotDoubleWord)
     {
         IzotWord  msw;    /* high-order word, the most significant word, the 0x1234 in 0x12345678 */
         IzotWord  lsw;    /* low-order word, the least significant word, the 0x5678 in 0x12345678 */
-    } IZOT_STRUCT_END(IzotDoubleWord); 
-    #define IZOT_UBITS_32_MAX 0xFFFFFFFF
+    } IZOT_STRUCT_END(IzotDoubleWord);
+
+    
     typedef int32_t    IzotBool;
     typedef uint8_t    IzotBool8;
     #ifndef TRUE
