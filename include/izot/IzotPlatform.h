@@ -485,7 +485,7 @@
     #else
         #error Multiple platform definitions including LINUX64_ARM_GCC
     #endif
-    #pragma message("Linux 64-bit ARM platform (LINUX64_ARM_GCC) selected")
+    // #pragma message("Linux 64-bit ARM platform (LINUX64_ARM_GCC) selected")
     #define LINUX64_HOSTED       /* runs on a Linux64 system */
 
     // Specify little-endian byte order.
@@ -575,7 +575,7 @@
         IzotWord  lsw;    /* low-order word, the least significant word, the 0x5678 in 0x12345678 */
     } IZOT_STRUCT_END(IzotDoubleWord);
 
-    
+
     typedef int32_t    IzotBool;
     typedef uint8_t    IzotBool8;
     #ifndef TRUE
