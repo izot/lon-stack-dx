@@ -491,7 +491,9 @@
     // Specify little-endian byte order.
     #undef BYTE_ORDER
     #define BYTE_ORDER LITTLE_ENDIAN
-
+    #undef __BYTE_ORDER
+    #define __BYTE_ORDER __LITTLE_ENDIAN
+    
     /*
      * IZOT_(ENUM|STRUCT|UNION)_BEGIN and *_END macros for beginning and
      * ending type definitions for enumerations, structures and unions. These
