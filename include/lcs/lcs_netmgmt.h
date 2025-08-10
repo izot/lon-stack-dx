@@ -37,9 +37,9 @@ Section: Includes
 
 #include <stdio.h>
 #include <string.h>
-// #include "abstraction/endian.h"
-#include "common/err.h"
 #include "abstraction/IzotConfig.h"
+#include "abstraction/IzotEndian.h"
+#include "common/err.h"
 #include "izot/IzotApi.h"
 #include "abstraction/IzotCal.h"
 #include "lcs/iup.h"

@@ -30,8 +30,8 @@
  * read is decided.
  */
 
-#ifndef _ENDIAN_H
-#define _ENDIAN_H
+#ifndef _IZOT_ENDIAN_H
+#define _IZOT_ENDIAN_H
 
 #include "lcs/lcs_platform.h"
 
@@ -66,4 +66,4 @@
 #define ntoh32(s) (s)
 #endif
 
-#endif // _ENDIAN_H
+#endif // _IZOT_ENDIAN_H

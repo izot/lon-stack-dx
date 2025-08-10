@@ -37,7 +37,7 @@ Section: Includes
 #include "abstraction/IzotConfig.h"
 #include "izot/IzotPlatform.h"
 #include "izot/IzotTypes.h"
-// #include "abstraction/endian.h"
+#include "abstraction/IzotEndian.h"
 #include "lcs/lcs_api.h"
 #include "lcs/lcs_timer.h"
 #include "lcs/lcs_eia709_1.h"

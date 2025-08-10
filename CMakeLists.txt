@@ -39,9 +39,9 @@ set(LON_STACK_DX_SOURCES
 )
 
 set(LON_STACK_DX_HEADERS
-    include/abstraction/endian.h
     include/abstraction/IzotCal.h
     include/abstraction/IzotConfig.h
+    include/abstraction/IzotEndian.h
     include/abstraction/IzotHal.h
     include/abstraction/IzotOsal.h
     include/abstraction/vldv.h

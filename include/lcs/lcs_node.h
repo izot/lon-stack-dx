@@ -43,7 +43,7 @@ Section: Includes
 #include "izot/IzotTypes.h"
 #include "common/EchelonStandardDefinitions.h"
 #include "isi/isi_int.h"
-// #include "abstraction/endian.h"
+#include "abstraction/IzotEndian.h"
 #include "lcs/lcs_api.h"
 #include "lcs/lcs_eia709_1.h"
 #include "lcs/lcs_queue.h"
