@@ -221,7 +221,7 @@ LtPersistenceLossReason deserializeIsiNvdSegData(IzotByte* pBuffer,
 *  Undocumented
 *
 */
-void savePersistentData(IzotPersistentSegmentType type)
+void savePersistentData(IzotPersistentSegType type)
 {
 	IzotByte* pImage = NULL;
 	IzotBool failure = FALSE;
@@ -276,7 +276,7 @@ void savePersistentData(IzotPersistentSegmentType type)
 *  Undocumented
 *
 */
-LtPersistenceLossReason restorePersistentData(IzotPersistentSegmentType type)
+LtPersistenceLossReason restorePersistentData(IzotPersistentSegType type)
 {
     LtPersistenceLossReason reason = LT_PERSISTENCE_OK;
 	IzotPersistenceHeader hdr;

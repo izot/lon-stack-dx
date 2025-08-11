@@ -82,7 +82,7 @@
  *  each segment. The application can invalidate a handle when 
  *  <IzotPersistentClose> is called for that handle.  
  */
-extern IzotPersistentHandle IzotPersistentOpenForRead(const IzotPersistentSegmentType type); 
+extern IzotPersistentHandle IzotPersistentOpenForRead(const IzotPersistentSegType type); 
  
 /* 
  *  Callback: IzotPersistentOpenForWrite
@@ -104,7 +104,7 @@ extern IzotPersistentHandle IzotPersistentOpenForRead(const IzotPersistentSegmen
  *
  *  An error value is returned if the data cannot be written.
  */
-extern IzotPersistentHandle IzotPersistentOpenForWrite(const IzotPersistentSegmentType type, const size_t size); 
+extern IzotPersistentHandle IzotPersistentOpenForWrite(const IzotPersistentSegType type, const size_t size); 
 
 /* 
  *  Callback: IzotPersistentClose
@@ -183,7 +183,7 @@ extern IzotApiError IzotPersistentWrite(const IzotPersistentHandle handle,
  *  otherwise, the IZOT Device Stack API will attempt to read the persistent 
  *  data. 
  */
-extern IzotBool IzotPersistentIsInTransaction(const IzotPersistentSegmentType type); 
+extern IzotBool IzotPersistentIsInTransaction(const IzotPersistentSegType type); 
  
 /* 
  *  Callback: IzotPersistentEnterTransaction
@@ -198,7 +198,7 @@ extern IzotBool IzotPersistentIsInTransaction(const IzotPersistentSegmentType ty
  *  the non-persistent image, and schedules writes to update the non-volatile 
  *  storage at a later time.  
  */
-extern IzotApiError IzotPersistentEnterTransaction(const IzotPersistentSegmentType type);
+extern IzotApiError IzotPersistentEnterTransaction(const IzotPersistentSegType type);
 
 /* 
  *  Callback: IzotPersistentExitTransaction
@@ -212,7 +212,7 @@ extern IzotApiError IzotPersistentEnterTransaction(const IzotPersistentSegmentTy
  *  <IzotPersistentWrite> has returned success and there are no further 
  *  updates required.
  */
-extern IzotApiError IzotPersistentExitTransaction(const IzotPersistentSegmentType type);
+extern IzotApiError IzotPersistentExitTransaction(const IzotPersistentSegType type);
 
 extern void ErasePersistenceData(void);
 extern void ErasePersistenceConfig(void);

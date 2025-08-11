@@ -2575,13 +2575,13 @@ typedef IZOT_ENUM_BEGIN(IzotServiceType)
  */
 
 /*
- * Enumeration: IzotPersistentSegmentType
+ * Enumeration: IzotPersistentSegType
  * Persistent data segment type. Configuration data is stored persistently
  * in persistent data segments, identified using this enumeration.  Used
  * by the non-volatile callback functions IzotPersistentxxx.
  *
  */
-typedef IZOT_ENUM_BEGIN(IzotPersistentSegmentType)
+typedef IZOT_ENUM_BEGIN(IzotPersistentSegType)
 {
 	IzotPersistentSegNetworkImage,      /* Basic network configuration, such as the
                                            domain table, address tables, and 
@@ -2602,7 +2602,7 @@ typedef IZOT_ENUM_BEGIN(IzotPersistentSegmentType)
     IsiPersistentSegConnectionTable,   /* ISI connection table */
     IsiPersistentSegPersistent,              /* Other ISI persistence information */
     IzotPersistentSegNumSegmentTypes
-} IZOT_ENUM_END(IzotPersistentSegmentType);
+} IZOT_ENUM_END(IzotPersistentSegType);
 
 /*
  *  Typedef: IzotPersistentHandle
@@ -3039,7 +3039,7 @@ typedef IzotApiError (*IzotMemoryWriteFunction)(const unsigned address,
  *  event. Without an application-specific handler, this event always fails
  *  (the handle is always zero).
  */
-typedef IzotPersistentHandle (*IzotPersistentOpenForReadFunction)(const IzotPersistentSegmentType type);
+typedef IzotPersistentHandle (*IzotPersistentOpenForReadFunction)(const IzotPersistentSegType type);
 
 /*
  *  Callback: IzotPersistentOpenForWrite
@@ -3075,7 +3075,7 @@ typedef IzotPersistentHandle (*IzotPersistentOpenForReadFunction)(const IzotPers
  *  (the handle is always zero).
  */
 typedef IzotPersistentHandle (*IzotPersistentOpenForWriteFunction)(
-        const IzotPersistentSegmentType type, const size_t size);
+        const IzotPersistentSegType type, const size_t size);
 
 /*
  *  Callback: IzotPersistentClose
@@ -3111,14 +3111,14 @@ typedef void (*IzotPersistentCloseFunction)(
  *  It is not necessary for this function to actually destroy the data or
  *  return space allocated for this data to other applications, but the event
  *  handler must invalidate the persistent data associated with the given
- *  <IzotPersistentSegmentType> such that a subsequent attempt to read the
+ *  <IzotPersistentSegType> such that a subsequent attempt to read the
  *  data fails.
  *
  *  Use <IzotPersistentDeleteRegistrar> to register a handler for this event.
  *  Without an application-specific handler, this event does nothing.
  */
 typedef void (*IzotPersistentDeleteFunction)(
-    const IzotPersistentSegmentType type);
+    const IzotPersistentSegType type);
 
 /*
  *  Callback: IzotPersistentRead
@@ -3193,7 +3193,7 @@ typedef IzotApiError (*IzotPersistentWriteFunction) (const IzotPersistentHandle 
  *  this event. Without an application-specific handler, this event always
  *  returns TRUE.
  */
-typedef IzotBool (*IzotPersistentIsInTransactionFunction)(const IzotPersistentSegmentType type);
+typedef IzotBool (*IzotPersistentIsInTransactionFunction)(const IzotPersistentSegType type);
 
 /*
  *  Callback: IzotPersistentEnterTransaction
@@ -3217,7 +3217,7 @@ typedef IzotBool (*IzotPersistentIsInTransactionFunction)(const IzotPersistentSe
  *  this event. Without an application-specific handler, this event always
  *  fails.
  */
-typedef IzotApiError (*IzotPersistentEnterTransactionFunction)(const IzotPersistentSegmentType type);
+typedef IzotApiError (*IzotPersistentEnterTransactionFunction)(const IzotPersistentSegType type);
 
 /*
  *  Callback: IzotPersistentExitTransaction
@@ -3234,7 +3234,7 @@ typedef IzotApiError (*IzotPersistentEnterTransactionFunction)(const IzotPersist
  *  Use <IzotPersistentExitTransactionRegistrar> to register a handler for this
  *  event. Without an application-specific handler, this event always fails.
  */
-typedef IzotApiError (*IzotPersistentExitTransactionFunction)(const IzotPersistentSegmentType type);
+typedef IzotApiError (*IzotPersistentExitTransactionFunction)(const IzotPersistentSegType type);
 
 /*
  *  Callback: IzotPersistentGetApplicationSegmentSize

@@ -35,13 +35,13 @@
 /*------------------------------------------------------------------------------
 Section: Macros
 ------------------------------------------------------------------------------*/
-// Translate a <IzotPersistentSegmentType> to a <IzotPersistentHandle>. 
+// Translate a <IzotPersistentSegType> to a <IzotPersistentHandle>. 
 // Add one to the type because the handle value of 0 is reserved.
 #define TypeToHandle(type) ((IzotPersistentHandle)((type)+1))
 
-// Translate a <IzotPersistentHandle> to <IzotPersistentSegmentType>.
+// Translate a <IzotPersistentHandle> to <IzotPersistentSegType>.
 #define HandleToType(handle) \
-    ((handle) == 0 ? IzotPersistentSegNumSegmentTypes : ((IzotPersistentSegmentType)(handle))-1)
+    ((handle) == 0 ? IzotPersistentSegNumSegmentTypes : ((IzotPersistentSegType)(handle))-1)
     
 // A unique value to identify an initialized transaction record.
 #define TX_SIGNATURE 0x89ABCDEF
@@ -100,7 +100,7 @@ static int flashBlockSize = 0;
 // each segment is determined, the offset is reduced accordingly.
 static int lowestUsedFlashDataOffset = 0;
 
-// Table indexed by <IzotPersistentSegmentType> and containing the maximum 
+// Table indexed by <IzotPersistentSegType> and containing the maximum 
 // size of the data segment.  Computed at runtime by 
 // calling <IzotPersistentGetMaxSize>.
 
@@ -119,15 +119,15 @@ static int dataSegmentSize[IzotPersistentSegNumSegmentTypes] =
 Section: Forward References
 ------------------------------------------------------------------------------*/
 // Open the flash for access via the HAL.
-static IzotApiError OpenFlash(const IzotPersistentSegmentType type, void **pFd);
+static IzotApiError OpenFlash(const IzotPersistentSegType type, void **pFd);
 
 // Initialize the segmentMap array.
-static IzotApiError InitSegmentMap(const IzotPersistentSegmentType type);
+static IzotApiError InitSegmentMap(const IzotPersistentSegType type);
 
 // Erase a segment.
 static IzotApiError EraseSegment(
 void *fd, 
-const IzotPersistentSegmentType type, 
+const IzotPersistentSegType type, 
 int size
 );
 
@@ -136,7 +136,7 @@ int size
 static void PrintTimeStamp();
 
 // Translate a segment type to a name for PERSISTENT tracing.
-static const char *GetPersistentName(IzotPersistentSegmentType type);
+static const char *GetPersistentName(IzotPersistentSegType type);
 #endif
 
 /*
@@ -165,7 +165,7 @@ static const char *GetPersistentName(IzotPersistentSegmentType type);
  *  used for each segment. The application can invalidate a handle when 
  *  <IzotPersistentClose> is called for that handle.  
  */
-IzotPersistentHandle IzotPersistentOpenForRead(const IzotPersistentSegmentType type)
+IzotPersistentHandle IzotPersistentOpenForRead(const IzotPersistentSegType type)
 {
     // This function does nothing more than translate the segment type to a 
     // handle. The actual flash data is opened and closed on each access.
@@ -199,7 +199,7 @@ IzotPersistentHandle IzotPersistentOpenForRead(const IzotPersistentSegmentType t
  *
  *  An error value is returned if the data cannot be written.
  */
-IzotPersistentHandle IzotPersistentOpenForWrite(const IzotPersistentSegmentType type, const size_t size)
+IzotPersistentHandle IzotPersistentOpenForWrite(const IzotPersistentSegType type, const size_t size)
 {
     IzotApiError sts = IzotApiNoError;
     void *fd;
@@ -281,7 +281,7 @@ void IzotPersistentClose(const IzotPersistentHandle handle)
  *  It is not necessary for this function to actually destroy the data or free 
  *  it.
  */
-void IzotPersistentDelete(const IzotPersistentSegmentType type)
+void IzotPersistentDelete(const IzotPersistentSegType type)
 {
     // There is nothing to be gained by deleting the segment, because the space 
     // is reserved.  This function is just a stub.  
@@ -320,7 +320,7 @@ IzotApiError IzotPersistentRead(const IzotPersistentHandle handle, const size_t 
     void *fd;
 
     // Find the type from the handle.
-    IzotPersistentSegmentType type = HandleToType(handle);
+    IzotPersistentSegType type = HandleToType(handle);
     
 #ifdef FLASH_DEBUG
     if (persistentTraceEnabled) {
@@ -394,7 +394,7 @@ IzotApiError IzotPersistentWrite(const IzotPersistentHandle handle, const size_t
     void *fd;
 
     // Find the type from the handle.
-    IzotPersistentSegmentType type = HandleToType(handle);
+    IzotPersistentSegType type = HandleToType(handle);
 
 #ifdef FLASH_DEBUG
     if (persistentTraceEnabled) {
@@ -483,7 +483,7 @@ IzotApiError IzotPersistentWrite(const IzotPersistentHandle handle, const size_t
  *  TRUE, the Izot Device Stack API will discard the segment, otherwise, the IZOT 
  *  Device Stack API will attempt to read the persistent data. 
  */
-IzotBool IzotPersistentIsInTransaction(const IzotPersistentSegmentType type)
+IzotBool IzotPersistentIsInTransaction(const IzotPersistentSegType type)
 {
     // inTransaction is set to TRUE.  Any error reading the transaction record 
     // will be interpreted as being in a transaction - that is, the data 
@@ -550,7 +550,7 @@ IzotBool IzotPersistentIsInTransaction(const IzotPersistentSegmentType type)
  *  the non-persistent image, and schedules writes to update the non-volatile 
  *  storage at a later time.  
  */
-IzotApiError IzotPersistentEnterTransaction(const IzotPersistentSegmentType type)
+IzotApiError IzotPersistentEnterTransaction(const IzotPersistentSegType type)
 {
     IzotApiError sts = IzotApiNoError;
     void *fd = NULL;
@@ -621,7 +621,7 @@ IzotApiError IzotPersistentEnterTransaction(const IzotPersistentSegmentType type
  *  <IzotPersistentWrite> has returned success and there are no further 
  *  updates required.   
  */
-IzotApiError IzotPersistentExitTransaction(const IzotPersistentSegmentType type)
+IzotApiError IzotPersistentExitTransaction(const IzotPersistentSegType type)
 {
     IzotApiError sts = IzotApiNoError;
     void *fd = NULL;
@@ -727,7 +727,7 @@ void EraseSecIIPersistentData(void)
  *  Returns:
  *  <IzotApiError>.   
  */
-static IzotApiError OpenFlash(const IzotPersistentSegmentType type, void **pFd)
+static IzotApiError OpenFlash(const IzotPersistentSegType type, void **pFd)
 {
     IzotApiError sts = IzotApiNoError;
     if (type > IzotPersistentSegNumSegmentTypes) {
@@ -760,7 +760,7 @@ static IzotApiError OpenFlash(const IzotPersistentSegmentType type, void **pFd)
  *  Returns:
  *  <IzotApiError>.   
  */
-static IzotApiError InitSegmentMap(const IzotPersistentSegmentType type)
+static IzotApiError InitSegmentMap(const IzotPersistentSegType type)
 {
     IzotApiError sts = IzotApiNoError;
 
@@ -870,7 +870,7 @@ static IzotApiError InitSegmentMap(const IzotPersistentSegmentType type)
  *  After erasing the flash, all of the bytes will be 0xff.  Writing to the 
  *  flash can only change 1 bits to 0 bits.
  */
-static IzotApiError EraseSegment(void *fd, const IzotPersistentSegmentType type, 
+static IzotApiError EraseSegment(void *fd, const IzotPersistentSegType type, 
                                 int size)
 {
     IzotApiError sts = IzotApiNoError;
@@ -915,7 +915,7 @@ static void PrintTimeStamp()
  *  character string representing the PERSISTENT segment.  
  *
  */
-static const char *GetPersistentName(IzotPersistentSegmentType type)
+static const char *GetPersistentName(IzotPersistentSegType type)
 {
     const char *name = NULL;
     switch (type) {

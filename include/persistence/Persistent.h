@@ -101,7 +101,7 @@ extern void SetPeristenceGaurdBand(int nTime);
  * This function sets the flag for particular segment for flushing .
 
  */
-extern void SetPersistentDataType(IzotPersistentSegmentType type);
+extern void SetPersistentDataType(IzotPersistentSegType type);
 
 /*
  * Function: SchedulePersistentData
@@ -146,7 +146,7 @@ extern IzotApiError restore(unsigned short type);
  *  Remarks:
  *
  */
-extern IzotApiError IzotEnterTransaction(const IzotPersistentSegmentType type);
+extern IzotApiError IzotEnterTransaction(const IzotPersistentSegType type);
 
 /*
  *  Event: IzotOpenForWrite
@@ -155,7 +155,7 @@ extern IzotApiError IzotEnterTransaction(const IzotPersistentSegmentType type);
  *  Remarks:
  *
  */
-extern IzotPersistentHandle IzotOpenForWrite(const IzotPersistentSegmentType type, const size_t size);
+extern IzotPersistentHandle IzotOpenForWrite(const IzotPersistentSegType type, const size_t size);
 
 /*
  *  Event: IzotWrite
@@ -183,7 +183,7 @@ extern void IzotClose(const IzotPersistentHandle handle);
  *  Remarks:
  *
  */
-extern IzotApiError IzotExitTransaction(const IzotPersistentSegmentType type);
+extern IzotApiError IzotExitTransaction(const IzotPersistentSegType type);
 
 /*
  *  Event: IzotIsInTransaction
@@ -192,7 +192,7 @@ extern IzotApiError IzotExitTransaction(const IzotPersistentSegmentType type);
  *  Remarks:
  *
  */
-extern IzotBool IzotIsInTransaction(const IzotPersistentSegmentType type);
+extern IzotBool IzotIsInTransaction(const IzotPersistentSegType type);
 
 /*
  *  Event: IzotOpenForRead
@@ -201,7 +201,7 @@ extern IzotBool IzotIsInTransaction(const IzotPersistentSegmentType type);
  *  Remarks:
  *
  */
-extern IzotPersistentHandle IzotOpenForRead(const IzotPersistentSegmentType type);
+extern IzotPersistentHandle IzotOpenForRead(const IzotPersistentSegType type);
 
 /*
  *  Event: IzotRead
@@ -218,7 +218,7 @@ extern IzotApiError IzotRead(const IzotPersistentHandle handle, const size_t off
  *  Gets the number of bytes required to store persistent data.
  *
  *  Parameters:
- *  segmentType - The segment type, see <IzotPersistentSegmentType>
+ *  segmentType - The segment type, see <IzotPersistentSegType>
  *
  *  Returns:
  *  The number of bytes required to store persistent data for the specified
@@ -229,7 +229,7 @@ extern IzotApiError IzotRead(const IzotPersistentHandle handle, const size_t off
  *  but may be used by persistent data event handlers (implemented by the
  *  application) to reserve space for persistent data segments.
  */
-extern int IzotPersistentGetMaxSize(IzotPersistentSegmentType segmentType);
+extern int IzotPersistentGetMaxSize(IzotPersistentSegType segmentType);
 
 extern IzotBool isPersistentDataScheduled(void);
 

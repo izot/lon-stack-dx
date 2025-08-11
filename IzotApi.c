@@ -1220,7 +1220,7 @@ unsigned IzotGetAppSegmentSize(void)
  *  Gets the number of bytes required to store persistent data.
  *
  *  Parameters:
- *  segmentType - The segment type, see <IzotPersistentSegmentType>
+ *  segmentType - The segment type, see <IzotPersistentSegType>
  *
  *  Returns:
  *  The number of bytes required to store persistent data for the specified
@@ -1231,7 +1231,7 @@ unsigned IzotGetAppSegmentSize(void)
  *  but may be used by persistent data event handlers (implemented by the
  *  application) to reserve space for persistent data segments.
  */
-IZOT_EXTERNAL_FN int IzotPersistentGetMaxSize(IzotPersistentSegmentType segmentType)
+IZOT_EXTERNAL_FN int IzotPersistentGetMaxSize(IzotPersistentSegType segmentType)
 {
 	int length = 0;
     switch(segmentType) {
@@ -2329,7 +2329,7 @@ IzotApiError IzotMemoryWrite(const unsigned address, const unsigned size, const 
  *  Remarks:
  *
  */
-IzotPersistentHandle IzotOpenForRead(const IzotPersistentSegmentType type)
+IzotPersistentHandle IzotOpenForRead(const IzotPersistentSegType type)
 {
     if (izot_open_for_read_handler) {
         return izot_open_for_read_handler(type);
@@ -2345,7 +2345,7 @@ IzotPersistentHandle IzotOpenForRead(const IzotPersistentSegmentType type)
  *  Remarks:
  *
  */
-IzotPersistentHandle IzotOpenForWrite(const IzotPersistentSegmentType type, const size_t size)
+IzotPersistentHandle IzotOpenForWrite(const IzotPersistentSegType type, const size_t size)
 {
     if (izot_open_for_write_handler) {
         return izot_open_for_write_handler(type, size);
@@ -2409,7 +2409,7 @@ const void* const pData)
  *  Remarks:
  *
  */
-IzotBool IzotIsInTransaction(const IzotPersistentSegmentType type)
+IzotBool IzotIsInTransaction(const IzotPersistentSegType type)
 {
     if (izot_is_in_tx_handler) {
         return izot_is_in_tx_handler(type);
@@ -2425,7 +2425,7 @@ IzotBool IzotIsInTransaction(const IzotPersistentSegmentType type)
  *  Remarks:
  *
  */
-IzotApiError IzotEnterTransaction(const IzotPersistentSegmentType type)
+IzotApiError IzotEnterTransaction(const IzotPersistentSegType type)
 {
     if (izot_enter_tx_handler) {
         return izot_enter_tx_handler(type);
@@ -2441,7 +2441,7 @@ IzotApiError IzotEnterTransaction(const IzotPersistentSegmentType type)
  *  Remarks:
  *
  */
-IzotApiError IzotExitTransaction(const IzotPersistentSegmentType type)
+IzotApiError IzotExitTransaction(const IzotPersistentSegType type)
 {
     if (izot_exit_tx_handler) {
         return izot_exit_tx_handler(type);

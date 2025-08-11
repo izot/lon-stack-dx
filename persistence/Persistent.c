@@ -329,7 +329,7 @@ void SetPeristenceGaurdBand(int nTime)
  * This function sets the flag for particular segment for flushing .
 
  */
-void SetPersistentDataType(IzotPersistentSegmentType type)
+void SetPersistentDataType(IzotPersistentSegType type)
 {
     PersitenceList[type] = TRUE;
 } 
