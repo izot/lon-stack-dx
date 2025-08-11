@@ -22,10 +22,10 @@
 // SOFTWARE.
 
 /*
- * Title: IzoT Device Stack DX API Reference
+ * Title: LON Stack DX API Reference
  *
  * Abstract:
- * This file declares the enumerations and data types for the LON DX Stack API.
+ * This file declares the enumerations and data types for the LON Stack DX API.
  */
 
 
@@ -51,25 +51,25 @@
 
 /*
  * Enumeration: IzotSystemError
- * System and Izot protocol stack error codes logged in the IzoT
+ * System and LON protocol stack error codes logged in the LON
  * protocol stack's error log.
  *
  * The codes can be accessed using the Query Status standard network management
  * command.
  *
  * The standard system errors range above value 128. Values between 1 and 128
- * are application-specific (but serious) errors. Values used by the IzoT
- * protocol stack are also included in the <IzotSystemError> enumeration.
+ * are application-specific (but serious) errors. Values used by the LON
+ * stack are also included in the <IzotSystemError> enumeration.
  *
- * The standard system error codes are discussed in the Smart Transceiver
- * literature and in the CEA/EIA 709.1-B protocol specification.
+ * The standard system error codes are described in the
+ * ISO/IEC 14908-1 protocol standard.
  *
  */
 typedef IZOT_ENUM_BEGIN(IzotSystemError)
 {
     /*   0 */ IzotNoError                 = 0,
     /*
-     * IzoT specific system error codes
+     * LON/IP specific system error codes
      */
 
      /* none */
@@ -2587,21 +2587,22 @@ typedef IZOT_ENUM_BEGIN(IzotPersistentSegType)
                                            domain table, address tables, and 
                                            datapoint configuration.
                                          */
-    IzotPersistentSegSecurityII,          /* Security state and Replay Table information */                                     
+    IzotPersistentSegSecurityII,        /* Security state and Replay Table information */                                     
 	IzotPersistentSegNodeDefinition,    /* Definitions that affect the current
-                                       interface, including dynamic datapoint
-                                       definitions.
-                                     */
+                                           interface, including dynamic datapoint
+                                           definitions.
+                                        */
 	IzotPersistentSegApplicationData,   /* Application data, such as CP values, that
-                                       needs to be stored persistently.  Note that
-                                       in some devices, this can include CP values
-                                       implemented by datapoints, CP values
-                                       defined in files, or both.
-                                     */
+                                           needs to be stored persistently.  Note that
+                                           in some devices, this can include CP values
+                                           implemented by datapoints, CP values
+                                           defined in files, or both.
+                                        */
     IzotPersistentSegUniqueId,          /* Unique ID defined in file for the IP852 device */
-    IsiPersistentSegConnectionTable,   /* ISI connection table */
-    IsiPersistentSegPersistent,              /* Other ISI persistence information */
-    IzotPersistentSegNumSegmentTypes
+    IsiPersistentSegConnectionTable,    /* ISI connection table */
+    IsiPersistentSegPersistent,         /* Other ISI persistence information */
+    IzotPersistentSegNumSegmentTypes,   /* Number of segment types */
+    IzotPersistentSegUnassigned = 0xFF, /* Unassigned segment type */
 } IZOT_ENUM_END(IzotPersistentSegType);
 
 /*
