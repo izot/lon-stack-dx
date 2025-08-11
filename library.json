@@ -3,6 +3,7 @@
   "version": "0.0.0+20230122115916",
   "build": {
     "flags": [
+      "-Iinclude",
       "-Iinclude/abstraction",
       "-Iinclude/common",
       "-Iinclude/isi",
