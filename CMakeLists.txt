@@ -101,22 +101,22 @@ target_include_directories(lon_stack_dx
 add_library(lon_stack_dx::lon_stack_dx ALIAS lon_stack_dx)
 
 # Installation rules
-install(TARGETS lon_stack_dx
-    EXPORT lon_stack_dxTargets
-    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-)
+#install(TARGETS lon_stack_dx
+#    EXPORT lon_stack_dxTargets
+#    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+#    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+#    INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+#)
 
-install(DIRECTORY include/
-    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-)
+#install(DIRECTORY include/
+#    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+#)
 
-install(EXPORT lon_stack_dxTargets
-    FILE lon_stack_dxTargets.cmake
-    NAMESPACE lon_stack_dx::
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/lon_stack_dx
-)
+#install(EXPORT lon_stack_dxTargets
+#    FILE lon_stack_dxTargets.cmake
+#    NAMESPACE lon_stack_dx::
+#    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/lon_stack_dx
+#)
 
 # Make this available for find_package()
 include(CMakePackageConfigHelpers)
