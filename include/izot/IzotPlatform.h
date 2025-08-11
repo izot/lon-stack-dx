@@ -104,9 +104,10 @@
 
 #include <stddef.h>
 
-// TBD: Remove the following workaround
+// Use default platform ID if not defined
+#if !defined(PLATFORM_ID)
 #define PLATFORM_ID PLATFORM_ID_LINUX64_ARM_GCC
-
+#endif  // !defined(PLATFORM_ID)
 
 #if PLATFORM_IS(RPI) || PLATFORM_IS(RPI_PICO)
     /*
