@@ -867,7 +867,7 @@ IZOT_EXTERNAL_FN IzotApiError IzotPersistentFlushData(void);
  * Gets the number of bytes required to store persistent data.
  *
  * Parameters:
- * segmentType - The segment type, see <IzotPersistentSegType>
+ * persistentSegType - The segment type, see <IzotPersistentSegType>
  *
  * Returns:
  * The number of bytes required to store persistent data for the specified
@@ -878,7 +878,7 @@ IZOT_EXTERNAL_FN IzotApiError IzotPersistentFlushData(void);
  * but may be used by persistent data event handlers (implemented by the
  * application) to reserve space for persistent data segments.
  */
-IZOT_EXTERNAL_FN int IzotPersistentGetMaxSize(IzotPersistentSegType segmentType);
+IZOT_EXTERNAL_FN int IzotPersistentGetMaxSize(IzotPersistentSegType persistentSegType);
 
 /*
  * *****************************************************************************

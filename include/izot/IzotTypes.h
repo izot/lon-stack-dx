@@ -3019,10 +3019,10 @@ typedef IzotApiError (*IzotMemoryWriteFunction)(const unsigned address,
  *  Open a persistent data segment for reading.
  *
  *  Parameters:
- *  type -  type of persistent data to be opened
+ *  persistentSegType -  type of persistent data to be opened
  *
  *  Returns:
- *  <IzotPersistentHandle>.
+ *  <IzotPersistentSegType>.
  *
  *  Remarks:
  *  This function opens the data segment for reading.  When suitable storage
@@ -3040,74 +3040,75 @@ typedef IzotApiError (*IzotMemoryWriteFunction)(const unsigned address,
  *  event. Without an application-specific handler, this event always fails
  *  (the handle is always zero).
  */
-typedef IzotPersistentHandle (*IzotPersistentOpenForReadFunction)(const IzotPersistentSegType type);
+typedef IzotPersistentSegType (*IzotPersistentOpenForReadFunction)(const IzotPersistentSegType persistentSegType);
 
 /*
  *  Callback: IzotPersistentOpenForWrite
  *  Open a persistent data segment for writing.
  *
  *  Parameters:
- *  type - type of persistent data to be opened
+ *  persistentSegType - type of persistent data to be opened
  *  size - size of the data to be stored
  *
  *  Returns:
- *  <IzotPersistentHandle>.
+ *  <IzotPersistentSegType>.
  *
  *  Remarks:
- *  This function is called by the IzoT protocol stack after changes
- *  have been made to data that is backed by persistent storage. Note that
- *  many updates might have been made, and this function is called only after
- *  the stack determines that all updates have been completed, based on a flush
+ *  This function is called by the LON stack after changes have been made
+ *  to data that is backed by persistent storage. Multiple updates may
+ *  have been made.  This function is called only after the LON stack
+ *  determines that all updates have been completed, based on a flush
  *  timeout.
  *
  *  This function opens the data segment for reading.  When suitable storage
  *  exists and can be accessed, the function returns an application-specific
- *  non-zero handle. Otherwise it returns 0.
+ *  non-zero persistent segment type. Otherwise it returns 
+ *  IzotPersistentSegUnassigned.
  *
- *  The handle returned by this function will be used as the first parameter
- *  when calling <IzotPersistentWrite>.
+ *  The persistent segment type returned by this function will be used as the
+ *  first parameter when calling <IzotPersistentWrite>.
  *
- *  The application must maintain the handle used for each segment. The
- *  application can invalidate a handle when <IzotPersistentClose> is called
- *  for that handle.
+ *  The application must maintain the persistent segment type used for each
+ *  segment. The application can invalidate a segment type when 
+ *  <IzotPersistentClose> is called for that handle.
  *
  *  Use <IzotPersistentOpenForWriteRegistrar> to register a handler for this
  *  event. Without an application-specific handler, this event always fails
- *  (the handle is always zero).
+ *  (the segment type is always IzotPersistentSegUnassigned).
  */
-typedef IzotPersistentHandle (*IzotPersistentOpenForWriteFunction)(
-        const IzotPersistentSegType type, const size_t size);
+typedef IzotPersistentSegType (*IzotPersistentOpenForWriteFunction)(
+        const IzotPersistentSegType persistentSegType, const size_t size);
 
 /*
  *  Callback: IzotPersistentClose
  *  Close a persistent data segment.
  *
  *  Parameters:
- *  handle - handle of the persistent segment returned by <IzotPersistentOpenForRead>
+ *  persistentSegType - persistent segment type returned by <IzotPersistentOpenForRead>
  *           or <IzotPersistentOpenForWrite>
  *
  *  Remarks:
  *  This function closes the persistent memory segment associated with this
- *  handle and invalidates the handle.
+ *  persistent segment type and invalidates the segment type.
  *
  *  Use <IzotPersistentCloseRegistrar> to register a handler for this
  *  event. Without an application-specific handler, this event does nothing.
  */
 typedef void (*IzotPersistentCloseFunction)(
-    const IzotPersistentHandle handle);
+    const IzotPersistentSegType persistentSegType);
 
 /*
  *  Callback: IzotPersistentDelete
- *  Delete persistent data segment.
+ *  Delete a persistent data segment.
  *
  *  Parameters:
- *  type - type of persistent data to be deleted
+ *  persistentSegType - type of persistent segment to be deleted
  *
  *  Remarks:
  *  This function is used to delete the persistent memory segment referenced
- *  by the data type. The stack will only call this function on closed segments.
+ *  by the segment type. The stack will only call this function on closed segments.
  *
- *  Note that this function can be called even if the segment does not exist
+ *  This function can be called even if the segment does not exist
  *  in persistent storage.
  *  It is not necessary for this function to actually destroy the data or
  *  return space allocated for this data to other applications, but the event
@@ -3119,24 +3120,24 @@ typedef void (*IzotPersistentCloseFunction)(
  *  Without an application-specific handler, this event does nothing.
  */
 typedef void (*IzotPersistentDeleteFunction)(
-    const IzotPersistentSegType type);
+    const IzotPersistentSegType persistentSegType);
 
 /*
  *  Callback: IzotPersistentRead
  *  Read a section of a persistent data segment.
  *
  *  Parameters:
- *  handle - handle of the persistent segment (See <IzotPersistentOpenForRead>)
+ *  persistentSegType - persistent segment type (See <IzotPersistentOpenForRead>)
  *  offset - offset within the segment
  *  size - size of the data to be read
  *  pBuffer - pointer to buffer to store the data
  *
  *  Remarks:
- *  This function is called by the IzoT Device Stack during initialization to
+ *  This function is called by the LON stack during initialization to
  *  read data from persistent storage. An error value is returned if the
- *  specified handle does not exist.
+ *  specified persistent segment type does not exist.
  *
- *  Note that the offset will always be 0 on the first call after opening
+ *  The offset will always be 0 on the first call after opening
  *  the segment. The offset in each subsequent call will be incremented by
  *  the size of the previous call.
  *
@@ -3144,7 +3145,7 @@ typedef void (*IzotPersistentDeleteFunction)(
  *  Without an application-specific handler, this event always fails (no
  *  data available to read).
  */
-typedef IzotApiError (*IzotPersistentReadFunction)(const IzotPersistentHandle handle,
+typedef IzotApiError (*IzotPersistentReadFunction)(const IzotPersistentSegType persistentSegType,
     const size_t offset, const size_t size, void * const pBuffer);
 
 
@@ -3153,25 +3154,25 @@ typedef IzotApiError (*IzotPersistentReadFunction)(const IzotPersistentHandle ha
  *  Write a section of a persistent data segment.
  *
  *  Parameters:
- *  handle - handle of the persistent segment (See <IzotPersistentOpenForWrite>)
+ *  persistentSegType - persistent segment type (See <IzotPersistentOpenForWrite>)
  *  offset - offset within the segment
  *  size - size of the data to be read
  *  pData - pointer to the data to write into the segment
  *
  *  Remarks:
- *  This function is called by the IzoT Device Stack after changes have been
- *  made to data that is backed by persistent storage. Note that many updates
- *  might have been made, and this function is called only after the stack
+ *  This function is called by the LON stack after changes have been
+ *  made to data that is backed by persistent storage. Multiple updates
+ *  may have been made.  This function is called only after the LON stack
  *  determines that all updates have been completed.
  *
- *  Note that the offset will always be 0 on the first call after opening
+ *  The offset will always be 0 on the first call after opening
  *  the segment. The offset in each subsequent call will be incremented by
  *  the size of the previous call.
  *
  *  Use <IzotPersistentWriteRegistrar> to register a handler for this event.
  *  Without an application-specific handler, this event always fails.
  */
-typedef IzotApiError (*IzotPersistentWriteFunction) (const IzotPersistentHandle handle,
+typedef IzotApiError (*IzotPersistentWriteFunction) (const IzotPersistentSegType persistentSegType,
     const size_t offset, const size_t size, const void * const pData);
 
 /*
@@ -3180,36 +3181,37 @@ typedef IzotApiError (*IzotPersistentWriteFunction) (const IzotPersistentHandle 
  *  the device shut down.
  *
  *  Parameters:
- *  type - persistent segment type
+ *  persistentSegType - persistent segment type
  *
  *  Remarks:
- *  This function is called by the IzoT Device Stack during initialization
+ *  This function is called by the LON stack during initialization
  *  prior to reading the segment data. This callback must return TRUE if a
  *  persistent data transaction had been started and never committed.
- *  When this event returns TRUE, the IzoT Device Stack discards the segment,
- *  otherwise, the IzoT stack will attempt to read and apply the persistent
+ *  When this event returns TRUE, the LON stack discards the segment,
+ *  otherwise, the LON stack will attempt to read and apply the persistent
  *  data.
  *
  *  Use <IzotPersistentIsInTransactionRegistrar> to register a handler for
  *  this event. Without an application-specific handler, this event always
  *  returns TRUE.
  */
-typedef IzotBool (*IzotPersistentIsInTransactionFunction)(const IzotPersistentSegType type);
+typedef IzotBool (*IzotPersistentIsInTransactionFunction)(const IzotPersistentSegType persistentSegType);
 
 /*
  *  Callback: IzotPersistentEnterTransaction
  *  Initiate a persistent transaction.
  *
  *  Parameters:
- *  type - persistent segment type
+ *  persistentSegType - persistent segment type
  *
  *  Remarks:
- *  This function is called by the IzoT Device Stack when the first request
+ *  This function is called by the LON stack when the first request
  *  arrives to update data stored in the specified segment. The event handler
  *  updates the persistent data control structures to indicate that a
  *  transaction is in progress. The stack schedules writes to update the
  *  persistent storage at a later time, then invokes the
  *  <IzotPersistentExitTransaction> event.
+ * 
  *  When a fatal error occurs during a persistent data storage transaction,
  *  such as a power outage, the transaction control data is used to prevent
  *  the application of invalid persistent data at the time of the next start.
@@ -3218,24 +3220,24 @@ typedef IzotBool (*IzotPersistentIsInTransactionFunction)(const IzotPersistentSe
  *  this event. Without an application-specific handler, this event always
  *  fails.
  */
-typedef IzotApiError (*IzotPersistentEnterTransactionFunction)(const IzotPersistentSegType type);
+typedef IzotApiError (*IzotPersistentEnterTransactionFunction)(const IzotPersistentSegType persistentSegType);
 
 /*
  *  Callback: IzotPersistentExitTransaction
  *  Complete a persistent transaction.
  *
  *  Parameters:
- *  type - persistent segment type
+ *  persistentSegType - persistent segment type
  *
  *  Remarks:
- *  This function is called by the IzoT Device Stackafter <IzotPersistentWrite>
+ *  This function is called by the LON stack after <IzotPersistentWrite>
  *  has returned success and there are no further updates required.
  *  See <IzotPersistentEnterTransactionFunction> for the complementary event.
  *
  *  Use <IzotPersistentExitTransactionRegistrar> to register a handler for this
  *  event. Without an application-specific handler, this event always fails.
  */
-typedef IzotApiError (*IzotPersistentExitTransactionFunction)(const IzotPersistentSegType type);
+typedef IzotApiError (*IzotPersistentExitTransactionFunction)(const IzotPersistentSegType persistentSegType);
 
 /*
  *  Callback: IzotPersistentGetApplicationSegmentSize

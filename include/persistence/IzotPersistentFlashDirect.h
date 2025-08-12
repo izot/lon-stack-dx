@@ -68,79 +68,79 @@
  *  Open a non-volatile data segment for reading.
  *
  *  Parameters:
- *  type -  type of non-volatile data to be opened
+ *  persistentSegType -  type of non-volatile data to be opened
  *
  *  Returns:
- *  <IzotPersistentHandle>.   
+ *  <IzotPersistentSegType>.   
  *
  *  Remarks:
  *  This function opens the data segment for reading.  If the file exists and 
- *  can be opened, this function returns a valid application-specific 32-bit 
- *  value as the handle.  Otherwise it returns 0.  The handle returned by this 
- *  function will be used as the first parameter when calling 
- *  <IzotPersistentRead>. The application must maintain the handle used for 
- *  each segment. The application can invalidate a handle when 
- *  <IzotPersistentClose> is called for that handle.  
+ *  can be opened, this function returns a valid persistent segment type.
+ *  Otherwise it returns IzotPersistentSegUnassigned.  The segment type 
+ *  returned by this function will be used as the first parameter when calling 
+ *  <IzotPersistentRead>. The application must maintain the segment type used
+ *  for each segment. The application can invalidate a segment type when 
+ *  <IzotPersistentClose> is called for that segment type.  
  */
-extern IzotPersistentHandle IzotPersistentOpenForRead(const IzotPersistentSegType type); 
+extern IzotPersistentSegType IzotPersistentOpenForRead(const IzotPersistentSegType persistentSegType); 
  
 /* 
  *  Callback: IzotPersistentOpenForWrite
  *  Open a non-volatile data segment for writing.
  *
  *  Parameters:
- *  type - type of non-volatile data to be opened
+ *  persistentSegType - type of non-volatile data to be opened
  *  size - size of the data to be stored
  *
  *  Returns:
- *  <IzotPersistentHandle>.   
+ *  <IzotPersistentSegType>.   
  *
  *  Remarks:
- *  This function is called by the IZOT protocol stack after changes 
- *  have been made to data that is backed by persistent storage.  Note that 
- *  many updates might have been made, and this function is called only after 
- *  the stack determines that all updates have been completed, based on a flush 
- *  timeout defined by the LonTalk Interface Developer. 
+ *  This function is called by the LON stack after changes 
+ *  have been made to data that is backed by persistent storage.  Multiple 
+ *  updates may have been made.  This function is called only after the
+ *  LON stack determines that all updates have been completed, based on a 
+ *  flush timeout. 
  *
- *  An error value is returned if the data cannot be written.
+ *  IzotPersistentSegUnassigned is returned if the data cannot be written.
  */
-extern IzotPersistentHandle IzotPersistentOpenForWrite(const IzotPersistentSegType type, const size_t size); 
+extern IzotPersistentSegType IzotPersistentOpenForWrite(const IzotPersistentSegType persistentSegType, const size_t size); 
 
 /* 
  *  Callback: IzotPersistentClose
  *  Close a non-volatile data segment.
  *
  *  Parameters:
- *  handle - handle of the non-volatile segment returned by 
+ *  persistentSegType - persistent segment type returned by 
  *           <IzotPersistentOpenForRead> or <IzotPersistentOpenForWrite>
  *
  *  Remarks:
  *  This function closes the non-volatile memory segment associated with this 
- *  handle and invalidates the handle. 
+ *  segment and invalidates the segment type. 
  */
-extern void IzotPersistentClose(const IzotPersistentHandle handle);
+extern void IzotPersistentClose(const IzotPersistentSegType persistentSegmentType);
 
 /* 
  *  Callback: IzotPersistentRead
  *  Read a section of a non-volatile data segment.
  *
  *  Parameters:
- *  handle - handle of the non-volatile segment returned by 
+ *  persistentSegType - non-volatile segment type returned by 
  *           <IzotPersistentOpenForRead>
  *  offset - offset within the segment
  *  size - size of the data to be read
  *  pBuffer - pointer to buffer to store the data
  *
  *  Remarks:
- *  This function is called by the Izot Device Stack API during initialization 
- *  to  read data from persistent storage. An error value is returned if the 
- *  specified handle does not exist.    
+ *  This function is called by the LON stack during initialization 
+ *  to read data from persistent storage. IzotPersistentSegUnassigned is 
+ *  returned if the specified handle does not exist.    
  *
- *  Note that the offset will always be 0 on the first call after opening
- *  the segment. The offset in each subsequent call will be incremented by
+ *  The offset will always be 0 on the first call after opening the
+ *  segment. The offset in each subsequent call will be incremented by
  *  the size of the previous call.
  */
-extern IzotApiError IzotPersistentRead(const IzotPersistentHandle handle, 
+extern IzotApiError IzotPersistentRead(const IzotPersistentSegType persistentSegType, 
     const size_t offset, const size_t size, void * const pBuffer);
 																
 /* 
@@ -148,71 +148,70 @@ extern IzotApiError IzotPersistentRead(const IzotPersistentHandle handle,
  *  Write a section of a non-volatile data segment.
  *
  *  Parameters:
- *  handle - handle of the non-volatile segment returned by 
+ *  persistentSegType - non-volatile segment type returned by 
  *           <IzotPersistentOpenForWrite>
  *  offset - offset within the segment
  *  size - size of the data to be read
  *  pData - pointer to the data to write into the segment
  *
  *  Remarks:
- *  This function is called by the Izot Device Stack API after changes have been 
- *  made to data that is backed by persistent storage.  Note that many updates 
- *  might have been made, and this function is called only after the stack 
+ *  This function is called by the LON stack after changes have been 
+ *  made to data that is backed by persistent storage.  Multiple updates 
+ *  may have been made.  This function is called only after the LON stack 
  *  determines that all updates have been completed.   
  *
- *  Note that the offset will always be 0 on the first call after opening
- *  the segment. The offset in each subsequent call will be incremented by
+ *  The offset will always be 0 on the first call after opening the
+ *  segment. The offset in each subsequent call will be incremented by
  *  the size of the previous call.
  */
-extern IzotApiError IzotPersistentWrite(const IzotPersistentHandle handle, 
+extern IzotApiError IzotPersistentWrite(const IzotPersistentSegType persistentSegType, 
     const size_t offset, const size_t size, const void* const pData);
 
 /* 
  *  Callback: IzotPersistentIsInTransaction
- *  Returns TRUE if an PERSISTENT transaction was in progress last time the
- *  device shut down.
+ *  Returns TRUE if a persistent transaction was in progress during the
+ *  last time the device shut down.
  *
  *  Parameters:
- *  type - non-volatile segment type
+ *  persistentSegType - non-volatile segment type
  *
  *  Remarks:
- *  This function is called by the Izot Device Stack API during initialization 
- *  prior to reading the segment data. This callback must return TRUE if an 
- *  PERSISTENT transaction had been started and never committed.  If this 
- *  function returns TRUE, the Izot Device Stack API will discard the segment, 
- *  otherwise, the IZOT Device Stack API will attempt to read the persistent 
+ *  This function is called by the LON stack API during initialization 
+ *  prior to reading the segment data. This callback must return TRUE if a 
+ *  persistent transaction had been started and never committed.  If this 
+ *  function returns TRUE, the LON stack will discard the segment, 
+ *  otherwise, the LON stack API will attempt to read the persistent 
  *  data. 
  */
-extern IzotBool IzotPersistentIsInTransaction(const IzotPersistentSegType type); 
+extern IzotBool IzotPersistentIsInTransaction(const IzotPersistentSegType persistentSegType); 
  
 /* 
  *  Callback: IzotPersistentEnterTransaction
  *  Initiate a non-volatile transaction.
  *
  *  Parameters:
- *  type - non-volatile segment type
+ *  persistentSegType - non-volatile segment type
  *
  *  Remarks:
- *  This function is called by the Izot Device Stack API when the first request 
- *  arrives to update data stored in the specified segment.  The API updates 
- *  the non-persistent image, and schedules writes to update the non-volatile 
- *  storage at a later time.  
+ *  This function is called by the LON stack API when the first request 
+ *  arrives to update data stored in the specified segment.  The LON stack
+ *  updates the non-persistent image, and schedules writes to update the 
+ *  non-volatile storage at a later time.  
  */
-extern IzotApiError IzotPersistentEnterTransaction(const IzotPersistentSegType type);
+extern IzotApiError IzotPersistentEnterTransaction(const IzotPersistentSegType persistentSegType);
 
 /* 
  *  Callback: IzotPersistentExitTransaction
  *  Complete a non-volatile transaction.
  *
  *  Parameters:
- *  type - non-volatile segment type
+ *  persistentSegType - non-volatile segment type
  *
  *  Remarks:
- *  This function is called by the Izot Device Stack API after 
- *  <IzotPersistentWrite> has returned success and there are no further 
- *  updates required.
+ *  This function is called by the LON stack after <IzotPersistentWrite> 
+ *  has returned success and there are no further updates required.
  */
-extern IzotApiError IzotPersistentExitTransaction(const IzotPersistentSegType type);
+extern IzotApiError IzotPersistentExitTransaction(const IzotPersistentSegType persistentSegType);
 
 extern void ErasePersistenceData(void);
 extern void ErasePersistenceConfig(void);

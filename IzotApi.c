@@ -1,7 +1,7 @@
 //
 // IzotApi.c
 //
-// Copyright (C) 2022 EnOcean
+// Copyright (C) 2022-2025 EnOcean
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in 
@@ -1220,7 +1220,7 @@ unsigned IzotGetAppSegmentSize(void)
  *  Gets the number of bytes required to store persistent data.
  *
  *  Parameters:
- *  segmentType - The segment type, see <IzotPersistentSegType>
+ *  persistentSegType - The segment type, see <IzotPersistentSegType>
  *
  *  Returns:
  *  The number of bytes required to store persistent data for the specified
@@ -1231,10 +1231,10 @@ unsigned IzotGetAppSegmentSize(void)
  *  but may be used by persistent data event handlers (implemented by the
  *  application) to reserve space for persistent data segments.
  */
-IZOT_EXTERNAL_FN int IzotPersistentGetMaxSize(IzotPersistentSegType segmentType)
+IZOT_EXTERNAL_FN int IzotPersistentGetMaxSize(IzotPersistentSegType persistentSegType)
 {
 	int length = 0;
-    switch(segmentType) {
+    switch(persistentSegType) {
     case IzotPersistentSegNetworkImage:
         length = (sizeof(*eep)-sizeof(eep->readOnlyData));
         break;
@@ -2325,61 +2325,49 @@ IzotApiError IzotMemoryWrite(const unsigned address, const unsigned size, const 
 /*
  *  Event: IzotOpenForRead
  *  Calls the registered callback of <IzotPersistentOpenForRead>.
- *
- *  Remarks:
- *
  */
-IzotPersistentHandle IzotOpenForRead(const IzotPersistentSegType type)
+IzotPersistentSegType IzotOpenForRead(const IzotPersistentSegType persistentSegType)
 {
     if (izot_open_for_read_handler) {
-        return izot_open_for_read_handler(type);
+        return izot_open_for_read_handler(persistentSegType);
     } else {
-        return NULL;
+        return IzotPersistentSegUnassigned;
     }
 }
 
 /*
  *  Event: IzotOpenForWrite
  *  Calls the registered callback of <IzotPersistentOpenForWrite>.
- *
- *  Remarks:
- *
  */
-IzotPersistentHandle IzotOpenForWrite(const IzotPersistentSegType type, const size_t size)
+IzotPersistentSegType IzotOpenForWrite(const IzotPersistentSegType persistentSegType, const size_t size)
 {
     if (izot_open_for_write_handler) {
-        return izot_open_for_write_handler(type, size);
+        return izot_open_for_write_handler(persistentSegType, size);
     } else {
-        return NULL;
+        return IzotPersistentSegUnassigned;
     }
 }
 
 /*
  *  Event: IzotClose
  *  Calls the registered callback of <IzotPersistentClose>.
- *
- *  Remarks:
- *
  */
-void IzotClose(const IzotPersistentHandle handle)
+void IzotClose(const IzotPersistentSegType persistentSegType)
 {
     if (izot_close_handler) {
-        izot_close_handler(handle);
+        izot_close_handler(persistentSegType);
     }
 }
 
 /*
  *  Event: IzotRead
  *  Calls the registered callback of <IzotPersistentRead>.
- *
- *  Remarks:
- *
  */
-IzotApiError IzotRead(const IzotPersistentHandle handle, const size_t offset, const size_t size, 
+IzotApiError IzotRead(const IzotPersistentSegType persistentSegType, const size_t offset, const size_t size, 
 void * const pBuffer) 
 {
     if (izot_read_handler) {
-        return izot_read_handler(handle, offset, size, pBuffer);
+        return izot_read_handler(persistentSegType, offset, size, pBuffer);
     } else {
         return IzotApiNotInitialized;
     }
@@ -2388,15 +2376,12 @@ void * const pBuffer)
 /*
  *  Event: IzotWrite
  *  Calls the registered callback of <IzotPersistentWrite>.
- *
- *  Remarks:
- *
  */
-IzotApiError IzotWrite(const IzotPersistentHandle handle, const size_t offset, const size_t size, 
+IzotApiError IzotWrite(const IzotPersistentSegType persistentSegType, const size_t offset, const size_t size, 
 const void* const pData)
 {
     if (izot_write_handler) {
-        return izot_write_handler(handle, offset, size, pData);
+        return izot_write_handler(persistentSegType, offset, size, pData);
     } else {
         return IzotApiNotInitialized;
     }
@@ -2409,10 +2394,10 @@ const void* const pData)
  *  Remarks:
  *
  */
-IzotBool IzotIsInTransaction(const IzotPersistentSegType type)
+IzotBool IzotIsInTransaction(const IzotPersistentSegType persistentSegType)
 {
     if (izot_is_in_tx_handler) {
-        return izot_is_in_tx_handler(type);
+        return izot_is_in_tx_handler(persistentSegType);
     } else {
         return IzotApiNotInitialized;
     }
@@ -2425,10 +2410,10 @@ IzotBool IzotIsInTransaction(const IzotPersistentSegType type)
  *  Remarks:
  *
  */
-IzotApiError IzotEnterTransaction(const IzotPersistentSegType type)
+IzotApiError IzotEnterTransaction(const IzotPersistentSegType persistentSegType)
 {
     if (izot_enter_tx_handler) {
-        return izot_enter_tx_handler(type);
+        return izot_enter_tx_handler(persistentSegType);
     } else {
         return IzotApiNotInitialized;
     }
@@ -2441,10 +2426,10 @@ IzotApiError IzotEnterTransaction(const IzotPersistentSegType type)
  *  Remarks:
  *
  */
-IzotApiError IzotExitTransaction(const IzotPersistentSegType type)
+IzotApiError IzotExitTransaction(const IzotPersistentSegType persistentSegType)
 {
     if (izot_exit_tx_handler) {
-        return izot_exit_tx_handler(type);
+        return izot_exit_tx_handler(persistentSegType);
     } else {
         return IzotApiNotInitialized;
     }

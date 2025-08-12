@@ -84,9 +84,7 @@ static uint32_t guardBandRemainig(void)
 
  */
 static IzotApiError deserializeLcsEppromPersistentSegment(
-void* const pData, 
-int len
-)
+    void* const pData, int len)
 {
     IzotApiError reason = IzotApiNoError;
     int imageLen = IzotPersistentGetMaxSize(IzotPersistentSegNetworkImage);
@@ -164,18 +162,18 @@ static IzotApiError serializeAppDataPersistentSegment(IzotByte** pData, int *len
 
 /*
  * Function: store
- * This function store the information of given type into the non-volatile.
+ * This function stores the information of a given type into the non-volatile.
  * memory
 
  */
-static IzotApiError store(unsigned short type)
+static IzotApiError store(IzotPersistentSegType persistentSegType)
 {
     IzotByte* pImage = NULL;
     IzotPersistenceHeader hdr;
     int imageLen = 0;
     IzotApiError reason = IzotApiNoError;
 
-    IzotEnterTransaction(type);
+    IzotEnterTransaction(persistentSegType);
     
     hdr.version = CURRENT_VERSION;
     hdr.length = 0;
@@ -183,9 +181,9 @@ static IzotApiError store(unsigned short type)
     hdr.checksum = 0;
     hdr.appSignature = m_appSignature;
     
-    if (type == IzotPersistentSegNetworkImage) {
+    if (persistentSegType == IzotPersistentSegNetworkImage) {
         reason = serializeLcsEppromPersistentSegment(&pImage, &imageLen);
-    } else if (type == IzotPersistentSegApplicationData) {
+    } else if (persistentSegType == IzotPersistentSegApplicationData) {
         reason = serializeAppDataPersistentSegment(&pImage, &imageLen);
 #ifdef SECURITY_II
     } else if (type == IzotPersistentSegSecurityII) {
@@ -197,20 +195,20 @@ static IzotApiError store(unsigned short type)
         hdr.checksum = computeChecksum(pImage, imageLen);
         hdr.length = imageLen;
 
-        IzotPersistentHandle f = 
-         (IzotPersistentHandle)IzotOpenForWrite(type, sizeof(hdr) + hdr.length);
-        if (f != NULL) {
-            if (IzotWrite(f, 0, sizeof(hdr), &hdr) != 0 ||
-                IzotWrite(f, sizeof(hdr), hdr.length, pImage) != 0) {
+        IzotPersistentSegType returnedSegType = 
+          IzotOpenForWrite(persistentSegType, sizeof(hdr) + hdr.length);
+        if (returnedSegType != IzotPersistentSegUnassigned) {
+            if (IzotWrite(persistentSegType, 0, sizeof(hdr), &hdr) != 0 ||
+                IzotWrite(persistentSegType, sizeof(hdr), hdr.length, pImage) != 0) {
                 reason = IzotApiPersistentFailure;
             }
-            IzotClose(f);
+            IzotClose(persistentSegType);
         }
         
         if (reason != IzotApiNoError) {
             NotifyErrorEvent();
         } else {
-            IzotExitTransaction(type);
+            IzotExitTransaction(persistentSegType);
         }
         
         if (pImage != NULL) {
@@ -329,9 +327,9 @@ void SetPeristenceGaurdBand(int nTime)
  * This function sets the flag for particular segment for flushing .
 
  */
-void SetPersistentDataType(IzotPersistentSegType type)
+void SetPersistentDataType(IzotPersistentSegType persistentSegType)
 {
-    PersitenceList[type] = TRUE;
+    PersitenceList[persistentSegType] = TRUE;
 } 
 
 /*
@@ -390,20 +388,20 @@ void CommitPersistentData(void)
  * information to RAM.
 
  */
-IzotApiError restore(unsigned short type)
+IzotApiError restore(IzotPersistentSegType persistentSegType)
 {
     IzotApiError reason = IzotApiNoError;
     IzotPersistenceHeader hdr;
     IzotByte* pImage = NULL;
     int imageLength = 0;
 
-    if (IzotIsInTransaction(type)) {
+    if (IzotIsInTransaction(persistentSegType)) {
         reason = IzotApiPersistentFailure;
     } else {
-        IzotPersistentHandle f = (IzotPersistentHandle)IzotOpenForRead(type);
+        IzotPersistentSegType returnedSegType = IzotOpenForRead(persistentSegType);
         memset(&hdr, 0, sizeof(hdr));
-        if (f != NULL) {
-            if (IzotRead(f, 0, sizeof(hdr), &hdr) != 0) {
+        if (persistentSegType != IzotPersistentSegUnassigned) {
+            if (IzotRead(persistentSegType, 0, sizeof(hdr), &hdr) != 0) {
                 reason = IzotApiPersistentFailure;
             } else if (hdr.signature != ISI_IMAGE_SIGNATURE0) {
                 reason = IzotApiPersistentFailure;
@@ -415,21 +413,21 @@ IzotApiError restore(unsigned short type)
                 imageLength = hdr.length;
                 pImage = (IzotByte *) OsalMalloc(imageLength);
                 if (pImage == NULL ||
-                    IzotRead(f, sizeof(hdr), imageLength, pImage) != 0 ||
+                    IzotRead(persistentSegType, sizeof(hdr), imageLength, pImage) != 0 ||
                     !ValidateChecksum(&hdr, pImage)) {
                     reason = IzotApiPersistentFailure;
                     OsalFree(pImage);
                     pImage = NULL;
                 }
             }
-            IzotClose(f);
+            IzotClose(persistentSegType);
         } else {
             reason = IzotApiPersistentFailure;
         }
     }
 
     if (reason == IzotApiNoError) {
-        switch(type) {
+        switch(persistentSegType) {
         case IzotPersistentSegNetworkImage:
             reason = 
                 deserializeLcsEppromPersistentSegment(pImage, imageLength);

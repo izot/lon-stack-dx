@@ -1441,8 +1441,8 @@ extern IzotBool isiFilterResponseArrived(const IzotResponseAddress* const pAddre
 extern IzotBool isiFilterMsgCompleted(const unsigned tag, const IzotBool success);
 
 extern IsiApiError initializeData(IsiBootType bootType);
-extern LtPersistenceLossReason restorePersistentData(IzotPersistentSegType type);
-extern void savePersistentData(IzotPersistentSegType type);
+extern LtPersistenceLossReason restorePersistentData(IzotPersistentSegType persistentSegType);
+extern void savePersistentData(IzotPersistentSegType persistentSegType);
 //extern void DumpConnectionTable();
 //extern void DumpIsiPersistData();
 extern void _IsiSetDeviceCount(IzotByte number);

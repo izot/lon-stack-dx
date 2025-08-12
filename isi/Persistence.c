@@ -221,7 +221,7 @@ LtPersistenceLossReason deserializeIsiNvdSegData(IzotByte* pBuffer,
 *  Undocumented
 *
 */
-void savePersistentData(IzotPersistentSegType type)
+void savePersistentData(IzotPersistentSegType persistentSegType)
 {
 	IzotByte* pImage = NULL;
 	IzotBool failure = FALSE;
@@ -234,11 +234,11 @@ void savePersistentData(IzotPersistentSegType type)
 	hdr.signature = ISI_IMAGE_SIGNATURE0;
     hdr.checksum = 0;
     hdr.appSignature = IzotGetAppSignature();
-    _IsiAPIDebug("savePersistentData - for type=%d\n", type); 
-    if (type == IsiPersistentSegConnectionTable)
+    _IsiAPIDebug("savePersistentData - for persistentSegType=%d\n", persistentSegType); 
+    if (persistentSegType == IsiPersistentSegConnectionTable)
         reason = serializeIsiNvdSegConnectionTable(&pImage, &imageLen);
     else
-    if (type == IsiPersistentSegPersistent)
+    if (persistentSegType == IsiPersistentSegPersistent)
         reason = serializeIsiNvdSegPersistentData(&pImage, &imageLen);
  
     if (reason == LT_PERSISTENCE_OK)
@@ -246,13 +246,13 @@ void savePersistentData(IzotPersistentSegType type)
 	    hdr.checksum = computeChecksum(pImage, imageLen);
 	    hdr.length = imageLen;
 
-		IzotPersistentHandle f = IzotOpenForWrite(type, sizeof(hdr) + hdr.length);
-		if (f != NULL) {
-			if (IzotWrite(f, 0, sizeof(hdr), &hdr) != 0 ||
-				IzotWrite(f, sizeof(hdr), hdr.length, pImage) != 0)	{
+		IzotPersistentSegType returnedSegType = IzotOpenForWrite(persistentSegType, sizeof(hdr) + hdr.length);
+		if (returnedSegType != IzotPersistentSegUnassigned) {
+			if (IzotWrite(returnedSegType, 0, sizeof(hdr), &hdr) != 0 ||
+				  IzotWrite(returnedSegType, sizeof(hdr), hdr.length, pImage) != 0) {
 				failure = TRUE;
 			}
-			IzotClose(f);
+			IzotClose(returnedSegType);
 		}
 		
 		if (failure) {
@@ -276,7 +276,7 @@ void savePersistentData(IzotPersistentSegType type)
 *  Undocumented
 *
 */
-LtPersistenceLossReason restorePersistentData(IzotPersistentSegType type)
+LtPersistenceLossReason restorePersistentData(IzotPersistentSegType persistentSegType)
 {
     LtPersistenceLossReason reason = LT_PERSISTENCE_OK;
 	IzotPersistenceHeader hdr;
@@ -284,10 +284,10 @@ LtPersistenceLossReason restorePersistentData(IzotPersistentSegType type)
 	int imageLen = 0;
 	int nVersion = 0;
 
-	IzotPersistentHandle f = IzotOpenForRead(type);
+	IzotPersistentSegType returnedSegType = IzotOpenForRead(persistentSegType);
 	memset(&hdr, 0, sizeof(hdr));
-	if (f != NULL) {
-		if (IzotRead(f, 0, sizeof(hdr), &hdr) != 0) {
+	if (returnedSegType != NULL) {
+		if (IzotRead(returnedSegType, 0, sizeof(hdr), &hdr) != 0) {
 			reason = LT_CORRUPTION;
 		} else if (hdr.signature != ISI_IMAGE_SIGNATURE0) {
 			reason = LT_SIGNATURE_MISMATCH;
@@ -300,26 +300,26 @@ LtPersistenceLossReason restorePersistentData(IzotPersistentSegType type)
 			imageLen = hdr.length;
 			pBuffer = (IzotByte *) OsalMalloc(imageLen);
 			if (pBuffer == NULL ||
-				IzotRead(f, sizeof(hdr), imageLen, pBuffer) != 0 ||
+				  IzotRead(returnedSegType, sizeof(hdr), imageLen, pBuffer) != 0 ||
 				!ValidateChecksum(&hdr, pBuffer)) {
 				reason = LT_CORRUPTION;
 				OsalFree(pBuffer);
 				pBuffer = NULL;
 			}
 		}
-		IzotClose(f);
+		IzotClose(returnedSegType);
 	} else {
 		reason = LT_NO_PERSISTENCE;
 	}
 
-
 	if (reason == LT_PERSISTENCE_OK) {
-		if (type == IsiPersistentSegConnectionTable)
+		if (persistentSegType == IsiPersistentSegConnectionTable) {
 			reason  = 
                deserializeIsiNvdSegConnectionTable(pBuffer, imageLen, nVersion);
-		else
-		if (type == IsiPersistentSegPersistent)
+		} else {
+		if (persistentSegType == IsiPersistentSegPersistent)
 			reason  = deserializeIsiNvdSegData(pBuffer, imageLen, nVersion);
+		}
     }
 
     if (pBuffer != NULL) {
