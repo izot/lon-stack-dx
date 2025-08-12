@@ -12,6 +12,7 @@ include(CMakePackageConfigHelpers)
 
 # Define sources and headers
 set(LON_STACK_DX_SOURCES
+    IzotApi.c
     abstraction/IzotCal.c
     abstraction/IzotHal.c
     abstraction/IzotOsal.c
