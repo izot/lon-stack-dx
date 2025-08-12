@@ -286,7 +286,7 @@ LtPersistenceLossReason restorePersistentData(IzotPersistentSegType persistentSe
 
 	IzotPersistentSegType returnedSegType = IzotOpenForRead(persistentSegType);
 	memset(&hdr, 0, sizeof(hdr));
-	if (returnedSegType != NULL) {
+	if (returnedSegType != IzotPersistentSegUnassigned) {
 		if (IzotRead(returnedSegType, 0, sizeof(hdr), &hdr) != 0) {
 			reason = LT_CORRUPTION;
 		} else if (hdr.signature != ISI_IMAGE_SIGNATURE0) {
