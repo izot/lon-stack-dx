@@ -103,8 +103,8 @@ static int dataSegmentSize[IzotPersistentSegNumSegmentTypes] =
     0,       // IzotPersistentSegNodeDefinition
     0,       // IzotPersistentSegApplicationData
     0,       // IzotPersistentSegUniqueId
-    0,       // IsiPersistentSegConnectionTable
-    0,       // IsiPersistentSegPersistent
+    0,       // IzotPersistentSegConnectionTable
+    0,       // IzotPersistentSegIsi
 };
 
 /*------------------------------------------------------------------------------
@@ -128,7 +128,7 @@ int size
 static void PrintTimeStamp();
 
 // Translate a segment type to a name for PERSISTENT tracing.
-static const char *GetPersistentName(IzotPersistentSegType persistentSegType);
+static const char *IzotPersistentGetSegName(IzotPersistentSegType persistentSegType);
 #endif
 
 /*
@@ -166,7 +166,7 @@ IzotPersistentSegType IzotFlashSegOpenForRead(const IzotPersistentSegType persis
     if (persistentTraceEnabled) {
         PrintTimeStamp();
         FLASH_PRINTF("IzotFlashSegOpenForRead(%s)\r\n", 
-                                                      GetPersistentName(persistentSegType));  
+                                                      IzotPersistentGetSegName(persistentSegType));  
     }
 #endif
     return persistentSegType;
@@ -201,7 +201,7 @@ IzotPersistentSegType IzotFlashSegOpenForWrite(const IzotPersistentSegType persi
     if (persistentTraceEnabled) {
         PrintTimeStamp();
         FLASH_PRINTF("Start IzotFlashSegOpenForWrite(%s, %ld)\r\n", 
-                                                GetPersistentName(persistentSegType), size);  
+                                                IzotPersistentGetSegName(persistentSegType), size);  
     }
 #endif
     /* Open the flash so that we can erase it */
@@ -234,7 +234,7 @@ IzotPersistentSegType IzotFlashSegOpenForWrite(const IzotPersistentSegType persi
     if (persistentTraceEnabled) {
         PrintTimeStamp();
         FLASH_PRINTF("End IzotFlashSegOpenForWrite(%s, %ld), sts = %d\r\n",  
-               GetPersistentName(persistentSegType), size, sts);  
+               IzotPersistentGetSegName(persistentSegType), size, sts);  
     }
 #endif
     return returnedSegType;
@@ -280,7 +280,7 @@ void IzotFlashSegDelete(const IzotPersistentSegType persistentSegType)
 #ifdef FLASH_DEBUG
     if (persistentTraceEnabled) {
         PrintTimeStamp();
-        FLASH_PRINTF("IzotFlashSegDelete(%s)\r\n", GetPersistentName(persistentSegType));  
+        FLASH_PRINTF("IzotFlashSegDelete(%s)\r\n", IzotPersistentGetSegName(persistentSegType));  
     }
 #endif
 }
@@ -318,7 +318,7 @@ IzotApiError IzotFlashSegRead(const IzotPersistentSegType persistentSegType, con
     if (persistentTraceEnabled) {
         PrintTimeStamp();
         FLASH_PRINTF("Start IzotFlashSegRead(%s, %ld, %ld)\r\n",  
-               GetPersistentName(persistentSegType), offset, size);  
+               IzotPersistentGetSegName(persistentSegType), offset, size);  
     }
 #endif
 
@@ -351,7 +351,7 @@ IzotApiError IzotFlashSegRead(const IzotPersistentSegType persistentSegType, con
     if (persistentTraceEnabled) {
         PrintTimeStamp();
         FLASH_PRINTF("End IzotFlashSegRead(%s, %ld, %ld), sts = %d\r\n",  
-               GetPersistentName(persistentSegType), offset, size, sts);  
+               IzotPersistentGetSegName(persistentSegType), offset, size, sts);  
     }
 #endif
 
@@ -392,7 +392,7 @@ IzotApiError IzotFlashSegWrite(const IzotPersistentSegType persistentSegType, co
     if (persistentTraceEnabled) {
         PrintTimeStamp();
         FLASH_PRINTF("Start IzotFlashSegWrite(%s, %ld, %ld)\r\n",  
-               GetPersistentName(persistentSegType), offset, size);  
+               IzotPersistentGetSegName(persistentSegType), offset, size);  
     }
 #endif
 
@@ -454,7 +454,7 @@ IzotApiError IzotFlashSegWrite(const IzotPersistentSegType persistentSegType, co
     if (persistentTraceEnabled) {
         PrintTimeStamp();
         FLASH_PRINTF("End IzotFlashSegWrite(%s, %ld, %ld), sts = %d\r\n",  
-               GetPersistentName(persistentSegType), offset, size, sts);  
+               IzotPersistentGetSegName(persistentSegType), offset, size, sts);  
     }
 #endif
     return sts;
@@ -488,7 +488,7 @@ IzotBool IzotFlashSegIsInTransaction(const IzotPersistentSegType persistentSegTy
     if (persistentTraceEnabled) {
         PrintTimeStamp();
         FLASH_PRINTF("Start IzotFlashSegIsInTransaction(%s)\r\n",  
-                                                       GetPersistentName(persistentSegType)); 
+                                                       IzotPersistentGetSegName(persistentSegType)); 
     }
 #endif
 
@@ -522,7 +522,7 @@ IzotBool IzotFlashSegIsInTransaction(const IzotPersistentSegType persistentSegTy
         PrintTimeStamp();
         FLASH_PRINTF(
         "End IzotFlashSegIsInTransaction(%s), inTransaction = %d\r\n",  
-        GetPersistentName(persistentSegType), inTransaction
+        IzotPersistentGetSegName(persistentSegType), inTransaction
         );  
     }
 #endif
@@ -551,7 +551,7 @@ IzotApiError IzotFlashSegEnterTransaction(const IzotPersistentSegType persistent
     if (persistentTraceEnabled) {
         PrintTimeStamp();
         FLASH_PRINTF("Start IzotFlashSegEnterTransaction(%s)\r\n", 
-                                                    GetPersistentName(persistentSegType));  
+                                                    IzotPersistentGetSegName(persistentSegType));  
     }
 #endif
     
@@ -595,7 +595,7 @@ IzotApiError IzotFlashSegEnterTransaction(const IzotPersistentSegType persistent
     if (persistentTraceEnabled) {
         PrintTimeStamp();
         FLASH_PRINTF("End IzotFlashSegEnterTransaction(%s), sts = %d\r\n",  
-               GetPersistentName(persistentSegType), sts);  
+               IzotPersistentGetSegName(persistentSegType), sts);  
     }
 #endif
     return(sts);
@@ -622,7 +622,7 @@ IzotApiError IzotFlashSegExitTransaction(const IzotPersistentSegType persistentS
     if (persistentTraceEnabled) {
         PrintTimeStamp();
         FLASH_PRINTF("Start IzotFlashSegExitTransaction(%s)\r\n", 
-                                                      GetPersistentName(persistentSegType));
+                                                      IzotPersistentGetSegName(persistentSegType));
     }
 #endif
 
@@ -895,43 +895,44 @@ static void PrintTimeStamp()
     uint32_t time = IzotGetTickCount()*1000/GetTicksPerSecond();
     FLASH_PRINTF("[%d.%.3d]", time/1000, time % 1000);
 }
+#endif
 
 /* 
- *  Function: GetPersistentName
- *  Translate a segment type to a name, used for PERSISTENT tracing.
+ *  Function: IzotPersistentGetSegName
+ *  Translate a segment type to a name, used for configuration
+ *  file naming and persistant tracing.
  *
  *  Parameters:
  *  persistentSegType -  type of non-volatile data to be opened
  *
  *  Returns:
- *  character string representing the PERSISTENT segment.  
- *
+ *  Character string representing the persistent segment.  
  */
-static const char *GetPersistentName(IzotPersistentSegType persistentSegType)
+static const char *IzotPersistentGetSegName(IzotPersistentSegType persistentSegType)
 {
     const char *name = NULL;
     switch (persistentSegType) {
     case IzotPersistentSegNetworkImage:
-        name = "IzotPersistentSegNetworkImage";
+        name = "LonNetworkImage";
         break;
     case IzotPersistentSegNodeDefinition:
-          name = "IzotPersistentSegNodeDefinition";
+        name = "LonNodeDefinition";
         break;
     case IzotPersistentSegApplicationData:
-        name = "IzotPersistentSegApplicationData";
+        name = "LonApplicationData";
         break;
     case IzotPersistentSegUniqueId:
-        name = "IzotPersistentSegUniqueId";
+        name = "LonUniqueId";
         break;
-    case IsiPersistentSegConnectionTable:
-        name = "IsiPersistentSegConnectionTable";
+    case IzotPersistentSegConnectionTable:
+        name = "LonConnectionTable";
         break;
-    case IsiPersistentSegPersistent:
-        name = "IsiPersistentSegPersistent";
+    case IzotPersistentSegIsi:
+        name = "LonIsi";
         break;
     default:
-        name = "????";
+        name = "LonUnknown";
     }
     return name;
 }
-#endif
+
