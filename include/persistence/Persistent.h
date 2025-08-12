@@ -137,7 +137,7 @@ extern void CommitPersistentData(void);
  * information to RAM.
 
  */
-extern IzotApiError restore(unsigned short persistentSegType);
+extern IzotApiError restore(IzotPersistentSegType persistentSegType);
 
 /*
  *  Event: IzotEnterTransaction
