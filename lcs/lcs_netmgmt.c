@@ -2063,7 +2063,7 @@ void HandleNMWriteMemory(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
         {
             if (!IzotMemoryWrite(offset, pr->count, pr->data))
             {
-                SetPersistentDataType(2);
+                IzotPersistentSegSetCommitFlag(2);
                 IzotPersistentAppSegmentHasBeenUpdated();
                 if (pr->form & CNFG_CS_RECALC) {
                     RecomputeChecksum();

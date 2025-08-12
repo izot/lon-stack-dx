@@ -243,7 +243,7 @@ void savePersistentData(IzotPersistentSegType persistentSegType)
  
     if (reason == LT_PERSISTENCE_OK)
     {
-	    hdr.checksum = computeChecksum(pImage, imageLen);
+	    hdr.checksum = ComputeChecksum(pImage, imageLen);
 	    hdr.length = imageLen;
 
 		IzotPersistentSegType returnedSegType = IzotPersistentSegOpenForWrite(persistentSegType, sizeof(hdr) + hdr.length);
@@ -256,7 +256,7 @@ void savePersistentData(IzotPersistentSegType persistentSegType)
 		}
 		
 		if (failure) {
-			NotifyErrorEvent();
+			IzotPersistentMemReportFailure();
 		}
 		
         if (pImage != NULL) {

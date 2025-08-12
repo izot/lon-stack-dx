@@ -41,32 +41,30 @@
 /*------------------------------------------------------------------------------
   Section: Global
   ------------------------------------------------------------------------------*/
-extern IzotPersistentDeserializeSegmentFunction izot_deserialize_handler;
-extern IzotPersistentSerializeSegmentFunction izot_serialize_handler;
+extern IzotPersistentSegDeserializeFunction izot_deserialize_handler;
+extern IzotPersistentSegSerializeFunction izot_serialize_handler;
  
 /*------------------------------------------------------------------------------
-  Section: static
+  Section: Static
   ------------------------------------------------------------------------------*/
 static unsigned      m_appSignature;
 static unsigned long m_guardBandDuration = 1000;
 static unsigned long lastUpdate = 0;
-static IzotBool      bSync = FALSE;
+static IzotBool      commitFlag = FALSE;
 static IzotBool      scheduled = FALSE;
 static IzotBool      PersitenceList[IzotPersistentSegNumSegmentTypes];
 
 /*
  * *****************************************************************************
- * SECTION: FUNCTIONS
+ * Section: Functions
  * *****************************************************************************
- *
  */
 
 /*
- * Function: guardBandRemainig
- * This function calculates the time remaining for the flushing .
-
+ * Function: IzotPersistentMemGuardBandRemaining
+ * This function calculates the time remaining for the flushing.
  */
-static uint32_t guardBandRemainig(void)
+static uint32_t IzotPersistentMemGuardBandRemaining(void)
 {
     uint32_t timeElapsed = IzotGetTickCount() - lastUpdate;
     uint32_t timeRemaining;
@@ -79,15 +77,14 @@ static uint32_t guardBandRemainig(void)
 } 
 
 /*
- * Function: deserializeLcsEppromPersistentSegment
- * This function deserializes the EEPROM Persistent segment.
-
+ * Function: IzotPersistentSegDeserializeNetworkImage
+ * This function deserializes the network image persistent segment.
  */
-static IzotApiError deserializeLcsEppromPersistentSegment(
-    void* const pData, int len)
+static IzotApiError IzotPersistentSegDeserializeNetworkImage(
+        void* const pData, int len)
 {
     IzotApiError reason = IzotApiNoError;
-    int imageLen = IzotPersistentGetMaxSize(IzotPersistentSegNetworkImage);
+    int imageLen = IzotPersistentSegGetMaxSize(IzotPersistentSegNetworkImage);
     
     if (len >= imageLen) {
         (void)memcpy((void*)(&eep->configData), (char* const)pData, imageLen);
@@ -99,16 +96,13 @@ static IzotApiError deserializeLcsEppromPersistentSegment(
 }
 
 /*
- * Function: serializeLcsEppromPersistentSegment
- * This function serializes the EEPROM Persistent segment.
-
+ * Function: IzotPersistentSegSerializeNetworkImage
+ * This function serializes the network image persistent segment.
  */
-static IzotApiError serializeLcsEppromPersistentSegment(
-IzotByte** pData, 
-int *len
-)
+static IzotApiError IzotPersistentSegSerializeNetworkImage(
+        IzotByte** pData, int *len)
 {
-    int imageLen = IzotPersistentGetMaxSize(IzotPersistentSegNetworkImage);
+    int imageLen = IzotPersistentSegGetMaxSize(IzotPersistentSegNetworkImage);
 
     *pData = (IzotByte *) OsalMalloc(imageLen);
     *len = imageLen;
@@ -119,16 +113,13 @@ int *len
 }
 
 /*
- * Function: deserializeAppDataPersistentSegment
- * This function deserializes the Application Persistent segment.
-
+ * Function: IzotPersistentSegDeserializeAppDataImage
+ * This function deserializes the application data persistent segment.
  */
-static IzotApiError deserializeAppDataPersistentSegment(
-void* const pData, 
-int len
-)
+static IzotApiError IzotPersistentSegDeserializeAppDataImage(
+  void* const pData, int len)
 {
-    int imageLen = IzotPersistentGetMaxSize(IzotPersistentSegApplicationData);
+    int imageLen = IzotPersistentSegGetMaxSize(IzotPersistentSegApplicationData);
     
     if (izot_deserialize_handler != NULL) {
         if (len >= imageLen) {
@@ -142,13 +133,12 @@ int len
 }
 
 /*
- * Function: serializeAppDataPersistentSegment
- * This function serializes the Application Persistent segment.
-
+ * Function: IzotPersistentSegSerializeAppDataImage
+ * This function serializes the application data persistent segment.
  */
-static IzotApiError serializeAppDataPersistentSegment(IzotByte** pData, int *len)
+static IzotApiError IzotPersistentSegSerializeAppDataImage(IzotByte** pData, int *len)
 {
-    int imageLen = IzotPersistentGetMaxSize(IzotPersistentSegApplicationData);
+    int imageLen = IzotPersistentSegGetMaxSize(IzotPersistentSegApplicationData);
     
     *pData = (IzotByte *) OsalMalloc(imageLen);
     *len = imageLen;
@@ -161,19 +151,18 @@ static IzotApiError serializeAppDataPersistentSegment(IzotByte** pData, int *len
 }
 
 /*
- * Function: store
+ * Function: IzotPersistentSegStore
  * This function stores the information of a given type into the non-volatile.
  * memory
-
  */
-static IzotApiError store(IzotPersistentSegType persistentSegType)
+static IzotApiError IzotPersistentSegStore(IzotPersistentSegType persistentSegType)
 {
     IzotByte* pImage = NULL;
     IzotPersistenceHeader hdr;
     int imageLen = 0;
     IzotApiError reason = IzotApiNoError;
 
-    IzotEnterTransaction(persistentSegType);
+    IzotPersistentSegEnterTransaction(persistentSegType);
     
     hdr.version = CURRENT_VERSION;
     hdr.length = 0;
@@ -182,9 +171,9 @@ static IzotApiError store(IzotPersistentSegType persistentSegType)
     hdr.appSignature = m_appSignature;
     
     if (persistentSegType == IzotPersistentSegNetworkImage) {
-        reason = serializeLcsEppromPersistentSegment(&pImage, &imageLen);
+        reason = IzotPersistentSegSerializeNetworkImage(&pImage, &imageLen);
     } else if (persistentSegType == IzotPersistentSegApplicationData) {
-        reason = serializeAppDataPersistentSegment(&pImage, &imageLen);
+        reason = IzotPersistentSegSerializeAppDataImage(&pImage, &imageLen);
 #ifdef SECURITY_II
     } else if (type == IzotPersistentSegSecurityII) {
         reason = serializeSecurityIIData(&pImage, &imageLen);
@@ -192,7 +181,7 @@ static IzotApiError store(IzotPersistentSegType persistentSegType)
     } 
     
     if (reason == IzotApiNoError) {
-        hdr.checksum = computeChecksum(pImage, imageLen);
+        hdr.checksum = ComputeChecksum(pImage, imageLen);
         hdr.length = imageLen;
 
         IzotPersistentSegType returnedSegType = 
@@ -206,9 +195,9 @@ static IzotApiError store(IzotPersistentSegType persistentSegType)
         }
         
         if (reason != IzotApiNoError) {
-            NotifyErrorEvent();
+            IzotPersistentMemReportFailure();
         } else {
-            IzotExitTransaction(persistentSegType);
+            IzotPersistentSegExitTransaction(persistentSegType);
         }
         
         if (pImage != NULL) {
@@ -220,20 +209,19 @@ static IzotApiError store(IzotPersistentSegType persistentSegType)
 }
 
 /*
- * Function: save_data
- * This funtion checks flag for update in perticular segment. If there is 
- * a update then it will updoate the data in non-volatile memory.
-
+ * Function: IzotPersistentMemCommit
+ * This funtion checks the persistence flag for each persistend segment
+ * and commits data to any segments with the flag set.
  */
-static void save_data(void)
+static void IzotPersistentMemCommit(void)
 {
     unsigned int i;
 
     for (i = 0; i < IzotPersistentSegNumSegmentTypes; i++) {
         if (PersitenceList[i] != FALSE) {
-            if (store(i) == IzotApiNoError) {
+            if (IzotPersistentSegStore(i) == IzotApiNoError) {
                 PersitenceList[i] = FALSE;
-                bSync = FALSE;
+                commitFlag = FALSE;
                 OsalSleep(20);
             }
         }
@@ -242,21 +230,19 @@ static void save_data(void)
 }
 
 /*
- * Function: GetPersistentHeaderSize
- * This function compute Persistent header size
-
+ * Function: IzotPersistentSegGetHeaderSize
+ * This function computes the persistent header size
  */
-unsigned GetPersistentHeaderSize(void) 
+unsigned IzotPersistentSegGetHeaderSize(void) 
 {
     return sizeof(IzotPersistenceHeader);
 }
  
 /*
- * Function: computeChecksum
- * This function compute the checksum on data to be stored in flash.
-
+ * Function: ComputeChecksum
+ * This function computes the checksum on data to be stored in flash.
  */
-int computeChecksum(IzotByte* pImage, int length)
+int ComputeChecksum(IzotByte* pImage, int length)
 {
     int i; 
     unsigned short checksum = 0;
@@ -270,14 +256,13 @@ int computeChecksum(IzotByte* pImage, int length)
 /*
  * Function: ValidateChecksum
  * This function validates the checksum from the data read from flash.
-
  */
 IzotBool ValidateChecksum(IzotPersistenceHeader *pHdr, IzotByte *pImage)
 {
     IzotBool result = TRUE;
     // Can't checksum signature 0 checksum.
     if (pHdr->signature != m_appSignature) {
-        if (computeChecksum(pImage, pHdr->length) != pHdr->checksum) {
+        if (ComputeChecksum(pImage, pHdr->length) != pHdr->checksum) {
             result = FALSE;
         }
     }
@@ -285,19 +270,17 @@ IzotBool ValidateChecksum(IzotPersistenceHeader *pHdr, IzotByte *pImage)
 }
 
 /*
- * Function: setAppSignature
- * This function sets application signature.
-
+ * Function: SetAppSignature
+ * This function sets the application signature.
  */
-void setAppSignature(unsigned appSignature)
+void SetAppSignature(unsigned appSignature)
 {
     m_appSignature = appSignature;
 }
 
 /*
  * Function: GetAppSignature
- * This function returns application signature.
-
+ * This function returns the application signature.
  */
 unsigned GetAppSignature(void)
 {
@@ -305,16 +288,15 @@ unsigned GetAppSignature(void)
 }
 
 /*
- * Function: SetPeristenceGaurdBand
+ * Function: SetPeristenceGuardBand
  * This function sets guardband duration .
-
  */
-void SetPeristenceGaurdBand(int nTime)
+void SetPeristenceGuardBand(int nTime)
 {
     int ticks;
     
-    // To convert milliseconds to tick counts in a platform independent way
-    ticks = nTime*GetTicksPerSecond() / 1000; 
+    // Convert milliseconds to tick counts in a platform independent way
+    ticks = nTime * GetTicksPerSecond() / 1000; 
     if (ticks == 0) {
         ticks = 1;
     }
@@ -323,21 +305,21 @@ void SetPeristenceGaurdBand(int nTime)
 }
 
 /*
- * Function: SetPersistentDataType
- * This function sets the flag for particular segment for flushing .
-
+ * Function: IzotPersistentSegSetCommitFlag
+ * This function flags a persistent segment to be committed.
  */
-void SetPersistentDataType(IzotPersistentSegType persistentSegType)
+void IzotPersistentSegSetCommitFlag(IzotPersistentSegType persistentSegType)
 {
     PersitenceList[persistentSegType] = TRUE;
 } 
 
 /*
- * Function: SchedulePersistentData
- * This function schedules the timer for flushing after guardband duration .
-
+ * Function: IzotPersistentMemStartCommitTimer
+ * This function starts the commit timer if it is not already running.
+ * Persistent data is committed to the persistent memory when the time
+ * expires.
  */
-void SchedulePersistentData(void)
+void IzotPersistentMemStartCommitTimer(void)
 {
     if (!scheduled) {
         lastUpdate = IzotGetTickCount();
@@ -347,55 +329,52 @@ void SchedulePersistentData(void)
 }
 
 /*
- * Function: NotifyErrorEvent
- * This function notifies the Error event .
-
+ * Function: IzotPersistentMemReportFailure
+ * This function reports a persistent memory write failure.
  */
-void NotifyErrorEvent(void)
+void IzotPersistentMemReportFailure(void)
 {
     LCS_RecordError(IzotEepromWriteFail);
 }
 
 /*
- * Function: StoreTask
- * This funtion saves the data into non-volatile memoty after flish timeout.
-
+ * Function: IzotPersistentMemCommitCheck
+ * This funtion checks the commit timer and flag, and commits data to
+ * persistent memory if the timer has expired or the commit flag is set.
  */
-void StoreTask(void)
+void IzotPersistentMemCommitCheck(void)
 {
-    unsigned long guardTimeLeft = guardBandRemainig();  
+    unsigned long guardTimeLeft = IzotPersistentMemGuardBandRemaining();  
 
     if (scheduled) {
-        if (guardTimeLeft == 0 || bSync) {
-            save_data();
+        if (guardTimeLeft == 0 || commitFlag) {
+            IzotPersistentMemCommit();
         }
     }
 }
 
 /*
- * Function: CommitPersistentData
- * This funtion flush any pending data to the non volatile memory.
-
+ * Function: IzotPersistentMemSetCommitFlag
+ * This function sets the persistent memory commit flag to force a 
+ * commit on the next commit check.
  */
-void CommitPersistentData(void)
+void IzotPersistentMemSetCommitFlag(void)
 {
-    bSync = TRUE;
+    commitFlag = TRUE;
 }
 
 /*
- * Function: restore
- * This funtion restore the data of given type from flash and load this 
- * information to RAM.
-
+ * Function: IzotPersistentSegRestore
+ * This function restores the specified memory segment contents to RAM.
  */
-IzotApiError restore(IzotPersistentSegType persistentSegType)
+IzotApiError IzotPersistentSegRestore(IzotPersistentSegType persistentSegType)
 {
     IzotApiError reason = IzotApiNoError;
     IzotPersistenceHeader hdr;
     IzotByte* pImage = NULL;
     int imageLength = 0;
 
-    if (IzotIsInTransaction(persistentSegType)) {
+    if (IzotPersistentSegIsInTransaction(persistentSegType)) {
         reason = IzotApiPersistentFailure;
     } else {
         IzotPersistentSegType returnedSegType = IzotPersistentSegOpenForRead(persistentSegType);
@@ -430,11 +409,11 @@ IzotApiError restore(IzotPersistentSegType persistentSegType)
         switch(persistentSegType) {
         case IzotPersistentSegNetworkImage:
             reason = 
-                deserializeLcsEppromPersistentSegment(pImage, imageLength);
+                IzotPersistentSegDeserializeNetworkImage(pImage, imageLength);
             break;
         case IzotPersistentSegApplicationData:
             reason = 
-                deserializeAppDataPersistentSegment(pImage, imageLength);
+                IzotPersistentSegDeserializeAppDataImage(pImage, imageLength);
             break;
 
 #ifdef SECURITY_II
@@ -458,16 +437,19 @@ IzotApiError restore(IzotPersistentSegType persistentSegType)
 #ifdef SECURITY_II
 IzotApiError restoreSecurityIIData(void)
 {
-    return restore(IzotPersistentSegSecurityII);
+    return IzotPersistentSegRestore(IzotPersistentSegSecurityII);
 }
 #endif
 
 /*
- * Function: isPersistentDataScheduled
- * This function check whether any persistent data is scheduled to flush.
-
+ * Function: IzotPersistentSegCommitScheduled
+ * This function checks whether any persistent data is scheduled to
+ * be committed.  If so, it sets the commit flag to force an immediate
+ * commit of that data.  This function is typically called when a
+ * reset is requested, to ensure that all persistent data is committed
+ * before the reset.
  */
-IzotBool isPersistentDataScheduled(void)
+IzotBool IzotPersistentSegCommitScheduled(void)
 {
     unsigned int i;
     IzotBool isScheduled = FALSE;
@@ -476,7 +458,7 @@ IzotBool isPersistentDataScheduled(void)
         if (PersitenceList[i]) {
             isScheduled = TRUE;
             // If scheduled then do immediate commit of that data.
-            CommitPersistentData();
+            IzotPersistentMemSetCommitFlag();
             break;
         }
     }

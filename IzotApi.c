@@ -57,19 +57,19 @@ IzotMemoryReadFunction izot_memory_read_handler = NULL;
 IzotMemoryWriteFunction izot_memory_write_handler = NULL;
 IzotServiceLedStatusFunction izot_service_led_handler = NULL;
 
-IzotPersistentOpenForReadFunction izot_open_for_read_handler = IzotPersistentOpenForRead;
-IzotPersistentOpenForWriteFunction izot_open_for_write_handler = IzotPersistentOpenForWrite;
-IzotPersistentCloseFunction izot_close_handler = IzotPersistentClose;
-IzotPersistentDeleteFunction izot_delete_handler = NULL;
-IzotPersistentReadFunction izot_read_handler = IzotPersistentRead;
-IzotPersistentWriteFunction izot_write_handler = IzotPersistentWrite;
-IzotPersistentIsInTransactionFunction izot_is_in_tx_handler = IzotPersistentIsInTransaction;
-IzotPersistentEnterTransactionFunction izot_enter_tx_handler = IzotPersistentEnterTransaction;
-IzotPersistentExitTransactionFunction izot_exit_tx_handler = IzotPersistentExitTransaction;
+IzotPersistentSegOpenForReadFunction izot_open_for_read_handler = IzotFlashSegOpenForRead;
+IzotPersistentSegOpenForWriteFunction izot_open_for_write_handler = IzotFlashSegOpenForWrite;
+IzotPersistentSegCloseFunction izot_close_handler = IzotFlashSegClose;
+IzotPersistentSegDeleteFunction izot_delete_handler = NULL;
+IzotPersistentSegReadFunction izot_read_handler = IzotFlashSegRead;
+IzotPersistentSegWriteFunction izot_write_handler = IzotFlashSegWrite;
+IzotPersistentSegIsInTransactionFunction izot_is_in_tx_handler = IzotFlashSegIsInTransaction;
+IzotPersistentSegEnterTransactionFunction izot_enter_tx_handler = IzotFlashSegEnterTransaction;
+IzotPersistentSegExitTransactionFunction izot_exit_tx_handler = IzotFlashSegExitTransaction;
 
-IzotPersistentGetApplicationSegmentSizeFunction izot_get_app_seg_size_handler = NULL;
-IzotPersistentDeserializeSegmentFunction izot_deserialize_handler = NULL;
-IzotPersistentSerializeSegmentFunction izot_serialize_handler = NULL;
+IzotPersistentSegGetAppSizeFunction izot_get_app_seg_size_handler = NULL;
+IzotPersistentSegDeserializeFunction izot_deserialize_handler = NULL;
+IzotPersistentSegSerializeFunction izot_serialize_handler = NULL;
 IzotFilterMsgArrivedFunction izot_filter_msg_arrived = NULL;
 IzotFilterResponseArrivedFunction izot_filter_response_arrived = NULL;
 IzotFilterMsgCompletedFunction izot_filter_msg_completed = NULL;
@@ -191,11 +191,11 @@ IZOT_EXTERNAL_FN void IzotEventPump(void)
 
 	if(is_connected) {    
 		LCS_Service();
-		StoreTask();
+		IzotPersistentMemCommitCheck();
 	}
 #else
 	LCS_Service();
-	StoreTask();
+	IzotPersistentMemCommitCheck();
 #endif
 
     IzotSleep(1);
@@ -207,7 +207,7 @@ IZOT_EXTERNAL_FN void IzotEventPump(void)
         gp->preServiceLedPhysical = gp->serviceLedPhysical;
     }
 	
-	if (IsPhysicalResetRequested() && !isPersistentDataScheduled()) {
+	if (IsPhysicalResetRequested() && !IzotPersistentSegCommitScheduled()) {
         HalReboot();
     }
     
@@ -1174,7 +1174,7 @@ IZOT_EXTERNAL_FN IzotApiError IzotMtIsBound(const unsigned tag, IzotBool* const 
  */
 IZOT_EXTERNAL_FN IzotApiError IzotPersistentAppSegmentHasBeenUpdated(void)
 {
-    SchedulePersistentData();
+    IzotPersistentMemStartCommitTimer();
     return IzotApiNoError;
 }
 
@@ -1192,7 +1192,7 @@ IZOT_EXTERNAL_FN IzotApiError IzotPersistentAppSegmentHasBeenUpdated(void)
  */
 IZOT_EXTERNAL_FN IzotApiError IzotPersistentFlushData(void)
 {
-    CommitPersistentData();
+    IzotPersistentMemSetCommitFlag();
     return IzotApiNoError;
 }
 
@@ -1216,7 +1216,7 @@ unsigned IzotGetAppSegmentSize(void)
 }
 
 /*
- *  Function: IzotPersistentGetMaxSize
+ *  Function: IzotPersistentSegGetMaxSize
  *  Gets the number of bytes required to store persistent data.
  *
  *  Parameters:
@@ -1231,7 +1231,7 @@ unsigned IzotGetAppSegmentSize(void)
  *  but may be used by persistent data event handlers (implemented by the
  *  application) to reserve space for persistent data segments.
  */
-IZOT_EXTERNAL_FN int IzotPersistentGetMaxSize(IzotPersistentSegType persistentSegType)
+IZOT_EXTERNAL_FN int IzotPersistentSegGetMaxSize(IzotPersistentSegType persistentSegType)
 {
 	int length = 0;
     switch(persistentSegType) {
@@ -1340,13 +1340,13 @@ const IzotControlData * const pControlData)
     char oldProgId[8];
 #endif 
 
-    // Only a few of these fields are used by the LON EX Stack.  The
-    // API implements partial support for a multi-stack model, but 
+    // Only a few of these fields are used by the LON stack.  The
+    // stack implements partial support for a multi-stack model, but 
     // the stack is limited to a single stack model.  Only stack[0]
     // is supported.
     
-    setAppSignature(pInterface->Signature);
-    SetPeristenceGaurdBand(pControlData->PersistentFlushGuardTimeout*1000);
+    SetAppSignature(pInterface->Signature);
+    SetPeristenceGuardBand(pControlData->PersistentFlushGuardTimeout*1000);
     
     nm[0].snvt.sb = (char *)pInterface->SiData;
     SetSiDataLength(pInterface->SiDataLength);
@@ -1538,7 +1538,7 @@ IZOT_EXTERNAL_FN IzotApiError IzotStartStack(void)
             ErasePersistenceData();
             ErasePersistenceConfig();
             DBG_vPrintf(TRUE, "No Application Data found.Put the Device into Unconfigured mode\r\n");
-            SetPersistentDataType(IzotPersistentSegApplicationData);
+            IzotPersistentSegSetCommitFlag(IzotPersistentSegApplicationData);
             IzotPersistentAppSegmentHasBeenUpdated();
             IzotSetNodeMode(IzotChangeState, IzotApplicationUnconfig);
         }
@@ -1593,7 +1593,7 @@ IZOT_EXTERNAL_FN IzotApiError IzotQueryReadOnlyData(IzotReadOnlyData* const pRea
  *  This API is available with Izot Device Stack EX.
  *
  *  Returns:
- *  The application signature which was sepcified by the application
+ *  The application signature which was specified by the application
  *  when the stack is created (<IzotCreateStack>).
  */
 IZOT_EXTERNAL_FN unsigned IzotGetAppSignature()
@@ -2324,7 +2324,7 @@ IzotApiError IzotMemoryWrite(const unsigned address, const unsigned size, const 
 
 /*
  *  Event: IzotPersistentSegOpenForRead
- *  Calls the registered callback of <IzotPersistentOpenForRead>.
+ *  Calls the registered callback of <IzotFlashSegOpenForRead>.
  */
 IzotPersistentSegType IzotPersistentSegOpenForRead(const IzotPersistentSegType persistentSegType)
 {
@@ -2337,7 +2337,7 @@ IzotPersistentSegType IzotPersistentSegOpenForRead(const IzotPersistentSegType p
 
 /*
  *  Event: IzotPersistentSegOpenForWrite
- *  Calls the registered callback of <IzotPersistentOpenForWrite>.
+ *  Calls the registered callback of <IzotFlashSegOpenForWrite>.
  */
 IzotPersistentSegType IzotPersistentSegOpenForWrite(const IzotPersistentSegType persistentSegType, const size_t size)
 {
@@ -2350,7 +2350,7 @@ IzotPersistentSegType IzotPersistentSegOpenForWrite(const IzotPersistentSegType 
 
 /*
  *  Event: IzotPersistentSegClose
- *  Calls the registered callback of <IzotPersistentClose>.
+ *  Calls the registered callback of <IzotFlashSegClose>.
  */
 void IzotPersistentSegClose(const IzotPersistentSegType persistentSegType)
 {
@@ -2361,7 +2361,7 @@ void IzotPersistentSegClose(const IzotPersistentSegType persistentSegType)
 
 /*
  *  Event: IzotPersistentSegRead
- *  Calls the registered callback of <IzotPersistentRead>.
+ *  Calls the registered callback of <IzotFlashSegRead>.
  */
 IzotApiError IzotPersistentSegRead(const IzotPersistentSegType persistentSegType, const size_t offset, const size_t size, 
 void * const pBuffer) 
@@ -2375,7 +2375,7 @@ void * const pBuffer)
 
 /*
  *  Event: IzotPersistentSegWrite
- *  Calls the registered callback of <IzotPersistentWrite>.
+ *  Calls the registered callback of <IzotFlashSegWrite>.
  */
 IzotApiError IzotPersistentSegWrite(const IzotPersistentSegType persistentSegType, const size_t offset, const size_t size, 
 const void* const pData)
@@ -2388,13 +2388,13 @@ const void* const pData)
 }
 
 /*
- *  Event: IzotIsInTransaction
- *  Calls the registered callback of <IzotPersistentIsInTransaction>.
+ *  Event: IzotPersistentSegIsInTransaction
+ *  Calls the registered callback of <IzotFlashSegIsInTransaction>.
  *
  *  Remarks:
  *
  */
-IzotBool IzotIsInTransaction(const IzotPersistentSegType persistentSegType)
+IzotBool IzotPersistentSegIsInTransaction(const IzotPersistentSegType persistentSegType)
 {
     if (izot_is_in_tx_handler) {
         return izot_is_in_tx_handler(persistentSegType);
@@ -2404,13 +2404,13 @@ IzotBool IzotIsInTransaction(const IzotPersistentSegType persistentSegType)
 }
 
 /*
- *  Event: IzotEnterTransaction
- *  Calls the registered callback of <IzotPersistentEnterTransaction>.
+ *  Event: IzotPersistentSegEnterTransaction
+ *  Calls the registered callback of <IzotFlashSegEnterTransaction>.
  *
  *  Remarks:
  *
  */
-IzotApiError IzotEnterTransaction(const IzotPersistentSegType persistentSegType)
+IzotApiError IzotPersistentSegEnterTransaction(const IzotPersistentSegType persistentSegType)
 {
     if (izot_enter_tx_handler) {
         return izot_enter_tx_handler(persistentSegType);
@@ -2420,13 +2420,13 @@ IzotApiError IzotEnterTransaction(const IzotPersistentSegType persistentSegType)
 }
 
 /*
- *  Event: IzotExitTransaction
- *  Calls the registered callback of <IzotPersistentExitTransaction>.
+ *  Event: IzotPersistentSegExitTransaction
+ *  Calls the registered callback of <IzotFlashSegExitTransaction>.
  *
  *  Remarks:
  *
  */
-IzotApiError IzotExitTransaction(const IzotPersistentSegType persistentSegType)
+IzotApiError IzotPersistentSegExitTransaction(const IzotPersistentSegType persistentSegType)
 {
     if (izot_exit_tx_handler) {
         return izot_exit_tx_handler(persistentSegType);
@@ -2690,13 +2690,13 @@ IZOT_EXTERNAL_FN IzotApiError IzotServiceLedStatusRegistrar(IzotServiceLedStatus
 }
 
 /*
- *  Event: IzotPersistentOpenForReadRegistrar
- *  This registrar register the <IzotPersistentOpenForRead>.
+ *  Event: IzotFlashSegOpenForReadRegistrar
+ *  This registrar register the <IzotFlashSegOpenForRead>.
  *
  *  Remarks:
  *
  */
-IZOT_EXTERNAL_FN IzotApiError IzotPersistentOpenForReadRegistrar(IzotPersistentOpenForReadFunction handler)
+IZOT_EXTERNAL_FN IzotApiError IzotFlashSegOpenForReadRegistrar(IzotPersistentSegOpenForReadFunction handler)
 {
     if (handler) {
         izot_open_for_read_handler = handler;
@@ -2707,13 +2707,13 @@ IZOT_EXTERNAL_FN IzotApiError IzotPersistentOpenForReadRegistrar(IzotPersistentO
 }
 
 /*
- *  Event: IzotPersistentOpenForWriteRegistrar
- *  This registrar register the <IzotPersistentOpenForWrite>.
+ *  Event: IzotFlashSegOpenForWriteRegistrar
+ *  This registrar register the <IzotFlashSegOpenForWrite>.
  *
  *  Remarks:
  *
  */
-IZOT_EXTERNAL_FN IzotApiError IzotPersistentOpenForWriteRegistrar(IzotPersistentOpenForWriteFunction handler)
+IZOT_EXTERNAL_FN IzotApiError IzotFlashSegOpenForWriteRegistrar(IzotPersistentSegOpenForWriteFunction handler)
 {
     if (handler) {
         izot_open_for_write_handler = handler;
@@ -2724,13 +2724,13 @@ IZOT_EXTERNAL_FN IzotApiError IzotPersistentOpenForWriteRegistrar(IzotPersistent
 }
 
 /*
- *  Event: IzotPersistentCloseRegistrar
- *  This registrar register the <IzotPersistentClose>.
+ *  Event: IzotFlashSegCloseRegistrar
+ *  This registrar register the <IzotFlashSegClose>.
  *
  *  Remarks:
  *
  */
-IZOT_EXTERNAL_FN IzotApiError IzotPersistentCloseRegistrar(IzotPersistentCloseFunction handler)
+IZOT_EXTERNAL_FN IzotApiError IzotFlashSegCloseRegistrar(IzotPersistentSegCloseFunction handler)
 {
     if (handler) {
         izot_close_handler = handler;
@@ -2741,13 +2741,13 @@ IZOT_EXTERNAL_FN IzotApiError IzotPersistentCloseRegistrar(IzotPersistentCloseFu
 }
 
 /*
- *  Event: IzotPersistentDeleteRegistrar
- *  This registrar register the <IzotPersistentDelete>.
+ *  Event: IzotFlashSegDeleteRegistrar
+ *  This registrar register the <IzotFlashSegDelete>.
  *
  *  Remarks:
  *
  */
-IZOT_EXTERNAL_FN IzotApiError IzotPersistentDeleteRegistrar(IzotPersistentDeleteFunction handler)
+IZOT_EXTERNAL_FN IzotApiError IzotFlashSegDeleteRegistrar(IzotPersistentSegDeleteFunction handler)
 {
     if (handler) {
         izot_delete_handler = handler;
@@ -2758,13 +2758,13 @@ IZOT_EXTERNAL_FN IzotApiError IzotPersistentDeleteRegistrar(IzotPersistentDelete
 }
 
 /*
- *  Event: IzotPersistentReadRegistrar
- *  This registrar register the <IzotPersistentRead>.
+ *  Event: IzotFlashSegReadRegistrar
+ *  This registrar register the <IzotFlashSegRead>.
  *
  *  Remarks:
  *
  */
-IZOT_EXTERNAL_FN IzotApiError IzotPersistentReadRegistrar(IzotPersistentReadFunction handler)
+IZOT_EXTERNAL_FN IzotApiError IzotFlashSegReadRegistrar(IzotPersistentSegReadFunction handler)
 {
     if (handler) {
         izot_read_handler = handler;
@@ -2775,13 +2775,13 @@ IZOT_EXTERNAL_FN IzotApiError IzotPersistentReadRegistrar(IzotPersistentReadFunc
 }
 
 /*
- *  Event: IzotPersistentWriteRegistrar
- *  This registrar register the <IzotPersistentWrite>.
+ *  Event: IzotFlashSegWriteRegistrar
+ *  This registrar register the <IzotFlashSegWrite>.
  *
  *  Remarks:
  *
  */
-IZOT_EXTERNAL_FN IzotApiError IzotPersistentWriteRegistrar(IzotPersistentWriteFunction handler)
+IZOT_EXTERNAL_FN IzotApiError IzotFlashSegWriteRegistrar(IzotPersistentSegWriteFunction handler)
 {
     if (handler) {
         izot_write_handler = handler;
@@ -2792,13 +2792,13 @@ IZOT_EXTERNAL_FN IzotApiError IzotPersistentWriteRegistrar(IzotPersistentWriteFu
 }
 
 /*
- *  Event: IzotPersistentIsInTransactionRegistrar
- *  This registrar register the <IzotPersistentIsInTransaction>.
+ *  Event: IzotFlashSegIsInTransactionRegistrar
+ *  This registrar register the <IzotFlashSegIsInTransaction>.
  *
  *  Remarks:
  *
  */
-IZOT_EXTERNAL_FN IzotApiError IzotPersistentIsInTransactionRegistrar(IzotPersistentIsInTransactionFunction handler)
+IZOT_EXTERNAL_FN IzotApiError IzotFlashSegIsInTransactionRegistrar(IzotPersistentSegIsInTransactionFunction handler)
 {
     if (handler) {
         izot_is_in_tx_handler = handler;
@@ -2809,13 +2809,13 @@ IZOT_EXTERNAL_FN IzotApiError IzotPersistentIsInTransactionRegistrar(IzotPersist
 }
 
 /*
- *  Event: IzotPersistentEnterTransactionRegistrar
- *  This registrar register the <IzotPersistentEnterTransaction>.
+ *  Event: IzotFlashSegEnterTransactionRegistrar
+ *  This registrar register the <IzotFlashSegEnterTransaction>.
  *
  *  Remarks:
  *
  */
-IZOT_EXTERNAL_FN IzotApiError IzotPersistentEnterTransactionRegistrar(IzotPersistentEnterTransactionFunction handler)
+IZOT_EXTERNAL_FN IzotApiError IzotFlashSegEnterTransactionRegistrar(IzotPersistentSegEnterTransactionFunction handler)
 {
     if (handler) {
         izot_enter_tx_handler = handler;
@@ -2826,13 +2826,13 @@ IZOT_EXTERNAL_FN IzotApiError IzotPersistentEnterTransactionRegistrar(IzotPersis
 }
 
 /*
- *  Event: IzotPersistentExitTransactionRegistrar
- *  This registrar register the <IzotPersistentExitTransaction>.
+ *  Event: IzotFlashSegExitTransactionRegistrar
+ *  This registrar register the <IzotFlashSegExitTransaction>.
  *
  *  Remarks:
  *
  */
-IZOT_EXTERNAL_FN IzotApiError IzotPersistentExitTransactionRegistrar(IzotPersistentExitTransactionFunction handler)
+IZOT_EXTERNAL_FN IzotApiError IzotFlashSegExitTransactionRegistrar(IzotPersistentSegExitTransactionFunction handler)
 {
     if (handler) {
         izot_exit_tx_handler = handler;
@@ -2849,7 +2849,7 @@ IZOT_EXTERNAL_FN IzotApiError IzotPersistentExitTransactionRegistrar(IzotPersist
  *  Remarks:
  *
  */
-IZOT_EXTERNAL_FN IzotApiError IzotPersistentSerializeSegmentRegistrar(IzotPersistentSerializeSegmentFunction handler)
+IZOT_EXTERNAL_FN IzotApiError IzotPersistentSerializeSegmentRegistrar(IzotPersistentSegSerializeFunction handler)
 {
     if (handler) {
         izot_serialize_handler = handler;
@@ -2866,7 +2866,7 @@ IZOT_EXTERNAL_FN IzotApiError IzotPersistentSerializeSegmentRegistrar(IzotPersis
  *  Remarks:
  *
  */
-IZOT_EXTERNAL_FN IzotApiError IzotPersistentDeserializeSegmentRegistrar(IzotPersistentDeserializeSegmentFunction handler)
+IZOT_EXTERNAL_FN IzotApiError IzotPersistentDeserializeSegmentRegistrar(IzotPersistentSegDeserializeFunction handler)
 {
     if (handler) {
         izot_deserialize_handler = handler;
@@ -2884,7 +2884,7 @@ IZOT_EXTERNAL_FN IzotApiError IzotPersistentDeserializeSegmentRegistrar(IzotPers
  *
  */
 IZOT_EXTERNAL_FN IzotApiError IzotPersistentGetApplicationSegmentSizeRegistrar(
-        IzotPersistentGetApplicationSegmentSizeFunction handler)
+        IzotPersistentSegGetAppSizeFunction handler)
 {
     if (handler) {
         izot_get_app_seg_size_handler = handler;

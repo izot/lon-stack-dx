@@ -73,7 +73,7 @@ that everything fits in 256 bytes.
 void LCS_WriteNvm(void)
 {
 	eep->nodeState = IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NODE_STATE);
-	SetPersistentDataType(IzotPersistentSegNetworkImage);
+	IzotPersistentSegSetCommitFlag(IzotPersistentSegNetworkImage);
 	IzotPersistentAppSegmentHasBeenUpdated();
 }
 
@@ -86,7 +86,7 @@ that everything fits in 256 bytes.
 EchErr LCS_ReadNvm(void)
 {
 	IzotBits16 ret;
-	ret = restore(IzotPersistentSegNetworkImage);
+	ret = IzotPersistentSegRestore(IzotPersistentSegNetworkImage);
 	return ((ret == 0) ? ECHERR_OK : ECHERR_NOT_FOUND);
 }
 
@@ -98,7 +98,7 @@ that everything fits in 256 bytes.
 *******************************************************************************/
 void LCS_WriteNvs(void)
 {
-	SetPersistentDataType(IzotPersistentSegApplicationData);
+	IzotPersistentSegSetCommitFlag(IzotPersistentSegApplicationData);
 	IzotPersistentAppSegmentHasBeenUpdated();
 }
 
@@ -111,7 +111,7 @@ that everything fits in 256 bytes.
 EchErr LCS_ReadNvs(void)
 {
 	IzotUbits16 ret;
-	ret = restore(IzotPersistentSegApplicationData);
+	ret = IzotPersistentSegRestore(IzotPersistentSegApplicationData);
 	return ((ret == 0) ? ECHERR_OK : ECHERR_NOT_FOUND);
 }
 

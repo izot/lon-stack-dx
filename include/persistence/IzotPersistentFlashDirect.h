@@ -64,7 +64,7 @@
  */ 
 
 /* 
- *  Callback: IzotPersistentOpenForRead
+ *  Callback: IzotFlashSegOpenForRead
  *  Open a non-volatile data segment for reading.
  *
  *  Parameters:
@@ -78,14 +78,14 @@
  *  can be opened, this function returns a valid persistent segment type.
  *  Otherwise it returns IzotPersistentSegUnassigned.  The segment type 
  *  returned by this function will be used as the first parameter when calling 
- *  <IzotPersistentRead>. The application must maintain the segment type used
+ *  <IzotFlashSegRead>. The application must maintain the segment type used
  *  for each segment. The application can invalidate a segment type when 
- *  <IzotPersistentClose> is called for that segment type.  
+ *  <IzotFlashSegClose> is called for that segment type.  
  */
-extern IzotPersistentSegType IzotPersistentOpenForRead(const IzotPersistentSegType persistentSegType); 
+extern IzotPersistentSegType IzotFlashSegOpenForRead(const IzotPersistentSegType persistentSegType); 
  
 /* 
- *  Callback: IzotPersistentOpenForWrite
+ *  Callback: IzotFlashSegOpenForWrite
  *  Open a non-volatile data segment for writing.
  *
  *  Parameters:
@@ -104,29 +104,29 @@ extern IzotPersistentSegType IzotPersistentOpenForRead(const IzotPersistentSegTy
  *
  *  IzotPersistentSegUnassigned is returned if the data cannot be written.
  */
-extern IzotPersistentSegType IzotPersistentOpenForWrite(const IzotPersistentSegType persistentSegType, const size_t size); 
+extern IzotPersistentSegType IzotFlashSegOpenForWrite(const IzotPersistentSegType persistentSegType, const size_t size); 
 
 /* 
- *  Callback: IzotPersistentClose
+ *  Callback: IzotFlashSegClose
  *  Close a non-volatile data segment.
  *
  *  Parameters:
  *  persistentSegType - persistent segment type returned by 
- *           <IzotPersistentOpenForRead> or <IzotPersistentOpenForWrite>
+ *           <IzotFlashSegOpenForRead> or <IzotFlashSegOpenForWrite>
  *
  *  Remarks:
  *  This function closes the non-volatile memory segment associated with this 
  *  segment and invalidates the segment type. 
  */
-extern void IzotPersistentClose(const IzotPersistentSegType persistentSegmentType);
+extern void IzotFlashSegClose(const IzotPersistentSegType persistentSegmentType);
 
 /* 
- *  Callback: IzotPersistentRead
+ *  Callback: IzotFlashSegRead
  *  Read a section of a non-volatile data segment.
  *
  *  Parameters:
  *  persistentSegType - non-volatile segment type returned by 
- *           <IzotPersistentOpenForRead>
+ *           <IzotFlashSegOpenForRead>
  *  offset - offset within the segment
  *  size - size of the data to be read
  *  pBuffer - pointer to buffer to store the data
@@ -140,16 +140,16 @@ extern void IzotPersistentClose(const IzotPersistentSegType persistentSegmentTyp
  *  segment. The offset in each subsequent call will be incremented by
  *  the size of the previous call.
  */
-extern IzotApiError IzotPersistentRead(const IzotPersistentSegType persistentSegType, 
+extern IzotApiError IzotFlashSegRead(const IzotPersistentSegType persistentSegType, 
     const size_t offset, const size_t size, void * const pBuffer);
 																
 /* 
- *  Callback: IzotPersistentWrite
+ *  Callback: IzotFlashSegWrite
  *  Write a section of a non-volatile data segment.
  *
  *  Parameters:
  *  persistentSegType - non-volatile segment type returned by 
- *           <IzotPersistentOpenForWrite>
+ *           <IzotFlashSegOpenForWrite>
  *  offset - offset within the segment
  *  size - size of the data to be read
  *  pData - pointer to the data to write into the segment
@@ -164,11 +164,11 @@ extern IzotApiError IzotPersistentRead(const IzotPersistentSegType persistentSeg
  *  segment. The offset in each subsequent call will be incremented by
  *  the size of the previous call.
  */
-extern IzotApiError IzotPersistentWrite(const IzotPersistentSegType persistentSegType, 
+extern IzotApiError IzotFlashSegWrite(const IzotPersistentSegType persistentSegType, 
     const size_t offset, const size_t size, const void* const pData);
 
 /* 
- *  Callback: IzotPersistentIsInTransaction
+ *  Callback: IzotFlashSegIsInTransaction
  *  Returns TRUE if a persistent transaction was in progress during the
  *  last time the device shut down.
  *
@@ -183,10 +183,10 @@ extern IzotApiError IzotPersistentWrite(const IzotPersistentSegType persistentSe
  *  otherwise, the LON stack API will attempt to read the persistent 
  *  data. 
  */
-extern IzotBool IzotPersistentIsInTransaction(const IzotPersistentSegType persistentSegType); 
+extern IzotBool IzotFlashSegIsInTransaction(const IzotPersistentSegType persistentSegType); 
  
 /* 
- *  Callback: IzotPersistentEnterTransaction
+ *  Callback: IzotFlashSegEnterTransaction
  *  Initiate a non-volatile transaction.
  *
  *  Parameters:
@@ -198,20 +198,20 @@ extern IzotBool IzotPersistentIsInTransaction(const IzotPersistentSegType persis
  *  updates the non-persistent image, and schedules writes to update the 
  *  non-volatile storage at a later time.  
  */
-extern IzotApiError IzotPersistentEnterTransaction(const IzotPersistentSegType persistentSegType);
+extern IzotApiError IzotFlashSegEnterTransaction(const IzotPersistentSegType persistentSegType);
 
 /* 
- *  Callback: IzotPersistentExitTransaction
+ *  Callback: IzotFlashSegExitTransaction
  *  Complete a non-volatile transaction.
  *
  *  Parameters:
  *  persistentSegType - non-volatile segment type
  *
  *  Remarks:
- *  This function is called by the LON stack after <IzotPersistentWrite> 
+ *  This function is called by the LON stack after <IzotFlashSegWrite> 
  *  has returned success and there are no further updates required.
  */
-extern IzotApiError IzotPersistentExitTransaction(const IzotPersistentSegType persistentSegType);
+extern IzotApiError IzotFlashSegExitTransaction(const IzotPersistentSegType persistentSegType);
 
 extern void ErasePersistenceData(void);
 extern void ErasePersistenceConfig(void);

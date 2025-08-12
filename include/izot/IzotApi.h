@@ -863,7 +863,7 @@ IZOT_EXTERNAL_FN IzotApiError IzotPersistentAppSegmentHasBeenUpdated(void);
 IZOT_EXTERNAL_FN IzotApiError IzotPersistentFlushData(void);
 
 /*
- * Function: IzotPersistentGetMaxSize
+ * Function: IzotPersistentSegGetMaxSize
  * Gets the number of bytes required to store persistent data.
  *
  * Parameters:
@@ -878,7 +878,7 @@ IZOT_EXTERNAL_FN IzotApiError IzotPersistentFlushData(void);
  * but may be used by persistent data event handlers (implemented by the
  * application) to reserve space for persistent data segments.
  */
-IZOT_EXTERNAL_FN int IzotPersistentGetMaxSize(IzotPersistentSegType persistentSegType);
+IZOT_EXTERNAL_FN int IzotPersistentSegGetMaxSize(IzotPersistentSegType persistentSegType);
 
 /*
  * *****************************************************************************
@@ -1194,80 +1194,80 @@ IZOT_EXTERNAL_FN IzotApiError IzotMemoryWriteRegistrar(IzotMemoryWriteFunction h
 IZOT_EXTERNAL_FN IzotApiError IzotServiceLedStatusRegistrar(IzotServiceLedStatusFunction handler);
 
 /*
- * Event: IzotPersistentOpenForReadRegistrar
- * This registrar registers <IzotPersistentOpenForRead>.
+ * Event: IzotFlashSegOpenForReadRegistrar
+ * This registrar registers <IzotFlashSegOpenForRead>.
  */
 
-IZOT_EXTERNAL_FN IzotApiError IzotPersistentOpenForReadRegistrar(IzotPersistentOpenForReadFunction handler);
-
-/*
- * Event: IzotPersistentOpenForWriteRegistrar
- * This registrar registers <IzotPersistentOpenForWrite>.
- */
-IZOT_EXTERNAL_FN IzotApiError IzotPersistentOpenForWriteRegistrar(IzotPersistentOpenForWriteFunction handler);
+IZOT_EXTERNAL_FN IzotApiError IzotFlashSegOpenForReadRegistrar(IzotPersistentSegOpenForReadFunction handler);
 
 /*
- * Event: IzotPersistentCloseRegistrar
- * This registrar registers <IzotPersistentClose>.
+ * Event: IzotFlashSegOpenForWriteRegistrar
+ * This registrar registers <IzotFlashSegOpenForWrite>.
  */
-IZOT_EXTERNAL_FN IzotApiError IzotPersistentCloseRegistrar(IzotPersistentCloseFunction handler);
+IZOT_EXTERNAL_FN IzotApiError IzotFlashSegOpenForWriteRegistrar(IzotPersistentSegOpenForWriteFunction handler);
 
 /*
- * Event: IzotPersistentDeleteRegistrar
- * This registrar registers <IzotPersistentDelete>.
+ * Event: IzotFlashSegCloseRegistrar
+ * This registrar registers <IzotFlashSegClose>.
  */
-IZOT_EXTERNAL_FN IzotApiError IzotPersistentDeleteRegistrar(IzotPersistentDeleteFunction handler);
+IZOT_EXTERNAL_FN IzotApiError IzotFlashSegCloseRegistrar(IzotPersistentSegCloseFunction handler);
 
 /*
- * Event: IzotPersistentReadRegistrar
- * This registrar registers <IzotPersistentRead>.
+ * Event: IzotFlashSegDeleteRegistrar
+ * This registrar registers <IzotFlashSegDelete>.
  */
-IZOT_EXTERNAL_FN IzotApiError IzotPersistentReadRegistrar(IzotPersistentReadFunction handler);
+IZOT_EXTERNAL_FN IzotApiError IzotFlashSegDeleteRegistrar(IzotPersistentSegDeleteFunction handler);
 
 /*
- * Event: IzotPersistentWriteRegistrar
- * This registrar registers <IzotPersistentWrite>.
+ * Event: IzotFlashSegReadRegistrar
+ * This registrar registers <IzotFlashSegRead>.
  */
-IZOT_EXTERNAL_FN IzotApiError IzotPersistentWriteRegistrar(IzotPersistentWriteFunction handler);
+IZOT_EXTERNAL_FN IzotApiError IzotFlashSegReadRegistrar(IzotPersistentSegReadFunction handler);
 
 /*
- * Event: IzotPersistentIsInTransactionRegistrar
- * This registrar registers <IzotPersistentIsInTransaction>.
+ * Event: IzotFlashSegWriteRegistrar
+ * This registrar registers <IzotFlashSegWrite>.
  */
-IZOT_EXTERNAL_FN IzotApiError IzotPersistentIsInTransactionRegistrar(IzotPersistentIsInTransactionFunction handler);
+IZOT_EXTERNAL_FN IzotApiError IzotFlashSegWriteRegistrar(IzotPersistentSegWriteFunction handler);
 
 /*
- * Event: IzotPersistentEnterTransactionRegistrar
- * This registrar registers <IzotPersistentEnterTransaction>.
+ * Event: IzotFlashSegIsInTransactionRegistrar
+ * This registrar registers <IzotFlashSegIsInTransaction>.
  */
-IZOT_EXTERNAL_FN IzotApiError IzotPersistentEnterTransactionRegistrar(IzotPersistentEnterTransactionFunction handler);
+IZOT_EXTERNAL_FN IzotApiError IzotFlashSegIsInTransactionRegistrar(IzotPersistentSegIsInTransactionFunction handler);
 
 /*
- * Event: IzotPersistentExitTransactionRegistrar
- * This registrar registers <IzotPersistentExitTransaction>.
+ * Event: IzotFlashSegEnterTransactionRegistrar
+ * This registrar registers <IzotFlashSegEnterTransaction>.
  */
-IZOT_EXTERNAL_FN IzotApiError IzotPersistentExitTransactionRegistrar(IzotPersistentExitTransactionFunction handler);
+IZOT_EXTERNAL_FN IzotApiError IzotFlashSegEnterTransactionRegistrar(IzotPersistentSegEnterTransactionFunction handler);
+
+/*
+ * Event: IzotFlashSegExitTransactionRegistrar
+ * This registrar registers <IzotFlashSegExitTransaction>.
+ */
+IZOT_EXTERNAL_FN IzotApiError IzotFlashSegExitTransactionRegistrar(IzotPersistentSegExitTransactionFunction handler);
 
 /*
  * Event: IzotPersistentGetApplicationSegmentSizeRegistrar
  * This registrar registers <IzotPersistentGetApplicationSegmentSize>.
  */
 IZOT_EXTERNAL_FN IzotApiError IzotPersistentGetApplicationSegmentSizeRegistrar(
-        IzotPersistentGetApplicationSegmentSizeFunction handler);
+        IzotPersistentSegGetAppSizeFunction handler);
 
 /*
  * Event: IzotPersistentDeserializeSegmentRegistrar
  * This registrar registers <IzotPersistentDeserializeSegment>.
  */
 IZOT_EXTERNAL_FN IzotApiError IzotPersistentDeserializeSegmentRegistrar(
-        IzotPersistentDeserializeSegmentFunction handler);
+        IzotPersistentSegDeserializeFunction handler);
 
 /*
  * Event: IzotPersistentSerializeSegmentRegistrar
  * This registrar registers <IzotPersistentSerializeSegment>.
  */
 IZOT_EXTERNAL_FN IzotApiError IzotPersistentSerializeSegmentRegistrar(
-        IzotPersistentSerializeSegmentFunction handler);
+        IzotPersistentSegSerializeFunction handler);
 
 #if defined(IZOT_STACK_EX)
 /*

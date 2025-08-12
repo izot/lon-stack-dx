@@ -255,11 +255,10 @@ extern void setMem(const unsigned addr, const unsigned size);
 extern void RecomputeChecksum(void);
 
 /*
- * Function: setAppSignature
+ * Function: SetAppSignature
  * Set the application signature.
-
  */
-extern void setAppSignature(unsigned appSignature);
+extern void SetAppSignature(unsigned appSignature);
 extern void readIupPersistData(void);
 
 #endif   /* #ifndef _LCS_API_H */

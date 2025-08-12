@@ -62,138 +62,127 @@ typedef IZOT_STRUCT_BEGIN(IzotPersistenceHeader)
   ------------------------------------------------------------------------------*/
 
 /*
- * Function: GetPersistentHeaderSize
+ * Function: IzotPersistentSegGetHeaderSize
  * This function compute Persistent header size
-
  */
-extern unsigned GetPersistentHeaderSize(void);
+extern unsigned IzotPersistentSegGetHeaderSize(void);
 
 /*
- * Function: computeChecksum
+ * Function: ComputeChecksum
  * This function compute the checksum on data to be stored in flash.
-
  */
-extern int computeChecksum(IzotByte* pImage, int length);
+extern int ComputeChecksum(IzotByte* pImage, int length);
 
 /*
  * Function: ValidateChecksum
  * This function validates the checksum from the data read from flash.
-
  */
 extern IzotBool ValidateChecksum(IzotPersistenceHeader* pHdr, IzotByte* pImage);
 
 /*
  * Function: GetAppSignature
  * This function returns application signature.
-
  */
 extern unsigned GetAppSignature(void);
 
 /*
- * Function: SetPeristenceGaurdBand
+ * Function: SetPeristenceGuardBand
  * This function sets guardband duration .
-
  */
-extern void SetPeristenceGaurdBand(int nTime);
+extern void SetPeristenceGuardBand(int nTime);
 
 /*
- * Function: SetPersistentDataType
- * This function sets the flag for particular segment for flushing .
-
+ * Function: IzotPersistentSegSetCommitFlag
+ * This function flags a persistent segment to be committed.
  */
-extern void SetPersistentDataType(IzotPersistentSegType persistentSegType);
+extern void IzotPersistentSegSetCommitFlag(IzotPersistentSegType persistentSegType);
 
 /*
- * Function: SchedulePersistentData
- * This function schedules the timer for flushing after guardband duration .
-
+ * Function: IzotPersistentMemStartCommitTimer
+ * This function starts the commit timer if it is not already running.
+ * Persistent data is committed to the persistent memory when the time
+ * expires.
  */
-extern void SchedulePersistentData(void);
+extern void IzotPersistentMemStartCommitTimer(void);
 
 /*
- * Function: NotifyErrorEvent
- * This function notifies the Error event .
-
+ * Function: IzotPersistentMemReportFailure
+ * This function reports a persistent memory write failure.
  */
-extern void NotifyErrorEvent(void);
+extern void IzotPersistentMemReportFailure(void);
 
 /*
- * Function: StoreTask
- * This funtion saves the data into non-volatile memoty after flish timeout.
-
+ * Function: IzotPersistentMemCommitCheck
+ * This funtion checks the commit timer and flag, and commits data to
+ * persistent memory if the timer has expired or the commit flag is set.
  */
-extern void StoreTask(void);
+extern void IzotPersistentMemCommitCheck(void);
 
 /*
- * Function: CommitPersistentData
- * This funtion flush any pending data to the non volatile memory.
-
+ * Function: IzotPersistentMemSetCommitFlag
+ * This function sets the persistent memory commit flag to force a 
+ * commit on the next commit check.
  */
-extern void CommitPersistentData(void);
+extern void IzotPersistentMemSetCommitFlag(void);
 
 /*
- * Function: restore
- * This funtion restore the data of given type from flash and load this 
- * information to RAM.
-
+ * Function: IzotPersistentSegRestore
+ * This function restores the specified memory segment contents to RAM.
  */
-extern IzotApiError restore(IzotPersistentSegType persistentSegType);
+extern IzotApiError IzotPersistentSegRestore(IzotPersistentSegType persistentSegType);
 
 /*
- *  Event: IzotEnterTransaction
- *  Calls the registered callback of <IzotPersistentEnterTransaction>.
- *
- *  Remarks:
- *
+ *  Event: IzotPersistentSegEnterTransaction
+ *  Calls the registered callback of <IzotFlashSegEnterTransaction>.
  */
-extern IzotApiError IzotEnterTransaction(const IzotPersistentSegType persistentSegType);
+extern IzotApiError IzotPersistentSegEnterTransaction(const IzotPersistentSegType persistentSegType);
 
 /*
  *  Event: IzotPersistentSegOpenForWrite
- *  Calls the registered callback of <IzotPersistentOpenForWrite>.
+ *  Calls the registered callback of <IzotFlashSegOpenForWrite>.
  */
 extern IzotPersistentSegType IzotPersistentSegOpenForWrite(const IzotPersistentSegType persistentSegType, const size_t size);
 
 /*
  *  Event: IzotPersistentSegWrite
- *  Calls the registered callback of <IzotPersistentWrite>.
+ *  Calls the registered callback of <IzotFlashSegWrite>.
  */
 extern IzotApiError IzotPersistentSegWrite(const IzotPersistentSegType persistentSegType, const size_t offset, 
 		const size_t size, const void* const pData);
 
 /*
  *  Event: IzotPersistentSegClose
- *  Calls the registered callback of <IzotPersistentClose>.
+ *  Calls the registered callback of <IzotFlashSegClose>.
  */
 extern void IzotPersistentSegClose(const IzotPersistentSegType persistentSegType);
 
 /*
- *  Event: IzotExitTransaction
- *  Calls the registered callback of <IzotPersistentExitTransaction>.
+ *  Event: IzotPersistentSegExitTransaction
+ *  Calls the registered callback of <IzotFlashSegExitTransaction>.
  */
-extern IzotApiError IzotExitTransaction(const IzotPersistentSegType persistentSegType);
+extern IzotApiError IzotPersistentSegExitTransaction(const IzotPersistentSegType persistentSegType);
 
 /*
- *  Event: IzotIsInTransaction
- *  Calls the registered callback of <IzotPersistentIsInTransaction>.
+ *  Event: IzotPersistentSegIsInTransaction
+ *  Calls the registered callback of <IzotFlashSegIsInTransaction>.
  */
-extern IzotBool IzotIsInTransaction(const IzotPersistentSegType persistentSegType);
+extern IzotBool IzotPersistentSegIsInTransaction(const IzotPersistentSegType persistentSegType);
 
 /*
  *  Event: IzotPersistentSegOpenForRead
- *  Calls the registered callback of <IzotPersistentOpenForRead>.
+ *  Calls the registered callback of <IzotFlashSegOpenForRead>.
  */
 extern IzotPersistentSegType IzotPersistentSegOpenForRead(const IzotPersistentSegType persistentSegType);
 
 /*
  *  Event: IzotPersistentSegRead
- *  Calls the registered callback of <IzotPersistentRead>.
+ *  Calls the registered callback of <IzotFlashSegRead>.
  */
 extern IzotApiError IzotPersistentSegRead(const IzotPersistentSegType persistentSegType, const size_t offset, 
 		const size_t size, void * const pBuffer);
 
 /*
- *  Function: IzotPersistentGetMaxSize
+ *  Function: IzotPersistentSegGetMaxSize
  *  Gets the number of bytes required to store persistent data.
  *
  *  Parameters:
@@ -208,8 +197,16 @@ extern IzotApiError IzotPersistentSegRead(const IzotPersistentSegType persistent
  *  but may be used by persistent data event handlers (implemented by the
  *  application) to reserve space for persistent data segments.
  */
-extern int IzotPersistentGetMaxSize(IzotPersistentSegType persistentSegType);
+extern int IzotPersistentSegGetMaxSize(IzotPersistentSegType persistentSegType);
 
-extern IzotBool isPersistentDataScheduled(void);
+/*
+ * Function: IzotPersistentSegCommitScheduled
+ * This function checks whether any persistent data is scheduled to
+ * be committed.  If so, it sets the commit flag to force an immediate
+ * commit of that data.  This function is typically called when a
+ * reset is requested, to ensure that all persistent data is committed
+ * before the reset.
+ */
+extern IzotBool IzotPersistentSegCommitScheduled(void);
 
 #endif /*_PERSISTENT_H*/

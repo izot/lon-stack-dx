@@ -102,7 +102,7 @@ static int lowestUsedFlashDataOffset = 0;
 
 // Table indexed by <IzotPersistentSegType> and containing the maximum 
 // size of the data segment.  Computed at runtime by 
-// calling <IzotPersistentGetMaxSize>.
+// calling <IzotPersistentSegGetMaxSize>.
 
 static int dataSegmentSize[IzotPersistentSegNumSegmentTypes] =
 {
@@ -147,7 +147,7 @@ static const char *GetPersistentName(IzotPersistentSegType persistentSegType);
  */
  
 /* 
- *  Callback: IzotPersistentOpenForRead
+ *  Callback: IzotFlashSegOpenForRead
  *  Open a non-volatile data segment for reading.
  *
  *  Parameters:
@@ -161,11 +161,11 @@ static const char *GetPersistentName(IzotPersistentSegType persistentSegType);
  *  can be opened, this function returns a valid persistent segment type.
  *  Otherwise it returns IzotPersistentSegUnassigned.  If valid, the segment
  *  type passed to and returned by this function is used as the first
- *  parameter when calling <IzotPersistentRead>. The application must maintain
+ *  parameter when calling <IzotFlashSegRead>. The application must maintain
  *  the segment type used for each segment. The application can invalidate a 
- *  segment type when <IzotPersistentClose> is called for that segment type.  
+ *  segment type when <IzotFlashSegClose> is called for that segment type.  
  */
-IzotPersistentSegType IzotPersistentOpenForRead(const IzotPersistentSegType persistentSegType)
+IzotPersistentSegType IzotFlashSegOpenForRead(const IzotPersistentSegType persistentSegType)
 {
     // For flash memory, this function returns the persistent memory type
     // passed as an argument to the function.  Flash data is opened and
@@ -173,7 +173,7 @@ IzotPersistentSegType IzotPersistentOpenForRead(const IzotPersistentSegType pers
 #ifdef FLASH_DEBUG
     if (persistentTraceEnabled) {
         PrintTimeStamp();
-        FLASH_PRINTF("IzotPersistentOpenForRead(%s)\r\n", 
+        FLASH_PRINTF("IzotFlashSegOpenForRead(%s)\r\n", 
                                                       GetPersistentName(persistentSegType));  
     }
 #endif
@@ -181,7 +181,7 @@ IzotPersistentSegType IzotPersistentOpenForRead(const IzotPersistentSegType pers
 }
 
 /* 
- *  Callback: IzotPersistentOpenForWrite
+ *  Callback: IzotFlashSegOpenForWrite
  *  Open a non-volatile data segment for writing.
  *
  *  Parameters:
@@ -200,7 +200,7 @@ IzotPersistentSegType IzotPersistentOpenForRead(const IzotPersistentSegType pers
  *
  *  IzotPersistentSegUnassigned is returned if the data cannot be written.
  */
-IzotPersistentSegType IzotPersistentOpenForWrite(const IzotPersistentSegType persistentSegType, const size_t size)
+IzotPersistentSegType IzotFlashSegOpenForWrite(const IzotPersistentSegType persistentSegType, const size_t size)
 {
     IzotApiError sts = IzotApiNoError;
     void *fd;
@@ -208,7 +208,7 @@ IzotPersistentSegType IzotPersistentOpenForWrite(const IzotPersistentSegType per
 #ifdef FLASH_DEBUG
     if (persistentTraceEnabled) {
         PrintTimeStamp();
-        FLASH_PRINTF("Start IzotPersistentOpenForWrite(%s, %ld)\r\n", 
+        FLASH_PRINTF("Start IzotFlashSegOpenForWrite(%s, %ld)\r\n", 
                                                 GetPersistentName(persistentSegType), size);  
     }
 #endif
@@ -241,7 +241,7 @@ IzotPersistentSegType IzotPersistentOpenForWrite(const IzotPersistentSegType per
 #ifdef FLASH_DEBUG
     if (persistentTraceEnabled) {
         PrintTimeStamp();
-        FLASH_PRINTF("End IzotPersistentOpenForWrite(%s, %ld), sts = %d\r\n",  
+        FLASH_PRINTF("End IzotFlashSegOpenForWrite(%s, %ld), sts = %d\r\n",  
                GetPersistentName(persistentSegType), size, sts);  
     }
 #endif
@@ -249,25 +249,25 @@ IzotPersistentSegType IzotPersistentOpenForWrite(const IzotPersistentSegType per
 }
 
 /* 
- *  Callback: IzotPersistentClose
+ *  Callback: IzotFlashSegClose
  *  Close a non-volatile data segment.
  *
  *  Parameters:
  *  handle - handle of the non-volatile segment returned 
- *           by <IzotPersistentOpenForRead> or <IzotPersistentOpenForWrite>
+ *           by <IzotFlashSegOpenForRead> or <IzotFlashSegOpenForWrite>
  *
  *  Remarks:
  *  This function closes the non-volatile memory segment associated with this 
  *  handle and invalidates the handle. 
  */
-void IzotPersistentClose(const IzotPersistentSegType persistentSegType)
+void IzotFlashSegClose(const IzotPersistentSegType persistentSegType)
 {
     // The flash is opened and closed on each access - so there is nothing to 
     // do in this function. 
 }
 
 /* 
- *  Callback: IzotPersistentDelete
+ *  Callback: IzotFlashSegDelete
  *  Delete non-volatile data segment.
  *
  *  Parameters:
@@ -281,25 +281,25 @@ void IzotPersistentClose(const IzotPersistentSegType persistentSegType)
  *  This function can be called even if the segment does not exist.  It is not
  *  necessary for this function to actually destroy the data or free it.
  */
-void IzotPersistentDelete(const IzotPersistentSegType persistentSegType)
+void IzotFlashSegDelete(const IzotPersistentSegType persistentSegType)
 {
     // There is nothing to be gained by deleting the segment, because the space 
     // is reserved.  This function is just a stub.  
 #ifdef FLASH_DEBUG
     if (persistentTraceEnabled) {
         PrintTimeStamp();
-        FLASH_PRINTF("IzotPersistentDelete(%s)\r\n", GetPersistentName(persistentSegType));  
+        FLASH_PRINTF("IzotFlashSegDelete(%s)\r\n", GetPersistentName(persistentSegType));  
     }
 #endif
 }
 
 /* 
- *  Callback: IzotPersistentRead
+ *  Callback: IzotFlashSegRead
  *  Read a section of a non-volatile data segment.
  *
  *  Parameters:
  *  handle - handle of the non-volatile segment returned 
- *           by <IzotPersistentOpenForRead>
+ *           by <IzotFlashSegOpenForRead>
  *  offset - offset within the segment
  *  size - size of the data to be read
  *  pBuffer - pointer to buffer to store the data
@@ -313,7 +313,7 @@ void IzotPersistentDelete(const IzotPersistentSegType persistentSegType)
  *  the segment. The offset in each subsequent call will be incremented by
  *  the size of the previous call.
  */
-IzotApiError IzotPersistentRead(const IzotPersistentSegType persistentSegType, const size_t offset, 
+IzotApiError IzotFlashSegRead(const IzotPersistentSegType persistentSegType, const size_t offset, 
         const size_t size, void * const pBuffer) 
 {
     IzotApiError sts = IzotApiNoError;
@@ -325,7 +325,7 @@ IzotApiError IzotPersistentRead(const IzotPersistentSegType persistentSegType, c
 #ifdef FLASH_DEBUG
     if (persistentTraceEnabled) {
         PrintTimeStamp();
-        FLASH_PRINTF("Start IzotPersistentRead(%s, %ld, %ld)\r\n",  
+        FLASH_PRINTF("Start IzotFlashSegRead(%s, %ld, %ld)\r\n",  
                GetPersistentName(persistentSegType), offset, size);  
     }
 #endif
@@ -358,7 +358,7 @@ IzotApiError IzotPersistentRead(const IzotPersistentSegType persistentSegType, c
 #ifdef FLASH_DEBUG
     if (persistentTraceEnabled) {
         PrintTimeStamp();
-        FLASH_PRINTF("End IzotPersistentRead(%s, %ld, %ld), sts = %d\r\n",  
+        FLASH_PRINTF("End IzotFlashSegRead(%s, %ld, %ld), sts = %d\r\n",  
                GetPersistentName(persistentSegType), offset, size, sts);  
     }
 #endif
@@ -367,12 +367,12 @@ IzotApiError IzotPersistentRead(const IzotPersistentSegType persistentSegType, c
 }
 
 /* 
- *  Callback: IzotPersistentWrite
+ *  Callback: IzotFlashSegWrite
  *  Write a section of a non-volatile data segment.
  *
  *  Parameters:
  *  handle - handle of the non-volatile segment returned 
- *           by <IzotPersistentOpenForWrite>
+ *           by <IzotFlashSegOpenForWrite>
  *  offset - offset within the segment
  *  size - size of the data to be read
  *  pData - pointer to the data to write into the segment
@@ -387,7 +387,7 @@ IzotApiError IzotPersistentRead(const IzotPersistentSegType persistentSegType, c
  *  the segment. The offset in each subsequent call will be incremented by
  *  the size of the previous call.
  */
-IzotApiError IzotPersistentWrite(const IzotPersistentSegType persistentSegType, const size_t offset, 
+IzotApiError IzotFlashSegWrite(const IzotPersistentSegType persistentSegType, const size_t offset, 
         const size_t size, const void* const pData) 
 {
     IzotApiError sts = IzotApiNoError;
@@ -399,7 +399,7 @@ IzotApiError IzotPersistentWrite(const IzotPersistentSegType persistentSegType, 
 #ifdef FLASH_DEBUG
     if (persistentTraceEnabled) {
         PrintTimeStamp();
-        FLASH_PRINTF("Start IzotPersistentWrite(%s, %ld, %ld)\r\n",  
+        FLASH_PRINTF("Start IzotFlashSegWrite(%s, %ld, %ld)\r\n",  
                GetPersistentName(persistentSegType), offset, size);  
     }
 #endif
@@ -425,7 +425,7 @@ IzotApiError IzotPersistentWrite(const IzotPersistentSegType persistentSegType, 
         FLASH_PRINTF("\r\n");
 #endif
         // Write a block of data at a time.  All of the data that needs to be 
-        // written was erased by IzotPersistentOpenForWrite.
+        // written was erased by IzotFlashSegOpenForWrite.
 
         while (sts == IzotApiNoError && dataRemaining) {
                 // Offset within flash block
@@ -461,7 +461,7 @@ IzotApiError IzotPersistentWrite(const IzotPersistentSegType persistentSegType, 
 #ifdef FLASH_DEBUG
     if (persistentTraceEnabled) {
         PrintTimeStamp();
-        FLASH_PRINTF("End IzotPersistentWrite(%s, %ld, %ld), sts = %d\r\n",  
+        FLASH_PRINTF("End IzotFlashSegWrite(%s, %ld, %ld), sts = %d\r\n",  
                GetPersistentName(persistentSegType), offset, size, sts);  
     }
 #endif
@@ -469,7 +469,7 @@ IzotApiError IzotPersistentWrite(const IzotPersistentSegType persistentSegType, 
 }
 
 /* 
- *  Callback: IzotPersistentIsInTransaction
+ *  Callback: IzotFlashSegIsInTransaction
  *  Returns TRUE if an PERSISTENT transaction was in progress last time the device 
  *  shut down.
  *
@@ -483,7 +483,7 @@ IzotApiError IzotPersistentWrite(const IzotPersistentSegType persistentSegType, 
  *  TRUE, the Izot Device Stack API will discard the segment, otherwise, the IZOT 
  *  Device Stack API will attempt to read the persistent data. 
  */
-IzotBool IzotPersistentIsInTransaction(const IzotPersistentSegType persistentSegType)
+IzotBool IzotFlashSegIsInTransaction(const IzotPersistentSegType persistentSegType)
 {
     // inTransaction is set to TRUE.  Any error reading the transaction record 
     // will be interpreted as being in a transaction - that is, the data 
@@ -495,7 +495,7 @@ IzotBool IzotPersistentIsInTransaction(const IzotPersistentSegType persistentSeg
 #ifdef FLASH_DEBUG
     if (persistentTraceEnabled) {
         PrintTimeStamp();
-        FLASH_PRINTF("Start IzotPersistentIsInTransaction(%s)\r\n",  
+        FLASH_PRINTF("Start IzotFlashSegIsInTransaction(%s)\r\n",  
                                                        GetPersistentName(persistentSegType)); 
     }
 #endif
@@ -529,7 +529,7 @@ IzotBool IzotPersistentIsInTransaction(const IzotPersistentSegType persistentSeg
     if (persistentTraceEnabled) {
         PrintTimeStamp();
         FLASH_PRINTF(
-        "End IzotPersistentIsInTransaction(%s), inTransaction = %d\r\n",  
+        "End IzotFlashSegIsInTransaction(%s), inTransaction = %d\r\n",  
         GetPersistentName(persistentSegType), inTransaction
         );  
     }
@@ -538,7 +538,7 @@ IzotBool IzotPersistentIsInTransaction(const IzotPersistentSegType persistentSeg
 }
 
 /* 
- *  Callback: IzotPersistentEnterTransaction
+ *  Callback: IzotFlashSegEnterTransaction
  *  Initiate a non-volatile transaction.
  *
  *  Parameters:
@@ -550,7 +550,7 @@ IzotBool IzotPersistentIsInTransaction(const IzotPersistentSegType persistentSeg
  *  the non-persistent image, and schedules writes to update the non-volatile 
  *  storage at a later time.  
  */
-IzotApiError IzotPersistentEnterTransaction(const IzotPersistentSegType persistentSegType)
+IzotApiError IzotFlashSegEnterTransaction(const IzotPersistentSegType persistentSegType)
 {
     IzotApiError sts = IzotApiNoError;
     void *fd = NULL;
@@ -558,7 +558,7 @@ IzotApiError IzotPersistentEnterTransaction(const IzotPersistentSegType persiste
 #ifdef FLASH_DEBUG
     if (persistentTraceEnabled) {
         PrintTimeStamp();
-        FLASH_PRINTF("Start IzotPersistentEnterTransaction(%s)\r\n", 
+        FLASH_PRINTF("Start IzotFlashSegEnterTransaction(%s)\r\n", 
                                                     GetPersistentName(persistentSegType));  
     }
 #endif
@@ -580,7 +580,7 @@ IzotApiError IzotPersistentEnterTransaction(const IzotPersistentSegType persiste
         //   txState   = 0 (invalid)
         // After this is done, the block must be erased before the transaction
         // can be updated to valid again (this is done 
-        // by IzotPersistentOpenForWrite).
+        // by IzotFlashSegOpenForWrite).
         // If the transaction record was not valid in the first place, writing 
         // this pattern will not make it valid - and so the transaction is
         // still in progress because we consider that a transaction is in 
@@ -602,7 +602,7 @@ IzotApiError IzotPersistentEnterTransaction(const IzotPersistentSegType persiste
 #ifdef FLASH_DEBUG
     if (persistentTraceEnabled) {
         PrintTimeStamp();
-        FLASH_PRINTF("End IzotPersistentEnterTransaction(%s), sts = %d\r\n",  
+        FLASH_PRINTF("End IzotFlashSegEnterTransaction(%s), sts = %d\r\n",  
                GetPersistentName(persistentSegType), sts);  
     }
 #endif
@@ -610,7 +610,7 @@ IzotApiError IzotPersistentEnterTransaction(const IzotPersistentSegType persiste
 }
 
 /* 
- *  Callback: IzotPersistentExitTransaction
+ *  Callback: IzotFlashSegExitTransaction
  *  Complete a non-volatile transaction.
  *
  *  Parameters:
@@ -618,10 +618,10 @@ IzotApiError IzotPersistentEnterTransaction(const IzotPersistentSegType persiste
  *
  *  Remarks:
  *  This function is called by the Izot Device Stack API after 
- *  <IzotPersistentWrite> has returned success and there are no further 
+ *  <IzotFlashSegWrite> has returned success and there are no further 
  *  updates required.   
  */
-IzotApiError IzotPersistentExitTransaction(const IzotPersistentSegType persistentSegType)
+IzotApiError IzotFlashSegExitTransaction(const IzotPersistentSegType persistentSegType)
 {
     IzotApiError sts = IzotApiNoError;
     void *fd = NULL;
@@ -629,7 +629,7 @@ IzotApiError IzotPersistentExitTransaction(const IzotPersistentSegType persisten
 #ifdef FLASH_DEBUG
     if (persistentTraceEnabled) {
         PrintTimeStamp();
-        FLASH_PRINTF("Start IzotPersistentExitTransaction(%s)\r\n", 
+        FLASH_PRINTF("Start IzotFlashSegExitTransaction(%s)\r\n", 
                                                       GetPersistentName(persistentSegType));
     }
 #endif
@@ -643,7 +643,7 @@ IzotApiError IzotPersistentExitTransaction(const IzotPersistentSegType persisten
 
         // We expect that this should work because this function is only 
         // called after successfully updating the data segment.  First the IZOT 
-        // protocol stack calls IzotPersistentOpenForWrite, which will erase 
+        // protocol stack calls IzotFlashSegOpenForWrite, which will erase 
         // the entire segment, including the transaction record, then the data 
         // will be 
         // updated.  The transaction record is still in the erased state:
@@ -670,7 +670,7 @@ IzotApiError IzotPersistentExitTransaction(const IzotPersistentSegType persisten
 #ifdef FLASH_DEBUG
     if (persistentTraceEnabled) {
         PrintTimeStamp();
-        FLASH_PRINTF("End IzotPersistentExitTransaction(%d), sts = %d\r\n", 
+        FLASH_PRINTF("End IzotFlashSegExitTransaction(%d), sts = %d\r\n", 
                                                                     persistentSegType, sts);  
     }
 #endif
@@ -810,7 +810,7 @@ static IzotApiError InitSegmentMap(const IzotPersistentSegType persistentSegType
         int blockOffset;
     
         dataSegmentSize[persistentSegType] = 
-                IzotPersistentGetMaxSize(persistentSegType) + GetPersistentHeaderSize();
+                IzotPersistentSegGetMaxSize(persistentSegType) + IzotPersistentSegGetHeaderSize();
     
         // The segments are allocated starting at the highest 
         // address of the flash region.  Starting at 
