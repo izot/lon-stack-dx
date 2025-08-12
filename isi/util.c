@@ -437,7 +437,7 @@ IsiApiError initializeData(IsiBootType bootType)
     }
 
 #if ISI_IS(SIMPLE) || ISI_IS(DA)
-	if (restorePersistentData(IsiPersistentSegConnectionTable) != 
+	if (restorePersistentData(IzotPersistentSegConnectionTable) != 
     LT_PERSISTENCE_OK) {
 		_IsiAPIDebug("No Isi connection table found\r\n");
         _IsiInitConnectionTable();
@@ -445,7 +445,7 @@ IsiApiError initializeData(IsiBootType bootType)
 	}
 #endif
 
-	if (restorePersistentData(IsiPersistentSegPersistent) != LT_PERSISTENCE_OK)
+	if (restorePersistentData(IzotPersistentSegIsi) != LT_PERSISTENCE_OK)
     {
 		_IsiAPIDebug("No Isi Persistent data found\r\n");
         // First time run.  Signal the engine to clear-out NV, alias, connection table and address tables.

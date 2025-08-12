@@ -235,10 +235,10 @@ void savePersistentData(IzotPersistentSegType persistentSegType)
     hdr.checksum = 0;
     hdr.appSignature = IzotGetAppSignature();
     _IsiAPIDebug("savePersistentData - for persistentSegType=%d\n", persistentSegType); 
-    if (persistentSegType == IsiPersistentSegConnectionTable)
+    if (persistentSegType == IzotPersistentSegConnectionTable)
         reason = serializeIsiNvdSegConnectionTable(&pImage, &imageLen);
     else
-    if (persistentSegType == IsiPersistentSegPersistent)
+    if (persistentSegType == IzotPersistentSegIsi)
         reason = serializeIsiNvdSegPersistentData(&pImage, &imageLen);
  
     if (reason == LT_PERSISTENCE_OK)
@@ -313,11 +313,11 @@ LtPersistenceLossReason restorePersistentData(IzotPersistentSegType persistentSe
 	}
 
 	if (reason == LT_PERSISTENCE_OK) {
-		if (persistentSegType == IsiPersistentSegConnectionTable) {
+		if (persistentSegType == IzotPersistentSegConnectionTable) {
 			reason  = 
                deserializeIsiNvdSegConnectionTable(pBuffer, imageLen, nVersion);
 		} else {
-		if (persistentSegType == IsiPersistentSegPersistent)
+		if (persistentSegType == IzotPersistentSegIsi)
 			reason  = deserializeIsiNvdSegData(pBuffer, imageLen, nVersion);
 		}
     }

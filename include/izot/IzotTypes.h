@@ -2593,14 +2593,14 @@ typedef IZOT_ENUM_BEGIN(IzotPersistentSegType)
                                            definitions.
                                         */
 	IzotPersistentSegApplicationData,   /* Application data, such as CP values, that
-                                           needs to be stored persistently.  Note that
-                                           in some devices, this can include CP values
+                                           needs to be stored persistently.  In some
+                                           devices this can include CP values
                                            implemented by datapoints, CP values
                                            defined in files, or both.
                                         */
-    IzotPersistentSegUniqueId,          /* Unique ID defined in file for the IP852 device */
-    IsiPersistentSegConnectionTable,    /* ISI connection table */
-    IsiPersistentSegPersistent,         /* Other ISI persistence information */
+    IzotPersistentSegUniqueId,          /* Unique ID */
+    IzotPersistentSegConnectionTable,   /* ISI connection table */
+    IzotPersistentSegIsi,               /* Other ISI persistent data */
     IzotPersistentSegNumSegmentTypes,   /* Number of segment types */
     IzotPersistentSegUnassigned = 0xFF, /* Unassigned segment type */
 } IZOT_ENUM_END(IzotPersistentSegType);
