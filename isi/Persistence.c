@@ -246,13 +246,13 @@ void savePersistentData(IzotPersistentSegType persistentSegType)
 	    hdr.checksum = computeChecksum(pImage, imageLen);
 	    hdr.length = imageLen;
 
-		IzotPersistentSegType returnedSegType = IzotOpenForWrite(persistentSegType, sizeof(hdr) + hdr.length);
+		IzotPersistentSegType returnedSegType = IzotPersistentSegOpenForWrite(persistentSegType, sizeof(hdr) + hdr.length);
 		if (returnedSegType != IzotPersistentSegUnassigned) {
-			if (IzotWrite(returnedSegType, 0, sizeof(hdr), &hdr) != 0 ||
-				  IzotWrite(returnedSegType, sizeof(hdr), hdr.length, pImage) != 0) {
+			if (IzotPersistentSegWrite(returnedSegType, 0, sizeof(hdr), &hdr) != 0 ||
+				  IzotPersistentSegWrite(returnedSegType, sizeof(hdr), hdr.length, pImage) != 0) {
 				failure = TRUE;
 			}
-			IzotClose(returnedSegType);
+			IzotPersistentSegClose(returnedSegType);
 		}
 		
 		if (failure) {
@@ -284,10 +284,10 @@ LtPersistenceLossReason restorePersistentData(IzotPersistentSegType persistentSe
 	int imageLen = 0;
 	int nVersion = 0;
 
-	IzotPersistentSegType returnedSegType = IzotOpenForRead(persistentSegType);
+	IzotPersistentSegType returnedSegType = IzotPersistentSegOpenForRead(persistentSegType);
 	memset(&hdr, 0, sizeof(hdr));
 	if (returnedSegType != IzotPersistentSegUnassigned) {
-		if (IzotRead(returnedSegType, 0, sizeof(hdr), &hdr) != 0) {
+		if (IzotPersistentSegRead(returnedSegType, 0, sizeof(hdr), &hdr) != 0) {
 			reason = LT_CORRUPTION;
 		} else if (hdr.signature != ISI_IMAGE_SIGNATURE0) {
 			reason = LT_SIGNATURE_MISMATCH;
@@ -300,14 +300,14 @@ LtPersistenceLossReason restorePersistentData(IzotPersistentSegType persistentSe
 			imageLen = hdr.length;
 			pBuffer = (IzotByte *) OsalMalloc(imageLen);
 			if (pBuffer == NULL ||
-				  IzotRead(returnedSegType, sizeof(hdr), imageLen, pBuffer) != 0 ||
+				  IzotPersistentSegRead(returnedSegType, sizeof(hdr), imageLen, pBuffer) != 0 ||
 				!ValidateChecksum(&hdr, pBuffer)) {
 				reason = LT_CORRUPTION;
 				OsalFree(pBuffer);
 				pBuffer = NULL;
 			}
 		}
-		IzotClose(returnedSegType);
+		IzotPersistentSegClose(returnedSegType);
 	} else {
 		reason = LT_NO_PERSISTENCE;
 	}

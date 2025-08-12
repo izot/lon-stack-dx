@@ -196,13 +196,13 @@ static IzotApiError store(IzotPersistentSegType persistentSegType)
         hdr.length = imageLen;
 
         IzotPersistentSegType returnedSegType = 
-          IzotOpenForWrite(persistentSegType, sizeof(hdr) + hdr.length);
+          IzotPersistentSegOpenForWrite(persistentSegType, sizeof(hdr) + hdr.length);
         if (returnedSegType != IzotPersistentSegUnassigned) {
-            if (IzotWrite(persistentSegType, 0, sizeof(hdr), &hdr) != 0 ||
-                IzotWrite(persistentSegType, sizeof(hdr), hdr.length, pImage) != 0) {
+            if (IzotPersistentSegWrite(persistentSegType, 0, sizeof(hdr), &hdr) != 0 ||
+                IzotPersistentSegWrite(persistentSegType, sizeof(hdr), hdr.length, pImage) != 0) {
                 reason = IzotApiPersistentFailure;
             }
-            IzotClose(persistentSegType);
+            IzotPersistentSegClose(persistentSegType);
         }
         
         if (reason != IzotApiNoError) {
@@ -398,10 +398,10 @@ IzotApiError restore(IzotPersistentSegType persistentSegType)
     if (IzotIsInTransaction(persistentSegType)) {
         reason = IzotApiPersistentFailure;
     } else {
-        IzotPersistentSegType returnedSegType = IzotOpenForRead(persistentSegType);
+        IzotPersistentSegType returnedSegType = IzotPersistentSegOpenForRead(persistentSegType);
         memset(&hdr, 0, sizeof(hdr));
         if (persistentSegType != IzotPersistentSegUnassigned) {
-            if (IzotRead(persistentSegType, 0, sizeof(hdr), &hdr) != 0) {
+            if (IzotPersistentSegRead(persistentSegType, 0, sizeof(hdr), &hdr) != 0) {
                 reason = IzotApiPersistentFailure;
             } else if (hdr.signature != ISI_IMAGE_SIGNATURE0) {
                 reason = IzotApiPersistentFailure;
@@ -413,14 +413,14 @@ IzotApiError restore(IzotPersistentSegType persistentSegType)
                 imageLength = hdr.length;
                 pImage = (IzotByte *) OsalMalloc(imageLength);
                 if (pImage == NULL ||
-                    IzotRead(persistentSegType, sizeof(hdr), imageLength, pImage) != 0 ||
+                    IzotPersistentSegRead(persistentSegType, sizeof(hdr), imageLength, pImage) != 0 ||
                     !ValidateChecksum(&hdr, pImage)) {
                     reason = IzotApiPersistentFailure;
                     OsalFree(pImage);
                     pImage = NULL;
                 }
             }
-            IzotClose(persistentSegType);
+            IzotPersistentSegClose(persistentSegType);
         } else {
             reason = IzotApiPersistentFailure;
         }

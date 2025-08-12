@@ -149,23 +149,23 @@ extern IzotApiError restore(IzotPersistentSegType persistentSegType);
 extern IzotApiError IzotEnterTransaction(const IzotPersistentSegType persistentSegType);
 
 /*
- *  Event: IzotOpenForWrite
+ *  Event: IzotPersistentSegOpenForWrite
  *  Calls the registered callback of <IzotPersistentOpenForWrite>.
  */
-extern IzotPersistentSegType IzotOpenForWrite(const IzotPersistentSegType persistentSegType, const size_t size);
+extern IzotPersistentSegType IzotPersistentSegOpenForWrite(const IzotPersistentSegType persistentSegType, const size_t size);
 
 /*
- *  Event: IzotWrite
+ *  Event: IzotPersistentSegWrite
  *  Calls the registered callback of <IzotPersistentWrite>.
  */
-extern IzotApiError IzotWrite(const IzotPersistentSegType persistentSegType, const size_t offset, 
+extern IzotApiError IzotPersistentSegWrite(const IzotPersistentSegType persistentSegType, const size_t offset, 
 		const size_t size, const void* const pData);
 
 /*
- *  Event: IzotClose
+ *  Event: IzotPersistentSegClose
  *  Calls the registered callback of <IzotPersistentClose>.
  */
-extern void IzotClose(const IzotPersistentSegType persistentSegType);
+extern void IzotPersistentSegClose(const IzotPersistentSegType persistentSegType);
 
 /*
  *  Event: IzotExitTransaction
@@ -180,16 +180,16 @@ extern IzotApiError IzotExitTransaction(const IzotPersistentSegType persistentSe
 extern IzotBool IzotIsInTransaction(const IzotPersistentSegType persistentSegType);
 
 /*
- *  Event: IzotOpenForRead
+ *  Event: IzotPersistentSegOpenForRead
  *  Calls the registered callback of <IzotPersistentOpenForRead>.
  */
-extern IzotPersistentSegType IzotOpenForRead(const IzotPersistentSegType persistentSegType);
+extern IzotPersistentSegType IzotPersistentSegOpenForRead(const IzotPersistentSegType persistentSegType);
 
 /*
- *  Event: IzotRead
+ *  Event: IzotPersistentSegRead
  *  Calls the registered callback of <IzotPersistentRead>.
  */
-extern IzotApiError IzotRead(const IzotPersistentSegType persistentSegType, const size_t offset, 
+extern IzotApiError IzotPersistentSegRead(const IzotPersistentSegType persistentSegType, const size_t offset, 
 		const size_t size, void * const pBuffer);
 
 /*

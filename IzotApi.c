@@ -2323,10 +2323,10 @@ IzotApiError IzotMemoryWrite(const unsigned address, const unsigned size, const 
 }
 
 /*
- *  Event: IzotOpenForRead
+ *  Event: IzotPersistentSegOpenForRead
  *  Calls the registered callback of <IzotPersistentOpenForRead>.
  */
-IzotPersistentSegType IzotOpenForRead(const IzotPersistentSegType persistentSegType)
+IzotPersistentSegType IzotPersistentSegOpenForRead(const IzotPersistentSegType persistentSegType)
 {
     if (izot_open_for_read_handler) {
         return izot_open_for_read_handler(persistentSegType);
@@ -2336,10 +2336,10 @@ IzotPersistentSegType IzotOpenForRead(const IzotPersistentSegType persistentSegT
 }
 
 /*
- *  Event: IzotOpenForWrite
+ *  Event: IzotPersistentSegOpenForWrite
  *  Calls the registered callback of <IzotPersistentOpenForWrite>.
  */
-IzotPersistentSegType IzotOpenForWrite(const IzotPersistentSegType persistentSegType, const size_t size)
+IzotPersistentSegType IzotPersistentSegOpenForWrite(const IzotPersistentSegType persistentSegType, const size_t size)
 {
     if (izot_open_for_write_handler) {
         return izot_open_for_write_handler(persistentSegType, size);
@@ -2349,10 +2349,10 @@ IzotPersistentSegType IzotOpenForWrite(const IzotPersistentSegType persistentSeg
 }
 
 /*
- *  Event: IzotClose
+ *  Event: IzotPersistentSegClose
  *  Calls the registered callback of <IzotPersistentClose>.
  */
-void IzotClose(const IzotPersistentSegType persistentSegType)
+void IzotPersistentSegClose(const IzotPersistentSegType persistentSegType)
 {
     if (izot_close_handler) {
         izot_close_handler(persistentSegType);
@@ -2360,10 +2360,10 @@ void IzotClose(const IzotPersistentSegType persistentSegType)
 }
 
 /*
- *  Event: IzotRead
+ *  Event: IzotPersistentSegRead
  *  Calls the registered callback of <IzotPersistentRead>.
  */
-IzotApiError IzotRead(const IzotPersistentSegType persistentSegType, const size_t offset, const size_t size, 
+IzotApiError IzotPersistentSegRead(const IzotPersistentSegType persistentSegType, const size_t offset, const size_t size, 
 void * const pBuffer) 
 {
     if (izot_read_handler) {
@@ -2374,10 +2374,10 @@ void * const pBuffer)
 }
 
 /*
- *  Event: IzotWrite
+ *  Event: IzotPersistentSegWrite
  *  Calls the registered callback of <IzotPersistentWrite>.
  */
-IzotApiError IzotWrite(const IzotPersistentSegType persistentSegType, const size_t offset, const size_t size, 
+IzotApiError IzotPersistentSegWrite(const IzotPersistentSegType persistentSegType, const size_t offset, const size_t size, 
 const void* const pData)
 {
     if (izot_write_handler) {
