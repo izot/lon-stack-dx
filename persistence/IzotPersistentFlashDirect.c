@@ -204,7 +204,7 @@ IzotPersistentSegType IzotPersistentOpenForWrite(const IzotPersistentSegType per
 {
     IzotApiError sts = IzotApiNoError;
     void *fd;
-    IzotPersistentSegType returnedSegType = NULL;
+    IzotPersistentSegType returnedSegType = IzotPersistentSegUnassigned;
 #ifdef FLASH_DEBUG
     if (persistentTraceEnabled) {
         PrintTimeStamp();
