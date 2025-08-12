@@ -2606,14 +2606,6 @@ typedef IZOT_ENUM_BEGIN(IzotPersistentSegType)
 } IZOT_ENUM_END(IzotPersistentSegType);
 
 /*
- *  Typedef: IzotPersistentHandle
- *  A handle to an open persistent data segment.  Returned by the
- * IzotPersistentOpenxxx callbacks, and used by the <IzotFlashSegRead>,
- * <IzotFlashSegWrite>, and <IzotFlashSegClose> callbacks.
- */
-typedef void *IzotPersistentHandle;
-
-/*
  *  Macro: IZOT_STACK_INTERFACE_CURRENT_VERSION
  *  The current version of the <IzotStackInterfaceData> structure.
  *

@@ -35,14 +35,6 @@
 /*------------------------------------------------------------------------------
 Section: Macros
 ------------------------------------------------------------------------------*/
-// Translate a <IzotPersistentSegType> to a <IzotPersistentHandle>. 
-// Add one to the persistentSegType because the handle value of 0 is reserved.
-#define TypeToHandle(type) ((IzotPersistentHandle)((type)+1))
-
-// Translate a <IzotPersistentHandle> to <IzotPersistentSegType>.
-#define HandleToType(handle) \
-    ((handle) == 0 ? IzotPersistentSegNumSegmentTypes : ((IzotPersistentSegType)(handle))-1)
-    
 // A unique value to identify an initialized transaction record.
 #define TX_SIGNATURE 0x89ABCDEF
 
