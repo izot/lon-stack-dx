@@ -83,14 +83,15 @@
 
 // Conditional test macros
 
-#define PRODUCT_IS(prodid) (PRODUCT_ID == PRODUCT_ID_ ## prodid)
-#define PLATFORM_IS(platid) (PLATFORM_ID == PLATFORM_ID_ ## platid)
-#define PROCESSOR_IS(procid) (PROCESSOR_ID == PROCESSOR_ID_ ## procid)
-#define LINK_IS(linkid) (LINK_ID == LINK_ID_ ## linkid)
+#define DEBUG_IS(dbgid) (DEBUG_ID == DEBUG_ID_ ##dbgid)
 #define ISI_IS(isiid) (ISI_ID == ISI_ID_ ## isiid)
 #define IUP_IS(iupid) (IUP_ID == IUP_ID_ ## iupid)
+#define LINK_IS(linkid) (LINK_ID == LINK_ID_ ## linkid)
+#define OS_IS(osid) (OS_ID == OS_ID_ ## osid)
+#define PLATFORM_IS(platid) (PLATFORM_ID == PLATFORM_ID_ ## platid)
+#define PROCESSOR_IS(procid) (PROCESSOR_ID == PROCESSOR_ID_ ## procid)
+#define PRODUCT_IS(prodid) (PRODUCT_ID == PRODUCT_ID_ ## prodid)
 #define SECURITY_IS(secid) (SECURITY_ID == SECURITY_ID_ ## secid)
-#define DEBUG_IS(dbgid) (DEBUG_ID == DEBUG_ID_ ##dbgid)
 
 // Available IDs.  You can add new IDs to this list.  The value  0 is
 // reserved for the default value of each.  Any ID defined with a value
@@ -100,7 +101,8 @@
 #define PRODUCT_ID_NA  0
 #define PRODUCT_ID_SLB 1
 
-// Platform IDs -- default is unspecified
+// Platform IDs -- PLATFORM_ID_LINUX64_ARM_GCC
+#define PLATFORM_ID_LINUX64_ARM_GCC  0  // Linux 64 ARM (LINUX64_ARM_GCC)
 #define PLATFORM_ID_RPI              1  // Raspberry Pi ARM (__ARMEL__)
 #define PLATFORM_ID_ARM_EABI_GCC     2  // Generic ARM EABI GCC (ARM_NONE_EABI_GCC)
 #define PLATFORM_ID_FRTOS_ARM_EABI   3  // FreeRTOS ARM EABI GCC
@@ -114,9 +116,19 @@
 #define PLATFORM_ID_NIOS2_LE        10  // Altera NIOS II GCC Little Endian (GCC_NIOS)
 #define PLATFORM_ID_RPI_PICO        11  // Raspberry Pi Pico (RP2040) ARM (__ARM64__)
 
-// Processor IDs -- default is unspecified
-#define PROCESSOR_ID_NA     0
-#define PROCESSOR_ID_MC200  1   // Marvell MC200 ARM Cortex M3
+// Operating System IDs -- default is Linux
+#define OS_ID_LINUX      0   // Linux
+#define OS_ID_FREERTOS   1   // FreeRTOS
+#define OS_ID_WINDOWS    2   // Windows
+#define OS_ID_BARE_METAL 3   // No OS, bare metal
+
+// Processor IDs -- default is PROCESSOR_ID_ARM64
+#define PROCESSOR_ID_ARM64  0   // 64-bit ARM
+#define PROCESSOR_ID_ARM32  1   // 32-bit ARM
+#define PROCESSOR_ID_ARM7   2   // 32-bit ARM7
+#define PROCESSOR_ID_X64    3   // 64-bit x64
+#define PROCESSOR_ID_X86    4   // 32-bit x86
+#define PROCESSOR_ID_MC200  5   // Marvell MC200 ARM Cortex M3
 
 // Link IDs -- default is LON/IP Ethernet
 #define LINK_ID_ETHERNET    0   // LON/IP Ethernet data link
@@ -144,25 +156,46 @@
 
 
 // Project-specific IDs -- to change any of these for a project,
-// change the "0" to a macro name defined above with a matching
+// add a #define for your ID prior to including IzotConfig.h, or
+// change the "0" below to a macro name defined above with a matching
 // prefix.  If a default is not defined for PLATFORM_ID, IzotPlatform.h
-// will determine the platform ID based on pre-defined platform
-// macros for different platforms.
+// may determine the platform ID based on pre-defined platform macros
+// for different platforms.
 
-#if !defined(PLATFORM_ID)
-#define PLATFORM_ID   PLATFORM_ID_LINUX64_ARM_GCC
-#endif  // !defined(PLATFORM_ID)
+#if !defined(DEBUG_ID)
+#define DEBUG_ID      0
+#endif  // !defined(DEBUG_ID)
+
+#if !defined(ISI_ID)
+#define ISI_ID 		  0
+#endif  // !defined(ISI_ID)
+
+#if !defined(IUP_ID)
+#define IUP_ID        0
+#endif  // !defined(IUP_ID)
 
 #if !defined(LINK_ID)
-#define LINK_ID 	  LINK_ID_USB
+#define LINK_ID       0
 #endif  // !defined(LINK_ID)
 
-#define PRODUCT_ID 	  0
-#define PROCESSOR_ID  0
-#define ISI_ID 		  0
-#define IUP_ID        0
-#define SECURITY_ID   0
-#define DEBUG_ID      0
+#if !defined(OS_ID)
+#define OS_ID         0
+#endif  // !defined(OS_ID)
 
+#if !defined(PLATFORM_ID)
+#define PLATFORM_ID   0
+#endif  // !defined(PLATFORM_ID)
+
+#if !defined(PROCESSOR_ID)
+#define PROCESSOR_ID  0
+#endif  // !defined(PROCESSOR_ID)
+
+#if !defined(PRODUCT_ID)
+#define PRODUCT_ID 	  0
+#endif  // !defined(PRODUCT_ID)
+
+#if !defined(SECURITY_ID)
+#define SECURITY_ID   0
+#endif  // !defined(SECURITY_ID)
 
 #endif  // defined(_IZOT_CONFIG_H) 
