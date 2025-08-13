@@ -1,7 +1,7 @@
 //
 // IzotPlatform.h
 //
-// Copyright (C) 2023-2025-2025 EnOcean
+// Copyright (C) 2023-2025 EnOcean
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of
 // this software and associated documentation files (the "Software"), to deal in 
@@ -123,6 +123,18 @@
 //  #pragma message("Raspberry Pi or Pi Pico platform (RPI or RPI_PICO) selected")
     #define RASPBERRY_PI_HOSTED       /* Runs on the Raspberry Pi or Pi Pico */
 
+    // Specify processor type.
+    #undef PROCESSOR_ID
+    #define PROCESSOR_ID PROCESSOR_ID_ARM32
+
+    // Specify operating system.
+    #undef OS_ID
+    #if PLATFORM_IS(RPI_PICO)
+        #define OS_ID OS_ID_BARE_METAL
+    #else
+        #define OS_ID OS_ID_LINUX
+    #endif
+
     // Specify little-endian byte order.
     #undef BYTE_ORDER
     #define BYTE_ORDER LITTLE_ENDIAN
@@ -243,6 +255,14 @@
 //  #pragma message("Generic ARM EABI GCC platform (ARM_EABI_GCC) selected")
     #define ARM_EABI_GCC_HOSTED
 
+    // Specify processor type.
+    #undef PROCESSOR_ID
+    #define PROCESSOR_ID PROCESSOR_ID_ARM32
+
+    // Specify operating system.
+    #undef OS_ID
+    #define OS_ID OS_ID_BARE_METAL
+    
     // Specify little-endian byte order.
     #undef BYTE_ORDER
     #define BYTE_ORDER LITTLE_ENDIAN
@@ -360,6 +380,14 @@
 
 //  #pragma message("FreeRTOS ARM EABI platform (FRTOS_ARM_EABI) selected")
     #define ARM_EABI_GCC_HOSTED        // used with the CPM 4200 SDK
+
+    // Specify processor type.
+    #undef PROCESSOR_ID
+    #define PROCESSOR_ID PROCESSOR_ID_ARM32
+
+    // Specify operating system.
+    #undef OS_ID
+    #define OS_ID OS_ID_FREERTOS
 
     // Specify little-endian byte order.
     #undef BYTE_ORDER
@@ -489,6 +517,14 @@
     // #pragma message("Linux 64-bit ARM platform (LINUX64_ARM_GCC) selected")
     #define LINUX64_HOSTED       /* runs on a Linux64 system */
 
+    // Specify processor type.
+    #undef PROCESSOR_ID
+    #define PROCESSOR_ID PROCESSOR_ID_ARM64
+
+    // Specify operating system.
+    #undef OS_ID
+    #define OS_ID OS_ID_LINUX
+
     // Specify little-endian byte order.
     #undef BYTE_ORDER
     #define BYTE_ORDER LITTLE_ENDIAN
@@ -611,6 +647,14 @@
 //  #pragma message("Linux 32-bit ARM platform (LINUX32_ARM_GCC) selected")
     #define LINUX32_HOSTED       /* runs on a Linux32 system */
 
+    // Specify processor type.
+    #undef PROCESSOR_ID
+    #define PROCESSOR_ID PROCESSOR_ID_ARM32
+
+    // Specify operating system.
+    #undef OS_ID
+    #define OS_ID OS_ID_LINUX
+
     // Specify little-endian byte order.
     #undef BYTE_ORDER
     #define BYTE_ORDER LITTLE_ENDIAN
@@ -691,6 +735,14 @@
 
 //  #pragma message("Win32 x86 platform (WIN32_X86) selected")
     #define WIN32_HOSTED       /* runs in the WIN32 environment */
+
+    // Specify processor type.
+    #undef PROCESSOR_ID
+    #define PROCESSOR_ID PROCESSOR_ID_X86
+
+    // Specify operating system.
+    #undef OS_ID
+    #define OS_ID OS_ID_WINDOWS
 
     // Specify little-endian byte order.
     #undef BYTE_ORDER
@@ -773,6 +825,14 @@
 
 //  #pragma message("IAR ARM7 platform (IAR_ARM7) selected")
     #define ARM7_HOSTED       /* runs in the ARM7 environment */
+
+    // Specify processor type.
+    #undef PROCESSOR_ID
+    #define PROCESSOR_ID PROCESSOR_ID_ARM7
+
+    // Specify operating system.
+    #undef OS_ID
+    #define OS_ID OS_ID_BARE_METAL
 
     // Specify little-endian byte order.
     #undef BYTE_ORDER
