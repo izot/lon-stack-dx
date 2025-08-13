@@ -1,88 +1,66 @@
-//
-// IzotConfig.h
-//
-// Copyright (C) 2023-2025 EnOcean
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy of
-// this software and associated documentation files (the "Software"), to deal in 
-// the Software without restriction, including without limitation the rights to
-// use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-// of the Software, and to permit persons to whom the Software is furnished to do
-// so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
-
-//
-// Title: LON Stack configuration file
-//
-// Abstract:
-// This file defines product, platform, processor, link, ISI, and security
-// conditional test macros and project-specific IDs to use with the macros.
-// You can customize this file for a project.  To add new IDs, add them
-// after "Available IDs".  To select an ID for a project, add the appropriate
-// macro name after "Project-specific IDs".  The default values for all IDs is 0. 
-// For example, the default data link is LINK_ID 0 which is LON/IP over Ethernet.
-// To change the data link to LON/IP over Wi-Fi, change the LINK_ID definition
-// under "Project-specific IDs" to the following:
-//
-//      #define LINK_ID LINK_ID_WIFI
-//
-// Use the xxx_IS(yyy) macros to control conditional compilation.
-// For example:
-//
-//      #if PRODUCT_IS(XYZ)
-// 		    XYZ-only code
-//      #endif
-//
-// If the conditional code is in the middle of a function,
-// you can use the macro as a real expression and let
-// and let optimization remove unused code.  For example:
-//
-//      if (PRODUCT_IS(XYZ)) {
-// 		    XYZ-only code
-//      }
-//
-// This technique will only work if all the options are linkable when they are not optimized away.
-//
-// The IDs are in the form xxx_ID_yyy N.  For example:
-//
-//      #define PRODUCT_ID_SLB 1
-//
-// Here are a few example conditional tests:
-//
-// #if PRODUCT_IS(SLB)
-// #if PLATFORM_IS(RPI)
-// #if PLATFORM_IS(RPI_PICO)
-// #if PROCESSOR_IS(MC200)
-// #if LINK_IS(WIFI)
-// #if LINK_IS(MIP)
-// #if LINK_IS(USB)
-// #if ISI_IS(SIMPLE)
-// #if ISI_IS(SIMPLE) || ISI_IS(DA)
-// #if IUP_IS(V1)
-// #if SECURITY_IS(V2)
-// #if DEBUG_IS(SERIAL)
-// #if DEBUG_IS(LCD)
-
+/*
+ * IzotConfig.h
+ *
+ * Copyright (c) 2023-2025 EnOcean
+ * SPDX-License-Identifier: MIT
+ * See LICENSE file for details.
+ * 
+ * Title:   LON Stack Configuration File
+ * Purpose: Defines product, platform, processor, link, self-
+ *          installation (ISI), and security conditional test macros
+ *          and project-specific IDs to use with the macros.
+ * Notes:   You can customize this file for a project.  To add new IDs,
+ *          add them after "Available IDs".  To select an ID for a
+ *          project, add the appropriate macro name after 
+ *          "Project-specific IDs".  The default values for all IDs is 0. 
+ *          For example, the default data link is LINK_ID 0 which is 
+ *          LON/IP over Ethernet.  To change the data link to LON/IP 
+ *          over Wi-Fi, change the LINK_ID definition under 
+ *          "Project-specific IDs" to the following:
+ * 
+ *              #define LINK_ID LINK_ID_WIFI
+ * 
+ *          Use the xxx_IS(yyy) macros to control conditional 
+ *          compilation.  For example:
+ * 
+ *              #if PRODUCT_IS(XYZ)
+ *                  XYZ-only code
+ *              #endif
+ * 
+ *          If the conditional code is in the middle of a function,
+ *          you can use the macro as a real expression and let
+ *          optimization remove unused code.  For example:
+ * 
+ *              if (PRODUCT_IS(XYZ)) {
+ *                  XYZ-only code
+ *              }
+ * 
+ *          This technique will only work if all the options are 
+ *          linkable when they are not optimized away.  The IDs
+ *          are in the form xxx_ID_yyy N.  For example:
+ * 
+ *              #define PRODUCT_ID_XYZ 1
+ * 
+ *          Here are a few example conditional tests:
+ * 
+ *              #if PLATFORM_IS(LINUX64_ARM_GCC)
+ *              #if PLATFORM_IS(RPI)
+ *              #if PLATFORM_IS(RPI_PICO)
+ *              #if PROCESSOR_IS(ARM64)
+ *              #if LINK_IS(WIFI)
+ *              #if LINK_IS(MIP)
+ *              #if LINK_IS(USB)
+ *              #if ISI_IS(SIMPLE)
+ *              #if ISI_IS(SIMPLE) || ISI_IS(DA)
+ *              #if IUP_IS(V1)
+ *              #if SECURITY_IS(V2)
+ *              #if DEBUG_IS(SERIAL)
+ *              #if DEBUG_IS(LCD)
+ */
 #if !defined(_IZOT_CONFIG_H)
 #define _IZOT_CONFIG_H
  
-
-//
-// Section: Macros
-//
-
 // Conditional test macros
-
 #define DEBUG_IS(dbgid) (DEBUG_ID == DEBUG_ID_ ##dbgid)
 #define ISI_IS(isiid) (ISI_ID == ISI_ID_ ## isiid)
 #define IUP_IS(iupid) (IUP_ID == IUP_ID_ ## iupid)
@@ -93,7 +71,7 @@
 #define PRODUCT_IS(prodid) (PRODUCT_ID == PRODUCT_ID_ ## prodid)
 #define SECURITY_IS(secid) (SECURITY_ID == SECURITY_ID_ ## secid)
 
-// Available IDs.  You can add new IDs to this list.  The value  0 is
+// Available IDs.  You can add new IDs to this list.  The value 0 is
 // reserved for the default value of each.  Any ID defined with a value
 // of 0 is the default.
 
@@ -122,7 +100,7 @@
 #define OS_ID_WINDOWS    2   // Windows
 #define OS_ID_BARE_METAL 3   // No OS, bare metal
 
-// Processor IDs -- default is PROCESSOR_ID_ARM64
+// Processor IDs -- default is ARM64
 #define PROCESSOR_ID_ARM64  0   // 64-bit ARM
 #define PROCESSOR_ID_ARM32  1   // 32-bit ARM
 #define PROCESSOR_ID_ARM7   2   // 32-bit ARM7
@@ -154,14 +132,21 @@
 #define DEBUG_ID_SERIAL 1   // Debug output to serial console
 #define DEBUG_ID_LCD    2   // Debug output to LCD
 
-
 // Project-specific IDs -- to change any of these for a project,
 // add a #define for your ID prior to including IzotConfig.h, or
 // change the "0" below to a macro name defined above with a matching
 // prefix.  If a default is not defined for PLATFORM_ID, IzotPlatform.h
 // may determine the platform ID based on pre-defined platform macros
-// for different platforms.
-
+// for different platforms.  To enable automatic platform detection,
+// undefined PLATFORM_ID and the platform detection code will
+// determine the platform based on pre-defined macros for different
+// platforms.  For example, if PLATFORM_ID is undefined, the
+// platform will be set to PLATFORM_ID_LINUX64_ARM_GCC if the
+// __aarch64__ macro is defined, or to PLATFORM_ID_RPI if the
+// __ARMEL__ macro is defined, or to PLATFORM_ID_FRTOS_ARM_EABI
+// if the __FREERTOS_ARM_EABI__ macro is defined, and so on.  If
+// PLATFORM_ID is defined, the platform detection code will not
+// override it.
 #if !defined(DEBUG_ID)
 #define DEBUG_ID      0
 #endif  // !defined(DEBUG_ID)

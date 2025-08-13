@@ -1,103 +1,74 @@
-//
-// IzotPlatform.h
-//
-// Copyright (C) 2023-2025 EnOcean
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy of
-// this software and associated documentation files (the "Software"), to deal in 
-// the Software without restriction, including without limitation the rights to
-// use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-// of the Software, and to permit persons to whom the Software is furnished to do
-// so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
-
-
-/****************************************************************************
- *  Filename: IzotPlatform.h
+/*
+ * IzotPlatform.h
  *
- *  Description:  This file contains platform dependant flags
- *  and basic data types. Many data types used with the LON DX Stack API
- *  are derived from the basic data types of this file, unless standard C or
- *  C-99 types are used.
+ * Copyright (c) 2023-2025 EnOcean
+ * SPDX-License-Identifier: MIT
+ * See LICENSE file for details.
+ * 
+ * Title:   Lon Stack DX Platform Definitions
+ * Purpose: Defines platform-specific macros and data types.
+ * Notes:   Platform preferences are grouped together by a preprocessor
+ *          macro that indicates the compiler and target platform.  In
+ *          some cases, a platform may be selected based on pre-defined
+ *          compiler macros.
+ * 
+ *          If this file does not include definitions that are appropriate
+ *          for your target platform, host, and development environment, y
+ *          you can derive your set of platform properties by copying one of
+ *          the definition sets and modifying them as needed.
+ * 
+ *          -------- Portability Principles -----
  *
- *  Below this header, which contains further discussion and background
- *  information about the issues addressed by this file, there are a
- *  set of C-language typedef expressions and preprocessor macro
- *  definitions. These platform-preferences are grouped together by a
- *  preprocessor macro that indicates the compiler in use, and possibly
- *  the target platform in use.
+ *          The LON Stack DX API uses portable type definitions where 
+ *          necessary, and uses native types, including C-99 types, 
+ *          where possible. Portable types are primarily used in the 
+ *          definition of protocol and network data structures, because 
+ *          these definitions must generally match the protocol
+ *          definition in size, alignment, layout, and related aspects.
  *
- *  If this file does not include definitions that are appropriate for your
- *  host and development environment.  You can derive your
- *  set of platform properties by copying one of the definition sets
- *  provided, preferably using a set matching a similar compiler or platform,
- *  and modifying them as needed.
+ *          C-99 Types
  *
- *  You must make sure the correct compiler identifier (such as "_COSMIC")
- *  is defined at compile time; failure to do so will result in an error
- *  during compilation. Many compilers and development kits supply pre-defined
- *  definitions for this purpose. Alternatively, you can define a constant
- *  preprocessor symbol of your choice within your project definition or
- *  makefile.
+ *          The portable types are based on C99 types, e.g. uint8_t, 
+ *          int16_t, etc.  Definitions for compilers which support 
+ *          <stdint.h> should #include this standard C99 .H file within
+ *          the compiler-specific definitions, below in this file. 
+ *          Definitions for other compilers can include type definitions
+ *          for uint8_t, int8_t, uint16_t, int16_t, uint32_t, int32_t in 
+ *          the same location.
  *
- *  -------- Portability Principles -----
+ *          Bitfields
  *
- *  The LON Stack DX API uses portable type definitions where necessary,
- *  and uses native types, including C-99 types, where possible. Portable
- *  types are primarily used in the definition of protocol and network data
- *  structures, because these definitions must generally match the protocol
- *  definition in size, alignment, layout, and related aspects.
+ *          Bitfields are generally not portable, because the location of
+ *          a bit field within its container, and the type (size) of that 
+ *          container, is not defined or modifyable. Therefore, bit fields 
+ *          are defined with their enclosing byte, and macros are provided 
+ *          to extract or manipulate the bit field information. See the 
+ *          <IZOT_GET_ATTRIBUTE> and <IZOT_SET_ATTRIBUTE> macros.
  *
- *  C-99 Types
+ *          Enumerations
  *
- *  The portable types are based on C99 types, e.g. uint8_t, int16_t, etc.
- *  Definitions for compilers which support <stdint.h> should #include this
- *  standard C99 .H file within the compiler-specific definitions, below in
- *  this file. Definitions for other compilers can include type definitions
- *  for uint8_t, int8_t, uint16_t, int16_t, uint32_t, int32_t in the same
- *  location.
+ *          Enumerations are implemented using a signed 8-bit data type, 
+ *          and members are defined through a number of preprocessor 
+ *          symbols.  This eliminates concern about the size of an 
+ *          enumeration type.
  *
- *  Bitfields
+ *          Structures, Unions
  *
- *  Bitfields are generally not portable, because the location of a bit field
- *  within its container, and the type (size) of that container, is not
- *  defined or modifyable. Therefore, bit fields are defined with their
- *  enclosing byte, and macros are provided to extract or manipulate the bit
- *  field information. See the <IZOT_GET_ATTRIBUTE> and <IZOT_SET_ATTRIBUTE>
- *  macros.
+ *          Structures and unions are defined and implemented using 
+ *          utility definitions provided in this file. These utility 
+ *          definitions can map to plain C language phrases, and can 
+ *          also engage compiler-specific, non-standard keywords. 
+ *          These are often used to create structures and unions which 
+ *          meet the protocol requirements: byte-alignment, no padding.
  *
- *  Enumerations
+ *          Multi-byte Scalars
  *
- *  Enumerations are implemented using a signed 8-bit data type, and members
- *  are defined through a number of preprocessor symbols.
- *  This eliminates concern about the size of an enumeration type.
- *
- *  Structures, Unions
- *
- *  Structures and unions are defined and implemented using utility
- *  definitions provided in this file. These utility definitions can map
- *  to plain C language phrases, and can also engage compiler-specific,
- *  non-standard keywords. These are often used to create structures and
- *  unions which meet the protocol requirements: byte-alignment, no padding.
- *
- *  Multi-byte Scalars
- *
- *  Multiple-byte scalars are presented as aggregates of multiple bytes, in
- *  the network and protocol byte order (big endian). Macros such as
- *  <IZOT_GET_UNSIGNED_WORD> and <IZOT_SET_UNSIGNED_WORD> are provided to
- *  convert between native scalars and multi-byte aggregates.
- *
- ***************************************************************************/
+ *          Multiple-byte scalars are presented as aggregates of
+ *          multiple bytes, in the network and protocol byte order 
+ *          (big endian). Macros such as <IZOT_GET_UNSIGNED_WORD> and 
+ *          <IZOT_SET_UNSIGNED_WORD> are provided to convert between 
+ *          native scalars and multi-byte aggregates.
+ */
 
 #ifndef _IZOT_PLATFORM_H
 #define _IZOT_PLATFORM_H
