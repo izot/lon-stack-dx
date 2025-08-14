@@ -722,6 +722,7 @@ void EraseSecIIPersistentData(void)
 static IzotApiError OpenFlash(const IzotPersistentSegType persistentSegType)
 {
     IzotApiError sts = IzotApiNoError;
+
     if (persistentSegType > IzotPersistentSegNumSegmentTypes) {
         // Invalid data type.
         sts = IzotApiPersistentFileError;
@@ -730,12 +731,10 @@ static IzotApiError OpenFlash(const IzotPersistentSegType persistentSegType)
         sts = InitSegmentMap(persistentSegType);
         if (sts == IzotApiNoError) {
             // Open the flash.
-            *pFd = (void *)HalFlashDrvOpen();
-            if (*pFd == 0) {
-                sts = IzotApiPersistentFileError;
-            }
+            sts = HalFlashDrvOpen();
         }
     }
+    
     return(sts);
 }
 
