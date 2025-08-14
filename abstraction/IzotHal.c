@@ -156,7 +156,7 @@ IzotApiError HalGetFlashInfo(unsigned long *offset,
 
 #if OS_IS(LINUX)
     *offset             = LINUX_FLASH_OFFSET;
-#elseif PROCESSOR_IS(MC200)
+#elif PROCESSOR_IS(MC200)
     *offset             = FREERTOS_FLASH_OFFSET;
 #endif 
 
@@ -184,7 +184,7 @@ IzotApiError HalGetFlashInfo(unsigned long *offset,
  */
 IzotApiError HalFlashDrvOpen(void)
 {
-    IzotApiError result = IzotApiNoError
+    IzotApiError result = IzotApiNoError;
 
 #if OS_IS(LINUX)
     // Open file (read/write, create if missing, no truncation)
