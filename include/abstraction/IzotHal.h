@@ -39,12 +39,13 @@
 /*------------------------------------------------------------------------------
 Section: Macro
 ------------------------------------------------------------------------------*/
-#define IUP_FLASH_OFFSET    0x6000
-#define FLASH_OFFSET        0x6000
-#define FLASH_REGION_SIZE   0x6000
-#define NUM_OF_BLOCKS       6
-#define BLOCK_SIZE          0x1000
-#define NO_OF_REGION        1
+#define LINUX_FLASH_OFFSET      0
+#define FREERTOS_FLASH_OFFSET   0x6000
+#define FLASH_OFFSET            0x6000
+#define FLASH_REGION_SIZE       0x6000
+#define NUM_OF_BLOCKS           6
+#define BLOCK_SIZE              0x1000
+#define NO_OF_REGION            1
 
 /*------------------------------------------------------------------------------
 Section: Function Prototypes
@@ -63,7 +64,7 @@ extern int HalGetMacAddress(unsigned char *mac);
  * the area  for the Izot non volatile data
  *
  */
-extern int HalGetFlashInfo(void *fd, unsigned long *offset, 
+extern IzotApiError HalGetFlashInfo(unsigned long *offset, 
 unsigned long *region_size, int *number_of_blocks, 
 unsigned long *block_size, int *number_of_regions
 );
@@ -73,21 +74,21 @@ unsigned long *block_size, int *number_of_regions
  * Use this API to open the driver for the flash for your hardware.
  *
  */
-extern void *HalFlashDrvOpen(uint32_t flags);
+extern IzotApiError HalFlashDrvOpen(void);
 
 /*
  * Function:   HalFlashDrvClose
  * Use this API to close the driver for the flash for your hardware.
  *
  */
-extern void HalFlashDrvClose(void *fd);
+extern void HalFlashDrvClose(void);
 
 /*
  * Function:   HalFlashDrvInit
  * Use this API to initialize the driver for the flash for your hardware.
  *
  */
-extern int HalFlashDrvInit(void);
+extern IzotApiError HalFlashDrvInit(void);
 
 /*
  * Function:   HalFlashDrvErase
@@ -95,9 +96,7 @@ extern int HalFlashDrvInit(void);
  * provided the parameter for your hardware.
  *
  */
-extern int HalFlashDrvErase(
-void *fd, unsigned long start, unsigned long size
-);
+extern int HalFlashDrvErase(unsigned long start, unsigned long size);
 
 /*
  * Function:   HalFlashDrvWrite
@@ -105,9 +104,7 @@ void *fd, unsigned long start, unsigned long size
  * provided the parameter for your hardware.
  *
  */
-extern int HalFlashDrvWrite(
-void *fd, IzotByte *buf, uint32_t len, uint32_t addr
-);
+extern int HalFlashDrvWrite(IzotByte *buf, uint32_t len, uint32_t addr);
 
 /*
  * Function:   HalFlashDrvRead
@@ -115,9 +112,7 @@ void *fd, IzotByte *buf, uint32_t len, uint32_t addr
  * provided the parameter for your hardware.
  *
  */
-extern int HalFlashDrvRead(
-void *fd, IzotByte *buf, uint32_t len, uint32_t addr
-);
+extern int HalFlashDrvRead(IzotByte *buf, uint32_t len, uint32_t addr);
 
 extern void HalReboot(void);
 

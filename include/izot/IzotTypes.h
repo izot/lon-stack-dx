@@ -177,7 +177,8 @@ typedef IZOT_ENUM_BEGIN(IzotApiError)
     /*    71   */ IzotApiInvalidSegmentType   = 71, /* Not a supported persistent segment type. */
     /*    72   */ IzotApiPersistentFailure,       /* Generic persistent data failure. */
     /*    73   */ IzotApiPersistentSizeNotSupported, /* Persistent data size is not supported. */
-    /*    74   */ IzotApiPersistentFileError,     /* Persistent data access error. */
+    /*    74   */ IzotApiPersistentDirError,      /* Persistent data directory error. */
+    /*    75   */ IzotApiPersistentFileError,     /* Persistent data access error. */
     /*
      * Direct Memory File (DMF) access errors.
      */
