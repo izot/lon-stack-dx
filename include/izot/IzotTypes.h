@@ -3141,7 +3141,7 @@ typedef void (*IzotPersistentSegDeleteFunction)(
  *  data available to read).
  */
 typedef IzotApiError (*IzotPersistentSegReadFunction)(const IzotPersistentSegType persistentSegType,
-    const size_t offset, const size_t size, void * const pBuffer);
+    const size_t offset, const size_t size, IzotByte* const pBuffer);
 
 
 /*
@@ -3168,7 +3168,7 @@ typedef IzotApiError (*IzotPersistentSegReadFunction)(const IzotPersistentSegTyp
  *  Without an application-specific handler, this event always fails.
  */
 typedef IzotApiError (*IzotPersistentSegWriteFunction) (const IzotPersistentSegType persistentSegType,
-    const size_t offset, const size_t size, const void * const pData);
+    const size_t offset, const size_t size, const IzotByte* const pData);
 
 /*
  *  Callback: IzotFlashSegIsInTransaction
