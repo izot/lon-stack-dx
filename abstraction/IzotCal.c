@@ -171,9 +171,12 @@ static void EventWlanInitDone(void *data)
 	wifi_uap_set_domain_params(dp);
 	os_mem_free(dp);
 
-    // Get the MAC address of WIFI driver
-    HalGetMacAddress(mac);
-    
+    // Get the MAC address ofthe Wi-Fi interface
+    if (!IZOT_SUCCESS(HalGetMacAddress(mac))) {
+        CAL_Printf("Failed to to get MAC address\r\n");
+        return;
+    }
+
     // Copy only Last two bytes of MAC address to the SSID
     snprintf(ssid_uap, MAX_SSID_LEN, "CPM-4200-%02X%02X", mac[4], mac[5]);
     snprintf(dhcp_host_name, MAX_HOST_NAME_LEN, "IZOT-%02X%02X", mac[4], mac[5]);

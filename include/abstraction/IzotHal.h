@@ -1,33 +1,17 @@
-//
-// IzotHal.h
-//
-// Copyright (C) 2022-2025 EnOcean
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy of
-// this software and associated documentation files (the "Software"), to deal in 
-// the Software without restriction, including without limitation the rights to
-// use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-// of the Software, and to permit persons to whom the Software is furnished to do
-// so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
-
 /*
- * Title: Hardware Abstaction Layer header file
+ * IzotHal.h
  *
- * Abstract:
- * This file contains the hardware dependent APIs. This file contains
- * APIs for the 88MC200 for the hardware GPIO and external flash.
- */ 
+ * Copyright (c) 2022-2025 EnOcean
+ * SPDX-License-Identifier: MIT
+ * See LICENSE file for details.
+ * 
+ * Title:   Hardware Abstraction Layer
+ * Purpose: Hardware dependent APIs.
+ * Notes:   This file includes APIs for persistent memory and MAC
+ *          address access, and reboot support.  This
+ *          implementatipon includes support for POSIX-compliant
+ *          Linux hosts as well as the Marvell 88MC200.
+ */
 
 #include "abstraction/IzotConfig.h"
 #include "izot/IzotPlatform.h"
@@ -35,86 +19,137 @@
 #if !defined(DEFINED_IZOTHAL_H)
 #define DEFINED_IZOTHAL_H
 
-
-/*------------------------------------------------------------------------------
-Section: Macro
-------------------------------------------------------------------------------*/
 #define LINUX_FLASH_OFFSET      0
 #define FREERTOS_FLASH_OFFSET   0x6000
 #define FLASH_OFFSET            0x6000
 #define FLASH_REGION_SIZE       0x6000
 #define NUM_OF_BLOCKS           6
 #define BLOCK_SIZE              0x1000
-#define NO_OF_REGION            1
+#define NO_OF_REGIONS           1
 
-/*------------------------------------------------------------------------------
-Section: Function Prototypes
-------------------------------------------------------------------------------*/
-
-/*
- * Function:   HalGetMacAddress
- * Use this API to get the MAC address of your hardware.
- *
- */ 
-extern int HalGetMacAddress(unsigned char *mac);
+/*****************************************************************
+ * Section: Function Declarations
+ *****************************************************************/
 
 /*
- * Function:   HalGetFlashInfo
- * Use this function get the inforamation of your flash region wich defines 
- * the area  for the Izot non volatile data
- *
- */
-extern IzotApiError HalGetFlashInfo(unsigned long *offset, 
-unsigned long *region_size, int *number_of_blocks, 
-unsigned long *block_size, int *number_of_regions
-);
-
-/*
- * Function:   HalFlashDrvOpen
- * Use this API to open the driver for the flash for your hardware.
- *
- */
-extern IzotApiError HalFlashDrvOpen(void);
-
-/*
- * Function:   HalFlashDrvClose
- * Use this API to close the driver for the flash for your hardware.
- *
- */
-extern void HalFlashDrvClose(void);
-
-/*
- * Function:   HalFlashDrvInit
- * Use this API to initialize the driver for the flash for your hardware.
- *
+ * Initializes the hardware-specific driver for interfacing with
+ * persistent memory.
+ * Parameters:
+ *   None
+ * Returns:
+ *   IzotApiNoError (0) on success, or an <IzotApiError> error code
+ *   on failure.
  */
 extern IzotApiError HalFlashDrvInit(void);
 
 /*
- * Function:   HalFlashDrvErase
- * Use this API to erase the data from the given offset by number of bytes 
- * provided the parameter for your hardware.
- *
+ * Returns information about the flash region used for persistent data.
+ * Parameters:
+ *   offset: pointer to offset of region in memory
+ *   region_size: pointer to size of region in bytes
+ *   number_of_blocks: pointer to number of blocks in region
+ *   block_size: pointer to size of each block in bytes
+ *   number_of_regions: pointer to number of regions
+ * Returns:
+ *   IzotApiNoError (0) on success, or an <IzotApiError> error code
+ *   on failure.
+ * Notes:
+ *   The flash region may be a directly mapped flash memory region,
+ *   or it may be a file on a file system.  An offset to the flash
+ *   memory region is returned.  The offset is zero for a file on
+ *   a file system, but is typically non-zero for a directly mapped
+ *   memory flash memory region.  The flash region is used
+ *   for persistent data storage.
  */
-extern int HalFlashDrvErase(unsigned long start, unsigned long size);
+extern IzotApiError HalGetFlashInfo(size_t *offset, size_t *region_size,
+        int *number_of_blocks, size_t *block_size, int *number_of_regions
+);
 
 /*
- * Function:   HalFlashDrvWrite
- * Use this API to write the data from the given offset by number of bytes
- * provided the parameter for your hardware.
- *
+ * Opens the hardware-specific driver for interfacing with 
+ * persistent memory.
+ * Parameters:
+ *   None
+ * Returns:
+ *   IzotApiNoError (0) on success, or an <IzotApiError> error code
+ *   on failure.
  */
-extern int HalFlashDrvWrite(IzotByte *buf, uint32_t len, uint32_t addr);
+extern IzotApiError HalFlashDrvOpen(void);
 
 /*
- * Function:   HalFlashDrvRead
- * Use this API to read the data from the given offset by number of bytes
- * provided the parameter for your hardware.
- *
+ * Closes the hardware-specific driver for interfacing with
+ * persistent memory.
+ * Parameters:
+ *   None
+ * Returns:
+ *   None
  */
-extern int HalFlashDrvRead(IzotByte *buf, uint32_t len, uint32_t addr);
+extern IzotApiError HalFlashDrvClose(void);
 
-extern void HalReboot(void);
+/*
+ * Erases the persistent data from the specified starting offset
+ * by the specified size in bytes.
+ * Parameters:
+ *   start: offset in bytes from the start of the flash region
+ *   size: number of bytes to erase
+ * Returns:
+ *   IzotApiNoError (0) on success, or an <IzotApiError> error code
+ *   on failure.
+ */
+extern IzotApiError HalFlashDrvErase(size_t start, size_t size);
+
+/*
+ * Writes the contents of buffer `buf` to an open file descriptor
+ * `flashFd`, starting at offset `start` for `size` bytes.
+ * Parameters:
+ *   start: offset in bytes from the start of the flash region
+ *   size: number of bytes to write
+ * Returns:
+ *   IzotApiNoError (0) on success, or an <IzotApiError> error code
+ *   on failure.
+ * Notes:
+ *   The file is extended if the file size is less than the starting
+ *   offset.
+ */
+extern IzotApiError HalFlashDrvWrite(IzotByte *buf, size_t start, size_t size);
+
+/*
+ * Reads `size` bytes from the file descriptor `flashFd` into buffer
+ * `buf`, starting at offset `start`.
+ * Parameters:
+ *   start: offset in bytes from the start of the flash region
+ *   size: number of bytes to read
+ * Returns:
+ *   IzotApiNoError (0) on success, or an <IzotApiError> error code
+ *   on failure.
+ * Notes:
+ *    An error is returned if the file size is less than `start + size` bytes.
+ */
+extern int HalFlashDrvRead(IzotByte *buf, size_t start, size_t size);
+
+/*
+ * Gets the MAC address of the host IP interface.
+ * Parameters:
+ *   mac: pointer to 6 byte array for the MAC ID
+ * Returns:
+ *   IzotApiNoError (0) on success, or an <IzotApiError> error code
+ *   on failure.
+ * Notes:
+ *   For a Linux host, the IP interface name is defined in the 'iface'
+ *   global.  The name is host-dependent and must match the name for
+ *   the host.
+ */ 
+extern IzotApiError HalGetMacAddress(unsigned char *mac);
+
+/*
+ * Reboots the host device.
+ * Parameters:
+ *   None
+ * Returns:
+ *   If successful, this function does not return.
+ *   If not successful, <IzotApiError> IzotApiRebootFailure
+ *   is returned.
+ */ 
+extern IzotApiError HalReboot(void);
 
 #endif  /* defined(DEFINED_IZOTHAL_H) */
-/* end of file. */

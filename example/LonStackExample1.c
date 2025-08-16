@@ -266,7 +266,7 @@ IzotApiError SetUpExample1(void)
 
 IzotApiError LoopExample1(void)
 {
-    IzotApiError lastError = IzotApiNoError;
+    IzotApiError ret = IzotApiNoError;
 
     // LON Stack event pump
     IzotEventPump();
@@ -292,7 +292,7 @@ IzotApiError LoopExample1(void)
         // TBD -- increment temp2Out
         IzotPropagateByIndex(temp2OutDef.NvIndex);
     }
-    return lastError;
+    return ret;
 }
 
 // Function: SetUpAddressTable()

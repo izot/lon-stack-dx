@@ -160,17 +160,19 @@ typedef IZOT_ENUM_BEGIN(IzotApiError)
      * General API errors
      */
     /*    41   */ IzotApiVersionNotAvailable    = 41, /* Link-layer protocol version information unavailable */
-    /*    42   */ IzotApiNeuronIdNotAvailable,    /* Unique ID (Neuron ID) unavailable */
-    /*    43   */ IzotApiInitializationFailure,   /* Initialization failed */
-    /*    44   */ IzotApiIndexInvalid,            /* invalid index (for Datapoint indices, see IzotApiDatapointIndexInvalid) */
-    /*    45   */ IzotApiMessageNotAvailable,     /* invalid index (for Datapoint indices, see IzotApiDatapointIndexInvalid) */
-    /*    46   */ IzotApiNotInitialized,          /* API is not currently initialized.  Call <IzotInit>. */
-    /*    47   */ IzotApiVersionNotSupported,     /* Structure version not supported. */
-    /*    48   */ IzotApiNotAllowed,              /* Operation not allowed */
-    /*    49   */ IzotApiInvalidParameter,        /* Invalid parameter specified */
-    /*    50   */ IzotApiOffline,                 /* Operation not allowed while device is offline. */
-    /*    51   */ IzotApiCallbackNotRegistered,   /* Callback function has not been registered. */
-    /*    52   */ IzotApiCallbackExceptionError,  /* An exception when executing the callback function.  */
+    /*    42   */ IzotApiNeuronIdNotAvailable,    /* Unique ID (Neuron or MAC ID) unavailable */
+    /*    43   */ IzotApiMacIdNotAvailable,       /* MAC ID unavailable */
+    /*    44   */ IzotApiInitializationFailure,   /* Initialization failed */
+    /*.   45.  */ IzotApiRebootFailure,           /* Reboot failed */
+    /*    45   */ IzotApiIndexInvalid,            /* invalid index (for Datapoint indices, see IzotApiDatapointIndexInvalid) */
+    /*    46   */ IzotApiMessageNotAvailable,     /* invalid index (for Datapoint indices, see IzotApiDatapointIndexInvalid) */
+    /*    47   */ IzotApiNotInitialized,          /* API is not currently initialized.  Call <IzotInit>. */
+    /*    48   */ IzotApiVersionNotSupported,     /* Structure version not supported. */
+    /*    49   */ IzotApiNotAllowed,              /* Operation not allowed */
+    /*    50   */ IzotApiInvalidParameter,        /* Invalid parameter specified */
+    /*    51   */ IzotApiOffline,                 /* Operation not allowed while device is offline. */
+    /*    52   */ IzotApiCallbackNotRegistered,   /* Callback function has not been registered. */
+    /*    53   */ IzotApiCallbackExceptionError,  /* An exception when executing the callback function.  */
     /*
      * Errors related to management of persistent data. Returned by persistent data callback functions.
      */

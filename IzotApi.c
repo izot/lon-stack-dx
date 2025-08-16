@@ -184,8 +184,10 @@ void IzotServiceLedStatus(IzotServiceLedState state, IzotServiceLedPhysicalState
  * application task to call the IzotEventPump() function.
  *
 */
-IZOT_EXTERNAL_FN void IzotEventPump(void)
+IZOT_EXTERNAL_FN IzotApiError IzotEventPump(void)
 {
+    IzotApiError ret = IzotApiNoError;
+
 #if LINK_IS(WIFI) || LINK_IS(ETHERNET) || LINK_IS(USB)
     CheckNetworkStatus();
 
@@ -216,11 +218,13 @@ IZOT_EXTERNAL_FN void IzotEventPump(void)
             izot_isi_tick_handler();
         }
     }
+
+    return ret;
 }
 
 /*
  *  Function: IzotGetUniqueId
- *  Gets the registered unique ID (Neuron ID).
+ *  Gets the registered unique ID (Neuron or MAC ID).
  *
  *  Parameters:
  *  pId   - pointer to the the unique ID
@@ -229,14 +233,15 @@ IZOT_EXTERNAL_FN void IzotEventPump(void)
  *  <IzotApiError>.
  *
  *  Remarks:
- *  The *Unique ID* is also known as the *Neuron ID*, however, *Neuron ID* is
- *  a deprecated term.
+ *  The *Unique ID* is a unique 48-bit identifier for a LON device.  
+ *  The unique ID may be a LON Neuron ID or an IEEE MAC ID.
  */
 IZOT_EXTERNAL_FN IzotApiError IzotGetUniqueId(IzotUniqueId* const uId)
 {
     IzotApiError ret = IzotApiNoError;
     unsigned char mac[6] = {0};
-    if (HalGetMacAddress(mac)) {
+
+    if (!IZOT_SUCCESS(HalGetMacAddress(mac))) {
         ret = IzotApiNeuronIdNotAvailable;
     } else {
         memcpy(uId, &mac[0], 6);
