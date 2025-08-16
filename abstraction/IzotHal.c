@@ -545,7 +545,7 @@ IzotApiError HalReboot(void)
         // Reboot failure
         return ret;
     }
-#else PROCESSOR_IS(MC200)
+#elif PROCESSOR_IS(MC200)
     arch_reboot();
 #endif
     // Should not reach here

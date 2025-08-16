@@ -269,7 +269,7 @@ IzotApiError LoopExample1(void)
     IzotApiError ret = IzotApiNoError;
 
     // LON Stack event pump
-    IzotEventPump();
+    ret = IzotEventPump();
 
     // ToDo -- add application-specific event-handlers here, or in separate tasks if available.
     // Keep these handlers under min(10, ((InputBufferCount - 1) * 1000) / MaxPacketRate) milliseconds.

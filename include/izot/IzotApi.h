@@ -89,7 +89,7 @@ extern "C" {
  * for the device and InputBufferCount is the number of input buffers defined
  * for the application
  */
-IZOT_EXTERNAL_FN void IzotEventPump(void);
+IZOT_EXTERNAL_FN IzotApiError IzotEventPump(void);
 
 /*
  * Function: IzotGetUniqueId
