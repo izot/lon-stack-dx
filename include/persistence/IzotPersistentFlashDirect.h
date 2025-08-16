@@ -141,7 +141,7 @@ extern void IzotFlashSegClose(const IzotPersistentSegType persistentSegmentType)
  *  the size of the previous call.
  */
 extern IzotApiError IzotFlashSegRead(const IzotPersistentSegType persistentSegType, 
-    const size_t offset, const size_t size, void * const pBuffer);
+    const size_t offset, const size_t size, IzotByte* const pBuffer);
 																
 /* 
  *  Callback: IzotFlashSegWrite
@@ -165,7 +165,7 @@ extern IzotApiError IzotFlashSegRead(const IzotPersistentSegType persistentSegTy
  *  the size of the previous call.
  */
 extern IzotApiError IzotFlashSegWrite(const IzotPersistentSegType persistentSegType, 
-    const size_t offset, const size_t size, const void* const pData);
+    const size_t offset, const size_t size, const IzotByte* const pData);
 
 /* 
  *  Callback: IzotFlashSegIsInTransaction
