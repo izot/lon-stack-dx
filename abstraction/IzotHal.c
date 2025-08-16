@@ -303,7 +303,7 @@ IzotApiError HalFlashDrvClose(void)
  *   IzotApiNoError (0) on success, or an <IzotApiError> error code
  *   on failure.
  */
-IzotApiError HalFlashDrvErase(uint32_t start, uint32_t size)
+IzotApiError HalFlashDrvErase(size_t start, size_t size)
 {
     if (!IZOT_SUCCESS(persistentMemError)) {   
         return persistentMemError;

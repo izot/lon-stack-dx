@@ -125,7 +125,7 @@ extern IzotApiError HalFlashDrvWrite(IzotByte *buf, size_t start, size_t size);
  * Notes:
  *    An error is returned if the file size is less than `start + size` bytes.
  */
-extern int HalFlashDrvRead(IzotByte *buf, size_t start, size_t size);
+extern IzotApiError HalFlashDrvRead(IzotByte *buf, size_t start, size_t size);
 
 /*
  * Gets the MAC address of the host IP interface.
