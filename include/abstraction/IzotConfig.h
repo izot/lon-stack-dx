@@ -185,7 +185,7 @@
 #endif  // !defined(PRODUCT_ID)
 
 #if !defined(PROTOCOL_ID)
-#define PROTOCOL_ID   0
+#define PROTOCOL_ID   PROTOCOL_ID_LON_IP
 #endif  // !defined(PROTOCOL_ID)
 
 #if !defined(SECURITY_ID)
