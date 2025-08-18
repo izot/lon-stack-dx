@@ -11,14 +11,17 @@
  *          and project-specific IDs to use with the macros.
  * Notes:   You can customize this file for a project.  To add new IDs,
  *          add them after "Available IDs".  To select an ID for a
- *          project, add a #define your ID prior to including
+ *          project, add a #define for your ID after including
+ *          IzotConfig.h and prior to including IzotPlatform.h.
  *          IzotConfig.h. If a value is not defined for PLATFORM_ID, 
  *          IzotPlatform.h may determine the platform ID based on
  *          pre-defined platform macros for different platforms.  To 
- *          enable automatic platform detection, undefine PLATFORM_ID.
- *          For example, if PLATFORM_ID is undefined, the platform will
+ *          enable automatic platform detection, undefine PLATFORM_ID
+ *          after including IzotConfig.h and prior to including
+ *          IzotPlatform.h.  For example, if PLATFORM_ID is undefined, 
+ *          prior to including IzotPlatform.h, the platform will
  *          be set to PLATFORM_ID_LINUX64_ARM_GCC if the __aarch64__
- *          macro is defined, or to PLATFORM_ID_RPI if the __ARMEL__
+ *          macro is defined, to PLATFORM_ID_RPI if the __ARMEL__
  *          macro is defined, or to PLATFORM_ID_FRTOS_ARM_EABI if the 
  *          __FREERTOS_ARM_EABI__ macro is defined.  If PLATFORM_ID is 
  *          defined, the platform detection code will not override it.
@@ -26,7 +29,8 @@
  *          For example, to define the platform as 64-bit Linux on ARM
  *          using the GCC compiler, the link as a USB interface, and
  *          the protocol as LON native, add the following three
- *          definitions prior to including IzotConfig.h:
+ *          definitions after including IzotConfig.h and prior to 
+ *          including IzotPlatform.h:
  * 
  *              #define PLATFORM_ID PLATFORM_ID PLATFORM_ID_LINUX64_ARM_GCC
  *              #define LINK_ID LINK_ID_USB
