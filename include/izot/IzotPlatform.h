@@ -73,6 +73,10 @@
 #ifndef _IZOT_PLATFORM_H
 #define _IZOT_PLATFORM_H
 
+#ifndef _IZOT_CONFIG_H
+#   error You must include IzotConfig.h first 
+#endif  /* _IZOT_CONFIG_H */
+
 #include <stddef.h>
 
 // Number of stacks on this platform
