@@ -612,13 +612,17 @@ int InitSocket(int port)
 }
 
 /*
- * Function: RemoveIPMembership
- *
  * Remove membership of the specified address from a multicast group.
+ * Parameters:
+ *   addr: address to remove
+ * Returns:
+ *   None
+ * Notes:
+ *   Implementation of this function is required for LON/IP support.
  */
 void RemoveIPMembership(uint32_t addr)
 {
-#if PLATFORM_IS(FRTOS_ARM_EABI)
+#if PROTOCOL_IS(LON_IP) && PLATFORM_IS(FRTOS_ARM_EABI)
     IzotByte mcast_mac[MLAN_MAC_ADDR_LENGTH];
     
     // Multicast address group structure
@@ -640,19 +644,23 @@ void RemoveIPMembership(uint32_t addr)
     }
     
     CAL_Printf("Removed Membership of %X \r\n",addr);wmstdio_flush();
-#else   // PLATFORM_IS(FRTOS_ARM_EABI)
+#elif PROTOCOL_IS(LON_IP)
     #pragma message("Implement code to remove address membership from a multicast group")
-#endif  // PLATFORM_IS(FRTOS_ARM_EABI)
+#endif
 }
 
 /*
- * Function: AddIpMembership
- *
- * Add address membership to a multicast group.
+ * Add membership for the specified address to a multicast group.
+ * Parameters:
+ *   addr: address to add
+ * Returns:
+ *   None
+ * Notes:
+ *   Implementation of this function is required for LON/IP support.
  */
 void AddIpMembership(uint32_t addr)
 {
-#if PLATFORM_IS(FRTOS_ARM_EABI)
+#if PROTOCOL_IS(LON_IP) && PLATFORM_IS(FRTOS_ARM_EABI)
     IzotByte mcast_mac[MLAN_MAC_ADDR_LENGTH];
     
     // Multicast address group structure
@@ -675,9 +683,9 @@ void AddIpMembership(uint32_t addr)
     }
     
     CAL_Printf("Added Membership of %X \r\n", addr);
-#else   // PLATFORM_IS(FRTOS_ARM_EABI)
+#elif PROTOCOL_IS(LON_IP)
     #pragma message("Implement code to add address membership to a multicast group")
-#endif  // PLATFORM_IS(FRTOS_ARM_EABI)
+#endif
 }
 
 /*
