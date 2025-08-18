@@ -154,46 +154,4 @@
 #define SECURITY_ID_V1          0   // LON Security V1 (authentication only)
 #define SECURITY_ID_V2          1   // LON Security V2 (AES encryption)
 
-// Default IDs -- to change any of these for a project, add a #define
-// your ID prior to including IzotConfig.h.
-#if !defined(PLATFORM_ID)
-#define PLATFORM_ID   PLATFORM_ID_LINUX64_ARM_GCC
-#endif  // !defined(PLATFORM_ID)
-
-#if !defined(DEBUG_ID)
-#define DEBUG_ID      DEBUG_ID_NONE
-#endif  // !defined(DEBUG_ID)
-
-#if !defined(ISI_ID)
-#define ISI_ID 		  ISI_ID_NO_ISI
-#endif  // !defined(ISI_ID)
-
-#if !defined(IUP_ID)
-#define IUP_ID        IUP_ID_NO_IUP
-#endif  // !defined(IUP_ID)
-
-#if !defined(LINK_ID)
-#define LINK_ID       LINK_ID_ETHERNET
-#endif  // !defined(LINK_ID)
-
-#if !defined(OS_ID)
-#define OS_ID         OS_ID_LINUX
-#endif  // !defined(OS_ID)
-
-#if !defined(PROCESSOR_ID)
-#define PROCESSOR_ID  PROCESSOR_ID_ARM64
-#endif  // !defined(PROCESSOR_ID)
-
-#if !defined(PRODUCT_ID)
-#define PRODUCT_ID 	  PRODUCT_ID_NA
-#endif  // !defined(PRODUCT_ID)
-
-#if !defined(PROTOCOL_ID)
-#define PROTOCOL_ID   PROTOCOL_ID_LON_IP
-#endif  // !defined(PROTOCOL_ID)
-
-#if !defined(SECURITY_ID)
-#define SECURITY_ID   SECURITY_ID_V1
-#endif  // !defined(SECURITY_ID)
-
 #endif  // defined(_IZOT_CONFIG_H) 

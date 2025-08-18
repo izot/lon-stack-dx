@@ -75,11 +75,58 @@
 
 #include <stddef.h>
 
-// Use default platform ID if not defined
+// Number of stacks on this platform
+#define NUM_STACKS 1
+
+/*****************************************************************
+ * Section: Default IDs
+ *****************************************************************/
+// To change any of these for a project, implement a #define for
+// your ID after including IzotConfig.h and prior to including
+// IzotPlatform.h.  See IzotConfig.h for more information.
 #if !defined(PLATFORM_ID)
-#define PLATFORM_ID PLATFORM_ID_LINUX64_ARM_GCC
+#define PLATFORM_ID   PLATFORM_ID_LINUX64_ARM_GCC
 #endif  // !defined(PLATFORM_ID)
 
+#if !defined(DEBUG_ID)
+#define DEBUG_ID      DEBUG_ID_NONE
+#endif  // !defined(DEBUG_ID)
+
+#if !defined(ISI_ID)
+#define ISI_ID 		  ISI_ID_NO_ISI
+#endif  // !defined(ISI_ID)
+
+#if !defined(IUP_ID)
+#define IUP_ID        IUP_ID_NO_IUP
+#endif  // !defined(IUP_ID)
+
+#if !defined(LINK_ID)
+#define LINK_ID       LINK_ID_ETHERNET
+#endif  // !defined(LINK_ID)
+
+#if !defined(OS_ID)
+#define OS_ID         OS_ID_LINUX
+#endif  // !defined(OS_ID)
+
+#if !defined(PROCESSOR_ID)
+#define PROCESSOR_ID  PROCESSOR_ID_ARM64
+#endif  // !defined(PROCESSOR_ID)
+
+#if !defined(PRODUCT_ID)
+#define PRODUCT_ID 	  PRODUCT_ID_NA
+#endif  // !defined(PRODUCT_ID)
+
+#if !defined(PROTOCOL_ID)
+#define PROTOCOL_ID   PROTOCOL_ID_LON_IP
+#endif  // !defined(PROTOCOL_ID)
+
+#if !defined(SECURITY_ID)
+#define SECURITY_ID   SECURITY_ID_V1
+#endif  // !defined(SECURITY_ID)
+
+/*****************************************************************
+ * Section: Platform Definitions
+ *****************************************************************/
 #if PLATFORM_IS(RPI) || PLATFORM_IS(RPI_PICO)
     /*
      * Raspberry Pi platform using the 32-bit arm-linux-gnueabihf toolchain.  Little-endian.
@@ -91,7 +138,7 @@
         #error Multiple platform definitions including RPI or RPI_PICO
     #endif
 
-//  #pragma message("Raspberry Pi or Pi Pico platform (RPI or RPI_PICO) selected")
+    //  #pragma message("Raspberry Pi or Pi Pico platform (RPI or RPI_PICO) selected")
     #define RASPBERRY_PI_HOSTED       /* Runs on the Raspberry Pi or Pi Pico */
 
     // Specify processor type.
@@ -223,7 +270,7 @@
         #error Multiple platform definitions including ARM_EABI_GCC
     #endif
 
-//  #pragma message("Generic ARM EABI GCC platform (ARM_EABI_GCC) selected")
+    //  #pragma message("Generic ARM EABI GCC platform (ARM_EABI_GCC) selected")
     #define ARM_EABI_GCC_HOSTED
 
     // Specify processor type.
@@ -349,7 +396,7 @@
         #error Multiple platform definitions including FRTOS_ARM_EABI
     #endif
 
-//  #pragma message("FreeRTOS ARM EABI platform (FRTOS_ARM_EABI) selected")
+    //  #pragma message("FreeRTOS ARM EABI platform (FRTOS_ARM_EABI) selected")
     #define ARM_EABI_GCC_HOSTED        // used with the CPM 4200 SDK
 
     // Specify processor type.
@@ -615,7 +662,7 @@
         #error Multiple platform definitions including LINUX32_ARM_GCC
     #endif
 
-//  #pragma message("Linux 32-bit ARM platform (LINUX32_ARM_GCC) selected")
+    //  #pragma message("Linux 32-bit ARM platform (LINUX32_ARM_GCC) selected")
     #define LINUX32_HOSTED       /* runs on a Linux32 system */
 
     // Specify processor type.
@@ -704,7 +751,7 @@
         #error Multiple platform definitions including WIN32_X86
     #endif
 
-//  #pragma message("Win32 x86 platform (WIN32_X86) selected")
+    //  #pragma message("Win32 x86 platform (WIN32_X86) selected")
     #define WIN32_HOSTED       /* runs in the WIN32 environment */
 
     // Specify processor type.
@@ -794,7 +841,7 @@
         #error Multiple platform definitions including ARM7-IAR
     #endif
 
-//  #pragma message("IAR ARM7 platform (IAR_ARM7) selected")
+    //  #pragma message("IAR ARM7 platform (IAR_ARM7) selected")
     #define ARM7_HOSTED       /* runs in the ARM7 environment */
 
     // Specify processor type.
@@ -889,7 +936,7 @@
         #error Multiple platform definitions including AVR_TINY13
     #endif
 
-//  #pragma message("AVR Tiny13 platform (AVR_TINY13) selected")
+    //  #pragma message("AVR Tiny13 platform (AVR_TINY13) selected")
     #define AVR_TINY13_HOSTED       /* runs in the AVR_TINY13 environment */
 
     // Specify little-endian byte order.
@@ -981,7 +1028,7 @@
         #error Multiple platform definitions including HITECH
     #endif
 
-//  #pragma message("Hi-Tech C platform (HITECH) selected")
+    //  #pragma message("Hi-Tech C platform (HITECH) selected")
     #define HITECH_HOSTED       /* runs in the Hi-Tech C environment */
 
     // Specify little-endian byte order.
@@ -1073,7 +1120,7 @@
         #error Multiple platform definitions including COSMIC
     #endif
 
-//  #pragma message("Cosmic C platform (COSMIC) selected")
+    //  #pragma message("Cosmic C platform (COSMIC) selected")
     #define COSMIC_HOSTED        /* runs in the COSMIC C environment */
 
     // Specify little-endian byte order.
@@ -1194,7 +1241,7 @@
         #error Multiple platform definitions including NIOS2_LE
     #endif
 
-//  #pragma message("Altera NIOS II Little-Endian platform (NIOS2_LE) selected")
+    //  #pragma message("Altera NIOS II Little-Endian platform (NIOS2_LE) selected")
     #define GCC_NIOS_HOSTED       /* runs in the GCC_NIOS C environment */
 
     // Specify little-endian byte order.
@@ -1256,49 +1303,36 @@
     #ifndef FALSE
         #define FALSE  0
     #endif
-
 #endif // defined(NIOS2_LE)
-
 
 #if !defined(PLATFORM_ID) 
     #error Missing platform specification in IzotConfig.h and IzotPlatform.h
 #endif
 
+/*****************************************************************
+ * Section: Neuron C Type Equivalents
+ *****************************************************************/
 
-// Number of stacks on this platform
-#define NUM_STACKS 1
-
-
-/*
- *  **************************************************************************
- *  NEURON C type equivalents:
- *  These types are used by Izot Interface Developer-Builder generated type
- *  definitions. Each NEURON C equivalent type is a host-platform dependent
- *  type definition that is equivalent to the respective NEURON C type.
- *
- *  For your information, a NEURON C "int" and "short" are both 8-bit scalars,
- *  a NEURON C "long" is a 16 bit variable. See the ShortStack or IZOT
- *  documentation for more details about Izot Interface Developer-Builder
- *  generated types.
- *  **************************************************************************
- */
-
-typedef IzotUbits8   ncuChar;	/* equivalent of NEURON C "unsigned char"   */
-typedef IzotUbits8   ncuShort;   /* equivalent of NEURON C "unsigned short"  */
-typedef IzotUbits8   ncuInt;     /* equivalent of NEURON C "unsigned int"    */
-typedef IzotWord     ncuLong;    /* equivalent of NEURON C "unsigned long"   */
-typedef IzotBits8    ncsChar;    /* equivalent of NEURON C "signed char"     */
-typedef IzotBits8    ncsShort;   /* equivalent of NEURON C "signed short"    */
-typedef IzotBits8    ncsInt;     /* equivalent of NEURON C "signed int"      */
-typedef IzotWord     ncsLong;    /* equivalent of NEURON C "signed long"     */
-
+// These types are used by Izot Interface Developer-Builder generated type
+// definitions. Each Neuron C equivalent type is a host-platform dependent
+// type definition that is equivalent to the respective Neuron C type.
+//
+// A Neuron C "int" and "short" are both 8-bit scalars and a Neuron C "long"
+// is a 16-bit variable.
+typedef IzotUbits8   ncuChar;	 // equivalent of Neuron C "unsigned char"
+typedef IzotUbits8   ncuShort;   // equivalent of Neuron C "unsigned short"
+typedef IzotUbits8   ncuInt;     // equivalent of Neuron C "unsigned int"
+typedef IzotWord     ncuLong;    // equivalent of Neuron C "unsigned long"
+typedef IzotBits8    ncsChar;    // equivalent of Neuron C "signed char"
+typedef IzotBits8    ncsShort;   // equivalent of Neuron C "signed short"
+typedef IzotBits8    ncsInt;     // equivalent of Neuron C "signed int"
+typedef IzotWord     ncsLong;    // equivalent of Neuron C "signed long"
 typedef IzotBits8    nshort;
 typedef IzotBits8    nint;
 typedef IzotByte     nuint;
 typedef IzotByte     nushort;
 typedef IzotBits16   nlong;
 typedef IzotUbits16  nulong;
-
 typedef IzotByte     BitField;
 
 #include "common/bitfield.h"
