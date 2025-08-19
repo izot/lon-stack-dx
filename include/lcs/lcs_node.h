@@ -939,7 +939,7 @@ IzotBits16 GetPrimaryIndex(IzotBits16 nvIndexIn);
 IzotDatapointConfig *GetNVStructPtr(IzotBits16 nvIndexIn);
 IzotByte IsTagBound(IzotByte tagin);
 IzotByte IsNVBound(IzotBits16 nvIndexIn);
-IzotByte AppPgmRuns(void);
+IzotBool AppPgmRuns(void);
 void     MsgCompletes(Status status, MsgTag tag);
 IzotByte NodeConfigured(void);		    // Node is honoring its configuration
 IzotByte NodeUnConfigured(void);		// Node is not running and not honoring configuration (not necessarily the same as !NodeConfigured())

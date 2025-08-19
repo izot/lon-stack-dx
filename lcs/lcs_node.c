@@ -890,7 +890,7 @@ Purpose:  To determine whether the application program is running or not.
           and events to the application. Also used to determine whether
           to call DoApp or not.
 *******************************************************************************/
-IzotByte AppPgmRuns(void)
+IzotBool AppPgmRuns(void)
 {
     /* Normal Mode. Configured and running. */
     if (IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NODE_STATE) == IzotConfigOnLine && 
@@ -1050,7 +1050,7 @@ void MsgCompletes(Status status, MsgTag tag)
     }
 }
 
-void DoApp(Bool isOnline) 
+void DoApp(IzotBool isOnline) 
 {
     MsgIn* msg_in = NULL;
     RespIn* rsp_in = NULL;
