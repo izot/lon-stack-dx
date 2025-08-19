@@ -31,7 +31,7 @@
 
 #include "abstraction/IzotOsal.h"
 
-#if #if PROCESSOR_IS(MC200)
+#if PROCESSOR_IS(MC200)
     #include <wm_os.h>
 #else
     #if PLATFORM_IS(RPI_PICO)

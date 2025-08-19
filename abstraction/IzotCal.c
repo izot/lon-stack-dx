@@ -801,7 +801,7 @@ int CalReceive(IzotByte* pData, IzotByte* pSourceAddr)
         pSourceAddr[3] = (IzotByte)(SrcIP & 0x000000FF);
     }
 #else   // PLATFORM_IS(FRTOS_ARM_EABI)
-    #pragma message("Implement code to received data on a UDP socket")
-#endif  // PROCESSOR_IS(MC200)PLATFORM_IS(FRTOS_ARM_EABI)
+    #pragma message("Implement code to receive data on a UDP socket")
+#endif  // PLATFORM_IS(FRTOS_ARM_EABI)
     return dataLength;
 }
