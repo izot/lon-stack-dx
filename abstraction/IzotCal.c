@@ -395,14 +395,14 @@ void CheckNetworkStatus(void)
                 }
             }
         #endif  // LINK_IS(WIFI) && PROCESSOR_IS(MC200)
-        #if LINK_IS(ETHERNET) || LINK_IS(WIFI) || LINK_IS(USB)
+        #if PROTOCOL_IS(LON_IP)
             #pragma message("Implement code to test for an IP link transition from not connected to connected")
             // if (!is_connected && <link is connected>) }
                 // Link has changed from not connected to connected; handle the change
                 // EventNormalConnected(NULL);
             // }
             (void) SetCurrentIP();
-        #endif  // LINK_IS(ETHERNET) || LINK_IS(WIFI) || LINK_IS(USB)
+        #endif  // LINK_IS(LON_IP)
     }
 }
 
@@ -532,21 +532,22 @@ int CalStart(void)
  */
 IzotBool SetCurrentIP(void)
 {
+#if PROTOCOL_IS(LON_IP)
     IzotUbits32 currentIpAddress = 0;
     static IzotUbits32 lastIpAddress = 0;
     IzotBool ipAddressChanged = FALSE;
 
-#if LINK_IS(WIFI) && PLATFORM_IS(FRTOS_ARM_EABI)
+#if PLATFORM_IS(FRTOS_ARM_EABI)
     char ip[16];
     
     app_network_ip_get(ip);
     CAL_Printf("Connected to provisioned network with IP address =%s\r\n", ip);
     inet_aton(ip, &currentIpAddress);
-#else   // LINK_IS(WIFI) && PLATFORM_IS(FRTOS_ARM_EABI)
+#else   // PLATFORM_IS(FRTOS_ARM_EABI)
     #pragma message("Implement code to get the current IP address")
     // currentIpAddress = <Get current IP address>;
-    currentIpAddress = 0xC0A80101;  // 192.168.1.1 for testing
-#endif  // LINK_IS(WIFI) && PLATFORM_IS(FRTOS_ARM_EABI)
+    // currentIpAddress = 0xC0A80101;  // 192.168.1.1 for testing
+#endif  // PLATFORM_IS(FRTOS_ARM_EABI)
 
     ipAddressChanged = currentIpAddress != lastIpAddress;
 
@@ -560,6 +561,9 @@ IzotBool SetCurrentIP(void)
                              ownIpAddress[1],ownIpAddress[2],ownIpAddress[3]);
     }
     return ipAddressChanged;
+#else   // PLATFORM_IS(FRTOS_ARM_EABI)
+    return FALSE;
+#endif  // PLATFORM_IS(FRTOS_ARM_EABI)
 }
 
 /*
