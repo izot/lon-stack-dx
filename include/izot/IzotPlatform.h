@@ -5,7 +5,7 @@
  * SPDX-License-Identifier: MIT
  * See LICENSE file for details.
  * 
- * Title:   Lon Stack DX Platform Definitions
+ * Title:   LON Stack DX Platform Definitions
  * Purpose: Defines platform-specific macros and data types.
  * Notes:   Platform preferences are grouped together by a preprocessor
  *          macro that indicates the compiler and target platform.  In
@@ -13,7 +13,7 @@
  *          compiler macros.
  * 
  *          If this file does not include definitions that are appropriate
- *          for your target platform, host, and development environment, y
+ *          for your target platform, host, and development environment,
  *          you can derive your set of platform properties by copying one of
  *          the definition sets and modifying them as needed.
  * 
@@ -73,11 +73,9 @@
 #ifndef _IZOT_PLATFORM_H
 #define _IZOT_PLATFORM_H
 
-#ifndef _IZOT_CONFIG_H
-#   error You must include IzotConfig.h first 
-#endif  /* _IZOT_CONFIG_H */
-
 #include <stddef.h>
+
+#include "abstraction/IzotConfig.h" // Project-specific configuration
 
 // Number of stacks on this platform
 #define NUM_STACKS 1
@@ -86,12 +84,7 @@
  * Section: Default IDs
  *****************************************************************/
 // To change any of these for a project, implement a #define for
-// your ID after including IzotConfig.h and prior to including
-// IzotPlatform.h.  See IzotConfig.h for more information.
-#if !defined(PLATFORM_ID)
-#define PLATFORM_ID   PLATFORM_ID_LINUX64_ARM_GCC
-#endif  // !defined(PLATFORM_ID)
-
+// your ID in IzotConfig.h.  See IzotConfig.h for more information.
 #if !defined(DEBUG_ID)
 #define DEBUG_ID      DEBUG_ID_NONE
 #endif  // !defined(DEBUG_ID)
@@ -530,14 +523,13 @@
      * 64-bit standard ARM Linux platform using the standard GCC tool 
      * chain.  Little-endian.
      */
-
     #if !defined(_IZOT_PLATFORM_DEFINED)
         #define _IZOT_PLATFORM_DEFINED
     #else
         #error Multiple platform definitions including LINUX64_ARM_GCC
     #endif
     // #pragma message("Linux 64-bit ARM platform (LINUX64_ARM_GCC) selected")
-    #define LINUX64_HOSTED       /* runs on a Linux64 system */
+    #define LINUX64_HOSTED       // runs on a Linux64 system
 
     // Specify processor type.
     #undef PROCESSOR_ID

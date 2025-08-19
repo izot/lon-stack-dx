@@ -10,31 +10,24 @@
  *          installation (ISI), and security conditional test macros
  *          and project-specific IDs to use with the macros.
  * Notes:   You can customize this file for a project.  To add new IDs,
- *          add them after "Available IDs".  To select an ID for a
- *          project, add a #define for your ID after including
- *          IzotConfig.h and prior to including IzotPlatform.h.
- *          IzotConfig.h. If a value is not defined for PLATFORM_ID, 
+ *          add them to the LON Stack Configuration IDs section.  The 
+ *          value 0 for each set is typically used as the default
+ *          value for the set.  To override a default, add a #define
+ *          for your project in the LON Stack Configuration Overrides
+ *          section at the end of this file.
+ *
+ *          If you do not assign a PLATFORM_ID in this file,
  *          IzotPlatform.h may determine the platform ID based on
  *          pre-defined platform macros for different platforms.  To 
- *          enable automatic platform detection, undefine PLATFORM_ID
- *          after including IzotConfig.h and prior to including
- *          IzotPlatform.h.  For example, if PLATFORM_ID is undefined, 
+ *          enable automatic platform detection, remove the PLATFORM_ID
+ *          assignment from the LON Stack Configuration Overrides
+ *          section.  For example, if PLATFORM_ID is not defined 
  *          prior to including IzotPlatform.h, the platform will
  *          be set to PLATFORM_ID_LINUX64_ARM_GCC if the __aarch64__
  *          macro is defined, to PLATFORM_ID_RPI if the __ARMEL__
  *          macro is defined, or to PLATFORM_ID_FRTOS_ARM_EABI if the 
  *          __FREERTOS_ARM_EABI__ macro is defined.  If PLATFORM_ID is 
  *          defined, the platform detection code will not override it.
- * 
- *          For example, to define the platform as 64-bit Linux on ARM
- *          using the GCC compiler, the link as a USB interface, and
- *          the protocol as LON native, add the following three
- *          definitions after including IzotConfig.h and prior to 
- *          including IzotPlatform.h:
- * 
- *              #define PLATFORM_ID PLATFORM_ID PLATFORM_ID_LINUX64_ARM_GCC
- *              #define LINK_ID LINK_ID_USB
- *              #define PROTOCOL_ID PROTOCOL_ID_LON_NATIVE
  * 
  *          The LON Stack uses the xxx_IS(yyy) macros to control conditional 
  *          compilation.  For example:
@@ -89,11 +82,15 @@
 #define PROTOCOL_IS(protid) (PROTOCOL_ID == PROTOCOL_ID_ ## protid)
 #define SECURITY_IS(secid) (SECURITY_ID == SECURITY_ID_ ## secid)
 
-// Available IDs.  You can add new IDs to this list.  The value 0 is
-// typically used for the default value of each.  See default
-// assignments following this list.
+/*****************************************************************
+ * Section: LON Stack Configuration IDs
+ *****************************************************************/
+// You can add new IDs to this list.  The value 0 is typically used
+// for the default value of each.  Any undefined IDs are set in
+// IzotPlatform.h.  To override a default IDs, set it in the next
+// section.
 
-// Platform IDs -- default is 64-bit Linux ARM GCC
+// Platform IDs
 #define PLATFORM_ID_LINUX64_ARM_GCC  0  // Linux 64 ARM (LINUX64_ARM_GCC)
 #define PLATFORM_ID_RPI              1  // Raspberry Pi ARM (__ARMEL__)
 #define PLATFORM_ID_ARM_EABI_GCC     2  // Generic ARM EABI GCC (ARM_NONE_EABI_GCC)
@@ -153,5 +150,13 @@
 // Security IDs -- default is LON Security V1 
 #define SECURITY_ID_V1          0   // LON Security V1 (authentication only)
 #define SECURITY_ID_V2          1   // LON Security V2 (AES encryption)
+
+/*****************************************************************
+ * Section: LON Stack Configuration Overrides
+ *****************************************************************/
+// Add any overrides to the default settings in this section.
+#define PLATFORM_ID PLATFORM_ID_LINUX64_ARM_GCC
+#define LINK_ID LINK_ID_USB
+#define PROTOCOL_ID PROTOCOL_ID_LON_NATIVE
 
 #endif  // defined(_IZOT_CONFIG_H) 
