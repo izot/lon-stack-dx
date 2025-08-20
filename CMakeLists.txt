@@ -3,10 +3,11 @@ cmake_minimum_required(VERSION 3.21)
 project(lon_stack_dx
     VERSION 1.0.0
     DESCRIPTION "LON Stack DX for U10/U60 LON FT-compatible USB interfaces"
-    LANGUAGES C CXX
+    LANGUAGES C
 )
 
 # Allow this project to be used with FetchContent or as a top-level build
+enable_language(C)
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 
