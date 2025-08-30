@@ -1,44 +1,22 @@
-//
-// IzotCal.h
-//
-// Copyright (C) 2022-2025 EnOcean
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy of
-// this software and associated documentation files (the "Software"), to deal in 
-// the Software without restriction, including without limitation the rights to
-// use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-// of the Software, and to permit persons to whom the Software is furnished to do
-// so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
-
 /*
- * Title: IP Connectivity Abstaction Layer header file
+ * IzotCal.h
  *
- * Abstract:
- * This file contains the Izot Connectivity layer socket APIs.
- */ 
+ * Copyright (c) 2022-2025 EnOcean
+ * SPDX-License-Identifier: MIT
+ * See LICENSE file for details.
+ * 
+ * Title:   IP Connectivity Abstraction Layer
+ * Purpose: Defines portable functions and types for communicating
+ *          with IP sockets.
+ * Notes:   IP sockets are required for LON/IP and are not required
+ * 			for native LON.
+ */
 
-#include "abstraction/IzotConfig.h"
 #include "izot/IzotPlatform.h"
 
 #if !defined(DEFINED_IZOTCAL_H)
 #define DEFINED_IZOTCAL_H
 
-
-/*------------------------------------------------------------------------------
-Section: Macros
-------------------------------------------------------------------------------*/
-#define TRUE             			1
 #define IPV4_ADDRESS_LEN 			4
 #define IP_ADDRESS_CHECK_INTERVAL	60000
 
@@ -54,68 +32,105 @@ Section: Macros
 	#define CAL_Printf(format,args...)	;
 #endif
 
-/*------------------------------------------------------------------------------
-Section: Global
-------------------------------------------------------------------------------*/
-// IP addresse defined on the device 
+/*****************************************************************
+ * Section: Globals
+ *****************************************************************/
 extern IzotByte	ownIpAddress[IPV4_ADDRESS_LEN]; 
+                // Buffer to store the IP address
 extern IzotBool is_connected;
+                // Flag to report IP link connectivity
 
-/*------------------------------------------------------------------------------
-Section: Function Prototypes
-------------------------------------------------------------------------------*/
+/*****************************************************************
+ * Section: Function Declarations
+ *****************************************************************/
 /*
- * Function: CalStart
- * Start the IP link.
+ * Starts the IP link.
+ * Parameters:
+ *   None
+ * Returns:
+ *   IzotApiNoError (0) on success, or an <IzotApiError> error code
+ *   on failure.
  */
-extern int CalStart(void);
+extern IzotApiError CalStart(void);
 
 /*
- * Function: SetCurrentIP
- * Set the current IP address.
- * 
- * Returns: TRUE if the IP address changed since the last call.
+ * Sets the current IP address.
+ * Parameters:
+ *   None
+ * Returns:
+ *   TRUE if the IP address changed since the last call
  */
 extern IzotBool SetCurrentIP(void);
 
 /*
- * Function: InitSocket
- *
- * Open priority and non-priority sockets and add a MAC filter for
- * broadcast messages.
+ * Initializes IP sockets and adds a MAC filter for broadcast messages.
+ * Parameters:
+ *   port: UDP port to open
+ * Returns:
+ *   0 on success, or a negative error code on failure
+ * Notes:
+ *   Priority and non-priority sockets are initialized to the same port.
+ *   Implementation of this function is required for LON/IP support.
  */
 extern int InitSocket(int port);
 
 /*
- * Function: RemoveIPMembership
- *
- * Remove membership of given address in multicast group.
+ * Removes membership of the specified address from a multicast group.
+ * Parameters:
+ *   addr: Address to remove
+ * Returns:
+ *   None
+ * Notes:
+ *   Implementation of this function is required for LON/IP support.
  */
 extern void RemoveIPMembership(uint32_t addr);
 
 /*
- * Function: AddIpMembership
- *
- * Add membership of the specified IP address in a multicast group.
+ * Adds membership for the specified address to a multicast group.
+ * Parameters:
+ *   addr: Address to add
+ * Returns:
+ *   None
+ * Notes:
+ *   Implementation of this function is required for LON/IP support.
  */
 extern void AddIpMembership(uint32_t addr);
 
 /*
- * Function: CalSend
- *
- * Send data on a UDP socket.
+ * Sends data on a UDP socket.
+ * Parameters:
+ *   port: UDP port to send to
+ *   addr: IP address to send to
+ *   pData: Pointer to data to send
+ *   dataLength: Length of data to send
+ * Returns:
+ *   None
  */
-extern void CalSend(
-uint32_t port, IzotByte* addr, IzotByte* pData, uint16_t dataLength
-);
+extern void CalSend(uint32_t port, IzotByte* addr, IzotByte* pData, 
+				uint16_t dataLength);
 
 /*
- * Function: CalReceive
- *
- * Receive data from a UDP socket.  Keep the DUP socket non-blockable.
+ * Receives data from a UDP socket.  
+ * Parameters:
+ *   pData: Pointer to buffer to receive data
+ *   pSourceAddr: Pointer to buffer to receive source IP address
+ * Returns:
+ *   Number of bytes received, or a negative error code on failure
+ * Notes:
+ *   Keep the DUP socket non-blockable.  Implementation of this function is 
+ *   required for LON/IP support.
  */
 extern int CalReceive(IzotByte* pData, IzotByte* pSourceAddr);
 
+/*
+ * Checks for a change of status for the data link. 
+ * Parameters:
+ *   None
+ * Returns:
+ *   None
+ * Notes: 
+ *   Handle an unexpected loss or recovery of a data link.
+ */
 extern void CheckNetworkStatus(void);
 
 #endif  /* defined(DEFINED_IZOTCAL_H) */
