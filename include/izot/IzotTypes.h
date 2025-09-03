@@ -132,6 +132,8 @@ typedef IZOT_ENUM_BEGIN(IzotApiError) {
 #define IZOT_GET_UNSIGNED_WORD(n)          (((uint16_t)((n).msb) << 8)+(uint16_t)((n).lsb))
 #define IZOT_SET_UNSIGNED_WORD(n, v)       (n).msb = (IzotByte)((v)>>8); (n).lsb = (IzotByte)(v)
 #define IZOT_SET_UNSIGNED_WORD_FROM_BYTES(n,b1,b2) (n).msb = (IzotByte)(b1); \
+                                                   (n).lsb = (IzotByte)(b2)
+
 #define IZOT_GET_SIGNED_WORD(n)            ((int16_t)IZOT_GET_UNSIGNED_WORD(n))
 #define IZOT_SET_SIGNED_WORD(n, v)         IZOT_SET_UNSIGNED_WORD(n, v)
 #define IZOT_GET_UNSIGNED_DOUBLEWORD(n)    ((((uint32_t)IZOT_GET_UNSIGNED_WORD((n).msw)) << 16) \
