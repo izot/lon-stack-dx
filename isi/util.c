@@ -1,29 +1,12 @@
-//
-// util.c
-//
-// Copyright (C) 2022-2025 EnOcean
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy of
-// this software and associated documentation files (the "Software"), to deal in 
-// the Software without restriction, including without limitation the rights to
-// use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-// of the Software, and to permit persons to whom the Software is furnished to do
-// so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
-//
-
 /*
- * Purpose: Interoperable self-installation (ISI) utility functions
+ * util.c
+ *
+ * Copyright (c) 2022-2025 EnOcean
+ * SPDX-License-Identifier: MIT
+ * See LICENSE file for details.
+ * 
+ * Title:   LON Interoperable Self-Installation (ISI) Utility Functions
+ * Purpose: Defines LON ISI utility functions for a LON stack.
  */
 
 #include <stdio.h>
@@ -38,35 +21,34 @@
 extern "C" {
 #endif
 
-//============== LOCAL VARIABLES ===========================================
 #define thisRandomInit 1234          //for random_t()
 unsigned m_z = thisRandomInit;  	 //for random_t() //changed datatype to ignore truncated value
 
-/*=============================================================================
- *                           SUPPORT FUNCTIONS                                *
- *===========================================================================*/
-
+/*****************************************************************
+ * Section: Function Declarations
+ *****************************************************************/
 extern unsigned IzotGetCurrentDatapointSize(const unsigned index);
 extern volatile void* IzotGetDatapointValue(const unsigned index);
 
+/*****************************************************************
+ * Section: Function Definitions
+ *****************************************************************/
 
-/***************************************************************************
- *  Function: access_domain
- *
- *  Parameters: int index
- *
- *  Operation: Call IzotQueryDomainConfig() LTS API function to get domain
- *  configuration of index.
- *
- ***************************************************************************/
-IzotDomain* access_domain(int index)
+/*
+ * Gets the domain configuration for the specified index.
+ * Parameters:
+ *   domainIndex: Index of the domain configuration to retrieve; must be 0 or 1
+ * Returns:
+ *   Pointer to the domain configuration, or NULL if the index is invalid
+ */
+IzotDomain* access_domain(int domainIndex)
 {
     IzotDomain* pDomain = NULL;
 
-    _IsiAPIDebug("Start access_domain = %d\n", index);
-    if (index <= IZOT_GET_ATTRIBUTE(read_only_data, IZOT_READONLY_TWO_DOMAINS)) {
-        pDomain = &domainTable[index];
-        if ((IsiApiError)IzotQueryDomainConfig(index, pDomain) == IsiApiNoError) {
+    _IsiAPIDebug("Start access_domain = %d\n", domainIndex);
+    if (domainIndex <= IZOT_GET_ATTRIBUTE(read_only_data, IZOT_READONLY_TWO_DOMAINS)) {
+        pDomain = &domainTable[domainIndex];
+        if (IzotQueryDomainConfig(domainIndex, pDomain) == IzotApiNoError) {
             _IsiAPIDebug("DomainID  = %x %x %x %x %x %x, Subnet=%d, NonClone=%d Node=%d Invalid=%d Length=%d Key=%x\n", 
                 pDomain->Id[0],pDomain->Id[1],pDomain->Id[2],pDomain->Id[3],pDomain->Id[4],pDomain->Id[5],pDomain->Subnet, 
                 IZOT_GET_ATTRIBUTE_P(pDomain,IZOT_DOMAIN_NONCLONE),
@@ -75,37 +57,41 @@ IzotDomain* access_domain(int index)
                 IZOT_GET_ATTRIBUTE_P(pDomain,IZOT_DOMAIN_ID_LENGTH), pDomain->Key[0]);
         }
     }
-     _IsiAPIDebug("End access_domain = %d\n", index);
+     _IsiAPIDebug("End access_domain = %d\n", domainIndex);
     return pDomain;
 }
 
-/***************************************************************************
- *  Function: update_domain_address
- *
- *  Parameters: const IzotDomain* pDomain, int index
- *
- *  Operation: ISI Update Domain
- ***************************************************************************/
-IsiApiError update_domain_address(const IzotDomain* pDomain, int index, int nonCloneValue, IzotBool bUpdateID)
+/*
+ * Updates the domain configuration for the specified index.
+ * Parameters:
+ *   domainConfig: Pointer to the new domain configuration
+ *   domainIndex: Index of the domain configuration to update; must be 0 or 1
+ *   nonCloneValue: 0 for a clone domain; 1 otherwise
+ *   bUpdateID: TRUE to update the domain ID, FALSE to not update the domain ID
+ * Returns:
+ *   IzotApiNoError (0) on success, or an <IzotApiError> error code on failure
+ */
+IzotApiError update_domain_address(const IzotDomain* domainConfig, int domainIndex,
+                int nonCloneValue, IzotBool bUpdateID)
 {
     int i;
     IzotDomain* temp = NULL;
-    IsiApiError sts = IsiApiNoError;
+    IzotApiError sts = IzotApiNoError;
 
-    _IsiAPIDebug("Start update_domain_address = %d\n", index);
-    if (index <= IZOT_GET_ATTRIBUTE(read_only_data, IZOT_READONLY_TWO_DOMAINS)) {
-        temp = &domainTable[index];
+    _IsiAPIDebug("Start update_domain_address = %d\n", domainIndex);
+    if (domainIndex <= IZOT_GET_ATTRIBUTE(read_only_data, IZOT_READONLY_TWO_DOMAINS)) {
+        temp = &domainTable[domainIndex];
         if (bUpdateID) {
             for(i=0; i<DOMAIN_ID_LEN; i++) {
-		        temp->Id[i] = pDomain->Id[i];
+		        temp->Id[i] = domainConfig->Id[i];
 	        };
         }
-	    temp->Subnet = pDomain->Subnet;
+	    temp->Subnet = domainConfig->Subnet;
 	    IZOT_SET_ATTRIBUTE_P(temp,IZOT_DOMAIN_NONCLONE,nonCloneValue);  // 0 = if it's a clone domain, 1= otherwise
-	    IZOT_SET_ATTRIBUTE_P(temp,IZOT_DOMAIN_NODE, IZOT_GET_ATTRIBUTE_P(pDomain,IZOT_DOMAIN_NODE));
-	    temp->InvalidIdLength = pDomain->InvalidIdLength;
+	    IZOT_SET_ATTRIBUTE_P(temp,IZOT_DOMAIN_NODE, IZOT_GET_ATTRIBUTE_P(domainConfig,IZOT_DOMAIN_NODE));
+	    temp->InvalidIdLength = domainConfig->InvalidIdLength;
         IZOT_SET_ATTRIBUTE_P(temp,IZOT_DOMAIN_INVALID, 0);    // set the domain to be valid.  Otherwise, the LTS will reset the length to 7
-        sts = IzotUpdateDomainConfig(index, temp);
+        sts = IzotUpdateDomainConfig(domainIndex, temp);
         _IsiAPIDebug("DomainID  = %x %x %x %x %x %x, Subnet=%d, NonClone=%d Node=%d Invalid=%d Length=%d Key=%x\n", 
                 temp->Id[0],temp->Id[1],temp->Id[2],temp->Id[3],temp->Id[4],temp->Id[5],temp->Subnet, 
                 IZOT_GET_ATTRIBUTE_P(temp,IZOT_DOMAIN_NONCLONE),
@@ -117,32 +103,32 @@ IsiApiError update_domain_address(const IzotDomain* pDomain, int index, int nonC
     return sts;
 }
 
-
-/***************************************************************************
- *  Function: IsiSetDomain
- *
- *  Parameters: IzotDomain* pDomain, unsigned Index
- *
- *  Operation: Using LTS IzotUpdateDomainConfig API function to update domain of index
- ***************************************************************************/
-IsiApiError IsiSetDomain(const IzotDomain* pDomain, unsigned index)
+/*
+ * Updates the domain configuration for the specified index.
+ * Parameters:
+ *   domainConfig: Pointer to the new domain configuration
+ *   domainIndex: Index of the domain configuration to update; must be 0 or 1
+ * Returns:
+ *   IzotApiNoError (0) on success, or an <IzotApiError> error code on failure
+ */
+IzotApiError IsiSetDomain(const IzotDomain* domainConfig, unsigned domainIndex)
 {
-    IsiApiError sts;
+    IzotApiError sts;
 
-    _IsiAPIDebug("Start IsiSetDomain = %d\n", index);
-    sts = update_domain_address(pDomain, index, 1, TRUE); // it's not a clone domain
+    _IsiAPIDebug("Start IsiSetDomain = %d\n", domainIndex);
+    sts = update_domain_address(domainConfig, domainIndex, 1, TRUE); // it's not a clone domain
 
     _IsiAPIDebug("End IsiSetDomain = %d\n", sts);
     return sts;
 }
 
-/***************************************************************************
- *  Function: _nv_count
- *
- *  Parameters: void
- *
- *  Operation: Return Number of static NVs
- ***************************************************************************/
+/* 
+ * Returns the number of static NVs 
+ * Parameters:
+ *   None
+ * Returns:
+ *   The number of static NVs, limited by ISI_MAX_NV_COUNT
+ */
 unsigned _nv_count(void)
 {
     unsigned int nvCount = IzotGetStaticDatapointCount();
@@ -153,80 +139,83 @@ unsigned _nv_count(void)
     return nvCount;
 }
 
-/***************************************************************************
- *  Function: IsiSetNv
- *
- *  Parameters: IzotDatapointConfig* pNv, unsigned Index
- *
- *  Operation: ISI Set NV
- ***************************************************************************/
-void IsiSetNv(IzotDatapointConfig* pNv, unsigned Index)
+/*
+ * Sets the NV configuration for the specified NV index.
+ * Parameters:
+ *   nvConfig: Pointer to the new NV configuration
+ *   nvIndex: Index of the NV configuration to update; must be less than the number of static NVs
+ * Returns:
+ *   IzotApiNoError (0) on success, or an <IzotApiError> error code on failure
+ */
+void IsiSetNv(IzotDatapointConfig* nvConfig, unsigned nvIndex)
 {
-	update_nv(pNv, Index);
+	update_nv(nvConfig, nvIndex);
 }
 
-/***************************************************************************
- *  Function: update_nv
- *
- *  Parameters: const IzotDatapointConfig * nv_entry, int index
- *
- *  Operation: Update NV
- ***************************************************************************/
-void update_nv(const IzotDatapointConfig * nv_entry, unsigned index)
+/*
+ * Sets the NV configuration for the specified NV index.
+ * Parameters:
+ *   nvConfig: Pointer to the new NV configuration
+ *   nvIndex: Index of the NV configuration to update; must be less than the number of static NVs
+ * Returns:
+ *   IzotApiNoError (0) on success, or an <IzotApiError> error code on failure
+ */
+void update_nv(const IzotDatapointConfig* nvConfig, unsigned nvIndex)
 {
-    if (nv_entry && index < _nv_count()) {
-		/*IsiApiError sts = */IzotUpdateDpConfig(index, nv_entry);
+    if (nvConfig && nvIndex < _nv_count()) {
+		/*IzotApiError sts = */IzotUpdateDpConfig(nvIndex, nvConfig);
 
-        _IsiAPIDebug("update_nv index %u sts %i ", index, sts);
-        _IsiAPIDump("data = 0x", (void *)nv_entry, sizeof(IzotDatapointConfig), "\n");
+        _IsiAPIDebug("update_nv index %u sts %i ", nvIndex, sts);
+        _IsiAPIDump("data = 0x", (void *)nvConfig, sizeof(IzotDatapointConfig), "\n");
     }
 }
 
-/***************************************************************************
- *  Function: IsiGetNv
- *
- *  Parameters: unsigned Index
- *
- *  Operation: Using LTS IzotQueryDpConfig function to return nv ptr of Index
- ***************************************************************************/
-const IzotDatapointConfig* IsiGetNv(unsigned Index)
+/*
+ * Gets the NV configuration for the specified NV index.
+ * Parameters:
+ *   nvIndex: Index of the NV configuration to get; must be less than the number of static NVs
+ * Returns:
+ *   Pointer to the NV configuration
+ */
+const IzotDatapointConfig* IsiGetNv(unsigned nvIndex)
 {
     memset(&nv_config, 0, sizeof(IzotDatapointConfig));
-    IzotQueryDpConfig(Index, &nv_config);
+    IzotQueryDpConfig(nvIndex, &nv_config);
     return (IzotDatapointConfig* )&nv_config;
 }
 
-/***************************************************************************
- *  Function: high_byte
- *
- *  Parameters: IzotUbits16 a
- *
- *  Operation: Return high byte of a
- ***************************************************************************/
-IzotByte high_byte (IzotUbits16 a)
+/*
+ * Returns the high byte of a 16-bit value.
+ * Parameters:
+ *   a: 16-bit value
+ * Returns:
+ *   The high byte of the 16-bit value
+ */
+IzotByte high_byte(IzotUbits16 a)
 {
 	return ((unsigned char)(a>>8));
 }
 
-/***************************************************************************
- *  Function: low_byte
- *
- *  Parameters: IzotUbits16 a
- *
- *  Operation: Return low byte of a
- ***************************************************************************/
+/*
+ * Returns the low byte of a 16-bit value.
+ * Parameters:
+ *   a: 16-bit value
+ * Returns:
+ *   The low byte of the 16-bit value
+ */
 IzotByte low_byte (IzotUbits16 a)
 {
 	return ((unsigned char)(a&(0x00FF)));
 }
 
-/***************************************************************************
- *  Function: make_long
- *
- *  Parameters: IzotByte low_byte, IzotByte high_byte
- *
- *  Operation: Return combined of high_byte and low_byte
- ***************************************************************************/
+/*
+ * Returns a 16-bit value composed of the specified low and high bytes.
+ * Parameters:
+ *   low_byte: Low byte of the 16-bit value
+ *   high_byte: High byte of the 16-bit value
+ * Returns:
+ *   The combined 16-bit value
+ */
 IzotWord make_long(IzotByte low_byte, IzotByte high_byte)
 {
     IzotWord w;
@@ -234,15 +223,13 @@ IzotWord make_long(IzotByte low_byte, IzotByte high_byte)
 	return w;
 }
 
-/***************************************************************************
- *  Function: getRandom
- *
- *  Parameters: void
- *
- *  Operation: return a random number based on time and the 
- *  least significant 4 bytes of NeuronID.
- *
- ***************************************************************************/
+/*
+ * Returns a 32-bit pseudo-random number.
+ * Parameters:
+ *   None
+ * Returns:
+ *   A 32-bit pseudo-random number
+ */
 unsigned int getRandom(void)
 {
 	unsigned m_w = IzotGetTickCount();
@@ -250,94 +237,102 @@ unsigned int getRandom(void)
 	m_z = 36969 * (m_z & 65535) + (m_z >> 4);
 	m_w = 18000 * (m_w & 65535) + (m_w >> 4);
 
-	return (m_z << 4) + m_w;  /* 32-bit result */
+	return (m_z << 4) + m_w;  // 32-bit result
 }
 
-/***************************************************************************
- *  Function: access_address
- *
- *  Parameters: int index
- *
- *  Operation: Using LTS IzotQueryAddressConfig function to return ptr of index
- ***************************************************************************/
-IzotAddress*	access_address(int index)
+/*
+ * Gets the address configuration for the specified index.
+ * Parameters:
+ *   index: Index of the address configuration to retrieve; must be less than the number of
+ *          address table entries
+ * Returns:
+ *   Pointer to the address configuration, or NULL if the index is invalid
+ */ 
+IzotAddress* access_address(int index)
 {
-    IzotAddress* pAddress = (IzotAddress*)&addrTable;
+    IzotAddress* devAddress = (IzotAddress*)&addrTable;
 
-    if ((IsiApiError)IzotQueryAddressConfig(index, pAddress) == IsiApiNoError)
-        return pAddress;
+    if (IzotQueryAddressConfig(index, devAddress) == IzotApiNoError)
+        return devAddress;
     else
         return (IzotAddress*)NULL;            
 }
 
-/***************************************************************************
- *  Function: update_address
- *
- *  Parameters: const IzotAddress * address, int index
- *
- *  Operation: Using LTS IzotUpdateAddressConfig function to update address of index
- ***************************************************************************/
-IsiApiError update_address(const IzotAddress* address, int index)
+/*
+ * Sets the address configuration for the specified index.
+ * Parameters:
+ *   devAddress: Pointer to the new address configuration
+ *   index: Index of the address configuration to update
+ * Returns:
+ *   IzotApiNoError (0) on success, or an <IzotApiError> error code on failure
+ * Notes:
+ *   The index must be less than the number of address table entries.
+ */ 
+IzotApiError update_address(const IzotAddress* devAddress, int index)
 {
-    IsiApiError sts = IzotUpdateAddressConfig(index, address);
-	if (sts != IsiApiNoError) {
+    IzotApiError sts = IzotUpdateAddressConfig(index, devAddress);
+	if (sts != IzotApiNoError) {
 		_IsiAPIDebug("update_address failed (entry %d)\n", index);
 	}
     return sts;
 }
 
-/***************************************************************************
- *  Function: lon_watchdog_update
- *
- *  Parameters: void
- *
- *  Operation: 
- ***************************************************************************/
+/*
+ * Updates the watchdog timer, if any.
+ * Parameters:
+ *   None
+ * Returns:
+ *   None
+ */
 void lon_watchdog_update(void)
 {
-    // do nothing
+    // Do nothing
 }
 
-
-/***************************************************************************
- *  Function: IsiGetAlias
- *
- *  Parameters: unsigned Index
- *
- *  Operation: using LTS IzotQueryAliasConfig to return ptr to Index
- ***************************************************************************/
-const IzotAliasConfig* IsiGetAlias(unsigned Index)
+/*
+ * Gets the alias configuration for the specified alias table index.
+ * Parameters:
+ *   aliasIndex: Index of the alias configuration to retrieve
+ * Returns:
+ *   Pointer to the alias configuration, or NULL if the index is invalid
+ * Notes:
+ *   The index must be less than the number of alias entries.
+ */
+const IzotAliasConfig* IsiGetAlias(unsigned aliasIndex)
 {
-    _IsiAPIDebug("Start IsiGetAlias(%d)\n", Index); 
+    _IsiAPIDebug("Start IsiGetAlias(%d)\n", aliasIndex); 
     memset(&alias_config, 0, sizeof(IzotAliasConfig));
-    if ((IsiApiError)IzotQueryAliasConfig(Index, &alias_config) != IsiApiNoError)
+    if (IzotQueryAliasConfig(aliasIndex, &alias_config) != IzotApiNoError)
     {
-        _IsiAPIDebug("Error - IsiGetAlias(%d)\n", Index); 
+        _IsiAPIDebug("Error - IsiGetAlias(%d)\n", aliasIndex); 
     }
-    _IsiAPIDebug("End IsiGetAlias(%d)\n", Index);
+    _IsiAPIDebug("End IsiGetAlias(%d)\n", aliasIndex);
 	return (IzotAliasConfig*)&alias_config;
 }
 
-/***************************************************************************
- *  Function: IsiSetAlias
- *
- *  Parameters: IzotAliasConfig* pAlias, unsigned Index
- *
- *  Operation: using LTS IzotUpdateAliasConfig to update alias
- ***************************************************************************/
-IsiApiError IsiSetAlias(IzotAliasConfig* pAlias, unsigned Index)
+/*
+ * Sets the alias configuration for the specified alias table index.
+ * Parameters:
+ *   aliasConfig: Pointer to the new alias configuration
+ *   aliasIndex: Index of the alias configuration to update
+ * Returns:
+ *   IzotApiNoError (0) on success, or an <IzotApiError> error code on failure
+ * Notes:
+ *   The index must be less than the number of alias entries.
+ */
+IzotApiError IsiSetAlias(IzotAliasConfig* aliasConfig, unsigned aliasIndex)
 {
-    return IzotUpdateAliasConfig(Index, pAlias); 
+    return IzotUpdateAliasConfig(aliasIndex, aliasConfig); 
 }
 
-IsiApiError update_config_data(const IzotConfigData *config_data1)
+IzotApiError update_config_data(const IzotConfigData *configData)
 {
     // Update the global copy of config data
-    memcpy(&config_data, config_data1, sizeof(IzotConfigData));
-    return IzotUpdateConfigData(config_data1);  // call LTS IzotUpdateConfigData to update the config data 
+    memcpy(&config_data, configData, sizeof(IzotConfigData));
+    return IzotUpdateConfigData(configData);  // call LTS IzotUpdateConfigData to update the config data 
 }
 
-IzotConfigData* get_config_data()
+IzotConfigData* get_config_data(void)
 {
     // Get the fresh config data from the stack
     IzotQueryConfigData(&config_data);
@@ -367,29 +362,28 @@ unsigned get_nv_si_count(void)
 	return _nv_count(); // same with the nv count
 }
 
-/***************************************************************************
- *  Function: get_nv_type
- *
- *  Parameters: unsigned index
- *
- *  Operation: Returns the type of NV  if it is a SNVT (1-250). A non-standard network 
- *  variable type will have SnvtId = 0.  
- ***************************************************************************/
-unsigned get_nv_type (unsigned index)
+/*
+ * Returns the NV type for a specified NV index.
+ * Parameters:
+ *   nvIndex: Index of the NV
+ * Returns:
+ *  The SNVT ID (1-250) for a SNVT; 0 for an NV that is not a SVNT
+ */
+unsigned get_nv_type (unsigned nvIndex)
 {
 	return 1;
 }
 
-IzotWord _IsiAddSelector(IzotWord Selector, unsigned Increment)
+IzotWord _IsiAddSelector(IzotWord selector, unsigned increment)
 {
     IzotWord result;
-	IZOT_SET_UNSIGNED_WORD(result, IZOT_GET_UNSIGNED_WORD(Selector) + Increment);
+	IZOT_SET_UNSIGNED_WORD(result, IZOT_GET_UNSIGNED_WORD(selector) + increment);
     return result;
 }
 
-IzotWord _IsiIncrementSelector(IzotWord Selector)
+IzotWord _IsiIncrementSelector(IzotWord selector)
 {
-    return _IsiAddSelector(Selector, 1);
+    return _IsiAddSelector(selector, 1);
 }
 
 IsiType _IsiGetCurrentType()
@@ -412,7 +406,7 @@ IzotByte* get_nv_value(const unsigned index)
 	return (IzotByte *)IzotGetDatapointValue(index);
 }
 
-IsiApiError service_pin_msg_send()
+IzotApiError service_pin_msg_send()
 {
     return IzotSendServicePin();
 }
@@ -422,17 +416,26 @@ void node_reset()
     NodeReset(FALSE);
 }    
 
-IsiApiError retrieve_status(IzotStatus* status)
+IzotApiError retrieve_status(IzotStatus* status)
 {
     return IzotQueryStatus(status);       
 }
 
-// Initialize the persitent data, connection table, config_data and read_only_data
-IsiApiError initializeData(IsiBootType bootType)
+/*
+ * Initializes ISI data structures from persistent storage.
+ * Parameters:
+ *   bootType: Type of boot (isiColdStart, isiWarmStart, isiReset, or isiReboot)
+ * Returns:
+ *   IzotApiNoError (0) on success, or an <IzotApiError> error code on failure
+ * Notes:   
+ *   If no persistent data is found, the connection table, NV table, alias
+ *   table and address table are initialized to default values.
+ */
+IzotApiError initializeData(IsiBootType bootType)
 {
-    IsiApiError sts = IzotQueryConfigData(&config_data);
+    IzotApiError sts = IzotQueryConfigData(&config_data);
    
-    if (sts == IsiApiNoError) {
+    if (sts == IzotApiNoError) {
         sts = IzotQueryReadOnlyData(&read_only_data);
     }
 
@@ -457,7 +460,7 @@ IsiApiError initializeData(IsiBootType bootType)
     return sts;
 }
 
-IsiApiError set_node_mode(unsigned mode, unsigned state)
+IzotApiError set_node_mode(unsigned mode, unsigned state)
 {
 	return IzotSetNodeMode(mode, state);
 }

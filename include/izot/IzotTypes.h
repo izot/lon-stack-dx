@@ -1,263 +1,154 @@
-//
-// IzotTypes.h
-//
-// Copyright (C) 2023-2025 EnOcean
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy of
-// this software and associated documentation files (the "Software"), to deal in 
-// the Software without restriction, including without limitation the rights to
-// use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-// of the Software, and to permit persons to whom the Software is furnished to do
-// so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
-
 /*
- * Title: LON Stack DX API Reference
+ * IzotTypes.h
  *
- * Abstract:
- * This file declares the enumerations and data types for the LON Stack DX API.
+ * Copyright (c) 2023-2025 EnOcean
+ * SPDX-License-Identifier: MIT
+ * See LICENSE file for details.
+ * 
+ * Title:   LON Stack DX API Types
+ * Purpose: Defines types for a LON stack.
  */
-
 
 #ifndef _IZOT_TYPES_H
 #define _IZOT_TYPES_H
 
-#ifndef _IZOT_PLATFORM_H
-#   error You must include IzotPlatform.h first
-#endif  /* _IZOT_PLATFORM_H */
-
+#include "izot/IzotPlatform.h"
 #include "izot/IapTypes.h"       // IAP type definitions
 
-
-/*
- * *****************************************************************************
- * SECTION: ERROR CODES
- * *****************************************************************************
- *
- * This section details the enumerations for error codes that this API can
- * issue.  This section also lists the errors reported by the device in
- * its error log (see <IzotStatus>).
- */
-
-/*
- * Enumeration: IzotSystemError
- * System and LON protocol stack error codes logged in the LON
- * protocol stack's error log.
- *
- * The codes can be accessed using the Query Status standard network management
- * command.
- *
- * The standard system errors range above value 128. Values between 1 and 128
- * are application-specific (but serious) errors. Values used by the LON
- * stack are also included in the <IzotSystemError> enumeration.
- *
- * The standard system error codes are described in the
- * ISO/IEC 14908-1 protocol standard.
- *
- */
-typedef IZOT_ENUM_BEGIN(IzotSystemError)
-{
-    /*   0 */ IzotNoError                 = 0,
-    /*
-     * LON/IP specific system error codes
-     */
-
-     /* none */
-
-    /*
-     * Standard system error codes
-     */
-    /* 129 */ IzotBadEvent            = 129u,
-    /* 130 */ IzotDatapointLengthMismatch    = 130u,
-    /* 131 */ IzotDatapointMsgTooShort       = 131u,
-    /* 132 */ IzotEepromWriteFail     = 132u,
-    /* 133 */ IzotBadAddressType      = 133u,
-    /* 134 */ IzotPreemptionModeTimeout = 134u,
-    /* 135 */ IzotAlreadyPreempted    = 135u,
-    /* 136 */ IzotSyncDatapointUpdateLost    = 136u,
-    /* 137 */ IzotInvalidRespAlloc    = 137u,
-    /* 138 */ IzotInvalidDomain       = 138u,
-    /* 139 */ IzotReadPastEndOfMsg    = 139u,
-    /* 140 */ IzotWritePastEndOfMsg   = 140u,
-    /* 141 */ IzotInvalidAddrTableIndex = 141u,
-    /* 142 */ IzotIncompleteMsg       = 142u,
-    /* 143 */ IzotDatapointUpdateOnOutput  = 143u,
-    /* 144 */ IzotNoMsgAvail          = 144u,
-    /* 145 */ IzotIllegalSend         = 145u,
-    /* 146 */ IzotUnknownPdu          = 146u,
-    /* 147 */ IzotInvalidDatapointIndex      = 147u,
-    /* 148 */ IzotDivideByZero        = 148u,
-    /* 149 */ IzotInvalidApplError    = 149u,
-    /* 150 */ IzotMemoryAllocFailure  = 150u,
-    /* 151 */ IzotWritePastEndOfNetBuffer = 151u,
-    /* 152 */ IzotApplCheckSumError   = 152u,
-    /* 153 */ IzotCnfgCheckSumError   = 153u,
-    /* 154 */ IzotInvalidXcvrRegAddr  = 154u,
-    /* 155 */ IzotXcvrRegTimeout      = 155u,
-    /* 156 */ IzotWritePastEndOfApplBuffer = 156u,
-    /* 157 */ IzotIoReady             = 157u,
-    /* 158 */ IzotSelfTestFailed      = 158u,
-    /* 159 */ IzotSubnetRouter        = 159u,
-    /* 160 */ IzotAuthenticationMismatch  = 160u,
-    /* 161 */ IzotSeltInstSemaphoreSet    = 161u,
-    /* 162 */ IzotReadWriteSemaphoreSet   = 162u,
-    /* 163 */ IzotApplSignatureBad    = 163u,
-    /* 164 */ IzotRouterFirmwareVersionMismatch = 164
+// System and LON protocol stack error codes logged in the LON stack error log.
+// The codes can be accessed using the Query Status network management command.
+// The standard system errors range above value 128. Values between 1 and 128
+// are application-specific (but serious) errors. Values used by the LON
+// stack are also included in the <IzotSystemError> enumeration.  The standard
+// system error codes are described in the ISO/IEC 14908-1 protocol standard.
+typedef IZOT_ENUM_BEGIN(IzotSystemError) {
+    /*   0 */ IzotNoError                       = 0,
+    /* 129 */ IzotBadEvent                      = 129u,
+    /* 130 */ IzotDatapointLengthMismatch       = 130u,
+    /* 131 */ IzotDatapointMsgTooShort          = 131u,
+    /* 132 */ IzotEepromWriteFail               = 132u,
+    /* 133 */ IzotBadAddressType                = 133u,
+    /* 134 */ IzotPreemptionModeTimeout         = 134u,
+    /* 135 */ IzotAlreadyPreempted              = 135u,
+    /* 136 */ IzotSyncDatapointUpdateLost       = 136u,
+    /* 137 */ IzotInvalidRespAlloc              = 137u,
+    /* 138 */ IzotInvalidDomain                 = 138u,
+    /* 139 */ IzotReadPastEndOfMsg              = 139u,
+    /* 140 */ IzotWritePastEndOfMsg             = 140u,
+    /* 141 */ IzotInvalidAddrTableIndex         = 141u,
+    /* 142 */ IzotIncompleteMsg                 = 142u,
+    /* 143 */ IzotDatapointUpdateOnOutput       = 143u,
+    /* 144 */ IzotNoMsgAvail                    = 144u,
+    /* 145 */ IzotIllegalSend                   = 145u,
+    /* 146 */ IzotUnknownPdu                    = 146u,
+    /* 147 */ IzotInvalidDatapointIndex         = 147u,
+    /* 148 */ IzotDivideByZero                  = 148u,
+    /* 149 */ IzotInvalidApplError              = 149u,
+    /* 150 */ IzotMemoryAllocFailure            = 150u,
+    /* 151 */ IzotWritePastEndOfNetBuffer       = 151u,
+    /* 152 */ IzotApplCheckSumError             = 152u,
+    /* 153 */ IzotCnfgCheckSumError             = 153u,
+    /* 154 */ IzotInvalidXcvrRegAddr            = 154u,
+    /* 155 */ IzotXcvrRegTimeout                = 155u,
+    /* 156 */ IzotWritePastEndOfApplBuffer      = 156u,
+    /* 157 */ IzotIoReady                       = 157u,
+    /* 158 */ IzotSelfTestFailed                = 158u,
+    /* 159 */ IzotSubnetRouter                  = 159u,
+    /* 160 */ IzotAuthenticationMismatch        = 160u,
+    /* 161 */ IzotSeltInstSemaphoreSet          = 161u,
+    /* 162 */ IzotReadWriteSemaphoreSet         = 162u,
+    /* 163 */ IzotApplSignatureBad              = 163u,
+    /* 164 */ IzotRouterFirmwareVersionMismatch = 164u
 } IZOT_ENUM_END(IzotSystemError);
 
-/*
- * Enumeration: IzotApiError
- * IzoT 1.0 API error codes.
- *
- * This enumeration contains all IzoT 1.0 API error codes, including the
- * code for success _IzotApiNoError_. Use the <IZOT_SUCCESS> macro to
- * determine successful completion of an API function.
- *
- * Some implementations may support only a subset of the error codes listed
- * here.
- */
-typedef IZOT_ENUM_BEGIN(IzotApiError)
-{
-    /*    0    */ IzotApiNoError = 0,         /* no error. Use the IZOT_SUCCESS macro to test for this condition */
-    /*
-     * API errors related to datapoints
-     */
-    /*    1    */ IzotApiDatapointIndexInvalid =1,   /* invalid Datapoint index */
-    /*    2    */ IzotApiDatapointLengthMismatch,    /* assumed length is not equal to actual length */
-    /*    3    */ IzotApiDatapointLengthTooLong,     /* Datapoint data is too long */
-    /*    4    */ IzotApiDatapointPollNotPolledDatapoint,   /* polling input Datapoint requires declaration of polled attribute in the model file */
-    /*    5    */ IzotApiDatapointPollOutputDatapoint,      /* cannot poll output datapoint */
-    /*    6    */ IzotApiDatapointPropagateInputDatapoint,  /* cannot propagate input datapoint */
-    /*    7    */ IzotApiDatapointPropagatePolledDatapoint, /* cannot propagate a polled datapoint */
+// IzoT API error codes.  The IZOT_SUCCESS macro can be used to test for success.
+typedef IZOT_ENUM_BEGIN(IzotApiError) {
+    /*    0    */ IzotApiNoError = 0,                       // No error; use the IZOT_SUCCESS macro
+                                                            // to test for this condition
+    // Datapoint-related errors
+    /*    1    */ IzotApiDatapointIndexInvalid =1,          // Invalid datapoint index
+    /*    2    */ IzotApiDatapointLengthMismatch,           // Assumed length is not equal to 
+                                                            // actual length
+    /*    3    */ IzotApiDatapointLengthTooLong,            // Datapoint data is too long
+    /*    4    */ IzotApiDatapointPollNotPolledDatapoint,   // Polling input datapoint requires 
+                                                            // declaration of polled attribute 
+                                                            // in the model file
+    /*    5    */ IzotApiDatapointPollOutputDatapoint,      // Cannot poll output datapoint
+    /*    6    */ IzotApiDatapointPropagateInputDatapoint,  // Cannot propagate input datapoint
+    /*    7    */ IzotApiDatapointPropagatePolledDatapoint, // Cannot propagate a polled datapoint
+    // Application message-related errors
+    /*    11   */ IzotApiMsgExplicitAddrMissing = 11,       // Explicit destination required but missing
+    /*    12   */ IzotApiMsgInvalidMsgTag,                  // Invalid message tag provided
+    /*    13   */ IzotApiMsgLengthTooLong,                  // Message data exceeds limits
+    /*    14   */ IzotApiMsgNotRequest,                     // Message should be sent as a request
+    /*    15   */ IzotApiMsgInvalidCode,                    // Invalid message code
+    /*    16   */ IzotApiMsgInvalidCorrelator,              // Invalid <IzotCorrelator>
+    /*    17   */ IzotApiMsgInvalidAddress,                 // Invalid address
+    // Network interface-related errors
+    /*    31   */ IzotApiTxBufIsFull              = 31,     // No transmit (downlink) buffer available
+    /*    32   */ IzotApiRxMsgNotAvailable,                 // No message has been received from the Micro Server
+    /*    33   */ IzotApiMicroServerUnresponsive,           // Micro Server is not responding to RTS
+    // General API errors
+    /*    41   */ IzotApiVersionNotAvailable    = 41,       // Link-layer protocol version information unavailable
+    /*    42   */ IzotApiNeuronIdNotAvailable,              // Unique ID (Neuron or MAC ID) unavailable
+    /*    43   */ IzotApiMacIdNotAvailable,                 // MAC ID unavailable
+    /*    44   */ IzotApiInitializationFailure,             // Initialization failed
+    /*.   45.  */ IzotApiRebootFailure,                     // Reboot failed
+    /*    45   */ IzotApiIndexInvalid,                      // Invalid index (for Datapoint indices, see IzotApiDatapointIndexInvalid)
+    /*    46   */ IzotApiMessageNotAvailable,               // Invalid index (for Datapoint indices, see IzotApiDatapointIndexInvalid)
+    /*    47   */ IzotApiNotInitialized,                    // API is not currently initialized; call <IzotInit>
+    /*    48   */ IzotApiVersionNotSupported,               // Structure version not supported
+    /*    49   */ IzotApiNotAllowed,                        // Operation not allowed
+    /*    50   */ IzotApiInvalidParameter,                  // Invalid parameter specified
+    /*    51   */ IzotApiOffline,                           // Operation not allowed while device is offline
+    /*    52   */ IzotApiCallbackNotRegistered,             // Callback function has not been registered
+    /*    53   */ IzotApiCallbackExceptionError,            // An exception when executing the callback function
+    // Persistent data management errors
+    /*    71   */ IzotApiInvalidSegmentType   = 71,         // Not a supported persistent segment type
+    /*    72   */ IzotApiPersistentFailure,                 // Generic persistent data failure
+    /*    73   */ IzotApiPersistentSizeNotSupported,        // Persistent data size is not supported
+    /*    74   */ IzotApiPersistentDirError,                // Persistent data directory error
+    /*    75   */ IzotApiPersistentFileError,               // Persistent data access error
+    // Direct Memory File (DMF) access errors
+    /*    81   */ IzotApiDmfOutOfRange         = 81,        // DMF address + count is out of range for operation
+    /*    82   */ IzotApiDmfReadOnly           = 82,        // Write to read-only DMF area
+    /*    83   */ IzotApiDmfNoDriver           = 83,        // No DMF driver defined
 
+    /*    90   */ IzotApiNoNetworkInterface     = 90,       // No Network Interface defined. See IzotGetMyNetworkInterface in IzoTHandlers.c
+    /*    91   */ IzotApiNoIpAddress            = 91,       // No IP address defined.  See IzotGetMyIpAddress in IzoTHandlers.c
+    /*    92   */ IzotUnknownLTSDeviceType      = 92,       // Unknown LTS device type
+    /*    93   */ IzotInvalidDeviceURI          = 93,       // Unknown LTS device URI
     /*
-     * API errors related to application messages
+     * Interoperable Self Installation (ISI)  errors.
      */
-    /*    11   */ IzotApiMsgExplicitAddrMissing = 11, /* explicit destination required but missing */
-    /*    12   */ IzotApiMsgInvalidMsgTag,    /* invalid message tag provided */
-    /*    13   */ IzotApiMsgLengthTooLong,    /* message data exceeds limits */
-    /*    14   */ IzotApiMsgNotRequest,       /* message should be sent as a request */
-    /*    15   */ IzotApiMsgInvalidCode,      /* invalid message code */
-    /*    16   */ IzotApiMsgInvalidCorrelator, /* Invalid <IzotCorrelator> */
-    /*    17   */ IzotApiMsgInvalidAddress,   /* Invalid address */
-    /*
-     * API errors related to the ShortStack serial or IzoT parallel driver
-     */
-    /*    31   */ IzotApiTxBufIsFull              = 31,   /* no transmit (downlink) buffer available */
-    /*    32   */ IzotApiRxMsgNotAvailable,               /* no message has been received from the Micro Server */
-    /*    33   */ IzotApiMicroServerUnresponsive,         /* the Micro Server is not responding to RTS */
-    /*
-     * General API errors
-     */
-    /*    41   */ IzotApiVersionNotAvailable    = 41, /* Link-layer protocol version information unavailable */
-    /*    42   */ IzotApiNeuronIdNotAvailable,    /* Unique ID (Neuron or MAC ID) unavailable */
-    /*    43   */ IzotApiMacIdNotAvailable,       /* MAC ID unavailable */
-    /*    44   */ IzotApiInitializationFailure,   /* Initialization failed */
-    /*.   45.  */ IzotApiRebootFailure,           /* Reboot failed */
-    /*    45   */ IzotApiIndexInvalid,            /* invalid index (for Datapoint indices, see IzotApiDatapointIndexInvalid) */
-    /*    46   */ IzotApiMessageNotAvailable,     /* invalid index (for Datapoint indices, see IzotApiDatapointIndexInvalid) */
-    /*    47   */ IzotApiNotInitialized,          /* API is not currently initialized.  Call <IzotInit>. */
-    /*    48   */ IzotApiVersionNotSupported,     /* Structure version not supported. */
-    /*    49   */ IzotApiNotAllowed,              /* Operation not allowed */
-    /*    50   */ IzotApiInvalidParameter,        /* Invalid parameter specified */
-    /*    51   */ IzotApiOffline,                 /* Operation not allowed while device is offline. */
-    /*    52   */ IzotApiCallbackNotRegistered,   /* Callback function has not been registered. */
-    /*    53   */ IzotApiCallbackExceptionError,  /* An exception when executing the callback function.  */
-    /*
-     * Errors related to management of persistent data. Returned by persistent data callback functions.
-     */
-    /*    71   */ IzotApiInvalidSegmentType   = 71, /* Not a supported persistent segment type. */
-    /*    72   */ IzotApiPersistentFailure,       /* Generic persistent data failure. */
-    /*    73   */ IzotApiPersistentSizeNotSupported, /* Persistent data size is not supported. */
-    /*    74   */ IzotApiPersistentDirError,      /* Persistent data directory error. */
-    /*    75   */ IzotApiPersistentFileError,     /* Persistent data access error. */
-    /*
-     * Direct Memory File (DMF) access errors.
-     */
-    /*    81   */ IzotApiDmfOutOfRange         = 81, /* DMF address + count is out of range for operation. */
-    /*    82   */ IzotApiDmfReadOnly           = 82, /* Write to read-only DMF area. */
-    /*    83   */ IzotApiDmfNoDriver           = 83, /* No DMF driver defined. */
-
-    /*    90   */ IzotApiNoNetworkInterface     = 90, /* No Network Interface defined. See IzotGetMyNetworkInterface in IzoTHandlers.c */
-    /*    91   */ IzotApiNoIpAddress            = 91,  /* No IP address defined.  See IzotGetMyIpAddress in IzoTHandlers.c. */
-    /*    92   */ IzotUnknownLTSDeviceType      = 92,  /* Unknown LTS device type */
-    /*    93   */ IzotInvalidDeviceURI          = 93  /* Unknown LTS device URI */
-
+    /*    500  */    IsiNoConnectionSpace       = 500,      // No space for connection
+    /*    501  */    IsiEngineNotRunning        = 501       // ISI engine not running
 } IZOT_ENUM_END(IzotApiError);
 
-/*
- * Macro: IZOT_SUCCESS
- * Use the IZOT_SUCCESS macro to convert a <IzotApiError> code into a boolean
- * success or failure indicator.
- */
+// Evaluate success or failure of an IzotApiError value
 #define IZOT_SUCCESS(n)   ((n) == IzotApiNoError)
 
-/*
- * ******************************************************************************
- * SECTION: GENERAL ENUMERATIONS AND TYPES
- * ******************************************************************************
- *
- * This section contains the enumerations and data types used with the IzoT
- * 1.0 API
- */
-
-/*
- *  Macros: IZOT_GET_UNSIGNED_WORD, IZOT_SET_UNSIGNED_WORD, and
- *  IZOT_SET_UNSIGNED_WORD_FROM_BYTES.  The first two convert an
- *  IzotWord into a 16-bit unsigned scalar and vice versa.  The third
- *  converts to IzotBytes to a 16-bit unsigned scalar.
- */
+// Type conversions
 #define IZOT_GET_UNSIGNED_WORD(n)          (((uint16_t)((n).msb) << 8)+(uint16_t)((n).lsb))
 #define IZOT_SET_UNSIGNED_WORD(n, v)       (n).msb = (IzotByte)((v)>>8); (n).lsb = (IzotByte)(v)
 #define IZOT_SET_UNSIGNED_WORD_FROM_BYTES(n,b1,b2) (n).msb = (IzotByte)(b1); \
-                                                    (n).lsb = (IzotByte)(b2)
-
-/*
- *  Macros: IZOT_GET_SIGNED_WORD, IZOT_SET_SIGNED_WORD
- *  Converts a IzotWord into a signed 16 bit scalar and vice versa.
- */
 #define IZOT_GET_SIGNED_WORD(n)            ((int16_t)IZOT_GET_UNSIGNED_WORD(n))
 #define IZOT_SET_SIGNED_WORD(n, v)         IZOT_SET_UNSIGNED_WORD(n, v)
-
-/*
- *  Macros: IZOT_GET_UNSIGNED_DOUBLEWORD, IZOT_SET_UNSIGNED_DOUBLEWORD
- *  Converts a IzotDoubleWord into an unsigned 32 bit integer and vice versa.
- */
 #define IZOT_GET_UNSIGNED_DOUBLEWORD(n)    ((((uint32_t)IZOT_GET_UNSIGNED_WORD((n).msw)) << 16) \
                                           +(uint32_t)IZOT_GET_UNSIGNED_WORD((n).lsw))
 #define IZOT_SET_UNSIGNED_DOUBLEWORD(n, v) IZOT_SET_UNSIGNED_WORD((n).msw, (uint16_t) ((v) >> 16)); \
                                           IZOT_SET_UNSIGNED_WORD((n).lsw, (uint16_t) (v))
-
-/*
- *  Macros: IZOT_GET_SIGNED_DOUBLEWORD, IZOT_SET_SIGNED_DOUBLEWORD
- *  Converts a IzotDoubleWord into a signed 32 bit integer and vice versa.
- */
 #define IZOT_GET_SIGNED_DOUBLEWORD(n)    ((int32_t)IZOT_GET_UNSIGNED_DOUBLEWORD(n))
 #define IZOT_SET_SIGNED_DOUBLEWORD(n, v) IZOT_SET_UNSIGNED_DOUBLEWORD(n, v)
 
-/*
- *  Macros: IZOT_GET_ATTRIBUTE, IZOT_SET_ATTRIBUTE
- *  Gets(sets) attributes from(to) a field by appropriately masking and shifting.
- */
+// Gets or sets attributes from or to a field by appropriately masking and shifting
 #define IZOT_GET_ATTRIBUTE(var, n)           ((((var).n##_FIELD) & n##_MASK) >> n##_SHIFT)
 #define IZOT_GET_ATTRIBUTE_P(var, n)         ((((var)->n##_FIELD) & n##_MASK) >> n##_SHIFT)
 #define IZOT_SET_ATTRIBUTE(var, n, value)    ((var).n##_FIELD = (((var).n##_FIELD) & ~n##_MASK) | ((((value) << n##_SHIFT)) & n##_MASK))
 #define IZOT_SET_ATTRIBUTE_P(var, n, value)  ((var)->n##_FIELD = (((var)->n##_FIELD) & ~n##_MASK) | ((((value) << n##_SHIFT)) & n##_MASK))
 
 /*
- *  Macro: IZOT_DOMAIN_ID_MAX_LENGTH
  *  Maximum length of the domain identifier, in bytes.
- *
  *  The domain identifier can be zero, one, three, or
  *  IZOT_DOMAIN_ID_MAX_LENGTH (6) bytes long.  Space for the largest possible
  *  identifier is allocated in various structures and message types. See
@@ -266,74 +157,60 @@ typedef IZOT_ENUM_BEGIN(IzotApiError)
 #define IZOT_DOMAIN_ID_MAX_LENGTH    6
 
 /*
- *  Macro: IZOT_AUTHENTICATION_KEY_LENGTH
  *  Length of the authentication key, stored in the domain table (<IzotDomain>).
  */
 #define IZOT_AUTHENTICATION_KEY_LENGTH   6
 
 /*
- *  Macro: IZOT_PROGRAM_ID_LENGTH
  *  Length of the application's program identifier, in bytes.
  */
 #define IZOT_PROGRAM_ID_LENGTH   8
 
 /*
- *  Macro: IZOT_LOCATION_LENGTH
  *  Length of the location identifier, in bytes.
  */
 #define IZOT_LOCATION_LENGTH     6
 
 /*
- *  Macro: IZOT_UNIQUE_ID_LENGTH
  *  Length of the node's unique identifier, in bytes.
- *
  *  The Unique ID is also known as the Neuron ID, referring to the
  *  Neuron Chip's or Smart Transceiver's unique ID.
  */
 #define IZOT_UNIQUE_ID_LENGTH    6
 
 /*
- *  Macro: IZOT_COMMUNICATIONS_PARAMETER_LENGTH
  *  Number of communication control bytes.
  */
 #define IZOT_COMMUNICATIONS_PARAMETER_LENGTH     7
 
 /*
- *  Typedef: IzotTransceiverParameters
  *  Parameters for single-ended and special-purpose mode transceivers.
- *
  *  See <IzotDirectModeTransceiver> for direct-mode transceiver parameters.
 */
 typedef IzotByte IzotTransceiverParameters[IZOT_COMMUNICATIONS_PARAMETER_LENGTH];
 
 /*
- *  Typedef: IzotUniqueId
  *  Holds the unique ID.
  */
 typedef IzotByte IzotUniqueId[IZOT_UNIQUE_ID_LENGTH];
 
 /*
- *  Typedef: IzotProgramId
  *  Holds the program ID.
  */
 typedef IzotByte IzotProgramId[IZOT_PROGRAM_ID_LENGTH];
 
 /*
- *  Typedef: IzotDomainId
  *  Holds a single domain identifier.
  */
 typedef IzotByte IzotDomainId[IZOT_DOMAIN_ID_MAX_LENGTH];
 
 /*
- *  Typedef: IzotAuthenticationKey
  *  Holds a single authentication key.
  */
 typedef IzotByte IzotAuthenticationKey[IZOT_AUTHENTICATION_KEY_LENGTH];
 
 /*
- *  Typedef: IzotLocationId
  *  Holds a single location identifier.
- *
  *  The location identifier is often referred to as the "location string".
  *  Note that this is misleading, because this data is not limited to ASCII
  *  characters or other similar requirements that could be inferred from the
@@ -342,32 +219,26 @@ typedef IzotByte IzotAuthenticationKey[IZOT_AUTHENTICATION_KEY_LENGTH];
 typedef IzotByte IzotLocationId[IZOT_LOCATION_LENGTH];
 
 /*
- *  Typedef: IzotSubnetId
  *  Holds a subnet identifier.
  */
 typedef IzotByte IzotSubnetId;
 
 /*
- *  Typedef: IzotGroupId
  *  Holds a group identifier.
  */
 typedef IzotByte IzotGroupId;
 
 /*
- *  Typedef: IzotNodeId
  *  Holds a node identifier.
  */
 typedef IzotByte IzotNodeId;
 
 /*
- *  Enumeration: IzotNeuronModel
  *  Neuron Chip and Smart Transceiver model codes.
- *
  *  This enumeration lists all model codes for Neuron Chips or Smart
  *  Transceivers.
  */
-typedef IZOT_ENUM_BEGIN(IzotNeuronModel)
-{
+typedef IZOT_ENUM_BEGIN(IzotNeuronModel) {
     /*  0 */ IzotNeuron3150Code    =  0,  /* 3150, FT 3150 */
     /*  1 */ IzotNeuronPl3150Code  =  1,  /* PL 3150 */
     /*  2 */ IzotNeuron3150LCode   =  2,  /* CY7C53150L */
@@ -393,9 +264,7 @@ typedef IZOT_ENUM_BEGIN(IzotNeuronModel)
 } IZOT_ENUM_END(IzotNeuronModel);
 
 /*
- *  Enumeration: IzotNeuronState
  *  Neuron Chip and Smart Transceiver state values.
- *
  *  This enumeration contains the values of the Neuron Chip's or Smart
  *  Transceiver's state information.  To convert the state value returned by
  *  the Query Status command to one of these values, use the <IZOT_NODE_STATE>
@@ -406,36 +275,28 @@ typedef IZOT_ENUM_BEGIN(IzotNeuronModel)
 #define IZOT_NODE_STATE_MASK 0x07
 
 /*
- *  Macro: IZOT_NEURON_STATE
  *  Obtain persistent Neuron state information.
- *
  *  Use this macro to obtain the 3-bit Neuron state that is stored in EEPROM.
  */
 #define IZOT_NEURON_STATE(state) ((state) & IZOT_NODE_STATE_MASK)
 
 /*
- *  Macro: IZOT_NODE_STATE
  *  Extracts state information from <IzotNeuronState>.
- *
  *  Use this macro to decipher the status information encoded within the
  *  <IzotNeuronState> enumeration.
  */
 #define IZOT_NODE_STATE(state)   ((IZOT_NEURON_STATE(state) == IzotConfigOnLine) ? (state) : IZOT_NEURON_STATE(state))
 
 /*
- *  Macro: IZOT_NODE_STATE_OFFLINE
  *  Extracts offline details from <IzotNeuronState>.
- *
  *  Use this macro to query the node's offline modes.
  */
 #define IZOT_NODE_STATE_OFFLINE(state)   (IZOT_NEURON_STATE(state) == IzotConfigOffLine || IZOT_NEURON_STATE(state) == IzotSoftOffLine)
 
 /*
- *  Typedef: IzotNodeState
  *  Decodes the node's state.
  */
-typedef IZOT_ENUM_BEGIN(IzotNodeState)
-{
+typedef IZOT_ENUM_BEGIN(IzotNodeState) {
     /*  0 */ IzotStateInvalid          = 0,    /* invalid or Echelon use only          */
     /*  1 */ IzotStateInvalid_1        = 1,    /* equivalent to StateInvalid          */
     /*  2 */ IzotApplicationUnconfig   = 2,    /* has application, unconfigured        */
@@ -449,11 +310,9 @@ typedef IZOT_ENUM_BEGIN(IzotNodeState)
 } IZOT_ENUM_END(IzotNodeState);
 
 /*
- * Enumeration: IzotNodeMode
  * Control node mode with <IzotNmSetNodeModeRequest>.
 */
-typedef IZOT_ENUM_BEGIN(IzotNodeMode)
-{
+typedef IZOT_ENUM_BEGIN(IzotNodeMode) {
     IzotApplicationOffLine  = 0,
     IzotApplicationOnLine   = 1,
     IzotApplicationReset    = 2,
@@ -462,11 +321,9 @@ typedef IZOT_ENUM_BEGIN(IzotNodeMode)
 } IZOT_ENUM_END(IzotNodeMode);
 
 /*
- *  Enumeration: IzotResetCause
  *  Decodes the last reset cause.
 */
-typedef IZOT_ENUM_BEGIN(IzotResetCause)
-{
+typedef IZOT_ENUM_BEGIN(IzotResetCause) {
     /* 0x00 */ IzotResetCleared = 0x00,
     /* 0x01 */ IzotPowerUpReset = 0x01,
     /* 0x02 */ IzotExternalReset = 0x02,
@@ -475,14 +332,11 @@ typedef IZOT_ENUM_BEGIN(IzotResetCause)
 } IZOT_ENUM_END(IzotResetCause);
 
 /*
- *  Enumeration: IzotAddressType
  *  Denotes destination address type.
- *
  *  This enumeration holds the literals for the 'type' field of destination
  *  addresses for outgoing messages.
  */
-typedef IZOT_ENUM_BEGIN(IzotAddressType)
-{
+typedef IZOT_ENUM_BEGIN(IzotAddressType) {
     /*  0 */ IzotAddressUnassigned = 0,
     /*  1 */ IzotAddressSubnetNode,
     /*  2 */ IzotAddressUniqueId,
@@ -491,13 +345,10 @@ typedef IZOT_ENUM_BEGIN(IzotAddressType)
 } IZOT_ENUM_END(IzotAddressType);
 
 /*
- *  Enumeration: IzotRepeatTimer
  *  Encoded repeat timer values.
- *
  *  This enumeration defines the encoded repeat timer values.
  */
-typedef IZOT_ENUM_BEGIN(IzotRepeatTimer)
-{
+typedef IZOT_ENUM_BEGIN(IzotRepeatTimer) {
     /*  0 */ IzotRpt16,      /* 16 ms */
     /*  1 */ IzotRpt24,      /* 24 ms */
     /*  2 */ IzotRpt32,      /* 32 ms */
@@ -517,14 +368,11 @@ typedef IZOT_ENUM_BEGIN(IzotRepeatTimer)
 } IZOT_ENUM_END(IzotRepeatTimer);
 
 /*
- *  Enumeration: IzotReceiveTimer
  *  Encoded receive timer values.
- *
  *  This enumeration defines the encoded receive timer values used with groups.
  *  For the non-group receive timer, see <IzotNonGroupReceiveTimer>.
  */
-typedef IZOT_ENUM_BEGIN(IzotReceiveTimer)
-{
+typedef IZOT_ENUM_BEGIN(IzotReceiveTimer) {
     /*  0 */ IzotRcv128,     /* 128 ms */
     /*  1 */ IzotRcv192,     /* 192 ms */
     /*  2 */ IzotRcv256,     /* 256 ms */
@@ -544,9 +392,7 @@ typedef IZOT_ENUM_BEGIN(IzotReceiveTimer)
 } IZOT_ENUM_END(IzotReceiveTimer);
 
 /*
- *  Enumeration: IzotNonGroupReceiveTimer
  *  Encoded non-group receive timer values.
- *
  *  This enumeration defines the encoded values for the receive timer used
  *  with any addressing modes other than groups. For the receive timer used
  *  with groups, use <IzotReceiveTimer>.
@@ -554,13 +400,10 @@ typedef IZOT_ENUM_BEGIN(IzotReceiveTimer)
 typedef IzotReceiveTimer IzotNonGroupReceiveTimer;
 
 /*
- *  Enumeration: IzotTransmitTimer
  *  Encoded transmit timer values.
- *
  *  This enumeration defines the encoded transmit timer values.
  */
-typedef IZOT_ENUM_BEGIN(IzotTransmitTimer)
-{
+typedef IZOT_ENUM_BEGIN(IzotTransmitTimer) {
     /*  0 */ IzotTx16,      /* 16 ms */
     /*  1 */ IzotTx24,      /* 24 ms */
     /*  2 */ IzotTx32,      /* 32 ms */
@@ -581,7 +424,6 @@ typedef IZOT_ENUM_BEGIN(IzotTransmitTimer)
 
 #ifndef _LTDRIVER_H
 /*
- * Enumeration: IzotServiceLedState
  * The service LED state
 */
 typedef IZOT_ENUM_BEGIN(IzotServiceLedState)

@@ -1,42 +1,22 @@
 
-//
-// isi_int.h
-//
-// Copyright (C) 2022-2025 EnOcean
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy of
-// this software and associated documentation files (the "Software"), to deal in 
-// the Software without restriction, including without limitation the rights to
-// use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-// of the Software, and to permit persons to whom the Software is furnished to do
-// so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
-
 /*
- * Purpose: internal header file for the ISI implementation
+ * isi_int.h
  *
- * Abstract:
- * This file is included by (possibly customized) VERSION.H to set LBVER
- * version information and can also be included in the RC2 file to set
- * resource version information.
+ * Copyright (c) 2022-2025 EnOcean
+ * SPDX-License-Identifier: MIT
+ * See LICENSE file for details.
+ * 
+ * Title:   ISI Macro and Type Definitions
+ * Purpose: Defines macros and types used internally by the ISI engine.
+ * Notes:   This file is included by isi/isi.c and other ISI source files.
+ *          It is not included by application code.
  */
 
 #ifndef __ISIINT_H__
-#	define	__ISIINT_H__
+#define	__ISIINT_H__
 
-//  pull-in public ISI stuff:
 #ifndef ISI_DEBUG_IMPLEMENT_LIBRARY
-#define ISI_IMPLEMENT_LIBRARY 
+#define ISI_DEBUG_IMPLEMENT_LIBRARY 
 #endif  //  ISI_DEBUG_IMPLEMENT_LIBRARY
 
 #include <string.h>
@@ -46,7 +26,7 @@
 extern "C" {
 #endif
 
-//  define ISI_COMPACT for the small version (will be FULL of COMPACT is not defined)
+// Define ISI_COMPACT for the small version (will be FULL if COMPACT is not defined)
 #ifdef IsiCompactAuto
 #define ISI_COMPACT
 #endif
@@ -56,44 +36,44 @@ extern "C" {
 
 #ifdef ISI_COMPACT
 #ifdef IsiCompactManual
-#	define ISI_SUPPORT_MANUAL_CONNECTIONS
+#define ISI_SUPPORT_MANUAL_CONNECTIONS
 #else
-#	define ISI_SUPPORT_AUTOMATIC_CONNECTIONS
+#define ISI_SUPPORT_AUTOMATIC_CONNECTIONS
 #endif
-#else  // not compact (aka FULL):
-#   define ISI_SUPPORT_HEARTBEATS
-#   define ISI_SUPPORT_CONNECTION_REMOVAL
-#   define ISI_SUPPORT_ALIAS
-#   define ISI_SUPPORT_DIAGNOSTICS             // enable IsiUpdateDiagnostist
-#   define ISI_SUPPORT_TIMG
-#   define ISI_SUPPORT_MANUAL_CONNECTIONS
-#   define ISI_SUPPORT_AUTOMATIC_CONNECTIONS
-#   define ISI_SUPPORT_DADAS
-#   define ISI_SUPPORT_CONTROLLED_CONNECTIONS
+#else  // Not compact (aka FULL):
+#define ISI_SUPPORT_HEARTBEATS
+#define ISI_SUPPORT_CONNECTION_REMOVAL
+#define ISI_SUPPORT_ALIAS
+#define ISI_SUPPORT_DIAGNOSTICS                 // Enable IsiUpdateDiagnostist
+#define ISI_SUPPORT_TIMG
+#define ISI_SUPPORT_MANUAL_CONNECTIONS
+#define ISI_SUPPORT_AUTOMATIC_CONNECTIONS
+#define ISI_SUPPORT_DADAS
+#define ISI_SUPPORT_CONTROLLED_CONNECTIONS
 #endif  //  ISI_COMPACT
 
-//  common defines
+// Common defines
 #define ISI_PROTOCOL_VERSION        3u
 #define ISI_IMPLEMENTATION_VERSION  4u
 #define ISI_DEFAULT_DEVICECOUNT     32u
 #define ISI_MINIMUM_DEVICECOUNT     4u
 #define ISI_MAX_CONNECTION_COUNT    256
-#define ISI_WIDTH_PER_CONNTAB       4u			// Note: certain code paths assume this value (look for "ASSUMES")
+#define ISI_WIDTH_PER_CONNTAB       4u			// Certain code paths assume this value (look for "ASSUMES")
 #define ISI_SELECTOR_MASK           0x2FFFul
 #define ISI_MESSAGE_CODE            0x3Du
-#define ISI_PRIMARY_DOMAIN_INDEX    0u			// Note: certain code paths assume this value (look for "ASSUMES")
+#define ISI_PRIMARY_DOMAIN_INDEX    0u			// Certain code paths assume this value (look for "ASSUMES")
 #define ISI_SECONDARY_DOMAIN_INDEX  1u
 #define ISI_SECONDARY_SUBNET_ID     1u
 #define ISI_SECONDARY_NODE_ID       1u
-#define ISI_NOT_ACCEPTABLE         255u			// Note: certain code paths assume this value (look for "ASSUMES")
+#define ISI_NOT_ACCEPTABLE         255u			// Certain code paths assume this value (look for "ASSUMES")
 #define ISI_ADPU_OFFSET             11u
-#define ISI_MAX_ADDRESS_TABLE_SIZE	254u        // was 15u
+#define ISI_MAX_ADDRESS_TABLE_SIZE	254u        // Was 15u
 #define ISI_MAX_ALIAS_COUNT         254u
 #define ISI_MAX_NV_COUNT            254u
 #define	ISI_ALIAS_UNUSED			0xFFFFu
 #define ISI_NO_ADDRESS              0xFFFFu
 #define ISI_T_ACQ                   (5ul*60ul*ISI_TICKS_PER_SECOND)
-#define ISI_T_CSMR_PAUSE            15  //  these are seconds minimum hesitation after DIDCF
+#define ISI_T_CSMR_PAUSE            15          // Minimum hesitation after DIDCF in seconds
 #define ISI_T_CSMR                  (60u*ISI_TICKS_PER_SECOND)
 #define ISI_T_AUTO                  (30u*ISI_TICKS_PER_SECOND)
 #define ISI_T_TIMG                  (60u*ISI_TICKS_PER_SECOND)
@@ -115,17 +95,17 @@ extern "C" {
 #define ISI_SUBNET_START_TPFT       64u
 #define ISI_SUBNET_START_PL20       128u
 #define ISI_SUBNET_START_OTHER		192u
-#define	ISI_MESSAGE_HEADROOM		4u		// see approve.c
+#define	ISI_MESSAGE_HEADROOM		4u	        // Bytes before the start of the IsiMessage in a message buffer
 
-#define IZOT_SERVICE_PIN_MESSAGE 0x7Fu
-#define IZOT_WINK_MESSAGE        0x70u
-#define IZOT_QUERY_DOMAIN_MESSAGE 0x6A
-#define IZOT_QUERY_DOMAIN_SUCCESS 0x2A
-#define IZOT_QUERY_DOMAIN_FAILURE 0x0A
+#define IZOT_SERVICE_PIN_MESSAGE    0x7Fu
+#define IZOT_WINK_MESSAGE           0x70u
+#define IZOT_QUERY_DOMAIN_MESSAGE   0x6A
+#define IZOT_QUERY_DOMAIN_SUCCESS   0x2A
+#define IZOT_QUERY_DOMAIN_FAILURE   0x0A
 
-#define IZOT_UPDATE_DOMAIN_MESSAGE 0x63
-#define IZOT_UPDATE_DOMAIN_SUCCESS 0x23
-#define IZOT_UPDATE_DOMAIN_FAILURE 0x03
+#define IZOT_UPDATE_DOMAIN_MESSAGE  0x63
+#define IZOT_UPDATE_DOMAIN_SUCCESS  0x23
+#define IZOT_UPDATE_DOMAIN_FAILURE  0x03
 
 #define ISI_WINK_REPEATS            3
 #define ISI_QUERY_DOMAIN_RETRIES    3
@@ -136,87 +116,73 @@ extern "C" {
 
 #define NEURON_ID_LEN               IZOT_UNIQUE_ID_LENGTH
 
-#define MAX_DOMAINS      2          /* Maximum # of domains allowed.         */
+#define MAX_DOMAINS                 2           // Maximum # of domains allowed
 #define MAX_CONNECTION_TBL_ENTRIES  255 
-#define NUM_ADDR_TBL_ENTRIES    	254   /* # of entries in addr tbl    */
-#define NV_TABLE_SIZE				254   /* Check management tool for any restriction on maximum size */
+#define NUM_ADDR_TBL_ENTRIES    	254         // Number of entries in address table
+#define NV_TABLE_SIZE				254         // Number of entries in NV table
 #define NUM_ADDR_TBL_SIZE
-#define ISI_MESSAGE_TAG         0x0F
+#define ISI_MESSAGE_TAG             0x0F
 
-#define DOMAIN_ID_LEN    6
-#define AUTH_KEY_LEN     6
-#define ID_STR_LEN       8
+#define DOMAIN_ID_LEN               6
+#define AUTH_KEY_LEN                6
+#define ID_STR_LEN                  8
 
 #ifndef WIN32
-
-/*------------------------------------------------------------------------------
-Section: Macro Definitions
-------------------------------------------------------------------------------*/
 #ifndef MIN
-    #define MIN(x,y) (((x)<(y))?(x):(y))
+#define MIN(x,y) (((x)<(y))?(x):(y))
 #endif
 #ifndef MAX
-    #define MAX(x,y) (((x)>(y))?(x):(y))
+#define MAX(x,y) (((x)>(y))?(x):(y))
 #endif
-
 #define max(a, b) MAX(a, b)
 #define min(a, b) MIN(a, b)
-
 #endif
-// The following are the enumerations that indicate the amount of initialization work
-// required. 
-typedef	enum
-{
+
+// Initialization opitions
+typedef	enum {
     isiReboot = 0,
 	isiReset,
 	isiRestart
 } 	IsiBootType;
 
-// The following are possible reasons for a node losing its persistent data
-
-/*
- * enumeration: LtPersistenceLossReason
- * 
- */
-typedef enum
-{
-	LT_CORRUPTION				= 0x00,		// Image checksum invalid.
+// Persistent data loss reason
+typedef enum {
+	LT_CORRUPTION				= 0x00,		// Image checksum invalid
 	LT_PROGRAM_ID_CHANGE		= 0x01,		// Program ID changed
 	LT_SIGNATURE_MISMATCH		= 0x02,		// Image signature mismtach.  Could be corruption
-											// or change to the persistent data format.
+											// or change to the persistent data format
 	LT_PROGRAM_ATTRIBUTE_CHANGE = 0x03,		// Number of NVs, aliases, address or domain
-											// entries changed.
-	LT_PERSISTENT_WRITE_FAILURE = 0x04,		// Could not write the persistence file.
-	LT_NO_PERSISTENCE			= 0x05,		// No persistence found.
+											// entries changed
+	LT_PERSISTENT_WRITE_FAILURE = 0x04,		// Could not write the persistence file
+	LT_NO_PERSISTENCE			= 0x05,		// No persistence found
 	LT_RESET_DURING_UPDATE		= 0x06,		// Reset or power cycle occurred while
-											// configuration changes were in progress.
+											// configuration changes were in progress
 	LT_VERSION_NOT_SUPPORTED	= 0x07,		// Version number not supported
 
 	LT_PERSISTENCE_OK			= -1
 } LtPersistenceLossReason;
 
-
-
-//  ISI variables fall into two sections, persistent ones, and not persistent
-//  ones. Both are held in one structure each. The structures are defined here
-//  (and implemented in vars.c. The defaults are also set there)
+// ISI variables fall into two sections, persistent ones, and not persistent
+// ones. Both are held in one structure each. The structures are defined here
+// (and implemented in vars.c. The defaults are also set there)
 typedef struct {
 #ifdef  ISI_SUPPORT_TIMG
-    IzotByte    Devices;           // the latest device count
-#endif  //  ISI_SUPPORT_TIMG
-    IzotByte    Nuid;              // non-unique device ID
-    IzotBits16 Serial;          // running serial number of CIDs
+    IzotByte    Devices;            // Latest device count
+#endif  // ISI_SUPPORT_TIMG
+    IzotByte    Nuid;               // Non-unique device ID
+    IzotBits16 Serial;              // Running serial number of CIDs
 	// The next field is an enumeration that indicates the amount of initialization work
 	// required. The field is initialized to "isiReset", because the Neuron Exporter already
 	// gives us cleared-out NV, alias, and address tables. For a normal application download,
-	// this significantly reduces the time the node is not responsive - making NSS happy.
-	// The ReturnToFactoryDefaults routine resets this field to isiReboot, thereby causing an
-	// entire reinitialization of all tables - the right thing to do when transitioning back from
-	// a managed to a self-installed network. Finally, when the initialization routine has done
-	// its job one way or another, it changes this field to isiRestart so that a subsequent reset
-	// only causes normal reset operations, but no wiping out of system tables, etc.
+	// this significantly reduces the time the node is not responsive.  ReturnToFactoryDefaults()
+    // resets this field to isiReboot, causing a reinitialization of all tables - the right thing
+    // to do when transitioning back from a managed to a self-installed network. When the 
+    // initialization function has done its job one way or another, it changes this field to 
+    // isiRestart so that a subsequent reset only causes normal reset operations, but no wiping
+    // out of system tables, etc.
 	IsiBootType BootType;
-	IzotByte	RepeatCount;	// used for NV updates (i.e. the address table); only 1,2, or 3 are supported.
+	IzotByte	RepeatCount;	    // Repeat count used for NV updates (i.e. the address table); 
+                                    // must be 1,2, or 3
 } IsiPersist;
 
 extern IsiPersist _isiPersist;
@@ -227,9 +193,9 @@ extern unsigned gDIDLen;
 extern IzotDomainId gDomainID;
 extern unsigned gRepeatCount;
 extern unsigned char globalExtended;
-extern unsigned char gIsiDerivableAddr;  // flag to indicate that the IP address is derivabled or not
+extern unsigned char gIsiDerivableAddr;  // Flag to indicate that the IP address is derivabled or not
 
-//  Following is the structure for volatile (RAM) data.
+// Structure for volatile (RAM) data.
 typedef enum {
     isiChannelTpFt    = 0x04,
     isiChannelPl20A   = 0x0F,
@@ -240,23 +206,25 @@ typedef enum {
 } IsiChannelType;
 
 typedef struct {
-    unsigned    RepeatTimer;    // encoded (and pre-shifted into normal address table location)
-    unsigned    TransmitTimer;  // encoded
-    unsigned    GroupRcvTimer;  // encoded
-    unsigned    NonGroupTimer;  // encoded
+    unsigned    RepeatTimer;        // Encoded (and pre-shifted into normal address table location)
+    unsigned    TransmitTimer;      // Encoded
+    unsigned    GroupRcvTimer;      // Encoded
+    unsigned    NonGroupTimer;      // Encoded
     unsigned    BaseSubnet;
-    unsigned    TicksPerSlot;   // width of ISI broadcast slots in ticks. Must be >> SpreadingInterval
-    unsigned    SpreadingInterval;  //  width of the spreading interval. Must be >= 2 x JitterInterval. Note JitterInterval is fixed at +- 1 (see period.c)
+    unsigned    TicksPerSlot;       // Width of ISI broadcast slots in ticks; must be >>
+                                    // SpreadingInterval
+    unsigned    SpreadingInterval;  // Width of the spreading interval; must be >= 2 x JitterInterval;
+                                    // JitterInterval is fixed at +- 1
 } IsiTransport;
 
 typedef enum {
-    isiPeriodicTypeDrum = 0,  // isiPeriodicTypeDRUM *must* be zero
+    isiPeriodicTypeDrum = 0,        // isiPeriodicTypeDRUM *must* be zero
     isiPeriodicTypeCsmr,
     isiPeriodicTypeCsmi,
     isiPeriodicTypeNvHb,
     isiPeriodicTypeApplication,
     isiPeriodicTypeTimg,
-    //  insert new mode before this comment. Make sure there can only by a total of 8 modes, starting with
+    //  Insert new mode before this comment. Make sure there can only by a total of 8 modes, starting with
     //  isiPeriodicTypeDrum (0) and ending with isiPeriodicTypeXYZ (7). For more modes, Ticks.c must be
     //  restructured to meet the requirement that at least every 8th periodic message must be a DRUM message.
     isiPeriodicTypes
@@ -270,25 +238,27 @@ typedef struct {
 	unsigned	lastConnectionIdx;
 } _IsiPeriodic;
 
-// Note that these enumerations are powers of 2 so that they can be checked using bit operations.
-// If there are more than 8 non-zero states required, then additional state bytes need to be defined.
+// These enumerations are powers of 2 so that they can be checked using
+// bit operations.  If there are more than 8 non-zero states required, then 
+// additional state bytes must be defined.
 typedef enum {
-    isiStateNormal			= 0x00,	// make sure this remains zero
-    // enrollment states:
-    isiStateInviting		= 0x01u,	// about to become a host, not heard of anybody back yet
-    isiStatePlannedParty	= 0x02u,	// about to become a host, have at least one guest
-    isiStateInvited			= 0x04u,	// have been invited but not accepted yet
-    isiStateAccepted		= 0x08u,	// have been invited and accepted invitation
-    // device and domain acquisition states:
-    isiStateAwaitDidrx      = 0x10u, // ISI-DA: wait for DIDRM, ISI-DAS: wait for DIDRQ
-    isiStateAwaitConfirm    = 0x20u, // ISI-DA: wait for DIDCF, ISI-DAS: wait for IsiStartDeviceAcquisition()
-    isiStateCollect         = 0x40u, // ISI-DA: collect DIDRM, ISI-DAS: collect service pin 1 and 2
-    isiStateAwaitQdr        = (int)0x80u, // ISI-DAS only: await query domain response
+    isiStateNormal			= 0x00,	            // Must be zero
+    // Enrollment states
+    isiStateInviting		= 0x01u,	        // About to become a host, not heard of anybody back yet
+    isiStatePlannedParty	= 0x02u,	        // About to become a host, have at least one guest
+    isiStateInvited			= 0x04u,	        // Have been invited but not accepted yet
+    isiStateAccepted		= 0x08u,	        // Have been invited and accepted invitation
+    // Device and domain acquisition states
+    isiStateAwaitDidrx      = 0x10u,            // ISI-DA: wait for DIDRM, ISI-DAS: wait for DIDRQ
+    isiStateAwaitConfirm    = 0x20u,            // ISI-DA: wait for DIDCF, ISI-DAS: wait for IsiStartDeviceAcquisition()
+    isiStateCollect         = 0x40u,            // ISI-DA: collect DIDRM, ISI-DAS: collect service pin 1 and 2
+    isiStateAwaitQdr        = (int)0x80u,       // ISI-DAS only: await query domain response
     isiStatePause           = isiStateAwaitQdr  // ISI-DA: Wait before issueing new DIDRM
 } IsiState;
 
 #ifdef  ISI_SUPPORT_DADAS
-//  DAS devices support an extended set of state flags - note these only exist on DAS (implemented in msgdas.c)
+//  DAS devices support an extended set of state flags - these only exist on DAS devices
+//  and are used to keep track of the substates of the domain and device acquisition
 typedef enum {
     isiDasNormal                = 0x00,    // no special state modifier values
     isiDasAutoDeviceAcquisition = 0x01,    // automatic device acquisition following a domain fetch process; see msgdas.c for details.
@@ -429,15 +399,13 @@ typedef struct NM_update_domain_request {
     IzotByte	    key[ AUTH_KEY_LEN ];
 } NM_update_domain_request;
 
-typedef struct NM_service_pin_msg
-{
+typedef struct NM_service_pin_msg{
     IzotByte	    neuron_id[ NEURON_ID_LEN ];
     IzotByte	    id_string[ ID_STR_LEN ];
 } NM_service_pin_msg;
 
 /* NM_query_domain */
-typedef struct NM_query_domain_request 
-{
+typedef struct NM_query_domain_request {
     IzotByte        code;
     IzotByte        domain_index;
 } NM_query_domain_request;
@@ -1237,12 +1205,12 @@ typedef IZOT_UNION_BEGIN(IsiUniqueCid)
 
 
 // extern void _IsiBind(IzotDatapointConfig* pNv, unsigned Address, IzotWord Selector, IzotByte turnAround);
-extern unsigned get_nv_type (unsigned index);
+extern unsigned get_nv_type (unsigned nvIndex);
 extern IzotByte high_byte (IzotUbits16 a);
 extern IzotByte low_byte (IzotUbits16 a);
 extern IzotWord make_long(IzotByte low_byte, IzotByte high_byte);
 extern void lon_watchdog_update(void);
-extern IsiApiError update_config_data(const IzotConfigData *config_data1);
+extern IzotApiError update_config_data(const IzotConfigData *configData);
 
 extern IzotReadOnlyData read_only_data;
 extern IzotConfigData config_data;
@@ -1253,10 +1221,10 @@ extern IzotDomain domainTable[MAX_DOMAINS];  // retrieve using IzotQueryDomainCo
 extern IzotAddress addrTable;    // [NUM_ADDR_TBL_ENTRIES];    // retrieve using IzotQueryAddressConfig(const unsigned index, IzotAddress* const pAddress);
 extern unsigned int getRandom(void);
 extern IzotAddress* access_address (int index);
-extern IzotDomain* access_domain(int index);
+extern IzotDomain* access_domain(int domainIndex);
 extern unsigned get_nv_length(const unsigned index);
 extern IzotByte* get_nv_value(const unsigned index);
-extern IsiApiError set_node_mode(unsigned mode, unsigned state);
+extern IzotApiError set_node_mode(unsigned mode, unsigned state);
 
 //
 // Used to check for valid data pointer.
@@ -1287,10 +1255,10 @@ extern void IsiStartS(IsiFlags Flags);
 extern void IsiTickS(void);
 extern void IsiTickDa(void);
 extern void IsiTickDas(void);
-extern const IzotAliasConfig* IsiGetAlias(unsigned Index);        // forwarder to access_alias
-extern const IzotDatapointConfig* IsiGetNv(unsigned Index);              // forwarder to nv_access
-extern IsiApiError IsiSetAlias(IzotAliasConfig* pAlias, unsigned Index);         // forwarder to update_alias
-extern void IsiSetNv(IzotDatapointConfig* pNv, unsigned Index);          // forwarder to update_nv
+extern const IzotAliasConfig* IsiGetAlias(unsigned aliasIndex);        // forwarder to access_alias
+extern const IzotDatapointConfig* IsiGetNv(unsigned nvIndex);              // forwarder to nv_access
+extern IzotApiError IsiSetAlias(IzotAliasConfig* aliasConfig, unsigned aliasIndex);         // forwarder to update_alias
+extern void IsiSetNv(IzotDatapointConfig* nvConfig, unsigned nvIndex);          // forwarder to update_nv
 extern void IsiSetPrimaryDid(const IzotByte* pDid, unsigned len);
 extern void IsiSetRepeatCount(unsigned Count);
 extern unsigned IsiGetNextAssembly(const IsiCsmoData* pCsmoData, IzotBool Auto, unsigned Assembly);  // forwarder
@@ -1308,7 +1276,7 @@ extern void IsiSetConnection(const IsiConnection* pConnection, unsigned Index);
 extern void _IsiInitConnectionTable();
 extern const IzotByte* IsiGetPrimaryDid(IzotByte* pLength);      // OVERRIDING MIGHT BREAK INTEROPERABILITY!
 extern unsigned IsiGetRepeatCount(void);
-IsiApiError IsiSetDomain(const IzotDomain* pDomain, unsigned index);   // forwarder to update_domain
+IzotApiError IsiSetDomain(const IzotDomain* domainConfig, unsigned domainIndex);   // forwarder to update_domain
 extern void IsiCancelAcquisitionDas(void);  // only for ISI-DAS. On ISI-S or ISI-DA, use IsiCancelAcquisition
 // The following internal API has been added with ISI 3.03, and is used from the pre-defined IsiMsgDeliver 
 // function defined below. The isiPrepareSicb function prepares the pending outgoing message for sending. 
@@ -1395,18 +1363,19 @@ extern IzotBool _IsiNextConnection(unsigned index, IsiConnection* pConn);
 extern void _IsiClearConnection(IsiConnection* pConn, unsigned Index);
 
 extern unsigned long _IsiMaskSelector(unsigned long Selector);
-extern IzotWord _IsiIncrementSelector(IzotWord Selector);
-extern IzotWord _IsiAddSelector(IzotWord Selector, unsigned Increment);
+extern IzotWord _IsiIncrementSelector(IzotWord selector);
+extern IzotWord _IsiAddSelector(IzotWord selector, unsigned increment);
 
 extern unsigned _nv_count(void);
 extern unsigned int _alias_count(void);
 extern unsigned int _address_table_count(void);
-extern IsiApiError service_pin_msg_send (void);
-extern IsiApiError update_address(const IzotAddress* address, int index);
-extern IsiApiError update_domain_address(const IzotDomain* pDomain, int index, int nonCloneValue, IzotBool bUpdateID);
+extern IzotApiError service_pin_msg_send (void);
+extern IzotApiError update_address(const IzotAddress* devAddress, int index);
+extern IzotApiError update_domain_address(const IzotDomain* domainConfig,
+                int domainIndex, int nonCloneValue, IzotBool bUpdateID);
 extern void node_reset();
-extern IsiApiError retrieve_status(IzotStatus* status);
-extern void update_nv(const IzotDatapointConfig * nv_entry, unsigned index);
+extern IzotApiError retrieve_status(IzotStatus* status);
+extern void update_nv(const IzotDatapointConfig * nvConfig, unsigned nvIndex);
 
 //  interal functions used by device and domain acquisistion:
 extern void _IsiSendDidrm(IsiMessageCode code); // see snddidrm.c
@@ -1440,7 +1409,7 @@ extern IzotBool isiFilterResponseArrived(const IzotResponseAddress* const pAddre
 	
 extern IzotBool isiFilterMsgCompleted(const unsigned tag, const IzotBool success);
 
-extern IsiApiError initializeData(IsiBootType bootType);
+extern IzotApiError initializeData(IsiBootType bootType);
 extern LtPersistenceLossReason restorePersistentData(IzotPersistentSegType persistentSegType);
 extern void savePersistentData(IzotPersistentSegType persistentSegType);
 //extern void DumpConnectionTable();

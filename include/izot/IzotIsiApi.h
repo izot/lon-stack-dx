@@ -1,107 +1,72 @@
-//
-// IzotIsiApi.h
-//
-// Copyright (C) 2022-2025 EnOcean
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy of
-// this software and associated documentation files (the "Software"), to deal in 
-// the Software without restriction, including without limitation the rights to
-// use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-// of the Software, and to permit persons to whom the Software is furnished to do
-// so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
-
 /*
- * Title: LON DX Stack ISI API Interfaces
+ * IzotIsiApi.h
  *
- * Abstract:
- * This file contains function prototypes for the LON Interoperable
- * Self-Installation (ISI) services for use with the LON DX Stack.
+ * Copyright (c) 2022-2025 EnOcean
+ * SPDX-License-Identifier: MIT
+ * See LICENSE file for details.
+ * 
+ * Title:   LON Interoperable Self-Installation (ISI) API
+ * Purpose: Defines LON ISI services for a LON stack.
  */
 
 #ifndef __ISIAPI_H__
-#   define  __ISIAPI_H__
+#define  __ISIAPI_H__
 
 #include <stdlib.h>
 #ifdef  __cplusplus
 extern "C" {
 #endif
 
-#include "abstraction/IzotConfig.h"
 #include "izot/IzotPlatform.h"
 #include "izot/IzotTypes.h"
 #include "izot/IzotIsiTypes.h"
 
-/*------------------------------------------------------------------------------
-Section: Macros
-------------------------------------------------------------------------------*/
 #define ISI_EXTERNAL_FN extern
 
-/*------------------------------------------------------------------------------
-Section: Global
-------------------------------------------------------------------------------*/
-ISI_EXTERNAL_FN IsiCallbackVectors theIsiCallbackVectors;
+/*****************************************************************
+ * Section: Globals
+ *****************************************************************/
+
+ ISI_EXTERNAL_FN IsiCallbackVectors theIsiCallbackVectors;
+
+ /*****************************************************************
+ * Section: Function Declarations
+ *****************************************************************/
 
 /*
- * *****************************************************************************
- * SECTION: API FUNCTIONS
- * *****************************************************************************
- *
- * This section details the ISI API functions.
- */
-
-/*
- * Function: IsiStop
  * Stops the ISI engine.
- *
+ * Parameters:
+ *   None
  * Returns:
- * <IsiApiError>
- *
- * Remarks:
- * Use the <IsiStart> function to restart the ISI engine.
- * This function has no forwarder. Calling this function when the ISI engine
- * is already stopped has no action.
+ *   IzotApiNoError (0) on success, or an <IzotApiError> error code on failure.
+ * Notes:
+ *   Use IsiStart() to restart the ISI engine.  This function has no forwarder. 
+ *   Calling this function when the ISI engine is already stopped has no action.
  */
-extern IsiApiError IsiStop(void);
+extern IzotApiError IsiStop(void);
 
 /*
- * Function: IsiStart
  * Starts the ISI engine.
- *
  * Parameters:
- * apiVersion - IzoT ISI Api version.(TODO)
- * type - type of the ISI engine.
- * flags - option flags when starting the engine.  Values 0x01, 0x04 and 0x08 
- *         have no effect. All unrecognized values will be ignored.
-
- * connections - Size of the connection table, in records.
- * didLength - Size of the default primary domain Id, only 1, 3, or 6 are 
- *             allowed.
- * pDid - The primary domain ID default value. Always 6 bytes, but only 
- *        didLength bytes are valid.
- * repeatCount - The repeat count used with all datapoint connections, where all
- *               connections share the same repeat counter.
- *
+ *   apiVersion: IzoT ISI API version; must be 1
+ *   type: Type of the ISI engine; values are isiTypeS, isiTypeDa, or isiTypeDas
+ *   flags: Option flags for starting the engine; values 0x01, 0x04, and 0x08 
+ *              have no effect; all unrecognized values will be ignored
+ *   connections: Size of the connection table, in records
+ *   didLength: Size of the default primary domain ID; must be 1, 3, or 6
+ *   pDid; The primary domain ID default value; must be 6 bytes, but only 
+ *              didLength bytes are valid
+ *   repeatCount: The repeat count used with all datapoint connections, where all
+ *              connections share the same repeat counter
  * Returns:
- * <IsiApiError>
- *
- * Remarks:
- * After this function is called, the ISI engine sends and receives ISI
- * messages, and manages the network configuration of your device. Typically,
- * you start the ISI engine in your reset task when self-installation is
- * enabled, and you stop the ISI engine when self-installation is disabled.
+ *   IzotApiNoError (0) on success, or an <IzotApiError> error code on failure
+ * Notes:
+ *   After this function is called, the ISI engine sends and receives ISI
+ *   messages, and manages the network configuration of the device; call
+ *   this function in your reset task when self-installation is enabled
+ *   stop the ISI engine when self-installation is disabled
  */
-ISI_EXTERNAL_FN IsiApiError IsiStart(
+ISI_EXTERNAL_FN IzotApiError IsiStart(
         unsigned apiVersion, 
         IsiType type, 
         IsiFlags flags, 
@@ -111,62 +76,57 @@ ISI_EXTERNAL_FN IsiApiError IsiStart(
         unsigned repeatCount);
 
 /*
- * Function: IsiTick
  * Performs periodic processing for the ISI engine.
- *
  * Parameters:
- *
+ *   None
  * Returns:
- * <IsiApiError>
- *
- * Remarks:
- * After this function is called, the ISI engine sends and receives ISI
- * messages, and manages the network configuration of your device. Typically,
- * you start the ISI engine in your reset task when self-installation is
- * enabled, and you stop the ISI engine when self-installation is disabled.
+ *   IzotApiNoError (0) on success, or an <IzotApiError> error code on failure.
+ * Notes:
+ *   After this function is called, the ISI engine sends and receives ISI
+ *   messages, and manages the network configuration of the host device.
+ *   Typically, you start the ISI engine in your reset task when self-installation
+ *   is enabled, and you stop the ISI engine when self-installation is disabled.
  */
-ISI_EXTERNAL_FN IsiApiError IsiTick();
+ISI_EXTERNAL_FN IzotApiError IsiTick();
 
 /*
- * Function: IsiReturnToFactoryDefaults
  * Restores the device's self-installation data to factory defaults.
- *
+ * Parameters:
+ *   None
  * Returns:
- * <IsiApiError>
+ *   IzotApiNoError (0) on success, or an <IzotApiError> error code on failure.
+ * Notes:
+ *   Restore the host device's self-installation data to factory defaults,
+ *   causing the immediate and unrecoverable loss of all connection information.
+ *   This function has the same functionality regardless of whether the ISI engine 
+ *   is running or not.
  *
- * Remarks:
- * This function restores the device's self-installation data to factory 
- * defaults, causing the immediate and unrecoverable loss of all connection 
- * information. This function has the same functionality regardless of whether 
- * the ISI engine is running or not.
+ *   Executed on a Neuron Chip or Smart Transceiver, the engine is stopped and the
+ *   device resets to complete the process.  Because of the reset, this function
+ *   never returns to the caller.  Any changes related to returning to factory
+ *   defaults, such as resetting of device-specific configuration properties to
+ *   their initial values, must occur prior to calling this function.
  *
- * Executed on a Neuron Chip or Smart Transceiver, the engine is stopped and the
- * device resets to complete the process. Because of the reset, this function
- * never returns to the caller. Any changes related to returning to factory
- * defaults, such as resetting of device-specific configuration properties to
- * their initial values, must occur prior to calling this function.
- *
- * On an IzoT Device Stack, the IsiReturnToFactoryDefaults function returns
- * to the caller. The node reset doesn't cause a physical reset on a typical
- * IzoT device, but cleans up pending transactions and fires the protocol 
- * stack's reset event. Typical applications use this event to start the ISI 
- * engine, if desired.
+ *   On a LON stack,  IsiReturnToFactoryDefaults() returns to the caller.
+ *   The node reset doesn't cause a physical reset on a typical LON device, but
+ *   cleans up pending transactions and fires the LON stack's reset event. 
+ *   Typical applications use this event to start the ISI engine, if desired.
  */
-ISI_EXTERNAL_FN IsiApiError IsiReturnToFactoryDefaults(void);
+ISI_EXTERNAL_FN IzotApiError IsiReturnToFactoryDefaults(void);
 
 /*
  * Function: IsiFetchDomain
  * Starts or restarts the fetch domain process in a domain address server (DAS).
  *
  * Returns:
- * <IsiApiError>
+ * <IzotApiError>
  *
  * Remarks:
  * This function must not be called from a device that is not a domain address
  * server. The ISI engine must be running for this function to have any effect,
  * and this function only operates on a domain address server.
  */
-ISI_EXTERNAL_FN IsiApiError IsiFetchDomain(void);
+ISI_EXTERNAL_FN IzotApiError IsiFetchDomain(void);
 
 /*
  * Function: IsiFetchDevice
@@ -174,7 +134,7 @@ ISI_EXTERNAL_FN IsiApiError IsiFetchDomain(void);
  * server (DAS).
  *
  * Returns:
- * <IsiApiError>
+ * <IzotApiError>
  *
  * Remarks:
  * This function must not be called from a device that is not a domain address
@@ -191,7 +151,7 @@ ISI_EXTERNAL_FN IsiApiError IsiFetchDomain(void);
  * to have any effect, and this function only operates on a domain 
  * address server.
  */
-ISI_EXTERNAL_FN IsiApiError IsiFetchDevice(void);
+ISI_EXTERNAL_FN IzotApiError IsiFetchDevice(void);
 
 /*
  * Function: IsiOpenEnrollment
@@ -201,7 +161,7 @@ ISI_EXTERNAL_FN IsiApiError IsiFetchDevice(void);
  * assembly - assembly for which the enrollment should be opened.
  *
  * Returns:
- * <IsiApiError>
+ * <IzotApiError>
  *
  * Remarks:
  * This operation turns the device into a connection host for this connection,
@@ -209,7 +169,7 @@ ISI_EXTERNAL_FN IsiApiError IsiFetchDevice(void);
  * No forwarder is provided for this function. The ISI engine must be running
  * and in the idle state.
  */
-ISI_EXTERNAL_FN IsiApiError IsiOpenEnrollment(unsigned Assembly);
+ISI_EXTERNAL_FN IzotApiError IsiOpenEnrollment(unsigned Assembly);
 
 /*
  * Function: IsiCreateEnrollment
@@ -219,7 +179,7 @@ ISI_EXTERNAL_FN IsiApiError IsiOpenEnrollment(unsigned Assembly);
  * assembly - assembly for which the enrollment should be created.
  *
  * Returns:
- * <IsiApiError>
+ * <IzotApiError>
  *
  * Remarks:
  * This function is called after the application has received and approved a
@@ -233,7 +193,7 @@ ISI_EXTERNAL_FN IsiApiError IsiOpenEnrollment(unsigned Assembly);
  * have any effect. For a connection host, the ISI engine must be in the
  * approved state. Other devices must be in the pending state.
  */
-ISI_EXTERNAL_FN IsiApiError IsiCreateEnrollment(unsigned Assembly);
+ISI_EXTERNAL_FN IzotApiError IsiCreateEnrollment(unsigned Assembly);
 
 /*
  * Function: IsiExtendEnrollment
@@ -243,7 +203,7 @@ ISI_EXTERNAL_FN IsiApiError IsiCreateEnrollment(unsigned Assembly);
  * assembly - assembly for which the enrollment should be extended.
  *
  * Returns:
- * <IsiApiError>
+ * <IzotApiError>
  *
  * Remarks:
  * This function is called after the application has received and approved a
@@ -258,14 +218,14 @@ ISI_EXTERNAL_FN IsiApiError IsiCreateEnrollment(unsigned Assembly);
  * have any effect. For a connection host, the ISI engine must be in the 
  * approved state. Other devices must be in the pending state.
  */
-ISI_EXTERNAL_FN IsiApiError IsiExtendEnrollment(unsigned assembly);
+ISI_EXTERNAL_FN IzotApiError IsiExtendEnrollment(unsigned assembly);
 
 /*
  * Function: IsiCancelEnrollment
  * Cancels an open (pending or approved) enrollment.
  *
  * Returns:
- * <IsiApiError>
+ * <IzotApiError>
  *
  * Remarks:
  * When used on a connection host, a CSMX connection cancellation message is
@@ -275,7 +235,7 @@ ISI_EXTERNAL_FN IsiApiError IsiExtendEnrollment(unsigned assembly);
  * The function has no effect unless the ISI engine is running and in the 
  * pending or approved state.
  */
-ISI_EXTERNAL_FN IsiApiError IsiCancelEnrollment(void);
+ISI_EXTERNAL_FN IzotApiError IsiCancelEnrollment(void);
 
 /*
  * Function: IsiLeaveEnrollment
@@ -286,7 +246,7 @@ ISI_EXTERNAL_FN IsiApiError IsiCancelEnrollment(void);
  * assembly - assembly for which the enrollment should be removed.
  *
  * Returns:
- * <IsiApiError>
+ * <IzotApiError>
  *
  * Remarks:
  * When used on the connection host, the function is automatically
@@ -294,7 +254,7 @@ ISI_EXTERNAL_FN IsiApiError IsiCancelEnrollment(void);
  * No forwarder is provided for this function. This function has no effect if
  * the ISI engine is stopped.
  */
-ISI_EXTERNAL_FN IsiApiError IsiLeaveEnrollment(unsigned Assembly);
+ISI_EXTERNAL_FN IzotApiError IsiLeaveEnrollment(unsigned Assembly);
 
 /*
  * Function: IsiDeleteEnrollment
@@ -304,7 +264,7 @@ ISI_EXTERNAL_FN IsiApiError IsiLeaveEnrollment(unsigned Assembly);
  * assembly - assembly for which the enrollment should be deleted.
  *
  * Returns:
- * <IsiApiError>
+ * <IzotApiError>
  *
  * Remarks:
  * This function removes the specified assembly from all enrolled connections,
@@ -312,7 +272,7 @@ ISI_EXTERNAL_FN IsiApiError IsiLeaveEnrollment(unsigned Assembly);
  * connection to remove them from the connection as well.
  * This function has no effect if the ISI engine is stopped.
  */
-ISI_EXTERNAL_FN IsiApiError IsiDeleteEnrollment(unsigned Assembly);
+ISI_EXTERNAL_FN IzotApiError IsiDeleteEnrollment(unsigned Assembly);
 
 /*
  * Function: IsiIsBecomingHost
@@ -537,7 +497,7 @@ ISI_EXTERNAL_FN unsigned IsiGetAssembly(
  * assembly - assembly for which the enrollment should be initiated.
  *
  * Returns:
- * <IsiApiError>
+ * <IzotApiError>
  *
  * Remarks:
  * Use this function to start automatic enrollment. The local device becomes the
@@ -547,7 +507,7 @@ ISI_EXTERNAL_FN unsigned IsiGetAssembly(
  * in the <IsiUpdateUserInterface> callback.
  * This function does nothing when the ISI engine is stopped.
  */
-ISI_EXTERNAL_FN IsiApiError IsiInitiateAutoEnrollment(
+ISI_EXTERNAL_FN IzotApiError IsiInitiateAutoEnrollment(
         const IsiCsmoData* pCsmaData, 
         unsigned Assembly);
 
@@ -696,16 +656,6 @@ ISI_EXTERNAL_FN IzotBool IsiCreatePeriodicMsg(void);
 ISI_EXTERNAL_FN void IsiSetTracefile(const char* pFilename, IzotBool append);
 
 /*
- * *****************************************************************************
- * SECTION: CONTROLLED ENROLMENT
- * *****************************************************************************
- *
- *  This section defines the prototypes for the ISI API controlled enrollement 
- *  option
- *
- */
-
-/*
  *  Function: IsiControlCommand
  *  Initiates control enrollment request (CTRQ) message
  *
@@ -727,7 +677,7 @@ ISI_EXTERNAL_FN void IsiSetTracefile(const char* pFilename, IzotBool append);
  *  control enrollement function based on the command specified.
  *
  */
-ISI_EXTERNAL_FN IsiApiError IsiControlCommand(
+ISI_EXTERNAL_FN IzotApiError IsiControlCommand(
         const IzotUniqueId* pId, 
         unsigned Assembly, 
         IsiControl command);
@@ -743,7 +693,7 @@ ISI_EXTERNAL_FN IsiApiError IsiControlCommand(
  *  API as shown in this hypothetical example:
  *
  *  typedef void (*IsiGetWidthFunction)(unsigned Assembly);
- *  extern IsiApiError IsiGetWidthRegistrar(IsiGetWidthFunction handler);
+ *  extern IzotApiError IsiGetWidthRegistrar(IsiGetWidthFunction handler);
  *
  *  unsigned myIsiGetWidthHandler(void)
  *  {
@@ -770,80 +720,80 @@ ISI_EXTERNAL_FN IsiApiError IsiControlCommand(
  *  Register the <IsiCreateCsmo>.
 
  *  Returns:
- *  IsiApiError
+ *  IzotApiError
  * 
  */
-ISI_EXTERNAL_FN IsiApiError IsiCreateCsmoRegistrar(IsiCreateCsmoFunction handler);
+ISI_EXTERNAL_FN IzotApiError IsiCreateCsmoRegistrar(IsiCreateCsmoFunction handler);
 
 /*
  *  Function: IsiGetAssemblyRegistrar
  *  Register the <IsiGetAssembly>.
 
  *  Returns:
- *  IsiApiError
+ *  IzotApiError
  * 
  */
-ISI_EXTERNAL_FN IsiApiError IsiGetAssemblyRegistrar(IsiGetAssemblyFunction handler);
+ISI_EXTERNAL_FN IzotApiError IsiGetAssemblyRegistrar(IsiGetAssemblyFunction handler);
 
 /*
  *  Function: IsiGetDpIndexRegistrar
  *  Register the <IsiGetDpIndex>.
 
  *  Returns:
- *  IsiApiError
+ *  IzotApiError
  * 
  */
-ISI_EXTERNAL_FN IsiApiError IsiGetDpIndexRegistrar(IsiGetDpIndexFunction handler);
+ISI_EXTERNAL_FN IzotApiError IsiGetDpIndexRegistrar(IsiGetDpIndexFunction handler);
 
 /*
  *  Function: IsiGetPrimaryGroupRegistrar
  *  Register the <IsiGetPrimaryGroup>.
 
  *  Returns:
- *  IsiApiError
+ *  IzotApiError
  * 
  */
-ISI_EXTERNAL_FN IsiApiError IsiGetPrimaryGroupRegistrar(IsiGetPrimaryGroupFunction handler);
+ISI_EXTERNAL_FN IzotApiError IsiGetPrimaryGroupRegistrar(IsiGetPrimaryGroupFunction handler);
 
 /*
  *  Function: IsiGetWidthRegistrar
  *  Register the <IsiGetWidth>.
 
  *  Returns:
- *  IsiApiError
+ *  IzotApiError
  * 
  */
-ISI_EXTERNAL_FN IsiApiError IsiGetWidthRegistrar(IsiGetWidthFunction handler);
+ISI_EXTERNAL_FN IzotApiError IsiGetWidthRegistrar(IsiGetWidthFunction handler);
 
 /*
  *  Function: IsiQueryHeartbeatRegistrar
  *  Register the <IsiQueryHeartbeat>.
 
  *  Returns:
- *  IsiApiError
+ *  IzotApiError
  * 
  */
-ISI_EXTERNAL_FN IsiApiError IsiQueryHeartbeatRegistrar(IsiQueryHeartbeatFunction handler);
+ISI_EXTERNAL_FN IzotApiError IsiQueryHeartbeatRegistrar(IsiQueryHeartbeatFunction handler);
 
 /*
  *  Function: IsiUpdateDiagnosticsRegistrar
  *  Register the <IsiUpdateDiagnostics>.
 
  *  Returns:
- *  IsiApiError
+ *  IzotApiError
  * 
  */
-ISI_EXTERNAL_FN IsiApiError IsiUpdateDiagnosticsRegistrar(IsiUpdateDiagnosticsFunction handler);
+ISI_EXTERNAL_FN IzotApiError IsiUpdateDiagnosticsRegistrar(IsiUpdateDiagnosticsFunction handler);
 
 /*
  *  Function: IsiUpdateUserInterfaceRegistrar
  *  Register the <IsiUpdateUserInterface>.
 
  *  Returns:
- *  IsiApiError
+ *  IzotApiError
  * 
  */
-ISI_EXTERNAL_FN IsiApiError IsiUpdateUserInterfaceRegistrar(IsiUpdateUserInterfaceFunction handler);
+ISI_EXTERNAL_FN IzotApiError IsiUpdateUserInterfaceRegistrar(IsiUpdateUserInterfaceFunction handler);
 
 /*
  *  Function: IsiDeregisterAllCallbacks

@@ -1,144 +1,72 @@
-//
-// IzotIsiTypes.h
-//
-// Copyright (C) 2022-2025 EnOcean
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy of
-// this software and associated documentation files (the "Software"), to deal in 
-// the Software without restriction, including without limitation the rights to
-// use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-// of the Software, and to permit persons to whom the Software is furnished to do
-// so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
-
 /*
- * Title: ISI API Types
+ * IzotIsiTypes.h
  *
- * Abstract:
- * This file contains definitions used with the API for the Interoperable
- * Self-Installation (ISI) engine for the LON Stack.
+ * Copyright (c) 2022-2025 EnOcean
+ * SPDX-License-Identifier: MIT
+ * See LICENSE file for details.
+ * 
+ * Title:   LON Interoperable Self-Installation (ISI) API Types
+ * Purpose: Defines LON ISI types for a LON stack.
  */
 
 #ifndef _ISI_TYPES_H
-#   define  _ISI_TYPES_H
+#define  _ISI_TYPES_H
 
-#ifndef _IZOT_PLATFORM_H
-#   error You must include IzotPlatform.h first 
-#endif  /* _IZOT_PLATFORM_H */
-/*
- * *****************************************************************************
- * TITLE: ISI TYPES
- * *****************************************************************************
- *
- * Definitions of the enumerations and data types required by the Interoperable 
- * Self-Installation (ISI) API.
- */
+#include "izot/IzotPlatform.h"
 
-/*
- * Enumeration: IsiApiError
- *
- * This enumeration contains all ISI DX API error codes, including the
- * code for success _IsiApiNoError_. Use the <IZOT_SUCCESS> macro to determine 
- * successful completion of an API function.
- *
- */
-typedef IZOT_ENUM_BEGIN(IsiApiError) 
-{
-    /*    0    */    IsiApiNoError = 0,           // no error.
-    /*    500  */    IsiNoConnectionSpace = 500,  // No connection space or no more unused serial
-    /*    501  */    IsiEngineNotRunning = 501 
-} IZOT_ENUM_END(IsiApiError);
+#define ID_STR_LEN 8            // LON program ID length
 
+// ISI messages codes (see isi_msg.h)
+typedef IZOT_ENUM_BEGIN(IsiMessageCode) {
+    isiDrum    = 0x00,    	    //  Domain resource usage information
+	isiDrumEx  = 0x01,		    // 	Extended domain resource usage information (must be isiDrum+1)
+    isiCsmo    = 0x02,     	    //  Connections: open enrollment
+	isiCsmoEx  = 0x03,		    // 	Extended connection open enrollment (must be isiCsmo+1)
+    isiCsma    = 0x04,     	    //  Connections: automatic open enrollment
+	isiCsmaEx  = 0x05,		    //  Extended automatic open enrollment (must be isiCsma+1)
+    isiCsmr    = 0x06,     	    //  Connections: automatic enrollment reminder
+	isiCsmrEx  = 0x07,		    //  Extended automatic open enrollment reminder (must be isiCsmr+1)
 
-#define ID_STR_LEN 8            // program ID length
+	isiLastEx  = isiCsmrEx,	    //  Last extended command
 
-/* 
- *  Enumeration: IsiMessageCode
- *  Enumeration for different ISI message codes.
- *
- *  This enumeration represents the possible ISI messages.
- */
-typedef IZOT_ENUM_BEGIN(IsiMessageCode) 
-{
-    isiDrum    = 0x00,    	//  Domain resource usage information
-	isiDrumEx  = 0x01,		// 	Extended domain resource usage information (must be isiDrum+1)
-    isiCsmo    = 0x02,     	//  Connections: open enrollment
-	isiCsmoEx  = 0x03,		// 	Extended connection open enrollment (must be isiCsmo+1)
-    isiCsma    = 0x04,     	//  Connections: automatic open enrollment
-	isiCsmaEx  = 0x05,		//  Extended automatic open enrollment (must be isiCsma+1)
-    isiCsmr    = 0x06,     	//  Connections: automatic enrollment reminder
-	isiCsmrEx  = 0x07,		//  Extended automatic open enrollment reminder (must be isiCsmr+1)
-
-	isiLastEx  = isiCsmrEx,	//  Last extended command
-
-    isiDidrq   = 0x08,    	//  Domain ID Request
-    isiDidrm   = 0x09,    	//  Domain ID Response
-    isiDidcf   = 0x0A,    	//  Domain ID Confirmation
-    isiTimg    = 0x0B,     	//  Timing guidance message
-    isiCsmx    = 0x0C,     	//  Connections: cancel enrollment
-    isiCsmc    = 0x0D,     	//  Connections: close and confirm enrollment
-    isiCsme    = 0x0E,     	//  Connections: enrollment acceptance
-    isiCsmd    = 0x0F,     	//  Connections: connection deletion
-    isiCsmi    = 0x10,     	//  Connections: status and resource info
-    isiCtrq    = 0x11,      //  Controlled enrollment control request
-    isiCtrp    = 0x12,      //  Controlled enrollment control response
-    isiRdct    = 0x13,      //  Controlled enrollment read connection table request
-    isiRdcs    = 0x14,      //  Controlled enrollment read connection table success
-    isiRdcf    = 0x15,      //  Controlled enrollment read connection table failure    
-	//	following are not codes but helpers:
+    isiDidrq   = 0x08,    	    //  Domain ID Request
+    isiDidrm   = 0x09,    	    //  Domain ID Response
+    isiDidcf   = 0x0A,    	    //  Domain ID Confirmation
+    isiTimg    = 0x0B,     	    //  Timing guidance message
+    isiCsmx    = 0x0C,     	    //  Connections: cancel enrollment
+    isiCsmc    = 0x0D,     	    //  Connections: close and confirm enrollment
+    isiCsme    = 0x0E,     	    //  Connections: enrollment acceptance
+    isiCsmd    = 0x0F,     	    //  Connections: connection deletion
+    isiCsmi    = 0x10,     	    //  Connections: status and resource info
+    isiCtrq    = 0x11,          //  Controlled enrollment control request
+    isiCtrp    = 0x12,          //  Controlled enrollment control response
+    isiRdct    = 0x13,          //  Controlled enrollment read connection table request
+    isiRdcs    = 0x14,          //  Controlled enrollment read connection table success
+    isiRdcf    = 0x15,          //  Controlled enrollment read connection table failure    
+	//	Following are helpers, not codes:
 	isiLastCode = isiRdcf,
 	isiCodeMask = 0x1F
 } IZOT_ENUM_END(IsiMessageCode);
 
-/*
- *  Typedef: IsiMessageHeader
- *  Structure representing the ISI message header.
- *
- *  This structure contains the header that is sent with all ISI messages.
- */
-typedef IZOT_STRUCT_BEGIN(IsiMessageHeader) 
-{
+// ISI message header
+typedef IZOT_STRUCT_BEGIN(IsiMessageHeader) {
     IZOT_ENUM(IsiMessageCode)  Code;
 } IZOT_STRUCT_END(IsiMessageHeader);
 
-/*
- *  Typedef: IsiDidrq
- *  Structure representing the domain request message (DIDRQ).
- *
- *  This structure contains the domain request message.
- */
-typedef IZOT_STRUCT_BEGIN(IsiDidrq) 
-{
-    IzotByte  NeuronId[IZOT_UNIQUE_ID_LENGTH]; // requestor's neuron id
-    IzotByte    Nuid;                          // requestor's non-unique id
+// ISI domain ID request message
+typedef IZOT_STRUCT_BEGIN(IsiDidrq) {
+    IzotByte  NeuronId[IZOT_UNIQUE_ID_LENGTH];  // requestor's neuron id
+    IzotByte    Nuid;                           // requestor's non-unique id
 } IZOT_STRUCT_END(IsiDidrq);
 
-/*
- *  Typedef: IsiDidrm, IsiDidcf
- *  Structure representing the domain response message.
- *
- *  This structure contains the fields of a domain response message
- */
-
-/*
- * Use the ISI_DID_LENGTH_* macros to access the Length field in IsiDidrm.Attributes1, IsiDidcf.Attributes1
- */
+// ISI domain ID response and confirmations messages
+// Use the ISI_DID_LENGTH_* macros to access the length field in
+// IsiDidrm.Attributes1, IsiDidcf.Attributes1
 #define ISI_DID_LENGTH_MASK		0xE0
 #define ISI_DID_LENGTH_SHIFT	5
 #define ISI_DID_LENGTH_FIELD	Attributes1
 
-typedef IZOT_STRUCT_BEGIN(IsiDidrm) 
-{
+typedef IZOT_STRUCT_BEGIN(IsiDidrm) {
     IzotByte     Attributes1;    // contains domain ID length: 1, 3, or 6.  See ISI_DID_LENGTH_* macros 
     IzotDomainId DomainId;       // primary domain ID to use
     IzotUniqueId NeuronId;       // DAS's neuron id
@@ -148,119 +76,83 @@ typedef IZOT_STRUCT_BEGIN(IsiDidrm)
 
 typedef IsiDidrm IsiDidcf;
 
-/*
- *  Typedef: IsiDrum
- *  Structure representing the domain resource usage message (DRUM/DRUMEX).
- *
- *  This structure contains the fields of a domain domain resource usage message (DRUM/DRUMEX).
- */
-
-/*
- * Use the ISI_DRUM_DIDLENGTH_* macros to access the DidLength field in IsiDrum.Attributes1.
- */
+// ISI domain resource usage message (DRUM/DRUMEX)
+// Use the ISI_DRUM_DIDLENGTH_* macros to access the DidLength field in IsiDrum.Attributes1
 #define ISI_DRUM_DIDLENGTH_MASK		0xE0
 #define ISI_DRUM_DIDLENGTH_SHIFT	5
 #define ISI_DRUM_DIDLENGTH_FIELD	Attributes1
 
-/*
- * Use the ISI_DRUM_USER_* macros to access the UserDefined field in IsiDrum.Attributes1.
- */
+// Use the ISI_DRUM_USER_* macros to access the UserDefined field in IsiDrum.Attributes1.
 #define ISI_DRUM_USER_MASK		0x03
 #define ISI_DRUM_USER_SHIFT	    0
 #define ISI_DRUM_USER_FIELD	    Attributes1
 
-typedef IZOT_STRUCT_BEGIN(IsiDrum) 
-{
-    IzotByte        Attributes1;  // contains domain ID length: 1, 3, or 6, and used-defined code.  See ISI_DRUM_* macros 
-	IzotDomainId    DomainId;     // sender's primary domain ID
-	IzotUniqueId    NeuronId;     // sender's neuron id
+typedef IZOT_STRUCT_BEGIN(IsiDrum) {
+    IzotByte        Attributes1;    // Domain ID length: 1, 3, or 6, and used-defined code;
+                                    // see ISI_DRUM_* macros 
+	IzotDomainId    DomainId;       // Sender's primary domain ID
+	IzotUniqueId    NeuronId;       // Sender's unique id
 	IzotSubnetId    SubnetId;
-	IzotByte    NodeId;
-	IzotByte    Nuid;
-	IzotByte    ChannelType;
-    IZOT_STRUCT_NESTED_BEGIN(Extended) 
-    {
+	IzotByte        NodeId;
+	IzotByte        Nuid;
+	IzotByte        ChannelType;
+    IZOT_STRUCT_NESTED_BEGIN(Extended) {
         IzotWord DeviceClass;
 	    IzotByte Usage;
     } IZOT_STRUCT_NESTED_END(Extended);
 } IZOT_STRUCT_END(IsiDrum);
 
-/*
- *  Typedef: IsiTimg
- *  Structure representing the timing guidance message (TIMG).
- *
- *  This structure contains the fields of a timing guidance message (TIMG).
- */
-
-/*
- * Use the ISI_DRUM_DIDLENGTH_* macros to access the DidLength field in IsiDrum.Attributes1.
- */
+// LON ISI timing guidance message (TIMG)
+// Use the ISI_DRUM_DIDLENGTH_* macros to access the DidLength field in IsiDrum.Attributes1.
 #define ISI_TIMG_ORIG_MASK		0xF0
 #define ISI_TIMG_ORIG_SHIFT     4
 #define ISI_TIMG_ORIG_FIELD	    Attributes1
 
-typedef IZOT_STRUCT_BEGIN(IsiTimg) 
-{
-    IzotByte    Attributes1;         // contains 8 for DAS.  See ISI_TIMG_ORIG_* macros 
+typedef IZOT_STRUCT_BEGIN(IsiTimg) {
+    IzotByte    Attributes1;         // Contains 8 for DAS; see ISI_TIMG_ORIG_* macros 
     IzotByte    DeviceCountEstimate;
     IzotByte    ChannelType;
 } IZOT_STRUCT_END(IsiTimg);
 
-/*
- *  Typedef: HostUniqueId
- *  Holds the host's unique ID (derived from Neuron ID).
- */
+// Host's unique ID based on the LON unique ID with the last byte removed
 typedef IzotByte  HostUniqueId[IZOT_UNIQUE_ID_LENGTH-1];
 
 /*
- *  Typedef: IsiCid
  *  Structure representing the unique connection ID.
- *
  *  This structure contains the unique connection ID for a connection.
  */
-typedef IZOT_STRUCT_BEGIN(IsiCid) 
-{
+typedef IZOT_STRUCT_BEGIN(IsiCid) {
     HostUniqueId UniqueId;    // host's unique ID (derived from Neuron ID)
     IzotWord      SerialNumber;
 } IZOT_STRUCT_END(IsiCid);
 
 /*
- *  Typedef: IsiConnectionHeader
  *  Structure representing the connection header.
- *
  *  Following the ISI Message Header, all connection-related messages start with
  *  this structure.
  */
-typedef IZOT_STRUCT_BEGIN(IsiConnectionHeader) 
-{
+typedef IZOT_STRUCT_BEGIN(IsiConnectionHeader) {
     IsiCid      Cid;
     IzotWord     Selector;
 } IZOT_STRUCT_END(IsiConnectionHeader);
 
 /* 
- *  Enumeration: IsiScope
  *  Enumeration for scope of a connection message.
- *
  *	This enumeration represents the different values that can be used in
  *  the scope field of a CSMO message. This value represents the scope of the
  *  resource file containing the functional profile and datapoint type
  *  definitions specified by the Profile and DpType fields.
  */
-typedef IZOT_ENUM_BEGIN(IsiScope) 
-{
+typedef IZOT_ENUM_BEGIN(IsiScope) {
     isiScopeStandard = 0,
     isiScopeManufacturer = 3
 } IZOT_ENUM_END(IsiScope);
 
 /* 
- *  Enumeration: IsiDirection
- *  Enumeration for the direction of a datapoint in a connection.
- *
  *	This enumeration represents the direction of the datapoint
  *  on offer in a CSMO.
  */
-typedef IZOT_ENUM_BEGIN(IsiDirection) 
-{
+typedef IZOT_ENUM_BEGIN(IsiDirection) {
     isiDirectionOutput = 0,
     isiDirectionInput,
     isiDirectionAny,
@@ -270,9 +162,6 @@ typedef IZOT_ENUM_BEGIN(IsiDirection)
 typedef IzotByte  ApplicationId[IZOT_PROGRAM_ID_LENGTH-1];
 
 /*
- *  Typedef: IsiCsmoData
- *  Structure representing the CSMO message.
- *
  *  This structure contains the fields of a CSMO message to be sent by the
  *  ISI engine.
  */
@@ -312,8 +201,7 @@ typedef IzotByte  ApplicationId[IZOT_PROGRAM_ID_LENGTH-1];
 #define ISI_CSMO_SCOPE_SHIFT	4
 #define ISI_CSMO_SCOPE_FIELD	Attributes2
 
-typedef IZOT_STRUCT_BEGIN(IsiCsmoData)
-{
+typedef IZOT_STRUCT_BEGIN(IsiCsmoData) {
     /* The group (or: device category) that this connection applies to. */
     IzotByte		Group;
 	IzotByte		Attributes1;	/* contains Direction, Width. See ISI_CSMO_DIR_* and _WIDTH_* macros */
@@ -340,13 +228,9 @@ typedef IZOT_STRUCT_BEGIN(IsiCsmoData)
 } IZOT_STRUCT_END(IsiCsmoData);
 
 /*
- *  Typedef: IsiCsmo
  *  Structure representing the manual open enrollment message (CSMO).
- *
- *  This structure contains a manual open enrollment message (CSMO).
  */
-typedef IZOT_STRUCT_BEGIN(IsiCsmo) 
-{
+typedef IZOT_STRUCT_BEGIN(IsiCsmo) {
     IsiConnectionHeader Header;
     IsiCsmoData         Data;
 } IZOT_STRUCT_END(IsiCsmo);
@@ -360,19 +244,14 @@ typedef IZOT_STRUCT_BEGIN(IsiCsmo)
 #define CsmiCount_FIELD  	Attributes1
 
 
-typedef IZOT_STRUCT_BEGIN(CsmiDesc) 
-{
+typedef IZOT_STRUCT_BEGIN(CsmiDesc) {
     IzotByte Attributes1;  // contains Offset,  Count
 } IZOT_STRUCT_END(CsmiDesc);
 
 /*
- *  Typedef: IsiCsmi
  *  Structure representing the enrollment information message (CSMI) sent by the ISI engine.
- *
- *  This structure contains an enrollment information message (CSMI) sent by the ISI engine.
  */
-typedef IZOT_STRUCT_BEGIN(IsiCsmi) 
-{
+typedef IZOT_STRUCT_BEGIN(IsiCsmi) {
     IsiConnectionHeader Header;
 	IZOT_UNION_BEGIN(Desc) 
     {        
@@ -389,13 +268,10 @@ typedef IsiCsmo    IsiCsma;
 typedef IsiCsmo    IsiCsmr;
 
 /* 
- *  Enumeration: IsiControl
  *  Specifies the requested operation for a controlled enrollment request contained in 
  *  a control request (CTRQ) message.
- *
  */
-typedef IZOT_ENUM_BEGIN(IsiControl) 
-{
+typedef IZOT_ENUM_BEGIN(IsiControl) {
     isiNoop     =   0,
     isiOpen     =   1,
     isiCreate   =   2,
@@ -406,23 +282,20 @@ typedef IZOT_ENUM_BEGIN(IsiControl)
     isiFactory  =   7
 } IZOT_ENUM_END(IsiControl);
 
-typedef IZOT_STRUCT_BEGIN(IsiCtrq) 
-{
+typedef IZOT_STRUCT_BEGIN(IsiCtrq) {
     IZOT_ENUM(IsiControl) Control;
     IzotByte    Parameter;
 } IZOT_STRUCT_END(IsiCtrq);
 
-typedef IZOT_STRUCT_BEGIN(IsiCtrp) 
-{
+typedef IZOT_STRUCT_BEGIN(IsiCtrp) {
     IzotByte         Success;
     IzotUniqueId     NeuronID;
 } IZOT_STRUCT_END(IsiCtrp);
 
 //  IsiConnectionTable
-//  Notice the connection table state values are an ordered enumeration, with
+//  The connection table state values are an ordered enumeration, with
 //  isiConnectionStateUnused < isiConnectionStatePending < isiConnectionStateInUse
-typedef IZOT_ENUM_BEGIN(IsiConnectionState) 
-{
+typedef IZOT_ENUM_BEGIN(IsiConnectionState) {
     isiConnectionStateUnsed = 0,
     isiConnectionStatePending,
     isiConnectionStateInUse,
@@ -437,15 +310,12 @@ typedef IZOT_ENUM_BEGIN(IsiConnectionState)
 #define ConnectionAuto_MASK		0x02
 #define ConnectionAuto_FIELD    Attributes1
 
-typedef IZOT_STRUCT_BEGIN(ConnDesc) 
-{
+typedef IZOT_STRUCT_BEGIN(ConnDesc) {
     IzotByte        Attributes1;  // contains Offset, Auto
 } IZOT_STRUCT_END(ConnDesc);
 
 /*
- *  Typedef: IsiConnection
  *  Structure representing a row in the connection table.
- *
  *  This structure is used to represent a row in the connection table that
  *  is returned by <IsiGetConnection> and is used in <IsiSetConnection> to set a
  *  row in the table.
@@ -479,8 +349,7 @@ typedef IZOT_STRUCT_BEGIN(ConnDesc)
 #define ISI_CONN_WIDTH_SHIFT	0
 #define ISI_CONN_WIDTH_FIELD	Attributes1
 
-typedef IZOT_STRUCT_BEGIN(IsiConnection) 
-{
+typedef IZOT_STRUCT_BEGIN(IsiConnection) {
     IsiConnectionHeader Header;
     IzotByte    Host;           //  local assembly that is hosted here, or ISI_NO_ASSEMBLY if this is not the host for this connection
     IzotByte    Member;         //  local assembly that is enrolled in this connection, or ISI_NO_ASSEMBLY if none.
@@ -492,15 +361,13 @@ typedef IZOT_STRUCT_BEGIN(IsiConnection)
     } IZOT_UNION_END(Desc);
 } IZOT_STRUCT_END(IsiConnection);
 
-typedef IZOT_STRUCT_BEGIN(IsiRdct) 
-{
+typedef IZOT_STRUCT_BEGIN(IsiRdct) {
     IzotByte    Index;
     IzotByte    Host;
     IzotByte    Member;
 } IZOT_STRUCT_END(IsiRdct);
 
-typedef IZOT_STRUCT_BEGIN(IsiRdcs) 
-{
+typedef IZOT_STRUCT_BEGIN(IsiRdcs) {
     IzotByte    Index;
     IsiConnection Data;
 } IZOT_STRUCT_END(IsiRdcs);
@@ -508,8 +375,7 @@ typedef IZOT_STRUCT_BEGIN(IsiRdcs)
 //
 //  ISI Message Structure
 //
-typedef IZOT_STRUCT_BEGIN(IsiMessage) 
-{
+typedef IZOT_STRUCT_BEGIN(IsiMessage) {
     IsiMessageHeader Header;
     IZOT_UNION_BEGIN(Msg) 
     {
@@ -557,8 +423,7 @@ extern const IzotByte isiApplicationMessageCode;
 
 //  Starting / Stopping / Running the ISI engine. Use a combination of the
 //  IsiFlags with the Start functions.
-typedef IZOT_ENUM_BEGIN(IsiFlags) 
-{
+typedef IZOT_ENUM_BEGIN(IsiFlags) {
     isiFlagNone               =   0x00,   // does nothing
     isiFlagExtended 		  =   0x01,   // enables use of extended DRUM and enrollment messages
     isiFlagHeartbeat          =   0x02,   // enables ISI Dp heartbeats
@@ -568,15 +433,13 @@ typedef IZOT_ENUM_BEGIN(IsiFlags)
     isiFlagDisableAddrMgmt    =   0x20    // always assign a randomly allocated primary address
 } IZOT_ENUM_END(IsiFlags);
 
-typedef IZOT_ENUM_BEGIN(IsiType) 
-{
+typedef IZOT_ENUM_BEGIN(IsiType) {
     isiTypeS,                       //  use for ISI-S and ISI-S/C
     isiTypeDa,                      //  use for ISI-DA and ISI-DA/C
     isiTypeDas                      //  use for ISI-DAS and ISI-DAS/C
 } IZOT_ENUM_END(IsiType);
 
-typedef IZOT_ENUM_BEGIN(IsiEvent)
-{
+typedef IZOT_ENUM_BEGIN(IsiEvent){
     isiNormal    =   0,		// Some code ASSUMES this value.
     isiRun       =   1,
     //  following are events related to connection enrollment:
@@ -595,20 +458,18 @@ typedef IZOT_ENUM_BEGIN(IsiEvent)
     isiRegistered   // successful start (param 0) or completion (param 0xFF) of device or domain acquisition
 } IZOT_ENUM_END(IsiEvent);
 
-typedef IZOT_ENUM_BEGIN(IsiAbortReason)
-{
-    // following are abort reasons from the process that controls the domain acquisition process
-    // on a ISI-DA device:
-    isiAbortUnsuccessful = 1,        // abort domain acq. after 20 retries
-    isiAbortMismatchingDidrm,       // abort domain acq. due to arrival of mismatching DIDRM
-    isiAbortMismatchingDidcf,       // abort domain acq. due to arrival of mismatching DIDCF
-    isiAbortMismatchService         // abort domain acq. due to mismatching confirmation service msg
+typedef IZOT_ENUM_BEGIN(IsiAbortReason) {
+    // Abort reasons from the process that controls the domain acquisition
+    // process on a ISI-DA device:
+    isiAbortUnsuccessful = 1,       // Abort domain acq. after 20 retries
+    isiAbortMismatchingDidrm,       // Abort domain acq. due to arrival of mismatching DIDRM
+    isiAbortMismatchingDidcf,       // Abort domain acq. due to arrival of mismatching DIDCF
+    isiAbortMismatchService         // Abort domain acq. due to mismatching confirmation service msg
 } IZOT_ENUM_END(IsiAbortReason);
 
 extern void IsiUpdateUserInterface(IsiEvent Event, IzotByte Parameter);
 
-typedef IZOT_ENUM_BEGIN(IsiDiagnostic)
-{
+typedef IZOT_ENUM_BEGIN(IsiDiagnostic){
     isiSubnetNodeAllocation = 1,
     isiSubnetNodeDuplicate,
     isiReceiveDrum = 4,
@@ -619,14 +480,11 @@ typedef IZOT_ENUM_BEGIN(IsiDiagnostic)
     isiReallocateSlot
 } IZOT_ENUM_END(IsiDiagnostic);
 
-// Macro to get the bit value
+// Get and set bit values
 #define GET_BITS_VALUE(field, MASK, SHIFT)          ((field & MASK) >> SHIFT)
 #define SET_BITS_VALUE(field, MASK, SHIFT, value)   field = (field & ~MASK) | (value << SHIFT)
 
-
-/*
- *  Type definitions for callback and event handers
- */
+// Type definitions for callback and event handers
 typedef void (*IsiCreateCsmoFunction)(unsigned Assembly, IsiCsmoData* const pCsmoData);
 typedef IzotBool (*IsiCreatePeriodicMsgFunction) (void);
 typedef unsigned (*IsiGetAssemblyFunction)(const IsiCsmoData* pCsmoData, IzotBool Auto, unsigned Assembly);
@@ -637,8 +495,7 @@ typedef IzotBool (*IsiQueryHeartbeatFunction) (unsigned DpIndex);
 typedef IzotBool (*IsiUpdateDiagnosticsFunction) (IsiDiagnostic Event, IzotByte Parameter);
 typedef void (*IsiUpdateUserInterfaceFunction) (IsiEvent Event, IzotByte Parameter);
 typedef void (*IzotIsiLightConnectedFunction)(void);
-typedef struct
-{
+typedef struct {
     IsiCreateCsmoFunction               createCsmo; 
     IsiCreatePeriodicMsgFunction        createPeriodicMsg;
     IsiGetAssemblyFunction              getAssembly;
@@ -650,7 +507,5 @@ typedef struct
     IsiUpdateUserInterfaceFunction      updateUserInterface;
 
 }   IsiCallbackVectors;
-
-
 
 #endif  //  !defined _ISI_TYPES_H
