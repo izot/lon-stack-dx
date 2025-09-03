@@ -33,12 +33,10 @@
 #ifndef _LCS_QUEUE_H
 #define _LCS_QUEUE_H
 
-/*------------------------------------------------------------------------------
-  Section: Includes
-  ------------------------------------------------------------------------------*/
 #include <stdio.h>
 #include <stddef.h>
-#include "abstraction/IzotConfig.h"
+
+#include "izot/IzotPlatform.h"
 #include "izot/IzotApi.h"
 #include "izot/IzotTypes.h"
 #include "lcs/lcs_eia709_1.h"   /* To get Byte, Boolean & Status         */

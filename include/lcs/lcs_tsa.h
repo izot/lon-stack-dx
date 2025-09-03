@@ -31,14 +31,11 @@
 #ifndef _TSA_H
 #define _TSA_H
 
-/*------------------------------------------------------------------------------
-  Section: Includes
-  ------------------------------------------------------------------------------*/
-
 #include <stdio.h>
 #include <stddef.h>
 #include <string.h>
-#include "abstraction/IzotConfig.h"
+
+#include "izot/IzotPlatform.h"
 #include "izot/IzotApi.h"
 #include "izot/IzotTypes.h"
 #include "lcs/lcs_app.h" /* For TAG related macros and constants */

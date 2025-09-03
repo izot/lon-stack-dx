@@ -13,7 +13,6 @@
  *          Linux hosts as well as the Marvell 88MC200.
  */
 
-#include "abstraction/IzotConfig.h"
 #include "izot/IzotPlatform.h"
 
 #if !defined(DEFINED_IZOTHAL_H)

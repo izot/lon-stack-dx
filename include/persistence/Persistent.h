@@ -33,7 +33,8 @@
 
 #include <stddef.h>
 #include <string.h>
-#include "abstraction/IzotConfig.h"
+
+#include "izot/IzotPlatform.h"
 #include "izot/IzotApi.h"
 #include "abstraction/IzotOsal.h"
 #include "isi/isi_int.h"

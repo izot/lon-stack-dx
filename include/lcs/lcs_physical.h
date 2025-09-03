@@ -30,7 +30,7 @@
 #ifndef _PHYSICAL_H
 #define _PHYSICAL_H
 
-#include "abstraction/IzotConfig.h"
+#include "izot/IzotPlatform.h"
 
 #if LINK_IS(MIP)
 

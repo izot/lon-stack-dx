@@ -29,7 +29,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "abstraction/IzotConfig.h"         // Project-specific configuration
+#include "izot/IzotPlatform.h"       // Project-specific configuration
 #include "izot/IzotApi.h"            // LON Stack API definition
 
 #ifdef  __cplusplus

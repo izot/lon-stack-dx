@@ -24,13 +24,11 @@
        Purpose:        Access and store non-volatile data.
 *******************************************************************************/
 
-/*------------------------------------------------------------------------------
-Section: Includes
-------------------------------------------------------------------------------*/
 #include <stdio.h>
 #include <string.h>
 #include <stddef.h>
-#include "abstraction/IzotConfig.h"
+
+#include "izot/IzotPlatform.h"
 #include "izot/IzotApi.h"
 #include "izot/IzotTypes.h"
 #include "lcs/lcs_eia709_1.h"
@@ -38,18 +36,10 @@ Section: Includes
 #include "lcs/lcs_node.h"
 #include "persistence/Persistent.h"
 
-/*------------------------------------------------------------------------------
-Section: Constant Definitions
-------------------------------------------------------------------------------*/
 #define NVM_START	(&eep->configData)
 #define NVM_SIZE 	(sizeof(*eep)-sizeof(eep->readOnlyData))
 #define MISC_START  (&gp->nvm)
 #define MISC_SIZE	(sizeof(gp->nvm))
-
-/*------------------------------------------------------------------------------
-Section: Type Definitions
-------------------------------------------------------------------------------*/
-/* None */
 
 /*------------------------------------------------------------------------------
 Section: Globals

@@ -31,7 +31,6 @@
 
 #include <stddef.h>
 
-#include "abstraction/IzotConfig.h"
 #include "izot/IzotPlatform.h"
 
 #if !defined(DEFINED_IZOTOSAL_H)

@@ -30,15 +30,11 @@
 #ifndef _NODE_H
 #define _NODE_H
 
-/*------------------------------------------------------------------------------
-Section: Includes
-------------------------------------------------------------------------------*/
-
 #include <stdio.h>
 #include <string.h>
 #include <stddef.h>
 #include <stdint.h>
-#include "abstraction/IzotConfig.h"
+
 #include "izot/IzotPlatform.h"
 #include "izot/IzotTypes.h"
 #include "common/EchelonStandardDefinitions.h"

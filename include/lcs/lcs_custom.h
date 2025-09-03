@@ -34,7 +34,6 @@
  Section: Includes
  ------------------------------------------------------------------------------*/
 #include <stddef.h>
-#include "abstraction/IzotConfig.h"
 #include "izot/IzotPlatform.h"
 #include "izot/IzotTypes.h"
 // #include "lcs/lcs_eia709_1.h" 

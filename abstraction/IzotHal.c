@@ -19,7 +19,7 @@
 extern "C" {
 #endif
 
-#include "abstraction/IzotConfig.h" // Project-specific configuration
+#include "izot/IzotPlatform.h" // Project-specific configuration
  
 #if OS_IS(LINUX)
 #include <stdio.h>

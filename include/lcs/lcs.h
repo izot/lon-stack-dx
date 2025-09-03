@@ -22,7 +22,8 @@
 // SOFTWARE.
 
 #include <stddef.h>
-#include "abstraction/IzotConfig.h"
+
+#include "izot/IzotPlatform.h"
 #include "izot/IzotApi.h"
 #include "izot/IzotTypes.h"
 #include "lcs/lcs_platform.h"

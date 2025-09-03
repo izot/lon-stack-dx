@@ -34,7 +34,6 @@
 Section: Includes
 ------------------------------------------------------------------------------*/
 #include <string.h>
-#include "abstraction/IzotConfig.h"
 #include "izot/IzotPlatform.h"
 #include "izot/IzotTypes.h"
 #include "abstraction/IzotEndian.h"

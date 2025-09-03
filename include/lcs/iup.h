@@ -33,7 +33,7 @@
 
 #include <stdio.h>
 #include <string.h>
-#include "abstraction/IzotConfig.h"
+#include "izot/IzotPlatform.h"
 #include "izot/IzotApi.h"
 #include "abstraction/IzotHal.h"
 // #include "abstraction/endian.h"

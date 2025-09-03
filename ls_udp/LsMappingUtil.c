@@ -22,7 +22,8 @@
 // SOFTWARE.
 
 #include <string.h>
-#include "abstraction/IzotConfig.h"
+
+#include "izot/IzotPlatform.h"
 #include "izot/IzotApi.h"
 #include "ls_udp/IPv4ToLsUdp.h"
 #include "abstraction/IzotCal.h"

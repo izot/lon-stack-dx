@@ -28,7 +28,6 @@
 #ifndef _PLATFORM_H
 #define _PLATFORM_H
 
-#include "abstraction/IzotConfig.h"
 #include "izot/IzotPlatform.h"
 #include "common/echversion.h"
 
