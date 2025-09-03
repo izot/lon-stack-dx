@@ -519,9 +519,9 @@ IzotApiError HalGetMacAddress(unsigned char *mac)
 
     return IzotApiNoError; // Success
 #elif PROCESSOR_IS(MC200)
-    return (wlan_get_mac_address(mac) ? IzotMacIdNotAvailable : IzotApiNoError);
+    return (wlan_get_mac_address(mac) ? IzotApiMacIdNotAvailable : IzotApiNoError);
 #else
-    return IzotMacIdNotAvailable;
+    return IzotApiMacIdNotAvailable;
 #endif
 }
 
