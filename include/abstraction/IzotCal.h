@@ -35,10 +35,12 @@
 /*****************************************************************
  * Section: Globals
  *****************************************************************/
+#if LINK_IS(ETHERNET) || LINK_IS(WIFI)
 extern IzotByte	ownIpAddress[IPV4_ADDRESS_LEN]; 
                 // Buffer to store the IP address
 extern IzotBool is_connected;
                 // Flag to report IP link connectivity
+#endif  // LINK_IS(ETHERNET) || LINK_IS(WIFI)
 
 /*****************************************************************
  * Section: Function Declarations

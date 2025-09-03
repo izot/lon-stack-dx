@@ -188,7 +188,7 @@ IZOT_EXTERNAL_FN IzotApiError IzotEventPump(void)
 {
     IzotApiError ret = IzotApiNoError;
 
-#if LINK_IS(WIFI) || LINK_IS(ETHERNET) || LINK_IS(USB)
+#if LINK_IS(WIFI) || LINK_IS(ETHERNET)
     CheckNetworkStatus();
 
 	if(is_connected) {    
@@ -1667,6 +1667,7 @@ IZOT_EXTERNAL_FN unsigned IzotGetStaticDatapointCount()
 IZOT_EXTERNAL_FN IzotApiError IzotGetDidFromLocalAddress(IzotByte* pDid, IzotByte* pDidLen, IzotByte* pSub, 
 IzotByte* pNode)
 {
+#if LINK_IS(ETHERNET) || LINK_IS(WIFI)
     const IzotByte* pDomainId = (IzotByte *)ownIpAddress;
     if (ownIpAddress[0] == 192 && ownIpAddress[1] == 168) {
         *pDidLen = 0;
@@ -1680,8 +1681,10 @@ IzotByte* pNode)
     memcpy(pDid, pDomainId, *pDidLen);
     *pSub = ownIpAddress[2];
     *pNode = ownIpAddress[3];
-    
     return IzotApiNoError;
+#else
+    return IzotApiInvalidParameter;
+#endif  // LINK_IS(ETHERNET) || LINK_IS(WIFI)
 }
 
 /*

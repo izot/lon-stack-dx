@@ -247,10 +247,10 @@ static void EventNormalConnected(void *data)
     readIupPersistData();
 #endif  // !IUP_IS(NO_IUP)
 
+#if LINK_IS(ETHERNET) || LINK_IS(WIFI)
     is_connected = 1;
     CAL_Printf("Connected\r\n");
 
-#if LINK_IS(ETHERNET) || LINK_IS(WIFI)
     // Set current LON/IP address and send announcement
     SendAnnouncement();
 
@@ -274,8 +274,10 @@ static void EventNormalConnected(void *data)
  */ 
 static void EventNormalUserDisconnect(void *data)
 {
+#if LINK_IS(ETHERNET) || LINK_IS(WIFI)
     is_connected = 0;
     CAL_Printf("Disconnected\r\n");
+#endif  // LINK_IS(ETHERNET) || LINK_IS(WIFI)
 }
 
 
@@ -291,8 +293,10 @@ static void EventNormalUserDisconnect(void *data)
  */ 
 static void EventNormalLinkLost(void *data)
 {
+#if LINK_IS(ETHERNET) || LINK_IS(WIFI)
     is_connected = 0;
     CAL_Printf("Link Lost\r\n");
+#endif  // LINK_IS(ETHERNET) || LINK_IS(WIFI)
 }
 
 

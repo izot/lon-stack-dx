@@ -1201,6 +1201,7 @@ void HandleNmeQueryLsAddrMapping(APPReceiveParam *appReceiveParamPtr, APDU *apdu
  Purpose:   Handle incoming query IP address message
  *******************************************************************************/
 void HandleNmeQueryIpAddress(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
+#if LINK_IS(ETHERNET) || LINK_IS(WIFI)
     struct {
         IzotByte subcommand;
         IzotByte ipAddress[IP_ADDRESS_LEN];
@@ -1221,6 +1222,9 @@ void HandleNmeQueryIpAddress(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
     
     SendResponse(appReceiveParamPtr->reqId, NM_resp_success | NM_EXPANDED,
                 sizeof(reportIpAddress), (IzotByte*) &reportIpAddress);
+#else
+    NMNDRespond(NM_MESSAGE, FAILURE, appReceiveParamPtr, apduPtr);
+#endif  // OS_IS(ETHERNET) || OS_IS(WIFI)
 }
 
 /*******************************************************************************
