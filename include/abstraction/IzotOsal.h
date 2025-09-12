@@ -44,13 +44,10 @@
  */
 
 /*
- *  Macro: MAX_TIMEOUT_TICKS
- *  The maximum number of ticks supported by uC/OS-II when waiting on an event.
- *
- *  The uC/OS-II primitives use a 16-bit tick count for all of their timeouts,
- *  but the OSAL supports 32-bit timeouts.
+ *  Macro: MAX_TIMEOUT_MS
+ *  The maximum number of milliseconds for OsalSleep
  */
-#define MAX_TIMEOUT_TICKS 0xffff
+#define MAX_TIMEOUT_MS 0xffffffff
 
 /* 
  *  Enumeration: OsalStatus

@@ -104,63 +104,26 @@ OsalTickCount GetTicksPerSecond(void){
  * <IzotGetTickCount>.
  * 
  */
-OsalStatus OsalSleep(unsigned int ticks)
+OsalStatus OsalSleep(unsigned int msecs)
 {
-    if (ticks <= MAX_TIMEOUT_TICKS) {
-#if PLATFORM_IS(FRTOS_ARM_EABI)
-        os_thread_sleep(os_msec_to_ticks(ticks));
-#elif PLATFORM_IS(RPI) || PLATFORM_IS(RPI_PICO)
-        delay(ticks);
-#else
-        nanosleep((const struct timespec[]){{(int)(ticks / 1000), (ticks % 1000) * 1000000L}}, NULL);
-#endif
-    } else {
-        // Tick count exceeds the maximum number of ticks supported by 
-        // uC/OS-II.  It will be necessary to wait more than one time.
-        // But first, get the start time so that the remaining timeout can be 
-        // calculated.
-        //  
-        OsalTickCount startTime = IzotGetTickCount();
-        OsalTickCount ticksRemaining = ticks;
-
-        do {        
-            uint16_t timeout;
-            if (ticksRemaining > MAX_TIMEOUT_TICKS) {
-                // Cannot wait that long.  Wait for MAX_TIMEOUT_TICKS instead. 
-                // 
-                timeout = MAX_TIMEOUT_TICKS; 
-            } else {
-                timeout = ticksRemaining;
-            }
-            ticksRemaining -= timeout;
-            
-            // Wait for "timeout" tick counts.      
-            #if PLATFORM_IS(FRTOS_ARM_EABI)
-                os_thread_sleep(os_msec_to_ticks(timeout));
-            #elif PLATFORM_IS(RPI) || PLATFORM_IS(RPI_PICO)
-                delay(ticks);
-            #else
-                nanosleep((const struct timespec[]){{(int)(timeout / 1000), (timeout % 1000) * 1000000L}}, NULL);
-            #endif
-
-            if (ticksRemaining) {
-                // Recalculate how many ticks are really remaining to prevent 
-                // drift. 
-                // 
-                OsalTickCount elapsedTime = IzotGetTickCount() - startTime;
-                if (ticks > elapsedTime) {
-                    // ticksRemaining is the difference between the original 
-                    // tick count and the number of elapsed ticks.
-                    // 
-                    ticksRemaining = ticks - elapsedTime;
-                } else {
-                    // Already timed out.
-                    ticksRemaining = 0;
-                }
-            }
-        } while (ticksRemaining);
+    if (msecs > MAX_TIMEOUT_MS) {
+        msecs = MAX_TIMEOUT_MS;
     }
 
+#if OS_IS(LINUX)
+    struct timespec ts;
+    ts.tv_sec = msecs / 1000;
+    ts.tv_nsec = (msecs % 1000) * 1000000L;
+    nanosleep(&ts, NULL);   // High resolution sleep in user-space
+#elif OS_IS(LINUX_KERNEL)
+    msleep(msecs);          // Sleeps for the given number of milliseconds
+#elif OS_IS(FREERTOS)
+    vTaskDelay(pdMS_TO_TICKS(msecs)); // Uses the FreeRTOS tick conversion macro
+#elif PLATFORM_IS(RPI) || PLATFORM_IS(RPI_PICO)
+    delay(msecs);
+#else
+    #pragma message("Implement millisecond delay")
+#endif
     return OSALSTS_SUCCESS;    
 }
 
