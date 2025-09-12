@@ -1,0 +1,2 @@
+# Ignore local AI assistant guidance (keep private/local)
+.github/copilot-instructions.md
