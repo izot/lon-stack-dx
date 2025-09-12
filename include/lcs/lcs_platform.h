@@ -56,10 +56,4 @@
 
 #include "common/bitfield.h"
 
-// Specify a way for the application program to suspend so that other apps can run and we don't consume all the CPU
-#ifdef WIN32
-#include "windows.h"
-#define TAKE_A_BREAK Sleep(1);
-#endif
-
 #endif   /* _PLATFORM_H */

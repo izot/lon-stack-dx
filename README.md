@@ -36,9 +36,9 @@ Following is a high-level summary of the LON Stack DX file structure.
                     + lcs_network.c -- Layer 3 (network layer)
                         + NWSend() -- Network layer send processing
                         + NWReceive() -- Network layer receive processing
-                    + lcs_link.c -- Layer 2 (data link layer) for a Neuron MIP data link
-                        + LKSend() -- Neuron/MIP data link layer send processing 
-                        + LKReceive() -- Neuron/MIP data link layer receive processing
+                    + lcs_link.c -- Layer 2 (data link layer) for a LON USB or MIP data link
+                        + LKSend() -- LON USB or MIP data link layer send processing 
+                        + LKReceive() -- LON USB or MIP data link layer receive processing
                     + IPv4ToLsUdp.c -- Layer 2 (data link layer) for a UDP/IP data link
                         + LsUDPSend() -- UDP/IP data link layer send processing 
                         + LsUDPReceive() -- UDP/IP data link layer receive processing

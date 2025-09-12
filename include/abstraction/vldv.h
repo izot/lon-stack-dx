@@ -55,10 +55,7 @@
 #define SMP_MODE_L2		(nicbMODE_L2&0x0F)
 
 // This is a non-standard form of LDV.  This is because we use
-// the LDV API to map to VNI calls.  This provides the flexibility
-// of VNI on the simulators.  We also rename the symbols from
-// standard LDV to avoid conflicts with software that uses the
-// actual LDV (such as the i.lon).
+// the LDV API to map to LON link calls.
 
 #define LDV_EXTERNAL_FN
 
@@ -93,10 +90,10 @@ typedef short LDVCode;
 
 C_API_START
 	
-LDVCode LDV_EXTERNAL_FN vldv_open(const char* pName, pShort handle);
-LDVCode LDV_EXTERNAL_FN vldv_close(short handle);
-LDVCode LDV_EXTERNAL_FN vldv_read(short handle, pVoid msg_p, short len);
-LDVCode LDV_EXTERNAL_FN vldv_write(short handle, pVoid msg_p, short len);
+LDVCode LDV_EXTERNAL_FN OpenLonLink(const char* name, pShort handle);
+LDVCode LDV_EXTERNAL_FN CloseLonLink(short handle);
+LDVCode LDV_EXTERNAL_FN ReadLonLink(short handle, pVoid msg, short len);
+LDVCode LDV_EXTERNAL_FN WriteLonLink(short handle, pVoid msg, short len);
 
 C_API_END
 

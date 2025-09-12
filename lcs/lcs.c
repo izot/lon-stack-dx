@@ -135,14 +135,14 @@ void LCS_Service()
 		TPSend();
 		AuthSend();
 		NWSend();
-		#if LINK_IS(MIP)
+		#if LINK_IS(MIP) || LINK_IS(USB)
 			LKSend();
 		#else // !LINK_IS(MIP)
 			LsUDPSend();
 		#endif // LINK_IS(MIP)
 		
 		// Call all the Receive functions.
-		#if LINK_IS(MIP)
+		#if LINK_IS(MIP) || LINK_IS(USB)
 			LKReceive();
 		#else // !LINK_IS(MIP)
 			LsUDPReceive();

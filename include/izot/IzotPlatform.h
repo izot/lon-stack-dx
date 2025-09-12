@@ -1305,7 +1305,25 @@
     #error Missing platform specification in IzotConfig.h and IzotPlatform.h
 #endif
 
-/*****************************************************************
+/*
+ *****************************************************************
+ * Section: Platform-Dependent Link Definitions
+ *****************************************************************/
+
+#if LINK_IS(USB)
+#define OpenLonLink OpenLonUsbLink
+#define CloseLonLink CloseLonUsbLink
+#define ReadLonLink  ReadLonUsbLink
+#define WriteLonLink WriteLonUsbLink
+#elif LINK_IS(ETHERNET) || LINK_IS(WIFI)
+// No special definitions required for Ethernet or Wi-Fi UDP/IP links.  
+// Equivalent functions are defined in LsUDPReset(), LsUDPSend(), 
+// LSUDPReceive(), and LsUDPReset() in IPv4ToLsUdp.c.
+#else   // !LINK_IS(USB) && !LINK_IS(ETHERNET) && !LINK_IS(WIFI)
+#pragma message("Implement LON link interface code")
+#endif
+
+ /*****************************************************************
  * Section: Neuron C Type Equivalents
  *****************************************************************/
 
