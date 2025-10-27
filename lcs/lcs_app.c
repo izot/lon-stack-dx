@@ -1819,15 +1819,15 @@ static void SwapByte(void *dst, const void *src, uint16_t srcSize)
 
 /*******************************************************************************
 Function:  IzotNdiToHdi
-Returns:   IzotApiError
+Returns:   LonStatusCode
 Reference: None
 Purpose:   Convert the incoming network data into host data
 Comments:  None.
 *******************************************************************************/
-IzotApiError IzotNdiToHdi(const IzotByte *ndi, IzotByte *hdi, const IzotByte *ibol)
+LonStatusCode IzotNdiToHdi(const IzotByte *ndi, IzotByte *hdi, const IzotByte *ibol)
 {
     int i = 0;
-    IzotApiError error = IzotApiNoError;
+    LonStatusCode error = LonStatusNoError;
     uint16_t hdo = 0;
     uint16_t ndo = 0;
     uint16_t size = 0;

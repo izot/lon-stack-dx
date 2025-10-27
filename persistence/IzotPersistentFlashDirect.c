@@ -88,15 +88,15 @@ static size_t dataSegmentSize[IzotPersistentSegNumSegmentTypes] = {
  *****************************************************************/
 
 // Opens the persistent memory for access via the HAL functions
-static IzotApiError OpenFlash(
+static LonStatusCode OpenFlash(
         const IzotPersistentSegType persistentSegType);
 
 // Initializes the persistent segment map
-static IzotApiError InitSegmentMap(
+static LonStatusCode InitSegmentMap(
         const IzotPersistentSegType persistentSegType);
 
 // Erases a persistent segment
-static IzotApiError EraseSegment(
+static LonStatusCode EraseSegment(
         const IzotPersistentSegType persistentSegType, size_t size);
 
 #ifdef FLASH_DEBUG
@@ -168,7 +168,7 @@ IzotPersistentSegType IzotFlashSegOpenForRead(const IzotPersistentSegType persis
 IzotPersistentSegType IzotFlashSegOpenForWrite(const IzotPersistentSegType persistentSegType, 
         const size_t size)
 {
-    IzotApiError sts = IzotApiNoError;
+    LonStatusCode sts = LonStatusNoError;
     IzotPersistentSegType returnedSegType = IzotPersistentSegUnassigned;
 #ifdef FLASH_DEBUG
     if (persistentTraceEnabled) {
@@ -273,10 +273,10 @@ void IzotFlashSegDelete(const IzotPersistentSegType persistentSegType)
  *  the segment. The offset in each subsequent call will be incremented by
  *  the size of the previous call.
  */
-IzotApiError IzotFlashSegRead(const IzotPersistentSegType persistentSegType, const size_t offset, 
+LonStatusCode IzotFlashSegRead(const IzotPersistentSegType persistentSegType, const size_t offset, 
         const size_t size, IzotByte * const pBuffer) 
 {
-    IzotApiError sts = IzotApiNoError;
+    LonStatusCode sts = LonStatusNoError;
     
 #ifdef FLASH_DEBUG
     if (persistentTraceEnabled) {
@@ -341,10 +341,10 @@ IzotApiError IzotFlashSegRead(const IzotPersistentSegType persistentSegType, con
  *  the segment. The offset in each subsequent call will be incremented by
  *  the size of the previous call.
  */
-IzotApiError IzotFlashSegWrite(const IzotPersistentSegType persistentSegType, const size_t offset, 
+LonStatusCode IzotFlashSegWrite(const IzotPersistentSegType persistentSegType, const size_t offset, 
         const size_t size, const IzotByte* const pData) 
 {
-    IzotApiError sts = IzotApiNoError;
+    LonStatusCode sts = LonStatusNoError;
 
 #ifdef FLASH_DEBUG
     if (persistentTraceEnabled) {
@@ -439,7 +439,7 @@ IzotBool IzotFlashSegIsInTransaction(const IzotPersistentSegType persistentSegTy
     // will be interpreted as being in a transaction - that is, the data 
     // segment is invalid.
     IzotBool inTransaction = 1;
-    IzotApiError sts = IzotApiNoError;
+    LonStatusCode sts = LonStatusNoError;
 
 #ifdef FLASH_DEBUG
     if (persistentTraceEnabled) {
@@ -503,9 +503,9 @@ IzotBool IzotFlashSegIsInTransaction(const IzotPersistentSegType persistentSegTy
  *  the non-persistent image, and schedules writes to update the non-volatile 
  *  storage at a later time.  
  */
-IzotApiError IzotFlashSegEnterTransaction(const IzotPersistentSegType persistentSegType)
+LonStatusCode IzotFlashSegEnterTransaction(const IzotPersistentSegType persistentSegType)
 {
-    IzotApiError sts = IzotApiNoError;
+    LonStatusCode sts = LonStatusNoError;
 
 #ifdef FLASH_DEBUG
     if (persistentTraceEnabled) {
@@ -571,9 +571,9 @@ IzotApiError IzotFlashSegEnterTransaction(const IzotPersistentSegType persistent
  *  <IzotFlashSegWrite> has returned success and there are no further 
  *  updates required.   
  */
-IzotApiError IzotFlashSegExitTransaction(const IzotPersistentSegType persistentSegType)
+LonStatusCode IzotFlashSegExitTransaction(const IzotPersistentSegType persistentSegType)
 {
-    IzotApiError sts = IzotApiNoError;
+    LonStatusCode sts = LonStatusNoError;
 
 #ifdef FLASH_DEBUG
     if (persistentTraceEnabled) {
@@ -671,15 +671,15 @@ void EraseSecIIPersistentData(void)
  *  pFd -  pointer to flash file descriptor, to be returned by this function.
  *
  *  Returns:
- *  <IzotApiError>.   
+ *  <LonStatusCode>.   
  */
-static IzotApiError OpenFlash(const IzotPersistentSegType persistentSegType)
+static LonStatusCode OpenFlash(const IzotPersistentSegType persistentSegType)
 {
-    IzotApiError sts = IzotApiNoError;
+    LonStatusCode sts = LonStatusNoError;
 
     if (persistentSegType > IzotPersistentSegNumSegmentTypes) {
         // Invalid data type
-        sts = IzotApiPersistentFileError;
+        sts = LonStatusPersistentDataAccessError;
     } else {
         // Initialize segmentMap, if necessary
         if (IZOT_SUCCESS(sts = InitSegmentMap(persistentSegType))) {
@@ -702,11 +702,11 @@ static IzotApiError OpenFlash(const IzotPersistentSegType persistentSegType)
  *  persistentSegType - segment type
  *
  *  Returns:
- *  <IzotApiError>.   
+ *  <LonStatusCode>.   
  */
-static IzotApiError InitSegmentMap(const IzotPersistentSegType persistentSegType)
+static LonStatusCode InitSegmentMap(const IzotPersistentSegType persistentSegType)
 {
-    IzotApiError sts = IzotApiNoError;
+    LonStatusCode sts = LonStatusNoError;
 
     // Initialize persistent memory
     if (!IZOT_SUCCESS(sts = HalFlashDrvInit())) {
@@ -718,7 +718,7 @@ static IzotApiError InitSegmentMap(const IzotPersistentSegType persistentSegType
         // Open the flash
         if (!IZOT_SUCCESS(sts = HalFlashDrvOpen())) {
             // Flash cannot be opened.
-            return IzotApiPersistentFileError;
+            return LonStatusPersistentDataAccessError;
         } 
 
         // Get the flash information from the HAL
@@ -732,7 +732,7 @@ static IzotApiError InitSegmentMap(const IzotPersistentSegType persistentSegType
                 &block_size, &number_of_regions);
         if (!IZOT_SUCCESS(sts)) {
             // Flash information cannot be read
-            return IzotApiPersistentFileError;
+            return LonStatusPersistentDataAccessError;
         }
         if (number_of_regions >= 1) {
             // This code always places all the data segments in the first 
@@ -807,15 +807,15 @@ static IzotApiError InitSegmentMap(const IzotPersistentSegType persistentSegType
  *  size - size of data, in bytes
  *
  *  Returns:
- *  <IzotApiError>.   
+ *  <LonStatusCode>.   
  *
  *  Remarks:
  *  After erasing the flash, all of the bytes will be 0xff.  Writing to the 
  *  flash can only change 1 bits to 0 bits.
  */
-static IzotApiError EraseSegment(const IzotPersistentSegType persistentSegType, size_t size)
+static LonStatusCode EraseSegment(const IzotPersistentSegType persistentSegType, size_t size)
 {
-    IzotApiError sts = IzotApiNoError;
+    LonStatusCode sts = LonStatusNoError;
 
     // Get the start of the segment.
     size_t offset = segmentMap[persistentSegType].segmentStart;

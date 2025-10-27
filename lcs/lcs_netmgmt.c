@@ -105,10 +105,10 @@ static unsigned    DmfWindowSize;
 extern void IzotWink(void);
 extern void IzotOffline(void);
 extern void IzotOnline(void);
-extern IzotApiError IzotMemoryRead(
+extern LonStatusCode IzotMemoryRead(
 const unsigned address, const unsigned size, void* const pData
 );
-extern IzotApiError IzotMemoryWrite(
+extern LonStatusCode IzotMemoryWrite(
 const unsigned address, const unsigned size, const void* const pData
 );
 

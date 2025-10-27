@@ -50,10 +50,10 @@ extern IzotBool is_connected;
  * Parameters:
  *   None
  * Returns:
- *   IzotApiNoError (0) on success, or an <IzotApiError> error code
+ *   LonStatusNoError (0) on success, or an <LonStatusCode> error code
  *   on failure.
  */
-extern IzotApiError CalStart(void);
+extern LonStatusCode CalStart(void);
 
 /*
  * Sets the current IP address.

@@ -61,72 +61,198 @@ typedef IZOT_ENUM_BEGIN(IzotSystemError) {
     /* 164 */ IzotRouterFirmwareVersionMismatch = 164u
 } IZOT_ENUM_END(IzotSystemError);
 
-// IzoT API error codes.  The IZOT_SUCCESS macro can be used to test for success.
-typedef IZOT_ENUM_BEGIN(IzotApiError) {
-    /*    0    */ IzotApiNoError = 0,                       // No error; use the IZOT_SUCCESS macro
-                                                            // to test for this condition
-    // Datapoint-related errors
-    /*    1    */ IzotApiDatapointIndexInvalid =1,          // Invalid datapoint index
-    /*    2    */ IzotApiDatapointLengthMismatch,           // Assumed length is not equal to 
-                                                            // actual length
-    /*    3    */ IzotApiDatapointLengthTooLong,            // Datapoint data is too long
-    /*    4    */ IzotApiDatapointPollNotPolledDatapoint,   // Polling input datapoint requires 
-                                                            // declaration of polled attribute 
-                                                            // in the model file
-    /*    5    */ IzotApiDatapointPollOutputDatapoint,      // Cannot poll output datapoint
-    /*    6    */ IzotApiDatapointPropagateInputDatapoint,  // Cannot propagate input datapoint
-    /*    7    */ IzotApiDatapointPropagatePolledDatapoint, // Cannot propagate a polled datapoint
-    // Application message-related errors
-    /*    11   */ IzotApiMsgExplicitAddrMissing = 11,       // Explicit destination required but missing
-    /*    12   */ IzotApiMsgInvalidMsgTag,                  // Invalid message tag provided
-    /*    13   */ IzotApiMsgLengthTooLong,                  // Message data exceeds limits
-    /*    14   */ IzotApiMsgNotRequest,                     // Message should be sent as a request
-    /*    15   */ IzotApiMsgInvalidCode,                    // Invalid message code
-    /*    16   */ IzotApiMsgInvalidCorrelator,              // Invalid <IzotCorrelator>
-    /*    17   */ IzotApiMsgInvalidAddress,                 // Invalid address
-    // Network interface-related errors
-    /*    31   */ IzotApiTxBufIsFull              = 31,     // No transmit (downlink) buffer available
-    /*    32   */ IzotApiRxMsgNotAvailable,                 // No message has been received from the Micro Server
-    /*    33   */ IzotApiMicroServerUnresponsive,           // Micro Server is not responding to RTS
-    // General API errors
-    /*    41   */ IzotApiVersionNotAvailable    = 41,       // Link-layer protocol version information unavailable
-    /*    42   */ IzotApiNeuronIdNotAvailable,              // Unique ID (Neuron or MAC ID) unavailable
-    /*    43   */ IzotApiMacIdNotAvailable,                 // MAC ID unavailable
-    /*    44   */ IzotApiInitializationFailure,             // Initialization failed
-    /*.   45.  */ IzotApiRebootFailure,                     // Reboot failed
-    /*    45   */ IzotApiIndexInvalid,                      // Invalid index (for Datapoint indices, see IzotApiDatapointIndexInvalid)
-    /*    46   */ IzotApiMessageNotAvailable,               // Invalid index (for Datapoint indices, see IzotApiDatapointIndexInvalid)
-    /*    47   */ IzotApiNotInitialized,                    // API is not currently initialized; call <IzotInit>
-    /*    48   */ IzotApiVersionNotSupported,               // Structure version not supported
-    /*    49   */ IzotApiNotAllowed,                        // Operation not allowed
-    /*    50   */ IzotApiInvalidParameter,                  // Invalid parameter specified
-    /*    51   */ IzotApiOffline,                           // Operation not allowed while device is offline
-    /*    52   */ IzotApiCallbackNotRegistered,             // Callback function has not been registered
-    /*    53   */ IzotApiCallbackExceptionError,            // An exception when executing the callback function
-    // Persistent data management errors
-    /*    71   */ IzotApiInvalidSegmentType   = 71,         // Not a supported persistent segment type
-    /*    72   */ IzotApiPersistentFailure,                 // Generic persistent data failure
-    /*    73   */ IzotApiPersistentSizeNotSupported,        // Persistent data size is not supported
-    /*    74   */ IzotApiPersistentDirError,                // Persistent data directory error
-    /*    75   */ IzotApiPersistentFileError,               // Persistent data access error
-    // Direct Memory File (DMF) access errors
-    /*    81   */ IzotApiDmfOutOfRange         = 81,        // DMF address + count is out of range for operation
-    /*    82   */ IzotApiDmfReadOnly           = 82,        // Write to read-only DMF area
-    /*    83   */ IzotApiDmfNoDriver           = 83,        // No DMF driver defined
+// Return status codes
+typedef enum {
+    LonStatusNoError                        = 0,    // No error; used by the IZOT_SUCCESS macro
 
-    /*    90   */ IzotApiNoNetworkInterface     = 90,       // No Network Interface defined. See IzotGetMyNetworkInterface in IzoTHandlers.c
-    /*    91   */ IzotApiNoIpAddress            = 91,       // No IP address defined.  See IzotGetMyIpAddress in IzoTHandlers.c
-    /*    92   */ IzotUnknownLTSDeviceType      = 92,       // Unknown LTS device type
-    /*    93   */ IzotInvalidDeviceURI          = 93,       // Unknown LTS device URI
-    /*
-     * Interoperable Self Installation (ISI)  errors.
-     */
-    /*    500  */    IsiNoConnectionSpace       = 500,      // No space for connection
-    /*    501  */    IsiEngineNotRunning        = 501       // ISI engine not running
-} IZOT_ENUM_END(IzotApiError);
+    // Original LDV codes
+    LonStatusNotFound						= 1,
+    LonStatusAlreadyOpen					= 2,
+    LonStatusNotOpen						= 3,
+    LonStatusInterfaceError					= 4,
+    LonStatusInvalidInterfaceId				= 5,
+    LonStatusNoMessageAvailable				= 6,
+    LonStatusNoBufferAvailable				= 7,
+    LonStatusNoResourcesAvailable			= 8,
+    LonStatusInvalidBufferLength			= 9,
+    LonStatusNotEnabled						= 10,
 
-// Evaluate success or failure of an IzotApiError value
-#define IZOT_SUCCESS(n)   ((n) == IzotApiNoError)
+    // LDV codes added in OpenLDV 1.0
+    LonStatusInitializationFailed			= 11,
+    LonStatusOpenFailed 					= 12,
+    LonStatusCloseFailed					= 13,
+    LonStatusReadFailed						= 14,
+    LonStatusWriteFailed					= 15,
+    LonStatusRegisterFailed					= 16,
+    LonStatusInvalidXDriver					= 17,
+    LonStatusDebugFailed					= 18,
+    LonStatusAccessDenied					= 19,
+
+    // LDV codes added in OpenLDV 2.0
+    LonStatusCapableDeviceNotFound			= 20,
+    LonStatusNoMoreCapableDevices			= 21,
+    LonStatusCapabilityNotSupported			= 22,
+    LonStatusInvalidDriverInfo				= 23,
+    LonStatusInvalidDeviceInfo				= 24,
+    LonStatusDeviceInUse					= 25,
+    LonStatusNotImplemented					= 26,
+    LonStatusInavlidParameter				= 27,
+    LonStatusInvalidDriverId				= 28,
+    LonStatusInvalidDataFormat				= 29,
+    LonStatusInternalError					= 30,
+    LonStatusException						= 31,
+    LonStatusDriverUpdateFailed				= 32,
+    LonStatusDeviceUpdateFailed				= 33,
+    LonStatusStdDriverTypeReadOnly			= 34,
+	LonStatusFrameError					    = 35,
+	LonStatusFrameTimeout				    = 36,
+
+    // LDV codes added in OpenLDV 4.0
+    LonStatusOutputBufferSizeMismatch		= 40,	// Priority and non-priority output buffer sizes must be the same
+    LonStatusInvalidBufferParameter			= 41,	// Invalid buffer parameter (e.g. too large)
+    LonStatusInvalidBufferCount				= 42,	// Invalid buffer count (e.g. need at least one buffer of each type)
+    LonStatusPriorityBufferCountMismatch	= 43,	// If one of the priority output buffer counts is zero, then both must be zero
+    LonStatusBufferSizeTooSmall				= 44,	// Buffer size is too small to support subsequent buffer configuration changes
+    LonStatusBufferConfigurationTooLarge	= 45,	// Requested buffer configuration is too large to fit in available space
+    LonStatusAppBufferSizeMismatchWarning	= 46,	// Application buffer input-output size mismatch may cause problems (warning only)
+
+    // LON stack codes
+	LonStatusOutOfRange						= 50,
+	LonStatusTimeout						= 51,
+	LonStatusNoMemoryAvailable				= 52,
+	LonStatusUnderflow						= 53,
+	LonStatusOverflow						= 54,
+	LonStatusDataIntegrityError				= 55,
+	LonStatusSecurityViolation				= 56,
+	LonStatusCreateFailure					= 57,
+	LonStatusRemoveFailure					= 58,
+	LonStatusInvalidOperation				= 59,
+	LonStatusInvalidParameter				= 60,   // Invalid parameter specified
+	LonStatusOffline						= 61,   // Operation not supported while device is offline
+	LonStatusChecksumError					= 62,	// Checksum error detected
+
+    // OSAL codes
+	LonStatusCriticalSectionError			= 63,	// Generic error accessing a critical section
+	LonStatusSemaphoreError					= 64,	// Generic error creating or accessing a binary semaphore
+	LonStatusEventError						= 65,	// Generic error creating or accessing an event
+	LonStatusTaskCreationError				= 66,	// Failed to create a task
+
+	// Interoperable Self Installation (ISI) codes
+	IsiNoConnectionSpace					= 67,	// No space for connection
+	IsiEngineNotRunning						= 68,	// ISI engine not running
+
+	// Datapoint-related codes
+	LonStatusDpIndexInvalid 				= 70,	// Invalid datapoint index
+	LonStatusDpLengthMismatch				= 71,	// Assumed and actual length not equal
+	LonStatusDpLengthTooLong				= 72,   // Datapoint data is too long
+	LonStatusDpPollNotPolledDatapoint		= 73,   // Polled attribute missing for polling input datapoint 
+	LonStatusDpPollOutputDatapoint			= 74,   // Cannot poll output datapoint
+	LonStatusInputDpPropagateFailure		= 75,   // Cannot propagate input datapoint
+	LonStatusPolledDpPropagateFailure		= 76,   // Cannot propagate polled datapoint
+
+   	// Application message-related codes
+	LonStatusDestinationAddressMissing 		= 80,   // Explicit destination required but missing
+	LonStatusInvalidMessageTag				= 81,   // Invalid message tag provided
+	LonStatusInvalidMessageLength			= 82,   // Message data exceeds limits
+	LonStatusInvalidMessageService			= 83,   // Message cannot be sent as a request
+	LonStatusInvalidMessageCode				= 84,   // Invalid message code
+	LonStatusInvalidMessageCorrelator		= 85,   // Invalid message correlator
+	LonStatusInvalidMessageAddress			= 86,   // Invalid message address
+
+   	// Network interface-related codes
+	LonStatusLniNotDefined					= 89,	// No Network Interface defined. See IzotGetMyNetworkInterface in IzoTHandlers.c
+	LonStatusLniNotResponding				= 90,   // LON network interface not responding
+	LonStatusLniUniqueIdNotAvailable		= 91,   // LON network interface unique ID not available
+	LonStatusLniWriteFailure				= 92,   // Failed to write to LON network interface
+	LonStatusTxBufferFull              		= 93,   // No transmit (downlink) buffer available
+	LonStatusRxMessageNotAvailable			= 94,   // No message received from the LON network interface
+
+    // LON stack-related codes
+	LonStatusLlpVersionNotAvailable    		= 95,   // Link-layer protocol version information not available
+	LonStatusDeviceUniqeIdNotAvailable		= 96,   // Device unique ID (Neuron or MAC ID) unavailable
+	LonStatusdDeviceUriInvalid				= 97, 	// LON stack device URI is invalid
+	LonStatusStackNotInitialized			= 98,   // LON stack not initialized
+	LonStatusStackInitializationFailure		= 99,   // LON stack initialization failed
+	LonStatusHostRebootFailure				= 100,	// LON stack host reboot failed
+	LonStatusIpAddressNotDefined			= 101,	// No IP address defined
+	LonStatusIndexInvalid					= 102,  // Invalid index (not a datapoint index)
+	LonStatusMessageNotAvailable			= 103,	// Message not available
+	LonStatusInvalidStructureVersion		= 104,  // Structure version not supported
+	LonStatusCallbackNotRegistered			= 105,	// Callback function has not been registered
+	LonStatusCallbackExceptionError			= 106,	// An exception when executing a callback function
+	LonStatusUnknownStackDeviceType			= 107,  // Unknown LON stack device type
+
+	// Persistent data management codes
+	LonStatusInvalidSegmentType   			= 108,  // Not a supported persistent segment type
+	LonStatusPersistentDataFailure			= 109,	// Generic persistent data failure
+	LonStatusIvalidPersistentDataSize		= 110,	// Persistent data size is not supported
+	LonStatusPersistentDataDirError			= 111,	// Persistent data directory error
+	LonStatusPersistentDataAccessError		= 112,	// Persistent data access error
+
+	// Direct Memory File (DMF) access codes
+	LonStatusDmfAddressOutOfRange			= 115,	// DMF address + count is out of range for operation
+	LonStatusDmfReadOnly					= 116,  // Write to read-only DMF area
+	LonStatusDmfNoDriver					= 117,	// No DMF driver defined
+	// System and LON stack error codes logged in the system event log.
+	// these can be accessed using the Query Status network management command.
+	// The standard system errors range from 129 to 255. Values between 1 and 128
+	// are application-specific (but serious) errors. Values used by the LON
+	// stack are also included in the <IzotSystemError> enumeration.  The standard
+	// system error codes are described in the ISO/IEC 14908-1 protocol standard.
+	LonStatusBadEvent						= 129,
+	LonStatusDatapointLengthMismatch		= 130,
+    LonStatusDatapointMsgTooShort			= 131,
+    LonStatusEepromWriteFail				= 132,
+    LonStatusBadAddressType					= 133,
+    LonStatusPreemptionModeTimeout			= 134,
+    LonStatusAlreadyPreempted				= 135,
+    LonStatusSyncDatapointUpdateLost		= 136,
+    LonStatusInvalidRespAlloc				= 137,
+    LonStatusInvalidDomain					= 138,
+    LonStatusReadPastEndOfMsg				= 139,
+    LonStatusWritePastEndOfMsg				= 140,
+    LonStatusInvalidAddrTableIndex			= 141,
+    LonStatusIncompleteMsg					= 142,
+    LonStatusDatapointUpdateOnOutput		= 143,
+    LonStatusNoMsgAvail						= 144,
+    LonStatusIllegalSend					= 145,
+    LonStatusUnknownPdu						= 146,
+    LonStatusInvalidDatapointIndex			= 147,
+    LonStatusDivideByZero					= 148,
+    LonStatusInvalidApplError				= 149,
+    LonStatusMemoryAllocFailure				= 150,
+    LonStatusWritePastEndOfNetBuffer		= 151,
+    LonStatusApplChecksumError				= 152,
+    LonStatusCnfgChecksumError				= 153,
+    LonStatusInvalidXcvrRegAddr				= 154,
+    LonStatusXcvrRegTimeout					= 155,
+    LonStatusWritePastEndOfApplBuffer		= 156,
+    LonStatusIoReady						= 157,
+    LonStatusSelfTestFailed					= 158,
+    LonStatusSubnetRouter					= 159,
+    LonStatusAuthenticationMismatch			= 160,
+    LonStatusSeltInstSemaphoreSet			= 161,
+    LonStatusReadWriteSemaphoreSet			= 162,
+    LonStatusApplSignatureBad				= 163,
+    LonStatusRouterFirmwareVersionMismatch	= 164,
+
+	// Add any platform and application-specific system error codes 
+	// with values between 513 (0x201) and 639 (0x27F), which will be 
+	// reported as values between 1 and 127 (0x7F) by the Query Status 
+	// network management command.
+	LonStatusCustomSystemCodeStart			= 512,
+	// Add custom system error codes here
+	LonStatusCustomSystemCodeEnd			= 639,
+
+	// Add any platform and application-specific error codes with
+	// values between 641 and 1023
+	LonStatusCustomPlatformCodeStart		= 640,
+	// Add custom platform error codes here
+	LonStatusCustomePlatformCodeEnd			= 1023
+} LonStatusCode;
+
+// Evaluate success or failure of an LonStatusCode value
+#define IZOT_SUCCESS(n)   ((n) == LonStatusNoError)
 
 // Type conversions
 #define IZOT_GET_UNSIGNED_WORD(n)          (((uint16_t)((n).msb) << 8)+(uint16_t)((n).lsb))
@@ -2806,7 +2932,7 @@ typedef unsigned (*IzotGetCurrentDatapointSizeFunction)(const signed index);
  *  Applications must generally implement both the IzotMemoryRead and
  *  IzotMemoryWrite events, or none.
  */
-typedef IzotApiError (*IzotMemoryReadFunction)(const unsigned address,
+typedef LonStatusCode (*IzotMemoryReadFunction)(const unsigned address,
         const unsigned size, void* const pData);
 
 /*
@@ -2828,7 +2954,7 @@ typedef IzotApiError (*IzotMemoryReadFunction)(const unsigned address,
  *
  *  The IzoT protocol stack automatically calls the
  *  <IzotPersistentAppSegmentHasBeenUpdated> function to schedule an update
- *  whenever this callback returns <IzotApiError>.
+ *  whenever this callback returns <LonStatusCode>.
  *
  *  Use <IzotRegisterMemoryWindow> to configure this service.
  *  Use <IzotMemoryWriteRegistrar> to register a handler for this event.
@@ -2838,7 +2964,7 @@ typedef IzotApiError (*IzotMemoryReadFunction)(const unsigned address,
  *  Applications must generally implement both the IzotMemoryRead and
  *  IzotMemoryWrite events, or none.
  */
-typedef IzotApiError (*IzotMemoryWriteFunction)(const unsigned address,
+typedef LonStatusCode (*IzotMemoryWriteFunction)(const unsigned address,
         const unsigned size, const void* const pData);
 
 /*
@@ -2984,7 +3110,7 @@ typedef void (*IzotPersistentSegDeleteFunction)(
  *  Without an application-specific handler, this event always fails (no
  *  data available to read).
  */
-typedef IzotApiError (*IzotPersistentSegReadFunction)(const IzotPersistentSegType persistentSegType,
+typedef LonStatusCode (*IzotPersistentSegReadFunction)(const IzotPersistentSegType persistentSegType,
     const size_t offset, const size_t size, IzotByte* const pBuffer);
 
 
@@ -3011,7 +3137,7 @@ typedef IzotApiError (*IzotPersistentSegReadFunction)(const IzotPersistentSegTyp
  *  Use <IzotFlashSegWriteRegistrar> to register a handler for this event.
  *  Without an application-specific handler, this event always fails.
  */
-typedef IzotApiError (*IzotPersistentSegWriteFunction) (const IzotPersistentSegType persistentSegType,
+typedef LonStatusCode (*IzotPersistentSegWriteFunction) (const IzotPersistentSegType persistentSegType,
     const size_t offset, const size_t size, const IzotByte* const pData);
 
 /*
@@ -3059,7 +3185,7 @@ typedef IzotBool (*IzotPersistentSegIsInTransactionFunction)(const IzotPersisten
  *  this event. Without an application-specific handler, this event always
  *  fails.
  */
-typedef IzotApiError (*IzotPersistentSegEnterTransactionFunction)(const IzotPersistentSegType persistentSegType);
+typedef LonStatusCode (*IzotPersistentSegEnterTransactionFunction)(const IzotPersistentSegType persistentSegType);
 
 /*
  *  Callback: IzotFlashSegExitTransaction
@@ -3076,7 +3202,7 @@ typedef IzotApiError (*IzotPersistentSegEnterTransactionFunction)(const IzotPers
  *  Use <IzotFlashSegExitTransactionRegistrar> to register a handler for this
  *  event. Without an application-specific handler, this event always fails.
  */
-typedef IzotApiError (*IzotPersistentSegExitTransactionFunction)(const IzotPersistentSegType persistentSegType);
+typedef LonStatusCode (*IzotPersistentSegExitTransactionFunction)(const IzotPersistentSegType persistentSegType);
 
 /*
  *  Callback: IzotPersistentGetApplicationSegmentSize
@@ -3110,7 +3236,7 @@ typedef unsigned (*IzotPersistentSegGetAppSizeFunction)(void);
  *  this event. Without an application-specific handler, this event always
  *  fails.
  */
-typedef IzotApiError (*IzotPersistentSegDeserializeFunction) (
+typedef LonStatusCode (*IzotPersistentSegDeserializeFunction) (
     const void * const pData, const size_t size);
 
 /*
@@ -3130,7 +3256,7 @@ typedef IzotApiError (*IzotPersistentSegDeserializeFunction) (
  *  this event. Without an application-specific handler, this event always
  *  fails.
  */
-typedef IzotApiError (*IzotPersistentSegSerializeFunction)(void * const pData, const size_t size);
+typedef LonStatusCode (*IzotPersistentSegSerializeFunction)(void * const pData, const size_t size);
 
 /*
  * ******************************************************************************

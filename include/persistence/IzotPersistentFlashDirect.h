@@ -140,7 +140,7 @@ extern void IzotFlashSegClose(const IzotPersistentSegType persistentSegmentType)
  *  segment. The offset in each subsequent call will be incremented by
  *  the size of the previous call.
  */
-extern IzotApiError IzotFlashSegRead(const IzotPersistentSegType persistentSegType, 
+extern LonStatusCode IzotFlashSegRead(const IzotPersistentSegType persistentSegType, 
     const size_t offset, const size_t size, IzotByte* const pBuffer);
 																
 /* 
@@ -164,7 +164,7 @@ extern IzotApiError IzotFlashSegRead(const IzotPersistentSegType persistentSegTy
  *  segment. The offset in each subsequent call will be incremented by
  *  the size of the previous call.
  */
-extern IzotApiError IzotFlashSegWrite(const IzotPersistentSegType persistentSegType, 
+extern LonStatusCode IzotFlashSegWrite(const IzotPersistentSegType persistentSegType, 
     const size_t offset, const size_t size, const IzotByte* const pData);
 
 /* 
@@ -198,7 +198,7 @@ extern IzotBool IzotFlashSegIsInTransaction(const IzotPersistentSegType persiste
  *  updates the non-persistent image, and schedules writes to update the 
  *  non-volatile storage at a later time.  
  */
-extern IzotApiError IzotFlashSegEnterTransaction(const IzotPersistentSegType persistentSegType);
+extern LonStatusCode IzotFlashSegEnterTransaction(const IzotPersistentSegType persistentSegType);
 
 /* 
  *  Callback: IzotFlashSegExitTransaction
@@ -211,7 +211,7 @@ extern IzotApiError IzotFlashSegEnterTransaction(const IzotPersistentSegType per
  *  This function is called by the LON stack after <IzotFlashSegWrite> 
  *  has returned success and there are no further updates required.
  */
-extern IzotApiError IzotFlashSegExitTransaction(const IzotPersistentSegType persistentSegType);
+extern LonStatusCode IzotFlashSegExitTransaction(const IzotPersistentSegType persistentSegType);
 
 extern void ErasePersistenceData(void);
 extern void ErasePersistenceConfig(void);

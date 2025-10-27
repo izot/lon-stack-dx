@@ -80,16 +80,16 @@ static uint32_t IzotPersistentMemGuardBandRemaining(void)
  * Function: IzotPersistentSegDeserializeNetworkImage
  * This function deserializes the network image persistent segment.
  */
-static IzotApiError IzotPersistentSegDeserializeNetworkImage(
+static LonStatusCode IzotPersistentSegDeserializeNetworkImage(
         void* const pData, int len)
 {
-    IzotApiError reason = IzotApiNoError;
+    LonStatusCode reason = LonStatusNoError;
     int imageLen = IzotPersistentSegGetMaxSize(IzotPersistentSegNetworkImage);
     
     if (len >= imageLen) {
         (void)memcpy((void*)(&eep->configData), (char* const)pData, imageLen);
     } else {
-        return IzotApiPersistentFailure;
+        return LonStatusPersistentDataFailure;
     }
     
     return reason;
@@ -99,7 +99,7 @@ static IzotApiError IzotPersistentSegDeserializeNetworkImage(
  * Function: IzotPersistentSegSerializeNetworkImage
  * This function serializes the network image persistent segment.
  */
-static IzotApiError IzotPersistentSegSerializeNetworkImage(
+static LonStatusCode IzotPersistentSegSerializeNetworkImage(
         IzotByte** pData, int *len)
 {
     int imageLen = IzotPersistentSegGetMaxSize(IzotPersistentSegNetworkImage);
@@ -109,14 +109,14 @@ static IzotApiError IzotPersistentSegSerializeNetworkImage(
     
     memcpy((void *)*pData, (const void*)(&eep->configData), imageLen);
     
-    return IzotApiNoError;
+    return LonStatusNoError;
 }
 
 /*
  * Function: IzotPersistentSegDeserializeAppDataImage
  * This function deserializes the application data persistent segment.
  */
-static IzotApiError IzotPersistentSegDeserializeAppDataImage(
+static LonStatusCode IzotPersistentSegDeserializeAppDataImage(
   void* const pData, int len)
 {
     int imageLen = IzotPersistentSegGetMaxSize(IzotPersistentSegApplicationData);
@@ -125,10 +125,10 @@ static IzotApiError IzotPersistentSegDeserializeAppDataImage(
         if (len >= imageLen) {
             return izot_deserialize_handler(pData, imageLen);
         } else {
-            return IzotApiPersistentFailure;
+            return LonStatusPersistentDataFailure;
         }
     } else {
-        return IzotApiNotInitialized;
+        return LonStatusStackNotInitialized;
     }
 }
 
@@ -136,7 +136,7 @@ static IzotApiError IzotPersistentSegDeserializeAppDataImage(
  * Function: IzotPersistentSegSerializeAppDataImage
  * This function serializes the application data persistent segment.
  */
-static IzotApiError IzotPersistentSegSerializeAppDataImage(IzotByte** pData, int *len)
+static LonStatusCode IzotPersistentSegSerializeAppDataImage(IzotByte** pData, int *len)
 {
     int imageLen = IzotPersistentSegGetMaxSize(IzotPersistentSegApplicationData);
     
@@ -146,7 +146,7 @@ static IzotApiError IzotPersistentSegSerializeAppDataImage(IzotByte** pData, int
     if (izot_serialize_handler != NULL) {
         return izot_serialize_handler(*pData, imageLen);
     } else {
-        return IzotApiNotInitialized;
+        return LonStatusStackNotInitialized;
     }
 }
 
@@ -155,12 +155,12 @@ static IzotApiError IzotPersistentSegSerializeAppDataImage(IzotByte** pData, int
  * This function stores the information of a given type into the non-volatile.
  * memory
  */
-static IzotApiError IzotPersistentSegStore(IzotPersistentSegType persistentSegType)
+static LonStatusCode IzotPersistentSegStore(IzotPersistentSegType persistentSegType)
 {
     IzotByte* pImage = NULL;
     IzotPersistenceHeader hdr;
     int imageLen = 0;
-    IzotApiError reason = IzotApiNoError;
+    LonStatusCode reason = LonStatusNoError;
 
     IzotPersistentSegEnterTransaction(persistentSegType);
     
@@ -180,7 +180,7 @@ static IzotApiError IzotPersistentSegStore(IzotPersistentSegType persistentSegTy
 #endif
     } 
     
-    if (reason == IzotApiNoError) {
+    if (reason == LonStatusNoError) {
         hdr.checksum = ComputeChecksum(pImage, imageLen);
         hdr.length = imageLen;
 
@@ -189,12 +189,12 @@ static IzotApiError IzotPersistentSegStore(IzotPersistentSegType persistentSegTy
         if (returnedSegType != IzotPersistentSegUnassigned) {
             if (IzotPersistentSegWrite(persistentSegType, 0, sizeof(hdr), &hdr) != 0 ||
                 IzotPersistentSegWrite(persistentSegType, sizeof(hdr), hdr.length, pImage) != 0) {
-                reason = IzotApiPersistentFailure;
+                reason = LonStatusPersistentDataFailure;
             }
             IzotPersistentSegClose(persistentSegType);
         }
         
-        if (reason != IzotApiNoError) {
+        if (reason != LonStatusNoError) {
             IzotPersistentMemReportFailure();
         } else {
             IzotPersistentSegExitTransaction(persistentSegType);
@@ -219,7 +219,7 @@ static void IzotPersistentMemCommit(void)
 
     for (i = 0; i < IzotPersistentSegNumSegmentTypes; i++) {
         if (PersitenceList[i] != FALSE) {
-            if (IzotPersistentSegStore(i) == IzotApiNoError) {
+            if (IzotPersistentSegStore(i) == LonStatusNoError) {
                 PersitenceList[i] = FALSE;
                 commitFlag = FALSE;
                 OsalSleep(20);
@@ -367,45 +367,45 @@ void IzotPersistentMemSetCommitFlag(void)
  * Function: IzotPersistentSegRestore
  * This function restores the specified memory segment contents to RAM.
  */
-IzotApiError IzotPersistentSegRestore(IzotPersistentSegType persistentSegType)
+LonStatusCode IzotPersistentSegRestore(IzotPersistentSegType persistentSegType)
 {
-    IzotApiError reason = IzotApiNoError;
+    LonStatusCode reason = LonStatusNoError;
     IzotPersistenceHeader hdr;
     IzotByte* pImage = NULL;
     int imageLength = 0;
 
     if (IzotPersistentSegIsInTransaction(persistentSegType)) {
-        reason = IzotApiPersistentFailure;
+        reason = LonStatusPersistentDataFailure;
     } else {
         IzotPersistentSegType returnedSegType = IzotPersistentSegOpenForRead(persistentSegType);
         memset(&hdr, 0, sizeof(hdr));
         if (persistentSegType != IzotPersistentSegUnassigned) {
             if (IzotPersistentSegRead(persistentSegType, 0, sizeof(hdr), &hdr) != 0) {
-                reason = IzotApiPersistentFailure;
+                reason = LonStatusPersistentDataFailure;
             } else if (hdr.signature != ISI_IMAGE_SIGNATURE0) {
-                reason = IzotApiPersistentFailure;
+                reason = LonStatusPersistentDataFailure;
             } else if (hdr.appSignature != m_appSignature) {
-                reason = IzotApiPersistentFailure;
+                reason = LonStatusPersistentDataFailure;
             } else if (hdr.version > CURRENT_VERSION) {
-                reason = IzotApiPersistentFailure;
+                reason = LonStatusPersistentDataFailure;
             } else {
                 imageLength = hdr.length;
                 pImage = (IzotByte *) OsalMalloc(imageLength);
                 if (pImage == NULL ||
                     IzotPersistentSegRead(persistentSegType, sizeof(hdr), imageLength, pImage) != 0 ||
                     !ValidateChecksum(&hdr, pImage)) {
-                    reason = IzotApiPersistentFailure;
+                    reason = LonStatusPersistentDataFailure;
                     OsalFree(pImage);
                     pImage = NULL;
                 }
             }
             IzotPersistentSegClose(persistentSegType);
         } else {
-            reason = IzotApiPersistentFailure;
+            reason = LonStatusPersistentDataFailure;
         }
     }
 
-    if (reason == IzotApiNoError) {
+    if (reason == LonStatusNoError) {
         switch(persistentSegType) {
         case IzotPersistentSegNetworkImage:
             reason = 
@@ -423,7 +423,7 @@ IzotApiError IzotPersistentSegRestore(IzotPersistentSegType persistentSegType)
 #endif
 
         default:
-            reason = IzotApiPersistentFailure;
+            reason = LonStatusPersistentDataFailure;
         }
     }
     
@@ -435,7 +435,7 @@ IzotApiError IzotPersistentSegRestore(IzotPersistentSegType persistentSegType)
 }
 
 #ifdef SECURITY_II
-IzotApiError restoreSecurityIIData(void)
+LonStatusCode restoreSecurityIIData(void)
 {
     return IzotPersistentSegRestore(IzotPersistentSegSecurityII);
 }

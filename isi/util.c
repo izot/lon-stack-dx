@@ -48,7 +48,7 @@ IzotDomain* access_domain(int domainIndex)
     _IsiAPIDebug("Start access_domain = %d\n", domainIndex);
     if (domainIndex <= IZOT_GET_ATTRIBUTE(read_only_data, IZOT_READONLY_TWO_DOMAINS)) {
         pDomain = &domainTable[domainIndex];
-        if (IzotQueryDomainConfig(domainIndex, pDomain) == IzotApiNoError) {
+        if (IzotQueryDomainConfig(domainIndex, pDomain) == LonStatusNoError) {
             _IsiAPIDebug("DomainID  = %x %x %x %x %x %x, Subnet=%d, NonClone=%d Node=%d Invalid=%d Length=%d Key=%x\n", 
                 pDomain->Id[0],pDomain->Id[1],pDomain->Id[2],pDomain->Id[3],pDomain->Id[4],pDomain->Id[5],pDomain->Subnet, 
                 IZOT_GET_ATTRIBUTE_P(pDomain,IZOT_DOMAIN_NONCLONE),
@@ -69,14 +69,14 @@ IzotDomain* access_domain(int domainIndex)
  *   nonCloneValue: 0 for a clone domain; 1 otherwise
  *   bUpdateID: TRUE to update the domain ID, FALSE to not update the domain ID
  * Returns:
- *   IzotApiNoError (0) on success, or an <IzotApiError> error code on failure
+ *   LonStatusNoError (0) on success, or an <LonStatusCode> error code on failure
  */
-IzotApiError update_domain_address(const IzotDomain* domainConfig, int domainIndex,
+LonStatusCode update_domain_address(const IzotDomain* domainConfig, int domainIndex,
                 int nonCloneValue, IzotBool bUpdateID)
 {
     int i;
     IzotDomain* temp = NULL;
-    IzotApiError sts = IzotApiNoError;
+    LonStatusCode sts = LonStatusNoError;
 
     _IsiAPIDebug("Start update_domain_address = %d\n", domainIndex);
     if (domainIndex <= IZOT_GET_ATTRIBUTE(read_only_data, IZOT_READONLY_TWO_DOMAINS)) {
@@ -109,11 +109,11 @@ IzotApiError update_domain_address(const IzotDomain* domainConfig, int domainInd
  *   domainConfig: Pointer to the new domain configuration
  *   domainIndex: Index of the domain configuration to update; must be 0 or 1
  * Returns:
- *   IzotApiNoError (0) on success, or an <IzotApiError> error code on failure
+ *   LonStatusNoError (0) on success, or an <LonStatusCode> error code on failure
  */
-IzotApiError IsiSetDomain(const IzotDomain* domainConfig, unsigned domainIndex)
+LonStatusCode IsiSetDomain(const IzotDomain* domainConfig, unsigned domainIndex)
 {
-    IzotApiError sts;
+    LonStatusCode sts;
 
     _IsiAPIDebug("Start IsiSetDomain = %d\n", domainIndex);
     sts = update_domain_address(domainConfig, domainIndex, 1, TRUE); // it's not a clone domain
@@ -145,7 +145,7 @@ unsigned _nv_count(void)
  *   nvConfig: Pointer to the new NV configuration
  *   nvIndex: Index of the NV configuration to update; must be less than the number of static NVs
  * Returns:
- *   IzotApiNoError (0) on success, or an <IzotApiError> error code on failure
+ *   LonStatusNoError (0) on success, or an <LonStatusCode> error code on failure
  */
 void IsiSetNv(IzotDatapointConfig* nvConfig, unsigned nvIndex)
 {
@@ -158,12 +158,12 @@ void IsiSetNv(IzotDatapointConfig* nvConfig, unsigned nvIndex)
  *   nvConfig: Pointer to the new NV configuration
  *   nvIndex: Index of the NV configuration to update; must be less than the number of static NVs
  * Returns:
- *   IzotApiNoError (0) on success, or an <IzotApiError> error code on failure
+ *   LonStatusNoError (0) on success, or an <LonStatusCode> error code on failure
  */
 void update_nv(const IzotDatapointConfig* nvConfig, unsigned nvIndex)
 {
     if (nvConfig && nvIndex < _nv_count()) {
-		/*IzotApiError sts = */IzotUpdateDpConfig(nvIndex, nvConfig);
+		/*LonStatusCode sts = */IzotUpdateDpConfig(nvIndex, nvConfig);
 
         _IsiAPIDebug("update_nv index %u sts %i ", nvIndex, sts);
         _IsiAPIDump("data = 0x", (void *)nvConfig, sizeof(IzotDatapointConfig), "\n");
@@ -252,7 +252,7 @@ IzotAddress* access_address(int index)
 {
     IzotAddress* devAddress = (IzotAddress*)&addrTable;
 
-    if (IzotQueryAddressConfig(index, devAddress) == IzotApiNoError)
+    if (IzotQueryAddressConfig(index, devAddress) == LonStatusNoError)
         return devAddress;
     else
         return (IzotAddress*)NULL;            
@@ -264,14 +264,14 @@ IzotAddress* access_address(int index)
  *   devAddress: Pointer to the new address configuration
  *   index: Index of the address configuration to update
  * Returns:
- *   IzotApiNoError (0) on success, or an <IzotApiError> error code on failure
+ *   LonStatusNoError (0) on success, or an <LonStatusCode> error code on failure
  * Notes:
  *   The index must be less than the number of address table entries.
  */ 
-IzotApiError update_address(const IzotAddress* devAddress, int index)
+LonStatusCode update_address(const IzotAddress* devAddress, int index)
 {
-    IzotApiError sts = IzotUpdateAddressConfig(index, devAddress);
-	if (sts != IzotApiNoError) {
+    LonStatusCode sts = IzotUpdateAddressConfig(index, devAddress);
+	if (sts != LonStatusNoError) {
 		_IsiAPIDebug("update_address failed (entry %d)\n", index);
 	}
     return sts;
@@ -302,7 +302,7 @@ const IzotAliasConfig* IsiGetAlias(unsigned aliasIndex)
 {
     _IsiAPIDebug("Start IsiGetAlias(%d)\n", aliasIndex); 
     memset(&alias_config, 0, sizeof(IzotAliasConfig));
-    if (IzotQueryAliasConfig(aliasIndex, &alias_config) != IzotApiNoError)
+    if (IzotQueryAliasConfig(aliasIndex, &alias_config) != LonStatusNoError)
     {
         _IsiAPIDebug("Error - IsiGetAlias(%d)\n", aliasIndex); 
     }
@@ -316,16 +316,16 @@ const IzotAliasConfig* IsiGetAlias(unsigned aliasIndex)
  *   aliasConfig: Pointer to the new alias configuration
  *   aliasIndex: Index of the alias configuration to update
  * Returns:
- *   IzotApiNoError (0) on success, or an <IzotApiError> error code on failure
+ *   LonStatusNoError (0) on success, or an <LonStatusCode> error code on failure
  * Notes:
  *   The index must be less than the number of alias entries.
  */
-IzotApiError IsiSetAlias(IzotAliasConfig* aliasConfig, unsigned aliasIndex)
+LonStatusCode IsiSetAlias(IzotAliasConfig* aliasConfig, unsigned aliasIndex)
 {
     return IzotUpdateAliasConfig(aliasIndex, aliasConfig); 
 }
 
-IzotApiError update_config_data(const IzotConfigData *configData)
+LonStatusCode update_config_data(const IzotConfigData *configData)
 {
     // Update the global copy of config data
     memcpy(&config_data, configData, sizeof(IzotConfigData));
@@ -406,7 +406,7 @@ IzotByte* get_nv_value(const unsigned index)
 	return (IzotByte *)IzotGetDatapointValue(index);
 }
 
-IzotApiError service_pin_msg_send()
+LonStatusCode service_pin_msg_send()
 {
     return IzotSendServicePin();
 }
@@ -416,7 +416,7 @@ void node_reset()
     NodeReset(FALSE);
 }    
 
-IzotApiError retrieve_status(IzotStatus* status)
+LonStatusCode retrieve_status(IzotStatus* status)
 {
     return IzotQueryStatus(status);       
 }
@@ -426,16 +426,16 @@ IzotApiError retrieve_status(IzotStatus* status)
  * Parameters:
  *   bootType: Type of boot (isiColdStart, isiWarmStart, isiReset, or isiReboot)
  * Returns:
- *   IzotApiNoError (0) on success, or an <IzotApiError> error code on failure
+ *   LonStatusNoError (0) on success, or an <LonStatusCode> error code on failure
  * Notes:   
  *   If no persistent data is found, the connection table, NV table, alias
  *   table and address table are initialized to default values.
  */
-IzotApiError initializeData(IsiBootType bootType)
+LonStatusCode initializeData(IsiBootType bootType)
 {
-    IzotApiError sts = IzotQueryConfigData(&config_data);
+    LonStatusCode sts = IzotQueryConfigData(&config_data);
    
-    if (sts == IzotApiNoError) {
+    if (sts == LonStatusNoError) {
         sts = IzotQueryReadOnlyData(&read_only_data);
     }
 
@@ -460,7 +460,7 @@ IzotApiError initializeData(IsiBootType bootType)
     return sts;
 }
 
-IzotApiError set_node_mode(unsigned mode, unsigned state)
+LonStatusCode set_node_mode(unsigned mode, unsigned state)
 {
 	return IzotSetNodeMode(mode, state);
 }

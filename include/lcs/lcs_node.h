@@ -962,7 +962,7 @@ IzotByte izot_get_device_state(void);
 IzotByte izot_get_service_pin_mode(void);
 uint8_t	 izot_get_device_mode(void);
 
-extern IzotApiError IzotGetUniqueId(IzotUniqueId* const pId);
+extern LonStatusCode IzotGetUniqueId(IzotUniqueId* const pId);
 extern void IzotMsgArrived(const IzotReceiveAddress* const pAddress,
                    const IzotCorrelator correlator,
                    const IzotBool priority,

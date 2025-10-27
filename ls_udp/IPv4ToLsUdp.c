@@ -1217,7 +1217,7 @@ void SetLsAddressFromIpAddr(void)
  */
 int UdpInit(void)
 {
-    int ret = IzotApiNoError;
+    int ret = LonStatusNoError;
 
  #if LINK_IS(WIFI)   
      #if PROCESSOR_IS(MC200)
@@ -1226,7 +1226,7 @@ int UdpInit(void)
     
         // Init the wlan service
         int err = wm_wlan_init();
-        if (err != IzotApiNoError) {
+        if (err != LonStatusNoError) {
             return err;
         }
     #endif  // PROCESSOR_IS(MC200)
@@ -1238,7 +1238,7 @@ int UdpInit(void)
 #if LINK_IS(WIFI) || LINK_IS(ETHERNET) || LINK_IS(USB)
     // Start the link
     ret = CalStart();
-    if (ret != IzotApiNoError) {
+    if (ret != LonStatusNoError) {
         return ret;
     }
 
@@ -1246,7 +1246,7 @@ int UdpInit(void)
     ret = InitSocket(IPV4_LS_UDP_PORT); 
     if (ret < 0) {
         DBG_vPrintf(TRUE, "Sockets not created\r\n");
-        return IzotApiNoIpAddress;
+        return LonStatusIpAddressNotDefined;
     }
     DBG_vPrintf(TRUE, "Sockets created\r\n");
 #endif  // LINK_IS(WIFI) || LINK_IS(ETHERNET) || LINK_IS(USB)

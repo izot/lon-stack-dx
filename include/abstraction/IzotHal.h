@@ -36,10 +36,10 @@
  * Parameters:
  *   None
  * Returns:
- *   IzotApiNoError (0) on success, or an <IzotApiError> error code
+ *   LonStatusNoError (0) on success, or an <LonStatusCode> error code
  *   on failure.
  */
-extern IzotApiError HalFlashDrvInit(void);
+extern LonStatusCode HalFlashDrvInit(void);
 
 /*
  * Returns information about the flash region used for persistent data.
@@ -50,7 +50,7 @@ extern IzotApiError HalFlashDrvInit(void);
  *   block_size: pointer to size of each block in bytes
  *   number_of_regions: pointer to number of regions
  * Returns:
- *   IzotApiNoError (0) on success, or an <IzotApiError> error code
+ *   LonStatusNoError (0) on success, or an <LonStatusCode> error code
  *   on failure.
  * Notes:
  *   The flash region may be a directly mapped flash memory region,
@@ -60,7 +60,7 @@ extern IzotApiError HalFlashDrvInit(void);
  *   memory flash memory region.  The flash region is used
  *   for persistent data storage.
  */
-extern IzotApiError HalGetFlashInfo(size_t *offset, size_t *region_size,
+extern LonStatusCode HalGetFlashInfo(size_t *offset, size_t *region_size,
         int *number_of_blocks, size_t *block_size, int *number_of_regions
 );
 
@@ -70,10 +70,10 @@ extern IzotApiError HalGetFlashInfo(size_t *offset, size_t *region_size,
  * Parameters:
  *   None
  * Returns:
- *   IzotApiNoError (0) on success, or an <IzotApiError> error code
+ *   LonStatusNoError (0) on success, or an <LonStatusCode> error code
  *   on failure.
  */
-extern IzotApiError HalFlashDrvOpen(void);
+extern LonStatusCode HalFlashDrvOpen(void);
 
 /*
  * Closes the hardware-specific driver for interfacing with
@@ -83,7 +83,7 @@ extern IzotApiError HalFlashDrvOpen(void);
  * Returns:
  *   None
  */
-extern IzotApiError HalFlashDrvClose(void);
+extern LonStatusCode HalFlashDrvClose(void);
 
 /*
  * Erases the persistent data from the specified starting offset
@@ -92,10 +92,10 @@ extern IzotApiError HalFlashDrvClose(void);
  *   start: offset in bytes from the start of the flash region
  *   size: number of bytes to erase
  * Returns:
- *   IzotApiNoError (0) on success, or an <IzotApiError> error code
+ *   LonStatusNoError (0) on success, or an <LonStatusCode> error code
  *   on failure.
  */
-extern IzotApiError HalFlashDrvErase(size_t start, size_t size);
+extern LonStatusCode HalFlashDrvErase(size_t start, size_t size);
 
 /*
  * Writes the contents of buffer `buf` to an open file descriptor
@@ -104,13 +104,13 @@ extern IzotApiError HalFlashDrvErase(size_t start, size_t size);
  *   start: offset in bytes from the start of the flash region
  *   size: number of bytes to write
  * Returns:
- *   IzotApiNoError (0) on success, or an <IzotApiError> error code
+ *   LonStatusNoError (0) on success, or an <LonStatusCode> error code
  *   on failure.
  * Notes:
  *   The file is extended if the file size is less than the starting
  *   offset.
  */
-extern IzotApiError HalFlashDrvWrite(IzotByte *buf, size_t start, size_t size);
+extern LonStatusCode HalFlashDrvWrite(IzotByte *buf, size_t start, size_t size);
 
 /*
  * Reads `size` bytes from the file descriptor `flashFd` into buffer
@@ -119,26 +119,26 @@ extern IzotApiError HalFlashDrvWrite(IzotByte *buf, size_t start, size_t size);
  *   start: offset in bytes from the start of the flash region
  *   size: number of bytes to read
  * Returns:
- *   IzotApiNoError (0) on success, or an <IzotApiError> error code
+ *   LonStatusNoError (0) on success, or an <LonStatusCode> error code
  *   on failure.
  * Notes:
  *    An error is returned if the file size is less than `start + size` bytes.
  */
-extern IzotApiError HalFlashDrvRead(IzotByte *buf, size_t start, size_t size);
+extern LonStatusCode HalFlashDrvRead(IzotByte *buf, size_t start, size_t size);
 
 /*
  * Gets the MAC address of the host IP interface.
  * Parameters:
  *   mac: pointer to 6 byte array for the MAC ID
  * Returns:
- *   IzotApiNoError (0) on success, or an <IzotApiError> error code
+ *   LonStatusNoError (0) on success, or an <LonStatusCode> error code
  *   on failure.
  * Notes:
  *   For a Linux host, the IP interface name is defined in the 'iface'
  *   global.  The name is host-dependent and must match the name for
  *   the host.
  */ 
-extern IzotApiError HalGetMacAddress(unsigned char *mac);
+extern LonStatusCode HalGetMacAddress(unsigned char *mac);
 
 /*
  * Reboots the host device.
@@ -146,9 +146,9 @@ extern IzotApiError HalGetMacAddress(unsigned char *mac);
  *   None
  * Returns:
  *   If successful, this function does not return.
- *   If not successful, <IzotApiError> IzotApiRebootFailure
+ *   If not successful, <LonStatusCode> LonStatusHostRebootFailure
  *   is returned.
  */ 
-extern IzotApiError HalReboot(void);
+extern LonStatusCode HalReboot(void);
 
 #endif  /* defined(DEFINED_IZOTHAL_H) */

@@ -457,12 +457,12 @@ static void InitModules()
  * Parameters:
  *   None
  * Returns:
- *   IzotApiNoError (0) on success, or an <IzotApiError> error code
+ *   LonStatusNoError (0) on success, or an <LonStatusCode> error code
  *   on failure.
  */
-IzotApiError CalStart(void)
+LonStatusCode CalStart(void)
 {
-    IzotApiError ret = IzotApiNoError;
+    LonStatusCode ret = LonStatusNoError;
     
 #if LINK_IS(ETHERNET) || LINK_IS(WIFI)
     InitModules();

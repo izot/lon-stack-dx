@@ -130,13 +130,13 @@ extern void IzotPersistentMemSetCommitFlag(void);
  * Function: IzotPersistentSegRestore
  * This function restores the specified memory segment contents to RAM.
  */
-extern IzotApiError IzotPersistentSegRestore(IzotPersistentSegType persistentSegType);
+extern LonStatusCode IzotPersistentSegRestore(IzotPersistentSegType persistentSegType);
 
 /*
  *  Event: IzotPersistentSegEnterTransaction
  *  Calls the registered callback of <IzotFlashSegEnterTransaction>.
  */
-extern IzotApiError IzotPersistentSegEnterTransaction(const IzotPersistentSegType persistentSegType);
+extern LonStatusCode IzotPersistentSegEnterTransaction(const IzotPersistentSegType persistentSegType);
 
 /*
  *  Event: IzotPersistentSegOpenForWrite
@@ -148,7 +148,7 @@ extern IzotPersistentSegType IzotPersistentSegOpenForWrite(const IzotPersistentS
  *  Event: IzotPersistentSegWrite
  *  Calls the registered callback of <IzotFlashSegWrite>.
  */
-extern IzotApiError IzotPersistentSegWrite(const IzotPersistentSegType persistentSegType, const size_t offset, 
+extern LonStatusCode IzotPersistentSegWrite(const IzotPersistentSegType persistentSegType, const size_t offset, 
 		const size_t size, const void* const pData);
 
 /*
@@ -161,7 +161,7 @@ extern void IzotPersistentSegClose(const IzotPersistentSegType persistentSegType
  *  Event: IzotPersistentSegExitTransaction
  *  Calls the registered callback of <IzotFlashSegExitTransaction>.
  */
-extern IzotApiError IzotPersistentSegExitTransaction(const IzotPersistentSegType persistentSegType);
+extern LonStatusCode IzotPersistentSegExitTransaction(const IzotPersistentSegType persistentSegType);
 
 /*
  *  Event: IzotPersistentSegIsInTransaction
@@ -179,7 +179,7 @@ extern IzotPersistentSegType IzotPersistentSegOpenForRead(const IzotPersistentSe
  *  Event: IzotPersistentSegRead
  *  Calls the registered callback of <IzotFlashSegRead>.
  */
-extern IzotApiError IzotPersistentSegRead(const IzotPersistentSegType persistentSegType, const size_t offset, 
+extern LonStatusCode IzotPersistentSegRead(const IzotPersistentSegType persistentSegType, const size_t offset, 
 		const size_t size, void * const pBuffer);
 
 /*

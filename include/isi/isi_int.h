@@ -1210,7 +1210,7 @@ extern IzotByte high_byte (IzotUbits16 a);
 extern IzotByte low_byte (IzotUbits16 a);
 extern IzotWord make_long(IzotByte low_byte, IzotByte high_byte);
 extern void lon_watchdog_update(void);
-extern IzotApiError update_config_data(const IzotConfigData *configData);
+extern LonStatusCode update_config_data(const IzotConfigData *configData);
 
 extern IzotReadOnlyData read_only_data;
 extern IzotConfigData config_data;
@@ -1224,7 +1224,7 @@ extern IzotAddress* access_address (int index);
 extern IzotDomain* access_domain(int domainIndex);
 extern unsigned get_nv_length(const unsigned index);
 extern IzotByte* get_nv_value(const unsigned index);
-extern IzotApiError set_node_mode(unsigned mode, unsigned state);
+extern LonStatusCode set_node_mode(unsigned mode, unsigned state);
 
 //
 // Used to check for valid data pointer.
@@ -1257,7 +1257,7 @@ extern void IsiTickDa(void);
 extern void IsiTickDas(void);
 extern const IzotAliasConfig* IsiGetAlias(unsigned aliasIndex);        // forwarder to access_alias
 extern const IzotDatapointConfig* IsiGetNv(unsigned nvIndex);              // forwarder to nv_access
-extern IzotApiError IsiSetAlias(IzotAliasConfig* aliasConfig, unsigned aliasIndex);         // forwarder to update_alias
+extern LonStatusCode IsiSetAlias(IzotAliasConfig* aliasConfig, unsigned aliasIndex);         // forwarder to update_alias
 extern void IsiSetNv(IzotDatapointConfig* nvConfig, unsigned nvIndex);          // forwarder to update_nv
 extern void IsiSetPrimaryDid(const IzotByte* pDid, unsigned len);
 extern void IsiSetRepeatCount(unsigned Count);
@@ -1276,7 +1276,7 @@ extern void IsiSetConnection(const IsiConnection* pConnection, unsigned Index);
 extern void _IsiInitConnectionTable();
 extern const IzotByte* IsiGetPrimaryDid(IzotByte* pLength);      // OVERRIDING MIGHT BREAK INTEROPERABILITY!
 extern unsigned IsiGetRepeatCount(void);
-IzotApiError IsiSetDomain(const IzotDomain* domainConfig, unsigned domainIndex);   // forwarder to update_domain
+LonStatusCode IsiSetDomain(const IzotDomain* domainConfig, unsigned domainIndex);   // forwarder to update_domain
 extern void IsiCancelAcquisitionDas(void);  // only for ISI-DAS. On ISI-S or ISI-DA, use IsiCancelAcquisition
 // The following internal API has been added with ISI 3.03, and is used from the pre-defined IsiMsgDeliver 
 // function defined below. The isiPrepareSicb function prepares the pending outgoing message for sending. 
@@ -1369,12 +1369,12 @@ extern IzotWord _IsiAddSelector(IzotWord selector, unsigned increment);
 extern unsigned _nv_count(void);
 extern unsigned int _alias_count(void);
 extern unsigned int _address_table_count(void);
-extern IzotApiError service_pin_msg_send (void);
-extern IzotApiError update_address(const IzotAddress* devAddress, int index);
-extern IzotApiError update_domain_address(const IzotDomain* domainConfig,
+extern LonStatusCode service_pin_msg_send (void);
+extern LonStatusCode update_address(const IzotAddress* devAddress, int index);
+extern LonStatusCode update_domain_address(const IzotDomain* domainConfig,
                 int domainIndex, int nonCloneValue, IzotBool bUpdateID);
 extern void node_reset();
-extern IzotApiError retrieve_status(IzotStatus* status);
+extern LonStatusCode retrieve_status(IzotStatus* status);
 extern void update_nv(const IzotDatapointConfig * nvConfig, unsigned nvIndex);
 
 //  interal functions used by device and domain acquisistion:
@@ -1409,7 +1409,7 @@ extern IzotBool isiFilterResponseArrived(const IzotResponseAddress* const pAddre
 	
 extern IzotBool isiFilterMsgCompleted(const unsigned tag, const IzotBool success);
 
-extern IzotApiError initializeData(IsiBootType bootType);
+extern LonStatusCode initializeData(IsiBootType bootType);
 extern LtPersistenceLossReason restorePersistentData(IzotPersistentSegType persistentSegType);
 extern void savePersistentData(IzotPersistentSegType persistentSegType);
 //extern void DumpConnectionTable();

@@ -55,7 +55,7 @@ extern "C" {
  * Section: Globals
  *****************************************************************/
 
-IzotApiError persistentMemError = IzotApiNoError; // Last persistent memory error
+LonStatusCode persistentMemError = LonStatusNoError; // Last persistent memory error
 IzotBool persistentMemInitialized = FALSE; // Flag to indicate if flash is initialized
 
 #if OS_IS(LINUX)
@@ -79,10 +79,10 @@ mdev_t *flashFd = NULL; // File descriptor for the flash device
  *   path: the directory path to create
  *   mode: permissions to use for any directories created
  * Returns:
- *   IzotApiNoError (0) on success, or an <IzotApiError> error code
+ *   LonStatusNoError (0) on success, or an <LonStatusCode> error code
  *   on failure.
  */
-IzotApiError HalCreateConfigDirectory(const char *path, mode_t mode) {
+LonStatusCode HalCreateConfigDirectory(const char *path, mode_t mode) {
 #if OS_IS(LINUX)
     char tmp[512];
     struct stat st;
@@ -94,7 +94,7 @@ IzotApiError HalCreateConfigDirectory(const char *path, mode_t mode) {
     }
     if (!path || !*path || strlen(path) >= sizeof(tmp)) {
         // Invalid path
-        return persistentMemError = IzotApiPersistentDirError;
+        return persistentMemError = LonStatusPersistentDataDirError;
     }
     snprintf(tmp, sizeof(tmp), "%s", path);
     len = strlen(tmp);
@@ -111,15 +111,15 @@ IzotApiError HalCreateConfigDirectory(const char *path, mode_t mode) {
                 if (errno == ENOENT) {
                     if (mkdir(tmp, mode) != 0) {
                         // mkdir failed
-                        return persistentMemError = IzotApiPersistentDirError;
+                        return persistentMemError = LonStatusPersistentDataDirError;
                     }
                 } else {
                     // stat failed
-                    return persistentMemError = IzotApiPersistentDirError;
+                    return persistentMemError = LonStatusPersistentDataDirError;
                 }
             } else if (!S_ISDIR(st.st_mode)) {
                 // Path element exists but is not a directory
-                return persistentMemError = IzotApiPersistentDirError;
+                return persistentMemError = LonStatusPersistentDataDirError;
             }
             *p = '/';
         }
@@ -129,20 +129,20 @@ IzotApiError HalCreateConfigDirectory(const char *path, mode_t mode) {
         if (errno == ENOENT) {
             if (mkdir(tmp, mode) != 0) {
                 // mkdir failed
-                return persistentMemError = IzotApiPersistentDirError;
+                return persistentMemError = LonStatusPersistentDataDirError;
             }
         } else {
             // stat failed
-            return persistentMemError = IzotApiPersistentDirError;
+            return persistentMemError = LonStatusPersistentDataDirError;
         }
     } else if (!S_ISDIR(st.st_mode)) {
         // Path element exists but is not a directory
-        return persistentMemError = IzotApiPersistentDirError;
+        return persistentMemError = LonStatusPersistentDataDirError;
     }
     return persistentMemError;
 #else
     // Not implemented for this platform
-    return persistentMemError = IzotApiPersistentDirError;
+    return persistentMemError = LonStatusPersistentDataDirError;
 #endif // OS_IS(LINUX)
 }
 
@@ -152,16 +152,16 @@ IzotApiError HalCreateConfigDirectory(const char *path, mode_t mode) {
  * Parameters:
  *   None
  * Returns:
- *   IzotApiNoError (0) on success, or an <IzotApiError> error code
+ *   LonStatusNoError (0) on success, or an <LonStatusCode> error code
  *   on failure.
  */
-IzotApiError HalFlashDrvInit(void)
+LonStatusCode HalFlashDrvInit(void)
 {
     if (!IZOT_SUCCESS(persistentMemError)) {   
         return persistentMemError;
     }
     if (persistentMemInitialized) {
-        return IzotApiNoError;
+        return LonStatusNoError;
     }
     persistentMemInitialized = TRUE;
 #if OS_IS(LINUX)
@@ -174,9 +174,9 @@ IzotApiError HalFlashDrvInit(void)
     return persistentMemError = HalCreateConfigDirectory(filedir, 0755);
 #elif PROCESSOR_IS(MC200)
     return persistentMemError = (iflash_drv_init() 
-            ? IzotApiNoError : IzotApiPersistentFailure);
+            ? LonStatusNoError : LonStatusPersistentDataFailure);
 #else
-    return persistentMemError = IzotApiPersistentFailure; // No flash driver available
+    return persistentMemError = LonStatusPersistentDataFailure; // No flash driver available
 #endif
 }
 
@@ -189,7 +189,7 @@ IzotApiError HalFlashDrvInit(void)
  *   block_size: pointer to size of each block in bytes
  *   number_of_regions: pointer to number of regions
  * Returns:
- *   IzotApiNoError (0) on success, or an <IzotApiError> error code
+ *   LonStatusNoError (0) on success, or an <LonStatusCode> error code
  *   on failure.
  * Notes:
  *   The flash region may be a directly mapped flash memory region,
@@ -199,7 +199,7 @@ IzotApiError HalFlashDrvInit(void)
  *   memory flash memory region.  The flash region is used
  *   for persistent data storage.
  */
-IzotApiError HalGetFlashInfo(size_t *offset, size_t *region_size,
+LonStatusCode HalGetFlashInfo(size_t *offset, size_t *region_size,
         int *number_of_blocks, size_t *block_size, int *number_of_regions)
 {
     if (!IZOT_SUCCESS(persistentMemError)) {   
@@ -223,7 +223,7 @@ IzotApiError HalGetFlashInfo(size_t *offset, size_t *region_size,
     *number_of_blocks   = 0;
     *block_size         = 0;
     *number_of_regions  = 0;
-    persistentMemError  = IzotApiPersistentFailure
+    persistentMemError  = LonStatusPersistentDataFailure
 #endif
 
     return persistentMemError;
@@ -235,10 +235,10 @@ IzotApiError HalGetFlashInfo(size_t *offset, size_t *region_size,
  * Parameters:
  *   None
  * Returns:
- *   IzotApiNoError (0) on success, or an <IzotApiError> error code
+ *   LonStatusNoError (0) on success, or an <LonStatusCode> error code
  *   on failure.
  */
-IzotApiError HalFlashDrvOpen(void)
+LonStatusCode HalFlashDrvOpen(void)
 {
     if (!IZOT_SUCCESS(persistentMemError)) {   
         return persistentMemError;
@@ -247,23 +247,23 @@ IzotApiError HalFlashDrvOpen(void)
     // Open file (read/write, create if missing, no truncation)
     if (flashFd != -1) {
         // Already open
-        return persistentMemError = IzotApiNoError;
+        return persistentMemError = LonStatusNoError;
     }
     flashFd = open(configFilePath, O_RDWR | O_CREAT, 0644);
     if (flashFd == -1) {
         // Configuration file open error
-        return persistentMemError = IzotApiPersistentFileError;
+        return persistentMemError = LonStatusPersistentDataAccessError;
     }
 #elif PROCESSOR_IS(MC200)
     // Open the flash device
     if (flashFd != NULL) {
         // Already open
-        return persistentMemError = IzotApiNoError;
+        return persistentMemError = LonStatusNoError;
     }
     persistentMemError = ((flashFd = (mdev_t *)iflash_drv_open("iflash", 0)) != NULL) 
-            ? IzotApiNoError : IzotApiPersistentFileError);
+            ? LonStatusNoError : LonStatusPersistentDataAccessError);
 #else
-    persistentMemError = IzotApiPersistentFileError;
+    persistentMemError = LonStatusPersistentDataAccessError;
 #endif // OS_IS(FREERTOS)
     return persistentMemError;
 }
@@ -276,7 +276,7 @@ IzotApiError HalFlashDrvOpen(void)
  * Returns:
  *   None
  */
-IzotApiError HalFlashDrvClose(void)
+LonStatusCode HalFlashDrvClose(void)
 {
     if (!IZOT_SUCCESS(persistentMemError)) {   
         return persistentMemError;
@@ -292,7 +292,7 @@ IzotApiError HalFlashDrvClose(void)
         flashFd = NULL;
     }
 #endif
-    return persistentMemError = IzotApiNoError;
+    return persistentMemError = LonStatusNoError;
 }
 
 /*
@@ -302,10 +302,10 @@ IzotApiError HalFlashDrvClose(void)
  *   start: offset in bytes from the start of the flash region
  *   size: number of bytes to erase
  * Returns:
- *   IzotApiNoError (0) on success, or an <IzotApiError> error code
+ *   LonStatusNoError (0) on success, or an <LonStatusCode> error code
  *   on failure.
  */
-IzotApiError HalFlashDrvErase(size_t start, size_t size)
+LonStatusCode HalFlashDrvErase(size_t start, size_t size)
 {
     if (!IZOT_SUCCESS(persistentMemError)) {   
         return persistentMemError;
@@ -314,26 +314,26 @@ IzotApiError HalFlashDrvErase(size_t start, size_t size)
     struct stat st;
     if ((flashFd == -1) || (fstat(flashFd, &st) != 0)) {
         // Persistent file not open or stat failed
-        return persistentMemError = IzotApiPersistentFileError;
+        return persistentMemError = LonStatusPersistentDataAccessError;
     }
     off_t file_size = st.st_size;
     if (file_size < start) {
         // Seek to (start-1) and write a single 0x00 to extend the file
         if (lseek(flashFd, start - 1, SEEK_SET) == (off_t)-1) {
             // Extend seek failed
-            return persistentMemError = IzotApiPersistentFileError;
+            return persistentMemError = LonStatusPersistentDataAccessError;
         }
         unsigned char zero = 0;
         if (write(flashFd, &zero, 1) != 1) {
             // Extend write failed
-            return persistentMemError = IzotApiPersistentFileError;
+            return persistentMemError = LonStatusPersistentDataAccessError;
         }
     }
 
     // Seek to offset
     if (lseek(flashFd, start, SEEK_SET) == -1) {
         // Seek to start failed
-        return persistentMemError = IzotApiPersistentFileError;
+        return persistentMemError = LonStatusPersistentDataAccessError;
     }
 
     // Write 0xFF bytes
@@ -345,21 +345,21 @@ IzotApiError HalFlashDrvErase(size_t start, size_t size)
         ssize_t w = write(flashFd, buf, chunk);
         if (w < 0) {
             // Write to region failed
-            return persistentMemError = IzotApiPersistentFileError;
+            return persistentMemError = LonStatusPersistentDataAccessError;
         }
         left -= w;
     }
-    return persistentMemError = IzotApiNoError;
+    return persistentMemError = LonStatusNoError;
 #elif PROCESSOR_IS(MC200)
     if (flashFd == NULL) {
         // Flash driver not initialized
-        return persistentMemError = IzotApiPersistentFileError;
+        return persistentMemError = LonStatusPersistentDataAccessError;
     }
     // Erase the flash region by filling the specified area with 0xFF
     return persistentMemError = (iflash_drv_erase(flashFd, start, size) 
-            ? IzotApiNoError : IzotApiPersistentFileError);
+            ? LonStatusNoError : LonStatusPersistentDataAccessError);
 #else
-    return persistentMemError = IzotApiPersistentFileError;
+    return persistentMemError = LonStatusPersistentDataAccessError;
 #endif
 }
 
@@ -370,13 +370,13 @@ IzotApiError HalFlashDrvErase(size_t start, size_t size)
  *   start: offset in bytes from the start of the flash region
  *   size: number of bytes to write
  * Returns:
- *   IzotApiNoError (0) on success, or an <IzotApiError> error code
+ *   LonStatusNoError (0) on success, or an <LonStatusCode> error code
  *   on failure.
  * Notes:
  *   The file is extended if the file size is less than the starting
  *   offset.
  */
-IzotApiError HalFlashDrvWrite(IzotByte *buf, size_t start, size_t size)
+LonStatusCode HalFlashDrvWrite(IzotByte *buf, size_t start, size_t size)
 {
     if (!IZOT_SUCCESS(persistentMemError)) {   
         return persistentMemError;
@@ -385,24 +385,24 @@ IzotApiError HalFlashDrvWrite(IzotByte *buf, size_t start, size_t size)
     struct stat st;
     if ((flashFd == -1) || (fstat(flashFd, &st) != 0)) {
         // Persistent file not open or stat failed
-        return persistentMemError = IzotApiPersistentFileError;
+        return persistentMemError = LonStatusPersistentDataAccessError;
     }
     if (st.st_size < start) {
         // Extend file to the desired offset
         if (lseek(flashFd, start - 1, SEEK_SET) == (off_t)-1) {
             // Extend seek failed
-            return persistentMemError = IzotApiPersistentFileError;
+            return persistentMemError = LonStatusPersistentDataAccessError;
         }
         unsigned char zero = 0;
         if (write(flashFd, &zero, 1) != 1) {
             // Extend write failed
-            return persistentMemError = IzotApiPersistentFileError;
+            return persistentMemError = LonStatusPersistentDataAccessError;
         }
     }
     // Seek to the start offset
     if (lseek(flashFd, start, SEEK_SET) == (off_t)-1) {
         // Seek to start failed
-        return persistentMemError = IzotApiPersistentFileError;
+        return persistentMemError = LonStatusPersistentDataAccessError;
     }
     // Write the data
     size_t written = 0;
@@ -410,16 +410,16 @@ IzotApiError HalFlashDrvWrite(IzotByte *buf, size_t start, size_t size)
         ssize_t w = write(flashFd, (const char*)buf + written, size - written);
         if (w < 0) {
             // Persistent data write failure
-            return persistentMemError = IzotApiPersistentFileError;
+            return persistentMemError = LonStatusPersistentDataAccessError;
         }
         written += w;
     }
-    return persistentMemError = IzotApiNoError;
+    return persistentMemError = LonStatusNoError;
 #elif PROCESSOR_IS(MC200)
     return persistentMemError = (iflash_drv_write(flashFd, buf, len, addr) 
-            ? IzotApiNoError : IzotApiPersistentFileError);
+            ? LonStatusNoError : LonStatusPersistentDataAccessError);
 #else
-    return persistentMemError = IzotApiPersistentFileError;
+    return persistentMemError = LonStatusPersistentDataAccessError;
 #endif
 }
 
@@ -430,12 +430,12 @@ IzotApiError HalFlashDrvWrite(IzotByte *buf, size_t start, size_t size)
  *   start: offset in bytes from the start of the flash region
  *   size: number of bytes to read
  * Returns:
- *   IzotApiNoError (0) on success, or an <IzotApiError> error code
+ *   LonStatusNoError (0) on success, or an <LonStatusCode> error code
  *   on failure.
  * Notes:
  *    An error is returned if the file size is less than `start + size` bytes.
  */
-IzotApiError HalFlashDrvRead(IzotByte *buf, size_t start, size_t size)
+LonStatusCode HalFlashDrvRead(IzotByte *buf, size_t start, size_t size)
 {
     if (!IZOT_SUCCESS(persistentMemError)) {   
         return persistentMemError;
@@ -444,18 +444,18 @@ IzotApiError HalFlashDrvRead(IzotByte *buf, size_t start, size_t size)
     struct stat st;
     if ((flashFd == -1) || (fstat(flashFd, &st) != 0)) {
         // Persistent file not open or stat failed
-        return persistentMemError = IzotApiPersistentFileError;
+        return persistentMemError = LonStatusPersistentDataAccessError;
     }
     // Check that the file is large enough
     if (st.st_size < (off_t)(start + size)) {
         // Attempt to read beyond end of file
         errno = EINVAL;
-        return persistentMemError = IzotApiPersistentFileError;
+        return persistentMemError = LonStatusPersistentDataAccessError;
     }
     // Seek to the start offset
     if (lseek(flashFd, start, SEEK_SET) == (off_t)-1) {
         // Seek to start failed
-        return persistentMemError = IzotApiPersistentFileError;
+        return persistentMemError = LonStatusPersistentDataAccessError;
     }
     // Read the data
     size_t read_bytes = 0;
@@ -463,23 +463,23 @@ IzotApiError HalFlashDrvRead(IzotByte *buf, size_t start, size_t size)
         ssize_t r = read(flashFd, (char*)buf + read_bytes, size - read_bytes);
         if (r < 0) {
             // Persistent data read failure
-            return persistentMemError = IzotApiPersistentFileError;
+            return persistentMemError = LonStatusPersistentDataAccessError;
         } else if (r == 0) {
             // End of file reached before reading enough bytes
             if (read_bytes < size) {
                 errno = EINVAL;
-                return persistentMemError = IzotApiPersistentFileError;
+                return persistentMemError = LonStatusPersistentDataAccessError;
             }
             break; // Successfully read all requested bytes
         }
         read_bytes += r;
     }
-    return persistentMemError = IzotApiNoError;
+    return persistentMemError = LonStatusNoError;
 #elif PROCESSOR_IS(MC200)
     return persistentMemError = (iflash_drv_read(flashFd, buf, size, start) 
-            ? IzotApiNoError : IzotApiPersistentFileError);
+            ? LonStatusNoError : LonStatusPersistentDataAccessError);
 #else
-    return persistentMemError = IzotApiPersistentFileError;
+    return persistentMemError = LonStatusPersistentDataAccessError;
 #endif
 }
 
@@ -488,14 +488,14 @@ IzotApiError HalFlashDrvRead(IzotByte *buf, size_t start, size_t size)
  * Parameters:
  *   mac: pointer to 6 byte array for the MAC ID
  * Returns:
- *   IzotApiNoError (0) on success, or an <IzotApiError> error code
+ *   LonStatusNoError (0) on success, or an <LonStatusCode> error code
  *   on failure.
  * Notes:
  *   For a Linux host, the IP interface name is defined in the 'iface'
  *   global.  The name is host-dependent and must match the name for
  *   the host.
  */ 
-IzotApiError HalGetMacAddress(unsigned char *mac)
+LonStatusCode HalGetMacAddress(unsigned char *mac)
 {
 #if OS_IS(LINUX)
     const char *iface = "eth0";
@@ -505,7 +505,7 @@ IzotApiError HalGetMacAddress(unsigned char *mac)
     fd = socket(AF_INET, SOCK_DGRAM, 0);
     if (fd == -1) {
         // Socket error
-        return IzotApiMacIdNotAvailable;
+        return LonStatusDeviceUniqeIdNotAvailable;
     }
 
     memset(&ifr, 0, sizeof(ifr));
@@ -514,14 +514,14 @@ IzotApiError HalGetMacAddress(unsigned char *mac)
     if (ioctl(fd, SIOCGIFHWADDR, &ifr) == -1) {
         // ioctl error
         close(fd);
-        return IzotApiMacIdNotAvailable;
+        return LonStatusDeviceUniqeIdNotAvailable;
     }
 
-    return IzotApiNoError; // Success
+    return LonStatusNoError; // Success
 #elif PROCESSOR_IS(MC200)
-    return (wlan_get_mac_address(mac) ? IzotApiMacIdNotAvailable : IzotApiNoError);
+    return (wlan_get_mac_address(mac) ? LonStatusDeviceUniqeIdNotAvailable : LonStatusNoError);
 #else
-    return IzotApiMacIdNotAvailable;
+    return LonStatusDeviceUniqeIdNotAvailable;
 #endif
 }
 
@@ -531,12 +531,12 @@ IzotApiError HalGetMacAddress(unsigned char *mac)
  *   None
  * Returns:
  *   If successful, this function does not return.
- *   If not successful, <IzotApiError> IzotApiRebootFailure
+ *   If not successful, <LonStatusCode> LonStatusHostRebootFailure
  *   is returned.
  */ 
-IzotApiError HalReboot(void)
+LonStatusCode HalReboot(void)
 {
-    IzotApiError ret = IzotApiRebootFailure;
+    LonStatusCode ret = LonStatusHostRebootFailure;
 
 #if OS_IS(LINUX)
     // Sync filesystems before rebooting

@@ -192,8 +192,8 @@ static LonTimer HeartbeatTimer;
 // Section: Prototypes
 //
 
-IzotApiError SetUpAddressTable(void);
-IzotApiError SetUpStaticNVs(void);
+LonStatusCode SetUpAddressTable(void);
+LonStatusCode SetUpStaticNVs(void);
 void Example1DatapointUpdateOccurred(const unsigned index, const IzotReceiveAddress* const pSourceAddress);
 void SetHeartbeatTimer(void);
 void HeartbeatInUpdateOccurred(const unsigned index, const IzotReceiveAddress* const pSourceAddress);
@@ -215,7 +215,7 @@ void Temp2InUpdateOccurred(const unsigned index, const IzotReceiveAddress* const
 
 #ifdef INCLUDE_EXAMPLE_MAIN
 void main() {
-    IzotApiError lastError = IzotApiNoError;
+    LonStatusCode lastError = LonStatusNoError;
     IzotBool success = TRUE;
 
     // Set up Example1
@@ -235,11 +235,11 @@ void main() {
 // Initial setup for this application, call from main() when 
 // using C.
 //
-// Returns: <IzotApiError>
+// Returns: <LonStatusCode>
 
-IzotApiError SetUpExample1(void)
+LonStatusCode SetUpExample1(void)
 {
-    IzotApiError lastError = IzotApiNoError;
+    LonStatusCode lastError = LonStatusNoError;
     IzotBool success = TRUE;
     IzotBool domainId = EXAMPLE_DOMAIN_ID;  // Use a 1-byte domain
 
@@ -264,9 +264,9 @@ IzotApiError SetUpExample1(void)
 // Event loop code for a single pass of the Example 1 event loop.
 // Call from an event loop when using C.
 
-IzotApiError LoopExample1(void)
+LonStatusCode LoopExample1(void)
 {
-    IzotApiError ret = IzotApiNoError;
+    LonStatusCode ret = LonStatusNoError;
 
     // LON Stack event pump
     ret = IzotEventPump();
@@ -298,12 +298,12 @@ IzotApiError LoopExample1(void)
 // Function: SetUpAddressTable()
 // Sets up a simple single address table for this application.
 //
-// Returns: <IzotApiError>
+// Returns: <LonStatusCode>
 
-IzotApiError SetUpAddressTable(void)
+LonStatusCode SetUpAddressTable(void)
 {
     IzotAddress AddressTableEntry = {}; 
-    IzotApiError lastError = IzotApiNoError;
+    LonStatusCode lastError = LonStatusNoError;
 
     AddressTableEntry.SubnetNode.Type = IzotAddressSubnetNode;
     IZOT_SET_ATTRIBUTE(AddressTableEntry.SubnetNode, IZOT_ADDRESS_SN_DOMAIN, 0);
@@ -321,11 +321,11 @@ IzotApiError SetUpAddressTable(void)
 // Function: SetUpStaticNVs()
 // Creates and binds the static NVs for this application.
 //
-// Returns: <IzotApiError>
+// Returns: <LonStatusCode>
 
-IzotApiError SetUpStaticNVs(void)
+LonStatusCode SetUpStaticNVs(void)
 {
-    IzotApiError lastError = IzotApiNoError;
+    LonStatusCode lastError = LonStatusNoError;
     IzotBool success = TRUE;
 
     // Specify static configuration with: IzotDatapointSetup(IzotDatapointDefinition* pDatapointDef, volatile void const *value, IzotDatapointSize size, 
