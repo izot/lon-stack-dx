@@ -155,7 +155,7 @@ static LonStatusCode IzotPersistentSegStore(IzotPersistentSegType persistentSegT
     } 
     
     if (reason == LonStatusNoError) {
-        hdr.checksum = ComputeChecksum(pImage, imageLen);
+        hdr.checksum = ComputePersistenceChecksum(pImage, imageLen);
         hdr.length = imageLen;
 
         IzotPersistentSegType returnedSegType = 
@@ -213,13 +213,13 @@ unsigned IzotPersistentSegGetHeaderSize(void)
 }
  
 /*
- * Function: ComputeChecksum
+ * Function: ComputePersistenceChecksum
  * This function computes the checksum on data to be stored in flash.
  */
-int ComputeChecksum(IzotByte* pImage, int length)
+uint8_t ComputePersistenceChecksum(uint8_t* pImage, size_t length)
 {
-    int i; 
-    unsigned short checksum = 0;
+    size_t i; 
+    uint8_t checksum = 0;
     for (i = 0; i < length - 1; i++) {
         checksum += pImage[i];
     }
@@ -228,16 +228,16 @@ int ComputeChecksum(IzotByte* pImage, int length)
 } 
 
 /*
- * Function: ValidateChecksum
+ * Function: ValidatePersistenceChecksum
  * This function validates the checksum from the data read from flash.
  */
-IzotBool ValidateChecksum(IzotPersistenceHeader *pHdr, IzotByte *pImage)
+bool ValidatePersistenceChecksum(IzotPersistenceHeader *pHdr, uint8_t *pImage)
 {
-    IzotBool result = TRUE;
+    bool result = true;
     // Can't checksum signature 0 checksum.
     if (pHdr->signature != m_appSignature) {
-        if (ComputeChecksum(pImage, pHdr->length) != pHdr->checksum) {
-            result = FALSE;
+        if (ComputePersistenceChecksum(pImage, pHdr->length) != pHdr->checksum) {
+            result = false;
         }
     }
     return result;
@@ -368,7 +368,7 @@ LonStatusCode IzotPersistentSegRestore(IzotPersistentSegType persistentSegType)
                 pImage = (IzotByte *) OsalAllocateMemory(imageLength);
                 if (pImage == NULL ||
                     IzotPersistentSegRead(persistentSegType, sizeof(hdr), imageLength, pImage) != 0 ||
-                    !ValidateChecksum(&hdr, pImage)) {
+                    !ValidatePersistenceChecksum(&hdr, pImage)) {
                     reason = LonStatusPersistentDataFailure;
                     OsalFreeMemory(pImage);
                     pImage = NULL;

@@ -48,16 +48,16 @@ typedef IZOT_STRUCT_BEGIN(IzotPersistenceHeader)
 extern unsigned IzotPersistentSegGetHeaderSize(void);
 
 /*
- * Function: ComputeChecksum
+ * Function: ComputePersistenceChecksum
  * This function compute the checksum on data to be stored in flash.
  */
-extern int ComputeChecksum(IzotByte* pImage, int length);
+extern uint8_t ComputePersistenceChecksum(uint8_t* pImage, size_t length);
 
 /*
- * Function: ValidateChecksum
+ * Function: ValidatePersistenceChecksum
  * This function validates the checksum from the data read from flash.
  */
-extern IzotBool ValidateChecksum(IzotPersistenceHeader* pHdr, IzotByte* pImage);
+extern bool ValidatePersistenceChecksum(IzotPersistenceHeader* pHdr, uint8_t* pImage);
 
 /*
  * Function: GetAppSignature

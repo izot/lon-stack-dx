@@ -47,8 +47,8 @@ extern "C"
 	
 LonStatusCode LDV_EXTERNAL_FN OpenLonLink(const char *name, short *handle);
 LonStatusCode LDV_EXTERNAL_FN CloseLonLink(short handle);
-LonStatusCode LDV_EXTERNAL_FN ReadLonLink(short handle, void *msg, short len);
-LonStatusCode LDV_EXTERNAL_FN WriteLonLink(short handle, void *msg, short len);
+LonStatusCode LDV_EXTERNAL_FN ReadLonLinkMsg(short handle, void *msg, short len);
+LonStatusCode LDV_EXTERNAL_FN WriteLonLinkMsg(short handle, void *msg, short len);
 
 #ifdef __cplusplus
 }

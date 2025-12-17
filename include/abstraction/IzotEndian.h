@@ -46,4 +46,14 @@
 #define ntoh32(s) (s)
 #endif
 
+static uint16_t EndianSwap16(uint16_t in) {
+	return (in >> 8) | (in << 8);
+}
+
+static uint32_t EndianSwap32(uint32_t in) {
+    return ((in >> 24) & 0x000000FF) |
+           ((in >> 8)  & 0x0000FF00) |
+           ((in << 8)  & 0x00FF0000) |
+           ((in << 24) & 0xFF000000);
+}
 #endif // _IZOT_ENDIAN_H

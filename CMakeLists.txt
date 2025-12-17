@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.21)
 
 project(lon_stack_dx
-    VERSION 2.0.3
+    VERSION 3.0.0
     DESCRIPTION "LON Stack DX for LON/IP and U10/U60 LON FT-compatible USB interfaces"
     LANGUAGES C
 )
@@ -99,6 +99,7 @@ set(LON_STACK_DX_HEADERS
     include/lcs/lcs_tsa.h
     include/lcs/lcs.h
     include/lon_udp/ipv4_to_lon_udp.h
+    include/lon_usb/lon_usb_link.h
     include/persistence/flash_persistence.h
     include/persistence/lon_persistence.h
 )

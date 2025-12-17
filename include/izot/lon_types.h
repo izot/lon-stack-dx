@@ -1931,6 +1931,8 @@ typedef IZOT_ENUM_BEGIN(IzotNmMessageCode)
     IzotNmServicePin                    = 0x7F
 } IZOT_ENUM_END(IzotNmMessageCode);
 
+#define NI_CMD_MASK			0xF0
+
 /*
  *  Enumeration: IzotInstallCommand
  *  Extended installation commands for devices that use SI data version 2. SI

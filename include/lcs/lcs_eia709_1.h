@@ -120,6 +120,9 @@ typedef struct __attribute__ ((packed)) {
 	IzotByte domainId[DOMAIN_ID_LEN];
 } Domain;
 
+// LON LPDU offsets
+#define MSG_CODE_OFFSET		14		// Message code offset in LPDU assuming EXP ADDR is ON
+
 /*******************************************************************************
    DestinationAddress is used to indicate network layer which address
    mode is used to send the message. The destination address

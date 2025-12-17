@@ -266,7 +266,7 @@ LtPersistenceLossReason restorePersistentData(IzotPersistentSegType persistentSe
 			pBuffer = (IzotByte *) OsalAllocateMemory(imageLen);
 			if (pBuffer == NULL ||
 				  IzotPersistentSegRead(returnedSegType, sizeof(hdr), imageLen, pBuffer) != 0 ||
-				!ValidateChecksum(&hdr, pBuffer)) {
+				!ValidatePersistenceChecksum(&hdr, pBuffer)) {
 				reason = LT_CORRUPTION;
 				OsalFreeMemory(pBuffer);
 				pBuffer = NULL;

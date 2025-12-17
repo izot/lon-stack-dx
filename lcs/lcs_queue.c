@@ -334,3 +334,41 @@ size_t RingBufferRead(RingBuffer *rb, uint8_t *dst, size_t len)
     rb->count -= got;
     return got;
 }
+
+/*****************************************************************
+ * Section: Simple queue helper implementations (shared utilities)
+ *****************************************************************/
+/*
+ * TBD: Replace use of these functions with generic queue functions above.
+ * The following functions are only used in lon_usb_link.c and provide
+ * simple queue operations for LonQueueEntry structures.
+ */
+#include "lon_usb/lon_usb_link.h"
+
+LonQueueEntry* OsalCreateQueueEntry(LonQueueBuffer *data) {
+    LonQueueEntry *new_entry = (LonQueueEntry*)OsalAllocateMemory(sizeof(LonQueueEntry));
+    if (!new_entry) {
+        return NULL; // Allocation failed
+    }
+    new_entry->next = NULL;
+    if (data) {
+        memcpy(&new_entry->data, data, sizeof(struct LonQueueBuffer));
+    } else {
+        memset(&new_entry->data, 0, sizeof(struct LonQueueBuffer));
+    }
+    return new_entry;
+}
+
+struct LonQueueEntry* OsalPeekQueue(struct LonQueueEntry* head) {
+    return head;
+}
+
+size_t OsalGetQueueCount(struct LonQueueEntry* head) {
+    size_t count = 0;
+    struct LonQueueEntry *e = head;
+    while (e) {
+        count++;
+        e = e->next;
+    }
+    return count;
+}

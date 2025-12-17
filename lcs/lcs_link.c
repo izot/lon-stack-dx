@@ -188,10 +188,10 @@ void LKReset(void)
                         0x00, 0x00, UNIQUE_NODE_ID_LEN};
 				L2Frame sicbIn;
 				OsalSleep(UNIQUE_ID_FETCH_INTERVAL);
-				if (requestUid && WriteLonLink(handle, (void*)&nidRead, (short)(nidRead.len+2)) == LonStatusNoError) {
+				if (requestUid && WriteLonLinkMsg(handle, (void*)&nidRead, (short)(nidRead.len+2)) == LonStatusNoError) {
 					requestUid = false;
 				}
-				if (ReadLonLink(handle, &sicbIn, sizeof(sicbIn)) == LonStatusNoError
+				if (ReadLonLinkMsg(handle, &sicbIn, sizeof(sicbIn)) == LonStatusNoError
                         && sicbIn.cmd == nicbRESPONSE 
                         && (sicbIn.pdu[0]&0x0F) == LNM_TAG 
                         && sicbIn.pdu[14] == (NM_resp_success|NM_READ_MEMORY)) {
@@ -244,7 +244,7 @@ void LKSend(void)
         }
         if (lonNi[niIndex].isPowerLine && lonNi[niIndex].setPlPhase) {
             L2Frame mode = {nicbPHASE|2, 0};
-            lonNi[niIndex].setPlPhase = WriteLonLink(lonNi[niIndex].handle, &mode, 2) != LonStatusNoError;
+            lonNi[niIndex].setPlPhase = WriteLonLinkMsg(lonNi[niIndex].handle, &mode, 2) != LonStatusNoError;
         }
     }
 
@@ -277,7 +277,7 @@ void LKSend(void)
 	
     // Send the LPDU to all LON network interfaces
 	for (niIndex=0; niIndex<NUM_LON_NI; niIndex++) {
-		WriteLonLink(lonNi[niIndex].handle, &sicb, (short)(sicb.len+2));
+		WriteLonLinkMsg(lonNi[niIndex].handle, &sicb, (short)(sicb.len+2));
 	}
 
 	QueueDropHead(lkSendQueuePtr);
@@ -314,7 +314,7 @@ void LKReceive(void)
 	int				niIndex;
 	
 	for (niIndex=0; niIndex<NUM_LON_NI; niIndex++) {
-		if (ReadLonLink(lonNi[niIndex].handle, &sicb, sizeof(sicb)) == LonStatusNoError) {
+		if (ReadLonLinkMsg(lonNi[niIndex].handle, &sicb, sizeof(sicb)) == LonStatusNoError) {
             // Packet found to process
 			break;
 		}
@@ -482,7 +482,7 @@ void LKFetchXcvrPl(int index)
 							 ND_opcode_base|ND_QUERY_XCVR};
     if (lonNi[index].isPowerLine) {
 	    // Send the fetch message; if send fails, set the fetch flag to try again next time
-	    lonNi[index].fetchXcvrParams = WriteLonLink(lonNi[index].handle,
+	    lonNi[index].fetchXcvrParams = WriteLonLinkMsg(lonNi[index].handle,
                 (L2Frame*)&sicbOut, (short)(sicbOut.len+2)) != LonStatusNoError;
     }
 }
