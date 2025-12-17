@@ -1,52 +1,29 @@
-//
-// Persitent.c
-//
-// Copyright (C) 2023-2025 EnOcean
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy of
-// this software and associated documentation files (the "Software"), to deal in 
-// the Software without restriction, including without limitation the rights to
-// use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-// of the Software, and to permit persons to whom the Software is furnished to do
-// so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
-
 /*
- * Abstract:
- * API to store the information in the hardware flash memory.  The API manages the
- * information with a peristent header. The persistent header contains the
- * application signature to verify the information while reading or writing 
- * to the flash memory.
+ * Persistent.c
+ *
+ * Copyright (c) 2023-2025 EnOcean
+ * SPDX-License-Identifier: MIT
+ * See LICENSE file for details.
+ * 
+ * Title:   Persistent Memory Management
+ * Purpose: Provides functions to manage persistent memory storage.
+ * Notes:   This module handles reading and writing data to hardware flash
+ *          memory, ensuring data integrity with a persistent header
+ *          containing an application signature.
  */
 
-#include "persistence/Persistent.h"
+#include "persistence/lon_persistence.h"
 
-/*------------------------------------------------------------------------------
-  Section: Macros
-  ------------------------------------------------------------------------------*/
 #define WAIT_FOREVER                -1
 #define ISI_IMAGE_SIGNATURE0        0xCF82
 #define CURRENT_VERSION             1
 
-/*------------------------------------------------------------------------------
-  Section: Global
-  ------------------------------------------------------------------------------*/
+/*****************************************************************
+ * Section: Globals
+ *****************************************************************/
 extern IzotPersistentSegDeserializeFunction izot_deserialize_handler;
 extern IzotPersistentSegSerializeFunction izot_serialize_handler;
  
-/*------------------------------------------------------------------------------
-  Section: Static
-  ------------------------------------------------------------------------------*/
 static unsigned      m_appSignature;
 static unsigned long m_guardBandDuration = 1000;
 static unsigned long lastUpdate = 0;
@@ -54,19 +31,16 @@ static IzotBool      commitFlag = FALSE;
 static IzotBool      scheduled = FALSE;
 static IzotBool      PersitenceList[IzotPersistentSegNumSegmentTypes];
 
-/*
- * *****************************************************************************
- * Section: Functions
- * *****************************************************************************
- */
-
+/*****************************************************************
+ * Section: Function Definitions
+ *****************************************************************/
 /*
  * Function: IzotPersistentMemGuardBandRemaining
  * This function calculates the time remaining for the flushing.
  */
 static uint32_t IzotPersistentMemGuardBandRemaining(void)
 {
-    uint32_t timeElapsed = IzotGetTickCount() - lastUpdate;
+    uint32_t timeElapsed = OsalGetTickCount() - lastUpdate;
     uint32_t timeRemaining;
     if (timeElapsed <= m_guardBandDuration) {
         timeRemaining = m_guardBandDuration - timeElapsed;
@@ -100,11 +74,11 @@ static LonStatusCode IzotPersistentSegDeserializeNetworkImage(
  * This function serializes the network image persistent segment.
  */
 static LonStatusCode IzotPersistentSegSerializeNetworkImage(
-        IzotByte** pData, int *len)
+        IzotByte** pData, size_t *len)
 {
-    int imageLen = IzotPersistentSegGetMaxSize(IzotPersistentSegNetworkImage);
+    size_t imageLen = IzotPersistentSegGetMaxSize(IzotPersistentSegNetworkImage);
 
-    *pData = (IzotByte *) OsalMalloc(imageLen);
+    *pData = (IzotByte *) OsalAllocateMemory(imageLen);
     *len = imageLen;
     
     memcpy((void *)*pData, (const void*)(&eep->configData), imageLen);
@@ -136,11 +110,11 @@ static LonStatusCode IzotPersistentSegDeserializeAppDataImage(
  * Function: IzotPersistentSegSerializeAppDataImage
  * This function serializes the application data persistent segment.
  */
-static LonStatusCode IzotPersistentSegSerializeAppDataImage(IzotByte** pData, int *len)
+static LonStatusCode IzotPersistentSegSerializeAppDataImage(IzotByte** pData, size_t *len)
 {
-    int imageLen = IzotPersistentSegGetMaxSize(IzotPersistentSegApplicationData);
+    size_t imageLen = IzotPersistentSegGetMaxSize(IzotPersistentSegApplicationData);
     
-    *pData = (IzotByte *) OsalMalloc(imageLen);
+    *pData = (IzotByte *) OsalAllocateMemory(imageLen);
     *len = imageLen;
     
     if (izot_serialize_handler != NULL) {
@@ -159,7 +133,7 @@ static LonStatusCode IzotPersistentSegStore(IzotPersistentSegType persistentSegT
 {
     IzotByte* pImage = NULL;
     IzotPersistenceHeader hdr;
-    int imageLen = 0;
+    size_t imageLen = 0;
     LonStatusCode reason = LonStatusNoError;
 
     IzotPersistentSegEnterTransaction(persistentSegType);
@@ -201,7 +175,7 @@ static LonStatusCode IzotPersistentSegStore(IzotPersistentSegType persistentSegT
         }
         
         if (pImage != NULL) {
-            OsalFree(pImage);
+            OsalFreeMemory(pImage);
         }
     }
     
@@ -296,7 +270,7 @@ void SetPeristenceGuardBand(int nTime)
     int ticks;
     
     // Convert milliseconds to tick counts in a platform independent way
-    ticks = nTime * GetTicksPerSecond() / 1000; 
+    ticks = nTime * OsalGetTicksPerSecond() / 1000; 
     if (ticks == 0) {
         ticks = 1;
     }
@@ -322,7 +296,7 @@ void IzotPersistentSegSetCommitFlag(IzotPersistentSegType persistentSegType)
 void IzotPersistentMemStartCommitTimer(void)
 {
     if (!scheduled) {
-        lastUpdate = IzotGetTickCount();
+        lastUpdate = OsalGetTickCount();
     }
 
     scheduled = TRUE;
@@ -334,7 +308,8 @@ void IzotPersistentMemStartCommitTimer(void)
  */
 void IzotPersistentMemReportFailure(void)
 {
-    LCS_RecordError(IzotEepromWriteFail);
+    OsalPrintError(LonStatusEepromWriteFail, 
+        "IzotPersistentMemReportFailure: Persistent memory write failure");
 }
 
 /*
@@ -372,7 +347,7 @@ LonStatusCode IzotPersistentSegRestore(IzotPersistentSegType persistentSegType)
     LonStatusCode reason = LonStatusNoError;
     IzotPersistenceHeader hdr;
     IzotByte* pImage = NULL;
-    int imageLength = 0;
+    size_t imageLength = 0;
 
     if (IzotPersistentSegIsInTransaction(persistentSegType)) {
         reason = LonStatusPersistentDataFailure;
@@ -390,12 +365,12 @@ LonStatusCode IzotPersistentSegRestore(IzotPersistentSegType persistentSegType)
                 reason = LonStatusPersistentDataFailure;
             } else {
                 imageLength = hdr.length;
-                pImage = (IzotByte *) OsalMalloc(imageLength);
+                pImage = (IzotByte *) OsalAllocateMemory(imageLength);
                 if (pImage == NULL ||
                     IzotPersistentSegRead(persistentSegType, sizeof(hdr), imageLength, pImage) != 0 ||
                     !ValidateChecksum(&hdr, pImage)) {
                     reason = LonStatusPersistentDataFailure;
-                    OsalFree(pImage);
+                    OsalFreeMemory(pImage);
                     pImage = NULL;
                 }
             }
@@ -428,7 +403,7 @@ LonStatusCode IzotPersistentSegRestore(IzotPersistentSegType persistentSegType)
     }
     
     if (pImage != NULL) {
-        OsalFree(pImage);
+        OsalFreeMemory(pImage);
     }
     
     return reason;

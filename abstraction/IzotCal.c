@@ -26,7 +26,7 @@
 #endif
 
 #if PROTOCOL_IS(LON_IP)
-#include "ls_udp/IPv4ToLsUdp.h"
+#include "lon_udp/ipv4_to_lon_udp.h"
 #endif
 
 #if LINK_IS(WIFI)
@@ -146,7 +146,7 @@ static void EventWlanInitDone(void *data)
 	os_mem_free(dp);
 
     // Get the MAC address of the Wi-Fi interface
-    if (!IZOT_SUCCESS(HalGetMacAddress(mac))) {
+    if (!LON_SUCCESS(HalGetMacAddress(mac))) {
         CAL_Printf("Failed to to get MAC address\r\n");
         return;
     }

@@ -1,32 +1,17 @@
-//
-// lcs_physical.h
-//
-// Copyright (C) 2022 EnOcean
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy of
-// this software and associated documentation files (the "Software"), to deal in 
-// the Software without restriction, including without limitation the rights to
-// use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-// of the Software, and to permit persons to whom the Software is furnished to do
-// so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
+/*
+ * lcs_physical.h
+ *
+ * Copyright (c) 2023-2025 EnOcean
+ * SPDX-License-Identifier: MIT
+ * See LICENSE file for details.
+ * 
+ * Title:   LON Physical Layer Data Structures
+ * Purpose: Define data structures for the native LON Physical Layer (Layer 1).
+ * Notes:   This file is not used for LON/IP or LON USB links.
+ *          For LON/IP, the physical layer is abstracted by the IP layer.
+ *          For LON USB, the physical layer is abstracted by the USB link layer.
+ */
 
-/*********************************************************************
-     Reference:        ISO/IEC 14908-1, Section 4, 4.3
-
-       Purpose:        Data Structures for native LON Physical Layer.
-                       Not used for LON/IP or LON USB link.
-*********************************************************************/
 #ifndef _PHYSICAL_H
 #define _PHYSICAL_H
 
@@ -34,30 +19,19 @@
 
 #if LINK_IS(MIP)
 
-/*------------------------------------------------------------------------------
-  Section: Includes
-  ------------------------------------------------------------------------------*/
 #include "lcs/lcs_eia709_1.h" /* needed for NUM_COMM_PARAMS */
 
-/*-------------------------------------------------------------------
-  Section: Constant Definitions
-  -------------------------------------------------------------------*/
 /* Length in bytes of Packet buffers for SPM ISR */
 #define PKT_BUF_LEN 255
 
-/*-------------------------------------------------------------------
-  Section: Type Definitions
-  -------------------------------------------------------------------*/
-typedef enum
-{
+typedef enum {
     RUN = 0,   /* The SPI is engaged in transfer */
     STOP,      /* The SPI is stopped usually due to error
                  must be re-initialized */
     OVERWRITE, /* receive new packet before old copied out */
 } SPMMode;
 
-typedef enum
-{
+typedef enum {
     IDLE = 0,
     RECEIVE,
     WRITE,
@@ -68,8 +42,7 @@ typedef enum
     DEBUG,
 } SPMState;
 
-typedef enum
-{
+typedef enum {
     BUSY = 0,
     BETA1_IDLE,
     PRIORITY_IDLE,
@@ -79,17 +52,13 @@ typedef enum
     START_TX,
 } AccessPhase;
 
-
-
-typedef enum
-{
+typedef enum {
     POST_RX,
     POST_TX,
 } Beta1Kind;
 
 /* User timer structure to keep elapsed time*/
-typedef struct
-{
+typedef struct {
     Boolean expired;  /* flag indicates if timer has expired
                         if use as countdown timer */
     uint32 start;     /* count when started timer */
@@ -100,10 +69,8 @@ typedef struct
                                counter register for clock */
 } TimerData32;
 
-
 /* Special Purpose Mode Receive Frame 16 bit */
-typedef struct
-{
+typedef struct {
     unsigned setTxFlag    : 1; /* XCVR accepts req to xmit packet */
     unsigned clrTxReqFlag : 1; /* XCVR acks req to xmit packet */
     unsigned rxDataValid  : 1; /* XCVR is passing data to 360
@@ -121,8 +88,7 @@ typedef struct
 } SPMRxFrame;
 
 /* Special Purpose Mode Transmit Frame 16 bit */
-typedef struct
-{
+typedef struct {
     unsigned txFlag      : 1; /* 360 is transmitting packet */
     unsigned txReqFlag   : 1; /* 360 requests to transmit on network */
     unsigned txDataValid : 1; /* 360 is passing data to XCVR in this
@@ -139,8 +105,7 @@ typedef struct
    running the MAC sublayer and the physical, link, or network
    layers. This is the external interface for the Mac sublayer */
 
-typedef struct
-{
+typedef struct {
     uint8 altPathBit; /* alt path bit  for this packet */
     uint8 deltaBLTx;  /* delta backlog on current transmit packet */
     uint8 deltaBLRx;  /* delta backlog on last received packet */
@@ -157,15 +122,13 @@ typedef struct
                        to tx */
     int16 rl;        /* count of last byte in packet to to
                        tx = number of bytes -1 */
-    Byte tPkt[PKT_BUF_LEN]; /* buffer to hold transmit packet */
-    Byte rPkt[PKT_BUF_LEN]; /* buffer to hold receive packet */
+    uint8_t tPkt[PKT_BUF_LEN]; /* buffer to hold transmit packet */
+    uint8_t rPkt[PKT_BUF_LEN]; /* buffer to hold receive packet */
 
 }   MACParam;
 
 /* Frame parameters for ISR */
-typedef struct
-{
-
+typedef struct {
     SPMMode mode;    /* status of SPM activity */
     SPMState state;  /* state */
     AccessPhase phase;  /* state of channel access algorithm */
@@ -225,21 +188,19 @@ typedef struct
     SPMRxFrame rf;   /* copy of recent RX frame */
     SPMTxFrame tf;   /* copy of next TX frame */
     Boolean crw;     /* write config register */
-    Byte cra;        /* config register address should be
+    uint8_t cra;     /* config register address should be
                        between 0 and 7 */
-    Byte crData;     /* data byte for config register */
+    uint8_t crData;  /* data byte for config register */
     Boolean srr;     /* read status register */
-    Byte sra;        /* status register address should be between
+    uint8_t sra;     /* status register address should be between
                        0 and 7 */
-    Byte srData;     /* data read from status register */
-
-
+    uint8_t srData;  /* data read from status register */
 } SPMParam;
 
 /*-------------------------------------------------------------------
   Section: Globals
   -------------------------------------------------------------------*/
-/* parameters for SPMIsr  */
+/* Parameters for SPMIsr  */
 extern volatile MACParam macGbl;
 extern volatile SPMParam spmGbl;
 

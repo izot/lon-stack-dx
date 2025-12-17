@@ -1,47 +1,21 @@
-//
-// lcs_network.c
-//
-// Copyright (C) 2022 EnOcean
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy of
-// this software and associated documentation files (the "Software"), to deal in 
-// the Software without restriction, including without limitation the rights to
-// use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-// of the Software, and to permit persons to whom the Software is furnished to do
-// so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
+/*
+ * lcs_network.c
+ *
+ * Copyright (c) 2022-2025 EnOcean
+ * SPDX-License-Identifier: MIT
+ * See LICENSE file for details.
+ * 
+ * Title:   LON Stack Network Layer
+ * Purpose: Implements the LON network layer (Layer 3) of the 
+ *          ISO/IEC 14908-1 LON protocol stack.
+ * Notes:   See ISO/IEC 14908-1, Section 6 for LON protocol details.
+ */
 
-/*******************************************************************************
-     Reference:        ISO/IEC 14908-1, Section 6.
-
-       Purpose:        Implement the LON network layer.
-*******************************************************************************/
-
-/*------------------------------------------------------------------------------
-  Section: Includes
-  ------------------------------------------------------------------------------*/
 #include "lcs/lcs_network.h"
 
-/*------------------------------------------------------------------------------
-  Section: Constants
-  ------------------------------------------------------------------------------*/
 #ifdef SECURITY_II
 #define LT_AES_GCM_PACKET_CODE      0x4e
 #endif
-
-/*------------------------------------------------------------------------------
-  Section: Type Definitions
-  ------------------------------------------------------------------------------*/
 
 /*******************************************************************************
    IzotByte data[1] is used so that variable data has address assigned by
@@ -53,8 +27,7 @@
    Based on the addrFmt field and 1st bit of data[1], the rest of
    the data array is used appropriately.
 *******************************************************************************/
-typedef struct __attribute__ ((packed))
-{
+typedef struct __attribute__ ((packed)) {
     BITS4(protocolVersion,  2,
           pduType,          2,
           addrFmt,          2,
@@ -71,7 +44,7 @@ extern IzotByte NmAuth;
   Section: Local Function Prototypes
   ------------------------------------------------------------------------------*/
 static IzotByte DecodeDomainLength(IzotByte lengthCode);
-Status EncodeDomainLength(IzotByte length, IzotByte* pValue);
+LonStatusCode EncodeDomainLength(IzotByte length, IzotByte* pValue);
 
 /*------------------------------------------------------------------------------
   Section: Function Definitions
@@ -84,19 +57,20 @@ Reference: None
 Purpose:   To initialize the queues used by the network layer.
 Comments:  None.
 *******************************************************************************/
-void   NWReset(void)
+void NWReset(void)
 {
     IzotUbits16 queueItemSize;
+    LonStatusCode status = LonStatusNoError;
 
     /* Allocate and initialize the input queue. */
     gp->nwInBufSize   = DecodeBufferSize(NW_IN_BUF_SIZE); //1280
     gp->nwInQCnt      = DecodeBufferCnt((IzotByte)IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NW_INBUF_CNT));
     queueItemSize     = gp->nwInBufSize + sizeof(NWReceiveParam);
 
-
-    if (QueueInit(&gp->nwInQ, queueItemSize, gp->nwInQCnt) != SUCCESS)
-    {
+    status = QueueInit(&gp->nwInQ, queueItemSize, gp->nwInQCnt);
+    if (status != LonStatusNoError) {
         gp->resetOk = FALSE;
+        OsalPrintError(status, "NWReset: Unable to initialize the input queue");
         return;
     }
 
@@ -104,17 +78,15 @@ void   NWReset(void)
     gp->nwOutBufSize  = DecodeBufferSize(IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NW_OUTBUF_SIZE)) + 12; //1280
     gp->nwOutQCnt     = DecodeBufferCnt((IzotByte)IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NW_OUTBUF_CNT));
     queueItemSize     = gp->nwOutBufSize + sizeof(NWSendParam);
-    if (gp->nwOutQCnt < 2)
-    {
+    if (gp->nwOutQCnt < 2) {
         gp->resetOk = FALSE;
         return;
     }
 
-    if (QueueInit(&gp->nwOutQ, queueItemSize, gp->nwOutQCnt)
-            != SUCCESS)
-    {
-        DBG_vPrintf(TRUE, "NWReset: Unable to init the output queue.\n");
+    status = QueueInit(&gp->nwOutQ, queueItemSize, gp->nwOutQCnt);
+    if (status != LonStatusNoError) {
         gp->resetOk = FALSE;
+        OsalPrintError(status, "NWReset: Unable to initialize the output queue");
         return;
     }
 
@@ -123,16 +95,15 @@ void   NWReset(void)
     gp->nwOutPriQCnt    = DecodeBufferCnt((IzotByte)IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NW_OUT_PRICNT));
     queueItemSize       = gp->nwOutPriBufSize + sizeof(NWSendParam);
 
-    if (gp->nwOutPriQCnt < 1)
-    {
+    if (gp->nwOutPriQCnt < 1) {
         gp->resetOk = FALSE;
         return;
     }
 
-    if (QueueInit(&gp->nwOutPriQ, queueItemSize, gp->nwOutPriQCnt) != SUCCESS)
-    {
-        DBG_vPrintf(TRUE, "NWReset: Unable to init the priority output queue.\n");
+    status = QueueInit(&gp->nwOutPriQ, queueItemSize, gp->nwOutPriQCnt);
+    if (status != LonStatusNoError) {
         gp->resetOk = FALSE;
+        OsalPrintError(status, "NWReset: Unable to initialize the priority output queue");
         return;
     }
 
@@ -149,7 +120,7 @@ Purpose:   To clean up the current NW output queue and send a completion event
 void NWSendTerminate(void)
 {
     NWSendParam  *nwSendParamPtr; /* Param in nwOutQ or nwPriOutQ.   */
-    nwSendParamPtr = QueueHead(gp->nwCurrent);
+    nwSendParamPtr = QueuePeek(gp->nwCurrent);
     /* Send completion event if it was an APDU */
     if (nwSendParamPtr->pduType == APDU_TYPE)
     {
@@ -161,9 +132,9 @@ void NWSendTerminate(void)
         appReceiveParamPtr->proxy      = nwSendParamPtr->proxy;
         appReceiveParamPtr->proxyCount = 0;    // This technically isn't correct but this case should never happen on a working system.
         appReceiveParamPtr->proxyDone  = FALSE;
-        EnQueue(&gp->appCeRspInQ);
+        QueueWrite(&gp->appCeRspInQ);
     }
-    DeQueue(gp->nwCurrent);
+    QueueDropHead(gp->nwCurrent);
 }
 
 /*******************************************************************************
@@ -196,41 +167,35 @@ void   NWSend(void)
 	IzotByte         priority;
 #endif
     /* Check if there is work to do and set pointers */
-    if (!QueueEmpty(&gp->nwOutPriQ) && !QueueFull(&gp->lkOutPriQ))
-    {
+    if (!QueueEmpty(&gp->nwOutPriQ) && !QueueFull(&gp->lkOutPriQ)) {
         /* Process priority message if there is one and it can be processed. */
         gp->nwCurrent    = &gp->nwOutPriQ;
         gp->lkCurrent   = &gp->lkOutPriQ;
 #ifdef SECURITY_II
 		priority = TRUE;
 #endif
-    }
-    else if (!QueueEmpty(&gp->nwOutQ) && !QueueFull(&gp->lkOutQ))
-    {
+    } else if (!QueueEmpty(&gp->nwOutQ) && !QueueFull(&gp->lkOutQ)) {
         /* Process non-priority message if there is one and can be processed */
         gp->nwCurrent    = &gp->nwOutQ;
         gp->lkCurrent   = &gp->lkOutQ;
 #ifdef SECURITY_II
 		priority = FALSE;
 #endif
-    }
-    else
-    {
+    } else {
         /* Either there is nothing to send or there is no space in link layer */
         return;
     }
 
-    nwSendParamPtr  = QueueHead(gp->nwCurrent);
+    nwSendParamPtr  = QueuePeek(gp->nwCurrent);
     lkSendParamPtr  = QueueTail(gp->lkCurrent);
 
     /* For application layer messages, we need to give completion event
        using the tag given. This is for consistency with transport/session
        layers. Thus completion events are streamlined in one place in
        application layer rather than lots of places. */
-    if (nwSendParamPtr->pduType == APDU_TYPE && QueueFull(&gp->appCeRspInQ))
-    {
+    if (nwSendParamPtr->pduType == APDU_TYPE && QueueFull(&gp->appCeRspInQ)) {
         /* Can't deliver the indication. Wait until we can send indication */
-        DBG_vPrintf(TRUE, "NWSend: No room for indication");
+        OsalPrintError(LonStatusNoBufferAvailable, "NWSend: No room for completion event notification");
         return;
     }
 
@@ -242,8 +207,7 @@ void   NWSend(void)
     /* Write the NPDU header. */
     npduPtr->protocolVersion = nwSendParamPtr->version;
     npduPtr->pduType         = nwSendParamPtr->pduType;
-    switch (nwSendParamPtr->destAddr.addressMode)
-    {
+    switch (nwSendParamPtr->destAddr.addressMode) {
     case AM_BROADCAST:
         npduPtr->addrFmt = 0;
         break;
@@ -258,20 +222,16 @@ void   NWSend(void)
         npduPtr->addrFmt = 3;
         break;
     default:
-        DBG_vPrintf(TRUE, "NWSend: Unknown address mode.\n");
         /* Discard the packet as addrmode is wrong */
-        LCS_RecordError(IzotBadAddressType);
+        OsalPrintError(LonStatusInvalidMessageMode, "NWSend: Unknown address mode (0x%02X)", nwSendParamPtr->destAddr.addressMode);
         NWSendTerminate();
         return;
     }
     /* Write the domain length. */
     /* First determine the number of domains for this node */
-    if (IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_TWO_DOMAINS) == 1)
-    {
+    if (IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_TWO_DOMAINS) == 1) {
         numDomains = 2;
-    }
-    else
-    {
+    } else {
         numDomains = 1;
     }
 
@@ -281,8 +241,7 @@ void   NWSend(void)
        However, we allow acks, response, challenge and reply. The field
        dropIfUnconfigured indicates whether this check is done or not. */
     if (nwSendParamPtr->dropIfUnconfigured && nwSendParamPtr->destAddr.dmn.domainIndex != FLEX_DOMAIN &&
-    NodeUnConfigured())
-    {
+    NodeUnConfigured()) {
         /* drop this packet. */
         NWSendTerminate();
         return;
@@ -290,31 +249,27 @@ void   NWSend(void)
 
     /* If the domain used is not in use, it cannot send any packet */
     if (nwSendParamPtr->destAddr.dmn.domainIndex < numDomains &&
-     IZOT_GET_ATTRIBUTE(eep->domainTable[nwSendParamPtr->destAddr.dmn.domainIndex], IZOT_DOMAIN_INVALID))
-    {
-        if (!nwSendParamPtr->dropIfUnconfigured)
-        {
+     IZOT_GET_ATTRIBUTE(eep->domainTable[nwSendParamPtr->destAddr.dmn.domainIndex], IZOT_DOMAIN_INVALID)) {
+        if (!nwSendParamPtr->dropIfUnconfigured) {
             /* It is not ACK, RESP etc. Don't log domain error in this case.
                LNS might use join domain to leave a domain with IzotServiceAcknowledged. So, the
                ACK send by the transport layer will be in an invalid domain
                but should be ignored. */
 
             /* Discard the packet as the domain table entry is not in use */
-            LCS_RecordError(IzotInvalidDomain);
+            OsalPrintDebug(LonStatusInvalidDomain, "NWSend: Discarding packet due to domain index %d is not in use", nwSendParamPtr->destAddr.dmn.domainIndex);
         }
-        DBG_vPrintf(TRUE, "NWSend: NWSendTerminate: Domain used is not in use\n");
+        OsalPrintError(LonStatusInvalidDomain, "NWSend: Domain index %d is not in use", nwSendParamPtr->destAddr.dmn.domainIndex);
         NWSendTerminate();
         return;
     }
     /* Use destAddr to determine the domain and write it.
        compute and store domainLength and domainId for later use. */
-    if (nwSendParamPtr->destAddr.dmn.domainIndex < numDomains)
-    {
+    if (nwSendParamPtr->destAddr.dmn.domainIndex < numDomains) {
         IzotByte selField = 0;
         /* Determine the selField value. */
         /* Only AM_MULTICAST_ACK has selector field as 0. For all others, it is 1. */
-        if (nwSendParamPtr->destAddr.addressMode != AM_MULTICAST_ACK)
-        {
+        if (nwSendParamPtr->destAddr.addressMode != AM_MULTICAST_ACK) {
             selField = 1;
         }
         /* One of this node's domains. */
@@ -327,19 +282,15 @@ void   NWSend(void)
         npduPtr->data[0] = eep->domainTable[nwSendParamPtr->destAddr.dmn.domainIndex].Subnet;
         npduPtr->data[1] = selField << 7 | 
                        IZOT_GET_ATTRIBUTE(eep->domainTable[nwSendParamPtr->destAddr.dmn.domainIndex], IZOT_DOMAIN_NODE);
-    }
-    else
-    {
+    } else {
         npduPtr->data[0] = 0; /* It is 0 for flex domain response. */
         npduPtr->data[1] = 1 << 7; /* SrcNode is 0. */
     }
 
-    if (EncodeDomainLength(nwSendParamPtr->destAddr.dmn.domainLen, &domainLength) == FAILURE)
-    {
+    if (EncodeDomainLength(nwSendParamPtr->destAddr.dmn.domainLen, &domainLength) != LonStatusNoError) {
         /* Protocol specification indicates that domainLength has to be
            one of the above values. If not, it is a bad value. */
-        DBG_vPrintf(TRUE, "NWSend: Domain length is not valid.\n");
-        LCS_RecordError(IzotInvalidDomain);
+        OsalPrintError(LonStatusInvalidDomain, "NWSend: Invalid domain length (%d)", nwSendParamPtr->destAddr.dmn.domainLen);
         NWSendTerminate();
         return;
     }
@@ -350,8 +301,7 @@ void   NWSend(void)
 
     /* Write the destination address. */
     /* Set j to the index for writing the domain field. */
-    switch (nwSendParamPtr->destAddr.addressMode)
-    {
+    switch (nwSendParamPtr->destAddr.addressMode) {
     case AM_BROADCAST:
         npduPtr->data[2] = nwSendParamPtr->destAddr.addr.addr0.SubnetId;
         j = 3;
@@ -375,9 +325,8 @@ void   NWSend(void)
         j = 9;
         break;
     default:
-        DBG_vPrintf(TRUE, "NWSend: Unknown address format.\n");
         /* Discard the packet as the address Mode is wrong. */
-        LCS_RecordError(IzotBadAddressType);
+        OsalPrintError(LonStatusInvalidMessageMode, "NWSend: Unknown address mode (0x%02X)", nwSendParamPtr->destAddr.addressMode);
         NWSendTerminate();
         return;
     }
@@ -390,10 +339,11 @@ void   NWSend(void)
     j += domainLength;
 
     /* Write the enclosed PDU. */
-    if (1 + j + nwSendParamPtr->pduSize > gp->nwOutBufSize)
-    {
+    if (1 + j + nwSendParamPtr->pduSize > gp->nwOutBufSize) {
         /* Discard the packet as it is too long. */
-        LCS_RecordError(IzotWritePastEndOfNetBuffer);
+        OsalPrintError(LonStatusWritePastEndOfNetBuffer, 
+                "NWSend: Packet size (%d) exceeds network buffer size (%d)",
+                1 + j + nwSendParamPtr->pduSize, gp->nwOutBufSize);
         NWSendTerminate();
         return;
     }
@@ -409,11 +359,11 @@ void   NWSend(void)
     lkSendParamPtr->DomainIndex = nwSendParamPtr->destAddr.dmn.domainIndex;
 
     /* Update both queues. */
-    DeQueue(gp->nwCurrent);
+    QueueDropHead(gp->nwCurrent);
 #ifdef SECURITY_II
-	Byte serviceType = -1;
-	Byte pduTypeValue = (pduPtr[0] & 0x70) >> 4;
-	Byte apduIndex = 1;
+	uint8_t serviceType = -1;
+	uint8_t pduTypeValue = (pduPtr[0] & 0x70) >> 4;
+	uint8_t apduIndex = 1;
 	if (nwSendParamPtr->pduType == APDU_TYPE) {
 		serviceType = IzotServiceUnacknowledged;
 		apduIndex = 0;
@@ -441,19 +391,18 @@ void   NWSend(void)
 		if (processAesGcm(false, serviceType, priority,
 				&pduPtr[apduIndex], // Original APDU with no AES-GCM header included
 				nwSendParamPtr->pduSize - apduIndex, // Length of original APDU
-				(Byte *)npduPtr, j+apduIndex)) {
+				(uint8_t *)npduPtr, j+apduIndex)) {
 			return;
 		}
 	}
 #endif
-    EnQueue(gp->lkCurrent);
-    DBG_vPrintf(TRUE,"NWSend: Sending a packet.");
+    QueueWrite(gp->lkCurrent);
+    OsalPrintTrace(LonStatusNoError,"NWSend: Sending a %d byte packet", npduSize);
     
     INCR_STATS(LcsL3Tx);
 
     /* Send completion event if it was an APDU */
-    if (nwSendParamPtr->pduType == APDU_TYPE)
-    {
+    if (nwSendParamPtr->pduType == APDU_TYPE) {
         appReceiveParamPtr = QueueTail(&gp->appCeRspInQ);
         appReceiveParamPtr->indication = COMPLETION;
         appReceiveParamPtr->success    = TRUE;
@@ -461,7 +410,7 @@ void   NWSend(void)
         appReceiveParamPtr->proxy      = nwSendParamPtr->proxy;
         appReceiveParamPtr->proxyCount = 0;
         appReceiveParamPtr->proxyDone  = FALSE;
-        EnQueue(&gp->appCeRspInQ);
+        QueueWrite(&gp->appCeRspInQ);
     }
 
     return;
@@ -508,8 +457,7 @@ void   NWReceive(void)
     IzotByte                j;          /* Temp.                        */
     
     /* First, check if we have any packets to process. */
-    if (QueueEmpty(&gp->nwInQ))
-    {
+    if (QueueEmpty(&gp->nwInQ)) {
         return; /* Nothing to process. */
     }
 
@@ -519,7 +467,7 @@ void   NWReceive(void)
        discarded. */
 
     /* Set the pointer to NPDU in nwInQ. */
-    nwReceiveParamPtr = QueueHead(&gp->nwInQ);
+    nwReceiveParamPtr = QueuePeek(&gp->nwInQ);
     npduPtr           = (NPDU *)(nwReceiveParamPtr + 1);
     
     /* Determine the source address. */
@@ -532,8 +480,7 @@ void   NWReceive(void)
        modes, destAddr is used to store subnet and/or node
        values. For AM_UNIQUE_NODE_ID, uniqueNodeId is used & subnet is ignored */
     /* Also, set j to domain field's index. */
-    switch (npduPtr->addrFmt)
-    {
+    switch (npduPtr->addrFmt) {
     case 0:
         srcAddr.addressMode = AM_BROADCAST;
         destAddr.Subnet   = npduPtr->data[2];
@@ -545,15 +492,11 @@ void   NWReceive(void)
         j = 3;
         break;
     case 2:
-        if (IZOT_GET_ATTRIBUTE(srcAddr.subnetAddr, 
-        IZOT_RECEIVESN_SELFIELD) == 1)
-        {
+        if (IZOT_GET_ATTRIBUTE(srcAddr.subnetAddr, IZOT_RECEIVESN_SELFIELD) == 1) {
             srcAddr.addressMode = AM_SUBNET_NODE;
             memcpy(&destAddr, &npduPtr->data[2], 2);
             j = 4;
-        }
-        else
-        {
+        } else {
             srcAddr.addressMode = AM_MULTICAST_ACK;
             memcpy(&destAddr, &npduPtr->data[2], 2);
             memcpy(&srcAddr.ackNode.subnetAddr, &destAddr, 2);
@@ -569,21 +512,18 @@ void   NWReceive(void)
         break;
     default:
         /* Discard it as the address format is wrong. */
-        DBG_vPrintf(TRUE, "NWReceive: Unknown addFmt.\n");
-        LCS_RecordError(IzotBadAddressType);
-        DeQueue(&gp->nwInQ);
+        OsalPrintError(LonStatusBadAddressType, "NWReceive: Unknown address format");
+        QueueDropHead(&gp->nwInQ);
         return;
     }
 
     /* Determine the domain. */
     domainLength = DecodeDomainLength(npduPtr->domainLength);
 
-    if (domainLength != 0 && domainLength != 1 && domainLength != 3)
-    {
-        DBG_vPrintf(TRUE, "NWReceive: Domain length is not valid.\n");
-        LCS_RecordError(IzotInvalidDomain);
+    if (domainLength != 0 && domainLength != 1 && domainLength != 3) {
+        OsalPrintError(LonStatusInvalidDomain, "NWReceive: Invalid domain length (%d)", domainLength);
         /* Discard the packet as the domain length is invalid. */
-        DeQueue(&gp->nwInQ);
+        QueueDropHead(&gp->nwInQ);
         return;
     }
 
@@ -593,12 +533,9 @@ void   NWReceive(void)
     j += domainLength; /* Now j points to enclosed PDU. */
 
     /* Determine the number of domains for this node. */
-    if (IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_TWO_DOMAINS))
-    {
+    if (IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_TWO_DOMAINS)) {
         numDomains = 2;
-    }
-    else
-    {
+    } else {
         numDomains = 1;
     }
 
@@ -614,20 +551,15 @@ void   NWReceive(void)
 
     if (NodeConfigured() && !IZOT_GET_ATTRIBUTE(eep->domainTable[0], IZOT_DOMAIN_INVALID) && 
     domainLength == IZOT_GET_ATTRIBUTE(eep->domainTable[0], IZOT_DOMAIN_ID_LENGTH) && 
-    memcmp(domainId, eep->domainTable[0].Id, domainLength) == 0)
-    {
+    memcmp(domainId, eep->domainTable[0].Id, domainLength) == 0) {
         /* Matches domainId in index 0 */
         srcAddr.dmn.domainIndex = 0;
-    }
-    else if (NodeConfigured() && numDomains == 2 && !IZOT_GET_ATTRIBUTE(eep->domainTable[1], IZOT_DOMAIN_INVALID) &&
+    } else if (NodeConfigured() && numDomains == 2 && !IZOT_GET_ATTRIBUTE(eep->domainTable[1], IZOT_DOMAIN_INVALID) &&
          domainLength == IZOT_GET_ATTRIBUTE(eep->domainTable[1], IZOT_DOMAIN_ID_LENGTH) && 
-         memcmp(domainId, eep->domainTable[1].Id, domainLength) == 0)
-    {
+         memcmp(domainId, eep->domainTable[1].Id, domainLength) == 0) {
         /* Matches domainId in index 1 */
         srcAddr.dmn.domainIndex = 1;
-    }
-    else
-    {
+    } else {
         /* Must be a flex domain. */
         srcAddr.dmn.domainIndex = FLEX_DOMAIN;
         flexDomain = TRUE;
@@ -636,90 +568,79 @@ void   NWReceive(void)
     /* Determine if the packet was sent by myself. If so, drop. */
     /* We can do this check only in non-flexdomain as
        src subnet and node are 0 in flex domain. */
-    if (! flexDomain && memcmp(&srcAddr.subnetAddr, &eep->domainTable[srcAddr.dmn.domainIndex].Subnet, 2) == 0 &&
-    srcAddr.dmn.domainIndex != 1)
-    {
-        /* Not flex domain and source addr matches. */
-        DeQueue(&gp->nwInQ); /* Discard packet. */
-        DBG_vPrintf(TRUE, "\nNWReceive: DEQUEUE --- %x - %x", 
-        srcAddr.subnetAddr, eep->domainTable[srcAddr.dmn.domainIndex].Subnet);
+    if (!flexDomain 
+            && memcmp(&srcAddr.subnetAddr, &eep->domainTable[srcAddr.dmn.domainIndex].Subnet, 2) == 0 
+            && srcAddr.dmn.domainIndex != 1) {
+        /* Not flex domain and source address matches */
+        QueueDropHead(&gp->nwInQ); /* Discard packet */
+        OsalPrintDebug(LonStatusNoError, "NWReceive: Discard message from me with subnet %x - %x", 
+                srcAddr.subnetAddr, eep->domainTable[srcAddr.dmn.domainIndex].Subnet);
         return;
     }
-    /* Drop packet in various address modes if not for us. */
 
-    switch (srcAddr.addressMode)
-    {
+    /* Drop packet in various address modes if not for us. */
+    switch (srcAddr.addressMode) {
     case AM_BROADCAST:
-        if (!flexDomain &&  destAddr.Subnet != 0 && /* subnet broadcast. */
-        memcmp(&destAddr.Subnet, &eep->domainTable[srcAddr.dmn.domainIndex].Subnet, 1) != 0)
-        {
-            /* Domain matches but destAddr does not. Not for us. */
-            DeQueue(&gp->nwInQ);
-            DBG_vPrintf(TRUE, "NWReceive: Discard BC pck. Not my subnet.\n");
+        if (!flexDomain && destAddr.Subnet != 0 
+                && memcmp(&destAddr.Subnet, &eep->domainTable[srcAddr.dmn.domainIndex].Subnet, 1) != 0) {
+            /* Subnet broadcast and domain matches but destAddr does not. Not for us. */
+            QueueDropHead(&gp->nwInQ);
+            OsalPrintDebug(LonStatusNoError, "NWReceive: Discard broadcast packet not in my subnet");
             return;
         }
         srcAddr.broadcastSubnet = destAddr.Subnet;
         break;
     case AM_MULTICAST:
-        if (!flexDomain && !IsGroupMember(srcAddr.dmn.domainIndex, srcAddr.group.GroupId, NULL))
-        {
+        if (!flexDomain && !IsGroupMember(srcAddr.dmn.domainIndex, srcAddr.group.GroupId, NULL)) {
             /* Domain matches but group does not. Not for us. */
-            DeQueue(&gp->nwInQ);
-            DBG_vPrintf(TRUE, "NWReceive: Discard MC pck. Not my group.\n");
+            QueueDropHead(&gp->nwInQ);
+            OsalPrintDebug(LonStatusNoError, "NWReceive: Discard multicast packet not in my group");
             return;
         }
         break;
     case AM_SUBNET_NODE:
-        if (!flexDomain && memcmp(&destAddr, &eep->domainTable[srcAddr.dmn.domainIndex].Subnet, 2) != 0)
-        {
-            DeQueue(&gp->nwInQ);
-            DBG_vPrintf(TRUE, "NWReceive: Discard MC pck. Not my subnet.\n");
+        if (!flexDomain && memcmp(&destAddr, &eep->domainTable[srcAddr.dmn.domainIndex].Subnet, 2) != 0) {
+            QueueDropHead(&gp->nwInQ);
+            OsalPrintDebug(LonStatusNoError, "NWReceive: Discard multicast packet not in my subnet");
             return;
         }
         break;
     case AM_MULTICAST_ACK:
         /* Make sure the destination subnet/node matches. */
-        if (!flexDomain && memcmp(&destAddr, &eep->domainTable[srcAddr.dmn.domainIndex].Subnet, 2) != 0)
-        {
-            DeQueue(&gp->nwInQ);
-            DBG_vPrintf(TRUE, "NWReceive: Discard MC pck. Not my multicast.\n");
+        if (!flexDomain && memcmp(&destAddr, &eep->domainTable[srcAddr.dmn.domainIndex].Subnet, 2) != 0) {
+            QueueDropHead(&gp->nwInQ);
+            OsalPrintDebug(LonStatusNoError, "NWReceive: Discard multicast ack packet not to me");
             return;
         }
         /* Also make sure that group matches. */
-        if (!flexDomain && !IsGroupMember(srcAddr.dmn.domainIndex, srcAddr.ackNode.groupAddr.group.GroupId, NULL))
-        {
-            DeQueue(&gp->nwInQ);
-            DBG_vPrintf(TRUE, 
-            "NWReceive: Discard multicast ack packet. Not my group.\n");
+        if (!flexDomain && !IsGroupMember(srcAddr.dmn.domainIndex, srcAddr.ackNode.groupAddr.group.GroupId, NULL)) {
+            QueueDropHead(&gp->nwInQ);
+            OsalPrintDebug(LonStatusNoError, "NWReceive: Discard multicast ack packet not my group");
             return;
         }
         break;
     case AM_UNIQUE_NODE_ID:
-        if (memcmp(uniqueNodeId, eep->readOnlyData.UniqueNodeId, IZOT_UNIQUE_ID_LENGTH) != 0)
-        {
+        if (memcmp(uniqueNodeId, eep->readOnlyData.UniqueNodeId, IZOT_UNIQUE_ID_LENGTH) != 0) {
             /* Unique Node Id message but not for our id. */
-            DeQueue(&gp->nwInQ);
-            DBG_vPrintf(TRUE, 
-            "NWReceive: Discard Unique Node ID packet. Not my Id.\n");
+            QueueDropHead(&gp->nwInQ);
+            OsalPrintDebug(LonStatusNoError, "NWReceive: Discard Unique ID packet that is not my ID");
             return;
         }
         break;
     default:
-        ; /* Null statement. */
         /* Error message has been already printed in the previous switch. */
         /* Control should not come here. But, let us play safe. */
-        DeQueue(&gp->nwInQ);
-        DBG_vPrintf(TRUE, "NWReceive: DEQUEUE 2.\n");
+        QueueDropHead(&gp->nwInQ);
+        OsalPrintError(LonStatusInvalidMessageMode, "NWReceive: Invalid message mode");
         return;
     }
 
     /* If a node is in unconfigured state,
-       only broadcast and Unique Node ID messages can be received. */
-    if (!NodeConfigured() && srcAddr.addressMode != AM_BROADCAST && srcAddr.addressMode != AM_UNIQUE_NODE_ID)
-    {
+       only broadcast and Unique ID messages can be received. */
+    if (!NodeConfigured() && srcAddr.addressMode != AM_BROADCAST && srcAddr.addressMode != AM_UNIQUE_NODE_ID) {
         /* Drop the packet. */
-        DeQueue(&gp->nwInQ);
-        DBG_vPrintf(TRUE, "NWReceive: Discard packet. We are not online.\n");
+        QueueDropHead(&gp->nwInQ);
+        OsalPrintDebug(LonStatusNoError, "NWReceive: Discard packet received while not configured");
         return;
     }
     /* Drop packets received on flexDomain if the state
@@ -728,24 +649,22 @@ void   NWReceive(void)
     /* i.e if node is configured, flexdomain is not possible
        unless it is Unique Node ID addressed. */
 
-    if (flexDomain && NodeConfigured() && srcAddr.addressMode != AM_UNIQUE_NODE_ID)
-    {
+    if (flexDomain && NodeConfigured() && srcAddr.addressMode != AM_UNIQUE_NODE_ID) {
         /* Drop the packet. */
-        DeQueue(&gp->nwInQ);
-        DBG_vPrintf(TRUE, "NWReceive: Discard packet. Flex domain & not UID\n");
+        QueueDropHead(&gp->nwInQ);
+        OsalPrintDebug(LonStatusNoError, "NWReceive: Discard flex domain packet that is not UID addressed");
         return;
     }
-    /* We now got a packet that must be received. */
+    /* We have a packet that must be received. */
     INCR_STATS(LcsL3Rx);
 
     /* pduSize = npduSize - npduHeaderSize. */
     /* j is length of the variable part header of NPDU. */
     /* The fixed portion of NPDU header is always 1 byte. */
-    if (nwReceiveParamPtr->pduSize <= j+1)
-    {
+    if (nwReceiveParamPtr->pduSize <= j+1) {
         // Malformed packet.
-        DeQueue(&gp->nwInQ);
-        DBG_vPrintf(TRUE, "NWReceive: Discard short packet.\n");
+        QueueDropHead(&gp->nwInQ);
+        OsalPrintDebug(LonStatusNoError, "NWReceive: Discard short packet");
         return;
     }
 
@@ -754,17 +673,14 @@ void   NWReceive(void)
     switch (npduPtr->pduType)
     {
     case APDU_TYPE:
-        if (QueueFull(&gp->appInQ) || pduSize > gp->appInBufSize)
-        {
+        if (QueueFull(&gp->appInQ) || pduSize > gp->appInBufSize) {
             /* No space or insufficient space. Discard packet. */
-            if (pduSize > gp->appInBufSize)
-            {
-                LCS_RecordError(IzotWritePastEndOfApplBuffer);
+            if (pduSize > gp->appInBufSize) {
+                OsalPrintError(LonStatusWritePastEndOfApplBuffer, "NWReceive: Packet size (%d) exceeds application buffer size (%d)", pduSize, gp->appInBufSize);
             }
             INCR_STATS(LcsLost);
-            DeQueue(&gp->nwInQ);
-            DBG_vPrintf(TRUE, 
-            "NWReceive: Discard packet. Insufficient space.\n");
+            QueueDropHead(&gp->nwInQ);
+            OsalPrintError(LonStatusNoBufferAvailable, "NWReceive: No space in application layer input queue");
             return;
         }
         /* Queue is not full and buffer has sufficient space. */
@@ -781,15 +697,15 @@ void   NWReceive(void)
 		if (npduPtr->data[j] == LT_AES_GCM_PACKET_CODE) {
 			if (processAesGcm(true, appReceiveParamPtr->service, appReceiveParamPtr->priority, 
 			    &npduPtr->data[j], appReceiveParamPtr->pduSize, /* Length of original Encrypted APDU */
-			    (Byte *) npduPtr, j)) {
+			    (uint8_t *) npduPtr, j)) {
 				return;
 			}
 		}
 #endif		
         memcpy(pduPtr, &npduPtr->data[j], pduSize);
         LCS_LogRxStat(appReceiveParamPtr->altPath, RX_UNSOLICITED);
-        EnQueue(&gp->appInQ);
-        DeQueue(&gp->nwInQ);
+        QueueWrite(&gp->appInQ);
+        QueueDropHead(&gp->nwInQ);
         return;
     case TPDU_TYPE: /* Fall through. */
     case SPDU_TYPE: /* Fall through. */
@@ -797,16 +713,14 @@ void   NWReceive(void)
         if (QueueFull(&gp->tsaInQ) || pduSize > gp->tsaInBufSize)
         {
             /* No space or insufficient space. Discard packet. */
-            if (pduSize > gp->tsaInBufSize)
-            {
+            if (pduSize > gp->tsaInBufSize) {
                 /* Buffer sizes are based on app buf sizes. See
                    TSAReset function. */
-                LCS_RecordError(IzotWritePastEndOfApplBuffer);
+                OsalPrintError(LonStatusWritePastEndOfApplBuffer, "NWReceive: Packet size (%d) exceeds TSA buffer size (%d)", pduSize, gp->tsaInBufSize);
             }
             INCR_STATS(LcsLost);
-            DeQueue(&gp->nwInQ);
-            DBG_vPrintf(TRUE, 
-            "NWReceive: Discard packet. Insufficient space.\n");
+            QueueDropHead(&gp->nwInQ);
+            OsalPrintError(LonStatusNoBufferAvailable, "NWReceive: No space in authentication input queue");
             return;
         }
         /* Queue is not full and buffer has sufficient space. */
@@ -819,13 +733,12 @@ void   NWReceive(void)
         tsaReceiveParamPtr->pduSize   = pduSize;
         tsaReceiveParamPtr->version   = npduPtr->protocolVersion;
         memcpy(pduPtr, &npduPtr->data[j], pduSize);
-        EnQueue(&gp->tsaInQ);
-        DeQueue(&gp->nwInQ);
+        QueueWrite(&gp->tsaInQ);
+        QueueDropHead(&gp->nwInQ);
         return;
     default:
-        DBG_vPrintf(TRUE, "NWReceive: Unknown PDU was received.\n");
-        LCS_RecordError(IzotUnknownPdu);
-        DeQueue(&gp->nwInQ);
+        OsalPrintError(LonStatusUnknownPdu, "NWReceive: Unknown PDU type (0x%02X) received", npduPtr->pduType);
+        QueueDropHead(&gp->nwInQ);
         return;
     }
 
@@ -865,11 +778,10 @@ Reference: None
 Purpose:   To compute the encoded value of domain length given.
 Comments:
 *******************************************************************************/
-Status EncodeDomainLength(IzotByte lengthIn, IzotByte* pValue)
+LonStatusCode EncodeDomainLength(IzotByte lengthIn, IzotByte* pValue)
 {
-    Status sts = SUCCESS;
-    switch (lengthIn)
-    {
+    LonStatusCode sts = LonStatusNoError;
+    switch (lengthIn) {
     case 0:
         *pValue = 0;
         break;
@@ -883,7 +795,7 @@ Status EncodeDomainLength(IzotByte lengthIn, IzotByte* pValue)
         *pValue = 3;
         break;
     default:
-        sts = FAILURE;
+        sts = LonStatusInvalidDomain;
         break;
     }
     return sts;
@@ -893,9 +805,9 @@ Status EncodeDomainLength(IzotByte lengthIn, IzotByte* pValue)
 Function:  IncrementStat
 Purpose:   Increment a network statistic with capping.
 Comments:
-    Note that the decision was made to keep all statistics in host order.  This
-    may make debugging a bit harder on the target but keeps some other things
-    simple (such as dealing with statistics relative read memory commands!)
+    All statistics are in host order.  This makes debugging a bit harder on
+    the target but makes some other things easier (such as dealing with 
+    statistics relative read memory commands)
 *******************************************************************************/
 void IncrementStat(LcsStatistic stat)
 {

@@ -73,6 +73,7 @@
 #ifndef _IZOT_PLATFORM_H
 #define _IZOT_PLATFORM_H
 
+#define _POSIX_C_SOURCE 200809L
 #include <stddef.h>
 
 #include "abstraction/IzotConfig.h" // Project-specific configuration
@@ -1305,11 +1306,19 @@
     #error Missing platform specification in IzotConfig.h and IzotPlatform.h
 #endif
 
-/*
- *****************************************************************
+/*****************************************************************
+ * Section: Semaphore Lock Management Function Definitions
+ *****************************************************************/
+// #if OS_IS(LINUX)
+// #define _POSIX_C_SOURCE 200809L
+// #endif  // OS_IS(LINUX)
+
+/*****************************************************************
  * Section: Platform-Dependent Link Definitions
  *****************************************************************/
 
+// TBD: Create temporary stubs for a LON USB link interface.
+// Replace these with actual implementations when available.
 #if LINK_IS(USB)
 #define OpenLonLink OpenLonUsbLink
 #define CloseLonLink CloseLonUsbLink
@@ -1324,9 +1333,8 @@
 #endif
 
  /*****************************************************************
- * Section: Neuron C Type Equivalents
- *****************************************************************/
-
+  * Section: Neuron C Type Equivalents
+  *****************************************************************/
 // These types are used by Izot Interface Developer-Builder generated type
 // definitions. Each Neuron C equivalent type is a host-platform dependent
 // type definition that is equivalent to the respective Neuron C type.
@@ -1352,6 +1360,9 @@ typedef IzotByte     BitField;
 #include "common/bitfield.h"
 #include "lcs/lcs_timer.h"
 #include "lcs/lcs_node.h"
+#include "abstraction/IzotOsal.h"
+#include "abstraction/IzotHal.h"
+#include "abstraction/IzotCal.h"
 
 #endif  /* _IZOT_PLATFORM_H */
 

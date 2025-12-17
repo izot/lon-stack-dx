@@ -127,9 +127,10 @@
 
 // Operating System IDs -- default is Linux
 #define OS_ID_LINUX             0   // Linux or POSIX-compliant OS
-#define OS_ID_FREERTOS          1   // FreeRTOS
-#define OS_ID_WINDOWS           2   // Windows
-#define OS_ID_BARE_METAL        3   // No OS, bare metal
+#define OS_ID_LINUX_KERNEL      1   // Linux Kernel
+#define OS_ID_FREERTOS          2   // FreeRTOS
+#define OS_ID_WINDOWS           3   // Windows
+#define OS_ID_BARE_METAL        4   // No OS, bare metal
 
 // Processor IDs -- default is ARM64
 #define PROCESSOR_ID_ARM64      0   // 64-bit ARM

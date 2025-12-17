@@ -1,45 +1,25 @@
-//
-// Persitence.c
-//
-// Copyright (C) 2023-2025 EnOcean
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy of
-// this software and associated documentation files (the "Software"), to deal in 
-// the Software without restriction, including without limitation the rights to
-// use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-// of the Software, and to permit persons to whom the Software is furnished to do
-// so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
-//
-
 /*
- * Created February 2005, Bernd Gauweiler
+ * isi_persistence.c
  *
- * Abstract:
- * implement ISI persistence files
+ * Copyright (c) 2005-2025 EnOcean
+ * SPDX-License-Identifier: MIT
+ * See LICENSE file for details.
+ * 
+ * Title:   ISI Persistence File Management
+ * Purpose: Manages persistent storage for ISI data.
+ * Notes:   Created February 2005, Bernd Gauweiler
  */
 
-#include "persistence/Persistent.h"
+#include "izot/IzotPlatform.h"
+#if !ISI_IS(ISI_ID_NO_ISI)
 
-/*------------------------------------------------------------------------------
-Section: Macros
-------------------------------------------------------------------------------*/
+#include "persistence/lon_persistence.h"
+
 #define CURR_VERSION                1
 #define ISI_IMAGE_SIGNATURE0        0xCF82
 #define ISI_APP_SIGNATURE0          0
 #define ISI_PERSISTENCE_HEADER_LEN  100
 
-//
 // These macros move data from host format to network format.
 // The result is a "network byte ordered" value pointed to by p
 // and the input is a "host byte ordered" value in a
@@ -54,7 +34,6 @@ Section: Macros
 #define PTONS(p,a) *p++ = (IzotByte)(a>>8);  PTONB(p,a)
 #define PTONB(p,a) *p++ = (IzotByte)a;
 
-//
 // These macros move data from network format to host format.
 // The input is a "network byte ordered" value pointed to by p
 // and the result is a "host byte ordered" value in a
@@ -74,20 +53,11 @@ Section: Macros
 #define PTOHBN(n,p,a) \
 { IzotByte* q = (IzotByte*)(a); for(int i=0; i<n;i++) { *q++ = *p++; } }
 
-/*------------------------------------------------------------------------------
-Section: Definations
-------------------------------------------------------------------------------*/
-
-/*
- * *****************************************************************************
- * SECTION: FUNCTIONS
- * *****************************************************************************
- *
- */
-
+/*****************************************************************
+ * Section: Function Definitions
+ *****************************************************************/
 /*
 *  Function: serializeIsiNvdSegPersistentData
-*  Undocumented
 *
 *  Returns:
 *  LtPersistenceLossReason
@@ -98,14 +68,14 @@ Section: Definations
 */
 LtPersistenceLossReason serializeIsiNvdSegPersistentData(
 IzotByte** pBuffer, 
-int* len
+size_t* len
 )
 {
-	int image_len = sizeof(IsiPersist);
+	size_t image_len = sizeof(IsiPersist);
     IzotByte* pBuf;
 
 	// Allocate memory for the serialization
- 	*pBuffer = (IzotByte *) OsalMalloc(image_len);
+ 	*pBuffer = (IzotByte *) OsalAllocateMemory(image_len);
     memset(*pBuffer, 0, image_len);
     *len = image_len;
 	pBuf = *pBuffer;
@@ -122,8 +92,7 @@ int* len
 
 /*
 *  Function: serializeIsiNvdSegConnectionTable
-*  Undocumented
-*
+
 *  Returns:
 *  LtPersistenceLossReason
 *
@@ -132,13 +101,13 @@ int* len
 *
 */
 LtPersistenceLossReason serializeIsiNvdSegConnectionTable(
-		IzotByte** pBuffer, int* len)
+		IzotByte** pBuffer, size_t* len)
 {
 #if ISI_IS(SIMPLE) || ISI_IS(DA)
-	int image_len = IsiGetConnectionTableSize() * sizeof(IsiConnection);
+	size_t image_len = IsiGetConnectionTableSize() * sizeof(IsiConnection);
     
 	// Allocate memory for the serialization
-	*pBuffer = (IzotByte *) OsalMalloc(image_len);
+	*pBuffer = (IzotByte *) OsalAllocateMemory(image_len);
     *len = image_len;
 
     memcpy((void *)*pBuffer, (const void *)IsiGetConnection(0), image_len);
@@ -149,7 +118,6 @@ LtPersistenceLossReason serializeIsiNvdSegConnectionTable(
 
 /*
 *  Function: deserializeIsiNvdSegConnectionTable
-*  Undocumented
 *
 *  Returns:
 *  LtPersistenceLossReason
@@ -179,7 +147,6 @@ LtPersistenceLossReason deserializeIsiNvdSegConnectionTable(
 
 /*
 *  Function: deserializeIsiNvdSegData
-*  Undocumented
 *
 *  Returns:
 *  LtPersistenceLossReason
@@ -212,7 +179,6 @@ LtPersistenceLossReason deserializeIsiNvdSegData(IzotByte* pBuffer,
 
 /*
 *  Function: savePersistentData
-*  Undocumented
 *
 *  Returns:
 *  void
@@ -226,7 +192,7 @@ void savePersistentData(IzotPersistentSegType persistentSegType)
 	IzotByte* pImage = NULL;
 	IzotBool failure = FALSE;
 	IzotPersistenceHeader hdr;
-	int imageLen;
+	size_t imageLen;
     LtPersistenceLossReason reason = LT_NO_PERSISTENCE;
 	
     hdr.version = CURR_VERSION;
@@ -260,14 +226,13 @@ void savePersistentData(IzotPersistentSegType persistentSegType)
 		}
 		
         if (pImage != NULL) {
-	        OsalFree(pImage);
+	        OsalFreeMemory(pImage);
         }
     }
 }
 
 /*
 *  Function: restorePersistentData
-*  Undocumented
 *
 *  Returns:
 *  LtPersistenceLossReason
@@ -281,7 +246,7 @@ LtPersistenceLossReason restorePersistentData(IzotPersistentSegType persistentSe
     LtPersistenceLossReason reason = LT_PERSISTENCE_OK;
 	IzotPersistenceHeader hdr;
 	IzotByte* pBuffer = NULL;
-	int imageLen = 0;
+	size_t imageLen = 0;
 	int nVersion = 0;
 
 	IzotPersistentSegType returnedSegType = IzotPersistentSegOpenForRead(persistentSegType);
@@ -298,12 +263,12 @@ LtPersistenceLossReason restorePersistentData(IzotPersistentSegType persistentSe
 		} else {
 			nVersion = hdr.version;
 			imageLen = hdr.length;
-			pBuffer = (IzotByte *) OsalMalloc(imageLen);
+			pBuffer = (IzotByte *) OsalAllocateMemory(imageLen);
 			if (pBuffer == NULL ||
 				  IzotPersistentSegRead(returnedSegType, sizeof(hdr), imageLen, pBuffer) != 0 ||
 				!ValidateChecksum(&hdr, pBuffer)) {
 				reason = LT_CORRUPTION;
-				OsalFree(pBuffer);
+				OsalFreeMemory(pBuffer);
 				pBuffer = NULL;
 			}
 		}
@@ -323,8 +288,10 @@ LtPersistenceLossReason restorePersistentData(IzotPersistentSegType persistentSe
     }
 
     if (pBuffer != NULL) {
-    	OsalFree(pBuffer);
+    	OsalFreeMemory(pBuffer);
     }
 	
     return reason;
 }
+
+#endif  // !ISI_IS(ISI_ID_NO_ISI)

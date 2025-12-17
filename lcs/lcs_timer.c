@@ -42,7 +42,7 @@ void SetLonTimer(LonTimer *timerOut, IzotUbits32 initValueIn)
 		// Limit duration
 		initValueIn = min(initValueIn, LON_TIMER_MAX_DURATION);
     	timerOut->repeatTimeout = 0;
-    	timerOut->expiration = IzotGetTickCount() + initValueIn;
+    	timerOut->expiration = OsalGetTickCount() + initValueIn;
 
 		if (timerOut->expiration == 0) {
 			// Zero signals that a timer is not running so disallow it
@@ -84,7 +84,7 @@ Comments:  V1 used TMR_Expired().
 ******************************************************************/
 IzotBool LonTimerExpired(LonTimer *timerInOut)
 {
-	IzotBits32 delta = (IzotBits32) (timerInOut->expiration - IzotGetTickCount());
+	IzotBits32 delta = (IzotBits32) (timerInOut->expiration - OsalGetTickCount());
 	IzotBool isExpired = timerInOut->expiration && delta <= 0;
 
 	if (isExpired) {
@@ -129,7 +129,7 @@ IzotUbits32 LonTimerRemaining(LonTimer *timerInOut)
 	IzotUbits32 remaining = 0;
 
 	if (LonTimerRunning(timerInOut)) {
-		remaining = timerInOut->expiration - IzotGetTickCount();
+		remaining = timerInOut->expiration - OsalGetTickCount();
 	}
 	return remaining;
 }
@@ -141,7 +141,7 @@ Purpose:   Start a stop watch.
 ******************************************************************/
 void StartLonWatch(LonWatch *watch)
 {
-	watch->start = IzotGetTickCount();
+	watch->start = OsalGetTickCount();
 }
 
 /*****************************************************************
@@ -164,7 +164,7 @@ IzotUbits32 LonWatchElapsed(LonWatch *watch)
 {
 	IzotUbits32 duration = 0;
 	if (watch->start) {
-		duration = IzotGetTickCount() - watch->start;
+		duration = OsalGetTickCount() - watch->start;
 	}
 
 	return duration;

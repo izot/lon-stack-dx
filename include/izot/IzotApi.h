@@ -1,57 +1,36 @@
-//
-// IzotApi.h
-//
-// Copyright (C) 2023-2025 EnOcean
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy of
-// this software and associated documentation files (the "Software"), to deal in 
-// the Software without restriction, including without limitation the rights to
-// use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-// of the Software, and to permit persons to whom the Software is furnished to do
-// so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
-
 /*
- * Title: LON Stack API Interfaces
+ * IzotApi.h
  *
- * Abstract:
- * This file declares prototypes for LON Stack API functions.
+ * Copyright (c) 2023-2025 EnOcean
+ * SPDX-License-Identifier: MIT
+ * See LICENSE file for details.
+ * 
+ * Title:   LON Stack API
+ * Purpose: Provides high-level API functions for the LON Stack.
  */
 
 #ifndef _IZOT_API_H
 #define _IZOT_API_H
 
-#include <stdlib.h>
 #ifdef  __cplusplus
 extern "C" {
 #endif
 
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "izot/IzotPlatform.h"
-#include "izot/IzotTypes.h"
+#include "izot/lon_types.h"
 #include "abstraction/IzotCal.h"
-#include "abstraction/IzotHal.h"
-#include "abstraction/IzotOsal.h"
-#include "persistence/IzotPersistentFlashDirect.h"
-#include "ls_udp/IPv4ToLsUdp.h"
 #include "isi/isi_int.h"
-#include "lcs/lcs_api.h"
-#include "lcs/lcs_timer.h"
-#include "lcs/lcs_node.h"
 #include "lcs/lcs.h"
-#include "persistence/Persistent.h"
+#include "lcs/lcs_api.h"
+#include "lcs/lcs_node.h"
+#include "lcs/lcs_timer.h"
+#include "lon_udp/ipv4_to_lon_udp.h"
+#include "persistence/flash_persistence.h"
+#include "persistence/lon_persistence.h"
 
 #define IZOT_EXTERNAL_FN extern
 
@@ -149,6 +128,39 @@ IZOT_EXTERNAL_FN LonStatusCode IzotGetVersion(unsigned* const pMajorVersion,
  * <LonStatusCode>
  */
 #define IzotPoll(name) IzotPollByIndex(name.global_index)
+
+/*
+ * Notifies the application that the LON Stack DX device has received
+ * a Wink command.
+ * Parameters: None
+ * Returns: None
+ * Notes:
+ *   See the <IzotWink> event documentation for details.
+ */
+IZOT_EXTERNAL_FN void IzotWink(void);
+
+/*
+ * Notifies the application that the LON Stack DX device has entered
+ * the offline state.
+ * Parameters: None
+ * Returns: None
+ * Notes:
+ *   While the device is offline, the LON Stack DX will not
+ *   generate datapoint updates, and will return an error when
+ *   <IzotPropagateDp> is called.  See the <IzotOffline> event
+ *   documentation for details.
+ */
+IZOT_EXTERNAL_FN void IzotOffline(void);
+
+/*
+ * Notifies the application that the LON Stack DX device has entered
+ * the online state.
+ * Parameters: None
+ * Returns: None
+ * Notes:
+ *   See the <IzotOnline> event documentation for details.
+ */
+IZOT_EXTERNAL_FN void IzotOnline(void);
 
 /*
  * Function: IzotSleep
@@ -344,6 +356,48 @@ IZOT_EXTERNAL_FN LonStatusCode IzotSendResponse(
  * the correlator, but not both.
  */
 IZOT_EXTERNAL_FN LonStatusCode IzotReleaseCorrelator(const IzotCorrelator correlator);
+
+/* 
+ *  Callback: IzotMemoryRead
+ *  Read memory in the LON Stack DX device's memory space.
+ *
+ *  Parameters:
+ *  address - virtual address of the memory to be read
+ *  size - number of bytes to read
+ *  pData - pointer to a buffer to store the requested data
+ *
+ *  Remarks:
+ *  LON Stack DX calls <IzotMemoryRead> whenever it receives a network
+ *  management memory read request that fits into the registered file access
+ *  window. This callback function is used to read data starting at the
+ *  specified virtual memory address. This function applies to reading template
+ *  files, CP value files, user-defined files, and possibly other data. The
+ *  address space for this command is limited to a 64 KB address space.
+ *
+ */
+LonStatusCode IzotMemoryRead(const unsigned address, const unsigned size, void* const pData);
+
+/* 
+ *  Callback: IzotMemoryWrite
+ *  Update memory in the LON Stack DX device's memory space.
+ *
+ *  Parameters:
+ *  address - virtual address of the memory to be update
+ *  size - number of bytes to write
+ *  pData - pointer to the data to write
+ *
+ *  Remarks:
+ *  LON Stack DX calls <IzotMemoryWrite> whenever it receives a network
+ *  management memory write request that fits into the registered file access
+ *  window. This callback function is used to write data at the specified
+ *  virtual memory address. This function applies to CP value files, 
+ *  user-defined files, and possibly other data. The address space for this
+ *  command is limited to a 64 KB address space.  LON Stack DX automatically
+ *  calls the <IzotPersistentAppSegmentHasBeenUpdated> function to schedule
+ *  an update whenever this callback returns *LonStatusNoError*.
+ *
+ */
+LonStatusCode IzotMemoryWrite(const unsigned address, const unsigned size, const void* const pData);
 
 /*
  * *****************************************************************************
@@ -1073,18 +1127,9 @@ IZOT_EXTERNAL_FN unsigned IzotGetStaticDatapointCount();
 IZOT_EXTERNAL_FN IzotBool IzotIsFirstRun(void);
 
 /*
- * Function: IzotGetTickCount
- * Get the current system tick count.
- *
- * Returns:
- * The system tick count.
- */
-IZOT_EXTERNAL_FN OsalTickCount IzotGetTickCount(void);
-
-/*
  * LON Stack DX implements event handlers as optional global
  * callback functions.
- * For each of the supported events, an event type is defined in IzotTypes.h,
+ * For each of the supported events, an event type is defined in lon_types.h,
  * and a registrar function is provided. The registrar can register an
  * application-defined callback function (the "event handler") for a given
  * event, and it can de-register an event handler when being called with a

@@ -12,7 +12,7 @@
  *          non-volatile data storage.
  */
 
-#include "persistence/IzotPersistentFlashDirect.h"
+#include "persistence/flash_persistence.h"
 
 // Unique value to identify an initialized transaction record
 #define TX_SIGNATURE 0x89ABCDEF
@@ -137,7 +137,7 @@ IzotPersistentSegType IzotFlashSegOpenForRead(const IzotPersistentSegType persis
                 IzotPersistentGetSegName(persistentSegType));  
     }
 #endif
-    if (IZOT_SUCCESS(HalFlashDrvOpen())) {   
+    if (LON_SUCCESS(HalFlashDrvOpen())) {   
         return persistentSegType;
     } else {
         // Return unassigned persistent segment type
@@ -178,7 +178,7 @@ IzotPersistentSegType IzotFlashSegOpenForWrite(const IzotPersistentSegType persi
     }
 #endif
     /* Open the flash so that we can erase it */
-    if (!IZOT_SUCCESS(sts = OpenFlash(persistentSegType))) {
+    if (!LON_SUCCESS(sts = OpenFlash(persistentSegType))) {
         return IzotPersistentSegUnassigned;
     }
     if (size <= segmentMap[persistentSegType].maxDataSize) {
@@ -193,7 +193,7 @@ IzotPersistentSegType IzotFlashSegOpenForWrite(const IzotPersistentSegType persi
                 size + sizeof(PersistentTransactionRecord));
     }
     // Close the flash--it will be opened again when necessary
-    if (!IZOT_SUCCESS(sts = HalFlashDrvClose())) {
+    if (!LON_SUCCESS(sts = HalFlashDrvClose())) {
         return IzotPersistentSegUnassigned;
     }
     // Return the specified segment type
@@ -287,13 +287,13 @@ LonStatusCode IzotFlashSegRead(const IzotPersistentSegType persistentSegType, co
 #endif
 
     // Open the flash
-    if (!IZOT_SUCCESS(sts = OpenFlash(persistentSegType))) {
+    if (!LON_SUCCESS(sts = OpenFlash(persistentSegType))) {
         return sts;
     }
     // Read the data using the segmentMap directory
     sts = HalFlashDrvRead((IzotByte *)pBuffer, 
             segmentMap[persistentSegType].dataOffset + offset, size);
-    if (!IZOT_SUCCESS(sts)) {
+    if (!LON_SUCCESS(sts)) {
         return sts;
     }
 #ifdef FLASH_DEBUG
@@ -355,7 +355,7 @@ LonStatusCode IzotFlashSegWrite(const IzotPersistentSegType persistentSegType, c
 #endif
 
     // Open the flash
-    if (!IZOT_SUCCESS(sts = OpenFlash(persistentSegType))) {
+    if (!LON_SUCCESS(sts = OpenFlash(persistentSegType))) {
         return sts;
     }
     // Calculate the starting offset within the flash. The flashOffset 
@@ -376,7 +376,7 @@ LonStatusCode IzotFlashSegWrite(const IzotPersistentSegType persistentSegType, c
 #endif
     // Write a block of data at a time.  All of the data that needs to be 
     // written was erased by IzotFlashSegOpenForWrite.
-    while (IZOT_SUCCESS(sts) && dataRemaining) {
+    while (LON_SUCCESS(sts) && dataRemaining) {
         // Offset within flash block
         size_t blockOffset = flashOffset % flashBlockSize;  
         // Number of bytes in block starting at offset
@@ -393,7 +393,7 @@ LonStatusCode IzotFlashSegWrite(const IzotPersistentSegType persistentSegType, c
         }
 
         // Update the current block
-        if (!IZOT_SUCCESS(sts = HalFlashDrvWrite(pBuf, flashOffset, sizeToWrite))) {
+        if (!LON_SUCCESS(sts = HalFlashDrvWrite(pBuf, flashOffset, sizeToWrite))) {
             return sts;
         }
 
@@ -411,7 +411,7 @@ LonStatusCode IzotFlashSegWrite(const IzotPersistentSegType persistentSegType, c
     }
 #endif
     // Close the flash
-    if (IZOT_SUCCESS(sts)) {
+    if (LON_SUCCESS(sts)) {
         sts = HalFlashDrvClose();
     }
 
@@ -450,7 +450,7 @@ IzotBool IzotFlashSegIsInTransaction(const IzotPersistentSegType persistentSegTy
 #endif
 
     // Open the flash to read the transaction record
-    if (!IZOT_SUCCESS(sts = OpenFlash(persistentSegType))) {
+    if (!LON_SUCCESS(sts = OpenFlash(persistentSegType))) {
         return sts;
     }
     PersistentTransactionRecord txRecord;
@@ -459,7 +459,7 @@ IzotBool IzotFlashSegIsInTransaction(const IzotPersistentSegType persistentSegTy
     // blocks.
     sts = HalFlashDrvRead((IzotByte *)&txRecord, 
             segmentMap[persistentSegType].txOffset, sizeof(txRecord));
-    if (!IZOT_SUCCESS(sts)) {
+    if (!LON_SUCCESS(sts)) {
         return sts;
     }
 
@@ -475,7 +475,7 @@ IzotBool IzotFlashSegIsInTransaction(const IzotPersistentSegType persistentSegTy
     inTransaction = !(txRecord.signature == TX_SIGNATURE 
             && txRecord.txState == TX_DATA_VALID);
     // Close the flash
-    if (IZOT_SUCCESS(sts)) {
+    if (LON_SUCCESS(sts)) {
         sts = HalFlashDrvClose();
     }
 #ifdef FLASH_DEBUG
@@ -515,7 +515,7 @@ LonStatusCode IzotFlashSegEnterTransaction(const IzotPersistentSegType persisten
     }
 #endif
     // Open flash
-    if (!IZOT_SUCCESS(sts = OpenFlash(persistentSegType))) {
+    if (!LON_SUCCESS(sts = OpenFlash(persistentSegType))) {
         return sts;
     }
     PersistentTransactionRecord txRecord;
@@ -546,7 +546,7 @@ LonStatusCode IzotFlashSegEnterTransaction(const IzotPersistentSegType persisten
     sts = HalFlashDrvWrite((IzotByte *)&txRecord, 
             segmentMap[persistentSegType].txOffset, sizeof(txRecord));
     // Close the flash
-    if (IZOT_SUCCESS(sts)) {
+    if (LON_SUCCESS(sts)) {
         sts = HalFlashDrvClose();
     }
 #ifdef FLASH_DEBUG
@@ -583,7 +583,7 @@ LonStatusCode IzotFlashSegExitTransaction(const IzotPersistentSegType persistent
     }
 #endif
     // Open the flash */
-    if (!IZOT_SUCCESS(sts = OpenFlash(persistentSegType))) {
+    if (!LON_SUCCESS(sts = OpenFlash(persistentSegType))) {
         return sts;
     }
     PersistentTransactionRecord txRecord;
@@ -611,7 +611,7 @@ LonStatusCode IzotFlashSegExitTransaction(const IzotPersistentSegType persistent
     sts = HalFlashDrvWrite((IzotByte *)&txRecord,  
             segmentMap[persistentSegType].txOffset, sizeof(txRecord));
     // Close the flash
-    if (IZOT_SUCCESS(sts)) {
+    if (LON_SUCCESS(sts)) {
         sts = HalFlashDrvClose();
     }
 #ifdef FLASH_DEBUG
@@ -682,7 +682,7 @@ static LonStatusCode OpenFlash(const IzotPersistentSegType persistentSegType)
         sts = LonStatusPersistentDataAccessError;
     } else {
         // Initialize segmentMap, if necessary
-        if (IZOT_SUCCESS(sts = InitSegmentMap(persistentSegType))) {
+        if (LON_SUCCESS(sts = InitSegmentMap(persistentSegType))) {
             // Open the flash.
             sts = HalFlashDrvOpen();
         }
@@ -709,14 +709,14 @@ static LonStatusCode InitSegmentMap(const IzotPersistentSegType persistentSegTyp
     LonStatusCode sts = LonStatusNoError;
 
     // Initialize persistent memory
-    if (!IZOT_SUCCESS(sts = HalFlashDrvInit())) {
+    if (!LON_SUCCESS(sts = HalFlashDrvInit())) {
         return sts;
     }
 
     // flashBlockSize is initially 0, and will be updated by this function
     if (flashBlockSize == 0) {
         // Open the flash
-        if (!IZOT_SUCCESS(sts = HalFlashDrvOpen())) {
+        if (!LON_SUCCESS(sts = HalFlashDrvOpen())) {
             // Flash cannot be opened.
             return LonStatusPersistentDataAccessError;
         } 
@@ -730,7 +730,7 @@ static LonStatusCode InitSegmentMap(const IzotPersistentSegType persistentSegTyp
         
         sts = HalGetFlashInfo(&offset, &region_size, &number_of_blocks, 
                 &block_size, &number_of_regions);
-        if (!IZOT_SUCCESS(sts)) {
+        if (!LON_SUCCESS(sts)) {
             // Flash information cannot be read
             return LonStatusPersistentDataAccessError;
         }
@@ -825,7 +825,7 @@ static LonStatusCode EraseSegment(const IzotPersistentSegType persistentSegType,
     // Erase blocks, a block at a time, until the request has been satisfied.
     for (bytesErased = 0; bytesErased < size; bytesErased += flashBlockSize) {
         // Erase the block.
-        if (!IZOT_SUCCESS(sts = HalFlashDrvErase(offset, flashBlockSize))) {
+        if (!LON_SUCCESS(sts = HalFlashDrvErase(offset, flashBlockSize))) {
             return sts;
         }
         // Next block.
@@ -841,7 +841,7 @@ static LonStatusCode EraseSegment(const IzotPersistentSegType persistentSegType,
 #ifdef FLASH_DEBUG
 static void PrintTimeStamp()
 {
-    uint32_t time = IzotGetTickCount()*1000/GetTicksPerSecond();
+    uint32_t time = OsalGetTickCount()*1000/OsalGetTicksPerSecond();
     FLASH_PRINTF("[%d.%.3d]", time/1000, time % 1000);
 }
 #endif

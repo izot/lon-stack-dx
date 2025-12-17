@@ -1,32 +1,17 @@
-//
-// IPv4ToLsUdp.c
-//
-// Copyright (C) 2023-2025 EnOcean
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy of
-// this software and associated documentation files (the "Software"), to deal in 
-// the Software without restriction, including without limitation the rights to
-// use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-// of the Software, and to permit persons to whom the Software is furnished to do
-// so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
+/*
+ * ipv4_to_lon_udp.c
+ *
+ * Copyright (c) 2023-2025 EnOcean
+ * SPDX-License-Identifier: MIT
+ * See LICENSE file for details.
+ * 
+ * Title:   IPv4 to LON/IP UDP Conversion
+ * Purpose: Provides functions to convert between IPv4 UDP packets
+ *          and LON/IP UDP packets, and manage address mappings.
+ */
 
-#include "ls_udp/IPv4ToLsUdp.h"
+#include "lon_udp/ipv4_to_lon_udp.h"
 
-
-/*------------------------------------------------------------------------------
-Section: Macros
-------------------------------------------------------------------------------*/
 #ifdef USE_UIP
 // Access to Contiki global buffer.
 # define UIP_IP_BUF  ((struct uip_ip_hdr *)&uip_buf[UIP_LLH_LEN])
@@ -35,10 +20,6 @@ Section: Macros
 
 #define MAX_DATA_LEN  255
 
-
-/*------------------------------------------------------------------------------
-Section: Constant Definitions
-------------------------------------------------------------------------------*/
 #ifdef USE_UIP
 // Address Formats are based on those found in the LonTalk packet.
 // These are used for incoming addresses.  The first 4 match
@@ -55,10 +36,9 @@ typedef enum
 } LtAddressFormat;
 #endif
 
-
-/*------------------------------------------------------------------------------
-Section: Globals
-------------------------------------------------------------------------------*/
+/*****************************************************************
+ * Section: Globals
+ *****************************************************************/
 void *ls_mapping;
 IzotUbits32 AnnounceTimer         = 0;      // Initial IP address anouncement
                                             // timer duration in milliseconds
@@ -75,21 +55,14 @@ IzotUbits32 AddrMappingAgingTimer = 0;    	// Initial address mapping aging
     const IzotByte ipv4_zero_len_domain_prefix[] = {IPV4_DOMAIN_LEN_0_PREFIX_0, IPV4_DOMAIN_LEN_0_PREFIX_1};
 #endif
 
-
-/*------------------------------------------------------------------------------
-Section: Statics
-------------------------------------------------------------------------------*/
 // Encoded domain length
 static const IzotByte domainLengthTable[4] = { 0, 1, 3, 6 }; 
 static LonTimer       AnnouncementTimer;
 static LonTimer       AgingTimer;
 
-
-/*
- * SECTION: FUNCTIONS
- *
- */
-
+/*****************************************************************
+ * Section: Function Definitions
+ *****************************************************************/
 /* 
  *  Callback: Ipv4GenerateLsPrefix
  *  Generate a LS prefix from a LS domain and subnet
@@ -432,7 +405,7 @@ static void Ipv4SendAnnouncement(IzotByte *msg, IzotByte len)
     // Copy the pdu
     memcpy(npduPtr, &msg[1], len - 1);
     
-    EnQueue(&gp->lkOutQ);
+    QueueWrite(&gp->lkOutQ);
     INCR_STATS(LcsL3Tx);
 #endif
 }
@@ -921,8 +894,8 @@ void LsUDPReset(void)
     gp->lkOutQCnt     = DecodeBufferCnt((IzotByte)IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NW_OUTBUF_CNT));
     queueItemSize    = gp->lkOutBufSize + sizeof(LKSendParam) + 21;
 
-    if (QueueInit(&gp->lkOutQ, queueItemSize, gp->lkOutQCnt) != SUCCESS) {
-        DBG_vPrintf(TRUE, "LsUDPReset: Unable to init the output queue.\r\n");
+    if (QueueInit(&gp->lkOutQ, queueItemSize, gp->lkOutQCnt) != LonStatusNoError) {
+        OsalPrintError(LonStatusInitializationFailed, "LsUDPReset: Unable to initialize the output queue");
         gp->resetOk = FALSE;
         return;
     }
@@ -932,8 +905,8 @@ void LsUDPReset(void)
     gp->lkOutPriQCnt    = DecodeBufferCnt((IzotByte)IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NW_OUT_PRICNT));
     queueItemSize       = gp->lkOutPriBufSize + sizeof(LKSendParam);
 
-    if (QueueInit(&gp->lkOutPriQ, queueItemSize, gp->lkOutPriQCnt) != SUCCESS) {
-        DBG_vPrintf(TRUE, "LsUDPReset: Unable to init the priority output queue.\r\n");
+    if (QueueInit(&gp->lkOutPriQ, queueItemSize, gp->lkOutPriQCnt) != LonStatusNoError) {
+        OsalPrintError(LonStatusInitializationFailed, "LsUDPReset: Unable to initialize the priority output queue");
         gp->resetOk = FALSE;
         return;
     }
@@ -987,7 +960,7 @@ void LsUDPSend(void)
         return; // Nothing to send.
     }
 
-    lkSendParamPtr = QueueHead(lkSendQueuePtr);
+    lkSendParamPtr = QueuePeek(lkSendQueuePtr);
     npduPtr        = (IzotByte *) (lkSendParamPtr + 1);
 
     memset(&LtVx2lsUdpPayload[0], 0, MAX_PDU_SIZE); //1280
@@ -1003,7 +976,7 @@ void LsUDPSend(void)
     if (lkSendParamPtr->pduSize <= MAX_PDU_SIZE) {
         memcpy(&LtVx2lsUdpPayload[1], npduPtr, lkSendParamPtr->pduSize);
     } else {
-        DeQueue(lkSendQueuePtr);
+        QueueDropHead(lkSendQueuePtr);
         return;
     }
     
@@ -1020,13 +993,13 @@ void LsUDPSend(void)
     );
     
     if (lsUdpLen == 0) {
-        DeQueue(lkSendQueuePtr);
+        QueueDropHead(lkSendQueuePtr);
         return;
     }
     
     CalSend(IPV4_LS_UDP_PORT, DestAddr, LtVx2lsUdpPayload, lsUdpLen);
     
-    DeQueue(lkSendQueuePtr);
+    QueueDropHead(lkSendQueuePtr);
     return;
 }
 
@@ -1118,9 +1091,9 @@ void LsUDPReceive(void)
         // However, let us play safe by checking the size first.
         if (nwReceiveParamPtr->pduSize <= gp->nwInBufSize) {
             memcpy(npduPtr, &LtVxPayload[1], nwReceiveParamPtr->pduSize);
-            EnQueue(&gp->nwInQ);
+            QueueWrite(&gp->nwInQ);
         } else {
-            ErrorMsg("LsUDPReceive: LSUDP packet size seems too large.\n");
+            OsalPrintError(LonStatusInvalidPacketLength, "LsUDPReceive: LON/IP packet size too large");
             // We are losing this packet.
             INCR_STATS(LcsMissed);
         }
@@ -1245,10 +1218,10 @@ int UdpInit(void)
     // Initialize the UDP socket for communication
     ret = InitSocket(IPV4_LS_UDP_PORT); 
     if (ret < 0) {
-        DBG_vPrintf(TRUE, "Sockets not created\r\n");
+        OsalPrintError(LonStatusIpAddressNotDefined, "Socket initialization failure");
         return LonStatusIpAddressNotDefined;
     }
-    DBG_vPrintf(TRUE, "Sockets created\r\n");
+    OsalPrintDebug(LonStatusNoError, "UdpInit: Sockets created");
 #endif  // LINK_IS(WIFI) || LINK_IS(ETHERNET) || LINK_IS(USB)
   
 #if 0

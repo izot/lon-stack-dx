@@ -1,25 +1,14 @@
-//
-// IPv4ToLsUdp.h
-//
-// Copyright (C) 2022-2025 EnOcean
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy of
-// this software and associated documentation files (the "Software"), to deal in 
-// the Software without restriction, including without limitation the rights to
-// use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-// of the Software, and to permit persons to whom the Software is furnished to do
-// so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
+/*
+ * ipv4_to_lon_udp.h
+ *
+ * Copyright (c) 2023-2025 EnOcean
+ * SPDX-License-Identifier: MIT
+ * See LICENSE file for details.
+ * 
+ * Title:   IPv4 to LON/IP UDP Conversion
+ * Purpose: Provides functions to convert between IPv4 UDP packets
+ *          and LON/IP UDP packets, and manage address mappings.
+ */
 
 #ifndef _IPV4_LS_TO_UDP_H
 #define _IPV4_LS_TO_UDP_H
@@ -33,23 +22,10 @@ extern "C" {            // Assume C declarations for C++
 #include <string.h>
 
 #include "izot/IzotPlatform.h"
-#include "izot/IzotTypes.h"
+#include "izot/lon_types.h"
 #include "abstraction/IzotCal.h"
 #include "lcs/lcs.h"
 
-#if PLATFORM_IS(FRTOS_ARM_EABI)
-// Deleted to eliminate warning: #include <wm_net.h>
-// Deleted to eliminate warning: #include <wlan.h>
-// Deleted to eliminate warning: #include <wmtime.h>
-// Deleted to eliminate warning: #include <wm_os.h>
-// Deleted to eliminate warning: #include <arch/sys.h>
-// Deleted to eliminate warning: #include <dhcp-server.h>
-#endif
-
-
-/*------------------------------------------------------------------------------
-Section: Macros
-------------------------------------------------------------------------------*/
 #ifndef USE_UIP
 #define USE_UIP
 #endif

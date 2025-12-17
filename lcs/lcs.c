@@ -1,43 +1,26 @@
-//
-// lcs.c
-//
-// Copyright (C) 2022-2025 EnOcean
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy of
-// this software and associated documentation files (the "Software"), to deal in 
-// the Software without restriction, including without limitation the rights to
-// use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-// of the Software, and to permit persons to whom the Software is furnished to do
-// so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
-
-//
-// LON DX Stack main entry points
-//
-
-//
-// Any app using LCS must do the following:
-// 1. Call LCS_Init() during initialization
-// 2. Call LCS_Service() as often as practical (e.g., once per millisecond)
-//
+/*
+ * lcs.c
+ *
+ * Copyright (c) 2022-2025 EnOcean
+ * SPDX-License-Identifier: MIT
+ * See LICENSE file for details.
+ * 
+ * Title:   LON Stack Core Services
+ * Purpose: Provides the main initialization and service functions for
+ *          the LON Stack DX.
+ * Notes:   All applications using the LON Stack DX must call the
+ *          LCS_Init() function during initialization and the
+ *          LCS_Service() function as often as practical (e.g., once
+ * 			per millisecond).
+ */
 
 #include "lcs/lcs.h"
+#include "izot/IzotApi.h"
 
+// LON Stack DX initialization
+extern LonStatusCode APPInit(void); // Init function for application layer
 
-// Application init functions
-extern Status APPInit(void); // Init function for application layer
-
-// Send functions for the layers
+// Send functions for the LON Stack DX layers
 extern void APPSend(void);
 extern void TPSend(void);
 extern void SNSend(void);
@@ -50,7 +33,7 @@ extern void LsUDPSend(void);
 extern void LKSend(void);
 #endif // LINK_IS(USB) || LINK_IS(MIP)
 
-// Receive functions for the layers
+// Receive functions for the LON Stack DX layers
 extern void APPReceive(void);
 extern void TPReceive(void);
 extern void SNReceive(void);
@@ -63,12 +46,10 @@ extern void LsUDPReceive(void);
 extern void LKReceive(void);
 #endif // LINK_IS(USB) || LINK_IS(MIP)
 
-extern void IzotOffline(void);
-
 #define LED_TIMER_VALUE      2000  // How often to flash in ms
-#define CHECKSUM_TIMER_VALUE 1000  // How often to check config checksum?
+#define CHECKSUM_TIMER_VALUE 1000  // How often to check config checksum in ms
 
-Status LCS_Init(IzotResetCause cause)
+LonStatusCode LCS_Init(IzotResetCause cause)
 {
     IzotByte   stackNum;
 
@@ -90,8 +71,8 @@ Status LCS_Init(IzotResetCause cause)
         nmp = &nm[stackNum];
         snvt_capability_info = &capability_info;
         si_header_ext = &header_ext;
-        if (APPInit() == FAILURE) {
-			return FAILURE;
+        if (APPInit() != LonStatusNoError) {
+			return LonStatusStackInitializationFailure;
 		}
         // Compute the configCheckSum for the first time. NodeReset
         // will not verify checkSum firt time.
@@ -101,7 +82,7 @@ Status LCS_Init(IzotResetCause cause)
 	    SetLonTimer(&gp->ledTimer, LED_TIMER_VALUE);
 		SetLonTimer(&gp->checksumTimer, CHECKSUM_TIMER_VALUE); // Initial value
     }
-	return SUCCESS;
+	return LonStatusNoError;
 }
 
 void LCS_Service()
@@ -180,15 +161,14 @@ void LCS_Service()
 		if (LonTimerExpired(&gp->checksumTimer)) {
 			if (!NodeUnConfigured() &&
 					eep->configCheckSum != ComputeConfigCheckSum()) {
-				DBG_vPrintf(TRUE, "\n: +++++++++++  LCS RESET +++++++++++++");
 				// Go unconfigured and reset.
-				IZOT_SET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NODE_STATE, 
-                IzotApplicationUnconfig);
+				IZOT_SET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NODE_STATE, IzotApplicationUnconfig);
 				gp->appPgmMode  = ON_LINE;
 				IzotOffline();  // Indicate to application program.
 				gp->resetNode = TRUE;
 				nmp->resetCause = IzotSoftwareReset;
-				LCS_RecordError(IzotCnfgCheckSumError);
+				OsalPrintError(LonStatusCnfgChecksumError, 
+						"LCS_Service: Configuration checksum error detected, resetting");
 			}
 			SetLonTimer(&gp->checksumTimer, CHECKSUM_TIMER_VALUE);
 		}

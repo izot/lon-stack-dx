@@ -13,10 +13,16 @@
  *          Linux hosts as well as the Marvell 88MC200.
  */
 
-#include "izot/IzotPlatform.h"
+#if !defined(IZOTHAL_H)
+#define IZOTHAL_H
 
-#if !defined(DEFINED_IZOTHAL_H)
-#define DEFINED_IZOTHAL_H
+#ifdef  __cplusplus
+extern "C"
+{
+#endif  // __cplusplus
+
+#include "izot/IzotPlatform.h"
+#include "abstraction/IzotOsal.h"
 
 #define LINUX_FLASH_OFFSET      0
 #define FREERTOS_FLASH_OFFSET   0x6000
@@ -27,7 +33,7 @@
 #define NO_OF_REGIONS           1
 
 /*****************************************************************
- * Section: Function Declarations
+ * Section: Storage Function Declarations
  *****************************************************************/
 
 /*
@@ -126,6 +132,44 @@ extern LonStatusCode HalFlashDrvWrite(IzotByte *buf, size_t start, size_t size);
  */
 extern LonStatusCode HalFlashDrvRead(IzotByte *buf, size_t start, size_t size);
 
+/*****************************************************************
+ * Section: LON USB Interface Abstraction Function Declarations
+ *****************************************************************/
+// Callback for async read: receives buffer, byte count, user data
+typedef void (*usbtty_read_callback_t)(const char *buf, ssize_t len, void *user);
+
+// USB TTY context structure
+typedef struct usbtty_ctx {
+    int fd;                     // File descriptor for the open tty device
+    usbtty_read_callback_t cb;  // Pointer to the user-supplied callback function
+    void *user;                 // Optional user data pointer passed to the callback
+    OsalThreadId thread;        // Thread handle for the asynchronous read thread
+    volatile int stop;          // Flag to signal the thread to stop reading and exit
+} usbtty_ctx;
+
+// Open USB tty device with custom line discipline; returns file descriptor or <0 on error
+int HalOpenUsb(const char *usb_dev_name, int ldisc);
+
+// Close device (just closes fd)
+void HalCloseUsb(int fd);
+
+/*
+ * Writes buffer to LON USB network interface.
+ * Reliable write helper for user-space file descriptors (TTY/USB).
+ * Attempts to write the entire buffer unless a non-recoverable error occurs.
+ * Retries on EINTR and EAGAIN. For partial progress followed by error, the
+ * already-written byte count is returned via bytes_written.
+ */
+LonStatusCode HalWriteUsb(int fd, const void *buf, size_t len, size_t *bytes_written);
+
+// Polling USB read abstraction. Returns LonStatusNoError with *bytes_read set
+// to the number of bytes read, LonStatusNoMessageAvailable if no data is available,
+// or another LonStatusCode on error.
+LonStatusCode HalReadUsb(int fd, void *buf, size_t len, ssize_t *bytes_read);
+
+/*****************************************************************
+ * Section: MAC Address Function Definition
+ *****************************************************************/
 /*
  * Gets the MAC address of the host IP interface.
  * Parameters:
@@ -140,6 +184,9 @@ extern LonStatusCode HalFlashDrvRead(IzotByte *buf, size_t start, size_t size);
  */ 
 extern LonStatusCode HalGetMacAddress(unsigned char *mac);
 
+/*****************************************************************
+ * Section: Reboot Function Declaration
+ *****************************************************************/
 /*
  * Reboots the host device.
  * Parameters:
@@ -151,4 +198,8 @@ extern LonStatusCode HalGetMacAddress(unsigned char *mac);
  */ 
 extern LonStatusCode HalReboot(void);
 
-#endif  /* defined(DEFINED_IZOTHAL_H) */
+#ifdef __cplusplus
+}
+#endif  // __cplusplus
+
+#endif  /* defined(IZOTHAL_H) */

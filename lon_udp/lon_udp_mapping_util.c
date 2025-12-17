@@ -1,38 +1,20 @@
-//
-// LsMappingUtil.c
-//
-// Copyright (C) 2023-2025 EnOcean
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy of
-// this software and associated documentation files (the "Software"), to deal in 
-// the Software without restriction, including without limitation the rights to
-// use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-// of the Software, and to permit persons to whom the Software is furnished to do
-// so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
+/*
+ * lon_udp_mapping_util.c
+ *
+ * Copyright (c) 2023-2025 EnOcean
+ * SPDX-License-Identifier: MIT
+ * See LICENSE file for details.
+ * 
+ * Title:   LON/IP Mapping Utility Functions
+ * Purpose: Provides utility functions for managing LON/IP address mappings.
+ */
 
 #include <string.h>
 
 #include "izot/IzotPlatform.h"
 #include "izot/IzotApi.h"
-#include "ls_udp/IPv4ToLsUdp.h"
 #include "abstraction/IzotCal.h"
-
-/*------------------------------------------------------------------------------
-Section: Macros
-------------------------------------------------------------------------------*/
-#define TRUE  1
-#define FALSE 0
+#include "lon_udp/ipv4_to_lon_udp.h"
 
 // These definitions are used to define the state of a LsMappingInfo entry
 #define LS_MAP_STATE_AVAILABLE     0  // The entry is not being used
@@ -46,14 +28,6 @@ Section: Macros
 // that send messages to this one.
 #define MAX_LS_MAP_INFO 50  
 
-
-/*------------------------------------------------------------------------------
-Section: Global
-------------------------------------------------------------------------------*/
-
-/*------------------------------------------------------------------------------
-Section: Definitions
-------------------------------------------------------------------------------*/
 // The LsMappingInfo structure contains an entry for each LS address that we 
 // know about. Note that the organinization of this mapping is not very 
 // efficient, as it includes the domain ID in every entry, but the device is 
@@ -61,8 +35,7 @@ Section: Definitions
 // An improvement would be to have a short list of domains and have this 
 // structure just indicate which domain by index or something of that nature. 
 // But for this example, I decided to keep it simple.
-typedef struct
-{
+typedef struct LsMappingInfo {
     IzotByte state;         // The state of the address: LS_MAP_ADDR_TYPE_*
     IzotByte domainId[6];   // The LS domain ID
     IzotByte domainLen;     // The length of the domain (0, 1, 3 or 6)
@@ -79,9 +52,6 @@ typedef struct
     IzotByte arbitraryIdAddress[IPV4_ADDRESS_LEN];  
 } LsMappingInfo;
 
-/*------------------------------------------------------------------------------
-Section: Static
-------------------------------------------------------------------------------*/
 // The mapping array.  Entries get added via the 
 // Ipv4SetArbitraryAddressMapping and Ipv4SetDerivedAddressMapping 
 // calbacks as message are processed by ipv4_convert_ls_v1_to_v0
@@ -97,26 +67,22 @@ static int numMapEntries = 0;
  */
 
 /*
- * Function:   findMappingInfo
- * Find the mapping entry for the specified LS address.  
+ * Finds the mapping entry for the specified LON/IP address.  
  *
  * Parameters:
- * pDomainId:              The LS domain ID.
- * domainIdLen:            The length (in bytes) of the LS domain ID
- * subnetId:               The LS subnet ID
- * nodeId:                 The LS node ID
+ * pDomainId:              The LON/IP domain ID.
+ * domainIdLen:            The length (in bytes) of the LON/IP domain ID
+ * subnetId:               The LON/IP subnet ID
+ * nodeId:                 The LON/IP node ID
  *
  * Returns:
  * A pointer to the entry, or NULL.
- * 
- * 
  */
 static LsMappingInfo *findMappingInfo(
-const IzotByte *pDomainId, 
-IzotByte domainLen, 
-IzotByte subnetId, 
-IzotByte nodeId
-)
+        const IzotByte *pDomainId, 
+        IzotByte domainLen, 
+        IzotByte subnetId, 
+        IzotByte nodeId)
 {
     LsMappingInfo *pMapInfo = NULL;
     int i;
@@ -142,8 +108,7 @@ IzotByte nodeId
 }
 
 /*
- * Function:   findAvailMappingInfo
- * Find an available entry and fill in the LS information.  If the map is full,
+ * Finds an available entry and fill in the LS information.  If the map is full,
  * just start over. A performance improvement would be to remove entries on a
  * least recently used basis
  * 
@@ -155,14 +120,12 @@ IzotByte nodeId
  *
  * Returns:
  *  A pointer to the new entry.
- * 
- * 
  */
 static LsMappingInfo *findAvailMappingInfo(
-const IzotByte *pDomainId, 
-IzotByte domainLen, 
-IzotByte subnetId, 
-IzotByte nodeId)
+        const IzotByte *pDomainId, 
+        IzotByte domainLen, 
+        IzotByte subnetId, 
+        IzotByte nodeId)
 {
     LsMappingInfo *pMapInfo = NULL;
     // Find an available one;
@@ -204,9 +167,9 @@ IzotByte nodeId)
 }
 
 /*
- * Function:   Ipv4GetArbitrarySourceAddress
- * This callback is used to retrieve arbitrary IP address information 
- * for a given source address.  
+ * Finds an available entry and fill in the LS information.  If the map is
+ * full, start over. A performance improvement would be to remove entries on
+ * a least recently used basis
  * 
  * Parameters:
  * lsMappingHandle:        A handle used for LS mapping 
@@ -222,7 +185,6 @@ IzotByte nodeId)
  *
  * Returns:
  *  The length of the additional enclosed source address information
- * 
  */
 IzotByte Ipv4GetArbitrarySourceAddress(void *lsMappingHandle,
                 IzotByte *pSourceIpAddress, const IzotByte *pDomainId, 
@@ -306,9 +268,9 @@ IzotByte Ipv4GetArbitrarySourceAddress(void *lsMappingHandle,
 }
 
 /*
- * Function:   Ipv4GetArbitraryDestAddress
- * This callback is used to used by the ls to udp translation layers to retrieve
- * arbitrary IP address information for a given destination address.
+ * This callback is used to used by the LON/IP to UDP translation layers
+ * to retrieve arbitrary IP address information for a given destination 
+ * address.
  * 
  * Parameters:
  * lsMappingHandle:        A handle used for LS mapping 
@@ -325,18 +287,16 @@ IzotByte Ipv4GetArbitrarySourceAddress(void *lsMappingHandle,
  * 
  * Returns:
  *  The length of the additional enclosed destination address information
- * 
  */
 IzotByte Ipv4GetArbitraryDestAddress(
-void *lsMappingHandle,
-const IzotByte *pDomainId, 
-IzotByte domainLen, 
-IzotByte subnetId, 
-IzotByte nodeId, 
-IzotByte ipv1AddrFmt,
-IzotByte *pDestIpAddress, 
-IzotByte *pEnclosedDest
-)
+        void *lsMappingHandle,
+        const IzotByte *pDomainId, 
+        IzotByte domainLen, 
+        IzotByte subnetId, 
+        IzotByte nodeId, 
+        IzotByte ipv1AddrFmt,
+        IzotByte *pDestIpAddress, 
+        IzotByte *pEnclosedDest)
 {
     LsMappingInfo *pMapInfo = 
                         findMappingInfo(pDomainId, domainLen, subnetId, nodeId);
@@ -371,10 +331,9 @@ IzotByte *pEnclosedDest
 }
 
 /*
- * Function:   Ipv4SetArbitraryAddressMapping
- * This callback is used by the ls to udp translation layers to 
- * inform the LS/IP mapping layers that a given LS address uses an
- * arbitrary IP address.
+ * This callback is used by the LON/IP to UDP translation layers to 
+ * inform the LON/IP to UDP mapping layers that a given LS address 
+ * uses an arbitrary IP address.
  * 
  * Parameters:
  * lsMappingHandle:        A handle used for LS mapping 
@@ -387,16 +346,14 @@ IzotByte *pEnclosedDest
  * 
  * Returns:
  * void
- * 
  */
 void Ipv4SetArbitraryAddressMapping(
-void *lsMappingHandle, 
-const IzotByte *pArbitraryIpAddr, 
-const IzotByte *pDomainId, 
-IzotByte domainLen, 
-IzotByte subnetId, 
-IzotByte nodeId
-)
+        void *lsMappingHandle, 
+        const IzotByte *pArbitraryIpAddr, 
+        const IzotByte *pDomainId, 
+        IzotByte domainLen, 
+        IzotByte subnetId, 
+        IzotByte nodeId)
 {
     LsMappingInfo *pMapInfo = 
                        findMappingInfo(pDomainId, domainLen, subnetId, nodeId);
@@ -412,10 +369,9 @@ IzotByte nodeId
 }
 
 /*
- * Function:   Ipv4SetDerivedAddressMapping
- * This callback is used by the ls to udp translation layers to 
- * inform the LS/IP mapping layers that a given LS address uses an
- * LS derived IP address.  
+ * This callback is used by the LON/IP to UDP translation layers to 
+ * inform the LON/IP to UDP mapping layers that a given LON/IP address
+ * uses a LON/IP derived IP address.  
  * 
  * Parameters:
  * lsMappingHandle:        A handle used for LS mapping 
@@ -426,15 +382,13 @@ IzotByte nodeId
  * 
  * Returns:
  * void
- * 
  */
 void Ipv4SetDerivedAddressMapping(
-void *lsMappingHandle, 
-const IzotByte *pDomainId, 
-IzotByte domainLen, 
-IzotByte subnetId, 
-IzotByte nodeId
-)
+        void *lsMappingHandle, 
+        const IzotByte *pDomainId, 
+        IzotByte domainLen, 
+        IzotByte subnetId, 
+        IzotByte nodeId)
 {
     LsMappingInfo *pMapInfo = 
                         findMappingInfo(pDomainId, domainLen, subnetId, nodeId);
@@ -448,8 +402,7 @@ IzotByte nodeId
 }
 
 /*
- * Function:   Ipv4SetDerivedSubnetsMapping
- * This callback is used by the ls to udp translation layers when an 
+ * This callback is used by the LON/IP to UDP translation layers when an 
  * SubnetsAddrMapping message is received.
  * 
  * Parameters:
@@ -462,15 +415,13 @@ IzotByte nodeId
  * 
  * Returns:
  * void
- * 
  */
 void Ipv4SetDerivedSubnetsMapping(
-void *lsMappingHandle, 
-const IzotByte *pDomainId, 
-IzotByte domainLen, 
-IzotByte set, 
-const IzotByte *pSubnets
-)
+        void *lsMappingHandle, 
+        const IzotByte *pDomainId, 
+        IzotByte domainLen, 
+        IzotByte set, 
+        const IzotByte *pSubnets)
 {
     // This example does not process derived subnets mapping. It makes sense to
     // process this message only if the device keeps track of large numbers 
@@ -499,16 +450,13 @@ const IzotByte *pSubnets
 }
 
 /*
- * Function:   Ipv4IsUnicastAddressSupported
- * This callback is used by the ls to udp translation layers to
+ * This callback is used by the LON/IP to UDP translation layers to
  * determmine whether or not the specified IP address can be used by this
  * device as a source address.
  * 
  * Parameters:
  * lsMappingHandle:        A handle used for LS mapping 
  * ipAddress:              The LS domain ID.
- * 
- * 
  */
 IzotByte Ipv4IsUnicastAddressSupported(void *lsMappingHandle, 
                 IzotByte *ipAddress)
@@ -522,8 +470,8 @@ IzotByte Ipv4IsUnicastAddressSupported(void *lsMappingHandle,
 }
 
 /*
- * Function:   UpdateMapping
- * Update the mapping table based on the information in announcement 
+ * This callback is used by the LON/IP to UDP translation layers to
+ * update the mapping table based on the information in announcement 
  * received
  * 
  * pDomainId:           Domain id of device
@@ -532,13 +480,11 @@ IzotByte Ipv4IsUnicastAddressSupported(void *lsMappingHandle,
  * nodeId:              Node Id of device
  * addr:                Absolute Ip address of device from which
  *                      announcement is received
- *
  */
 void UpdateMapping(
-IzotByte *pDomainId, IzotByte domainLen, 
-IzotByte subnetId, IzotByte nodeId, 
-const IzotByte *addr
-)
+        IzotByte *pDomainId, IzotByte domainLen, 
+        IzotByte subnetId, IzotByte nodeId, 
+        const IzotByte *addr)
 {
     LSUDP_PRINTF(
     "Announcement received from subnet: "
@@ -575,11 +521,10 @@ const IzotByte *addr
 }
 
 /*
- * Function:   ClearMapping
- * clear the mapping tabel after aging period expires
+ * This callback is used by the LON/IP to UDP translation layers to
+ * clear the mapping table after aging period expires
  * 
  * Parameters: None
- *
  */
 void ClearMapping(void)
 {

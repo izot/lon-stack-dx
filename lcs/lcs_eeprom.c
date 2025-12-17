@@ -1,28 +1,15 @@
-// Copyright (C) 2022 EnOcean
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy of
-// this software and associated documentation files (the "Software"), to deal in 
-// the Software without restriction, including without limitation the rights to
-// use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-// of the Software, and to permit persons to whom the Software is furnished to do
-// so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
-
-/*******************************************************************************
-          File:        lcs_eeprom.c
-
-       Purpose:        Access and store non-volatile data.
-*******************************************************************************/
+/*
+ * lcs_eeprom.c
+ *
+ * Copyright (c) 2022-2025 EnOcean
+ * SPDX-License-Identifier: MIT
+ * See LICENSE file for details.
+ * 
+ * Title:   Non-Volatile Memory Access Functions
+ * Purpose: Provides functions to read and write non-volatile memory.
+ * Notes:   This implementation assumes a simple model where all 
+ * 			non-volatile data fits within 256 bytes.
+ */
 
 #include <stdio.h>
 #include <string.h>
@@ -30,11 +17,11 @@
 
 #include "izot/IzotPlatform.h"
 #include "izot/IzotApi.h"
-#include "izot/IzotTypes.h"
+#include "izot/lon_types.h"
 #include "lcs/lcs_eia709_1.h"
 #include "lcs/lcs_timer.h"
 #include "lcs/lcs_node.h"
-#include "persistence/Persistent.h"
+#include "persistence/lon_persistence.h"
 
 #define NVM_START	(&eep->configData)
 #define NVM_SIZE 	(sizeof(*eep)-sizeof(eep->readOnlyData))
@@ -47,18 +34,12 @@ Section: Globals
 EEPROM eeprom[NUM_STACKS];
 
 /*------------------------------------------------------------------------------
-Section: Function Prototypes
-------------------------------------------------------------------------------*/
-/* None */
-
-/*------------------------------------------------------------------------------
 Section: Function Definitions
 ------------------------------------------------------------------------------*/
 /*******************************************************************************
 Function: LCW_WriteNvm
 Returns:  void
-Purpose:  Record all data to NVM.  Note we currently use a very simple model
-that everything fits in 256 bytes.
+Purpose:  Record all data to NVM.
 *******************************************************************************/
 void LCS_WriteNvm(void)
 {
@@ -69,22 +50,20 @@ void LCS_WriteNvm(void)
 
 /*******************************************************************************
 Function: LCW_ReadNvm
-Returns:  void
-Purpose:  Read all data from NVM.  Note we currently use a very simple model
-that everything fits in 256 bytes.
+Returns:  LonStatusNoError if successful, <LonStatusCode> error otherwise.
+Purpose:  Read all data from NVM.
 *******************************************************************************/
-EchErr LCS_ReadNvm(void)
+LonStatusCode LCS_ReadNvm(void)
 {
-	IzotBits16 ret;
-	ret = IzotPersistentSegRestore(IzotPersistentSegNetworkImage);
-	return ((ret == 0) ? ECHERR_OK : ECHERR_NOT_FOUND);
+	LonStatusCode status;
+	status = IzotPersistentSegRestore(IzotPersistentSegNetworkImage);
+	return ((status == 0) ? LonStatusNoError : LonStatusNotFound);
 }
 
 /*******************************************************************************
 Function: LCW_WriteNvs
 Returns:  void
-Purpose:  Record all persistent NV data to NVM.  Note we currently use a very simple model
-that everything fits in 256 bytes.
+Purpose:  Record all persistent NV data to NVM.
 *******************************************************************************/
 void LCS_WriteNvs(void)
 {
@@ -94,15 +73,13 @@ void LCS_WriteNvs(void)
 
 /*******************************************************************************
 Function: LCS_ReadNvs
-Returns:  void
-Purpose:  Read all NV data from NVM.  Note we currently use a very simple model
-that everything fits in 256 bytes.
+Returns:  LonStatusNoError if successful, <LonStatusCode> error otherwise.
+Purpose:  Read all NV data from NVM.
 *******************************************************************************/
-EchErr LCS_ReadNvs(void)
+LonStatusCode LCS_ReadNvs(void)
 {
-	IzotUbits16 ret;
-	ret = IzotPersistentSegRestore(IzotPersistentSegApplicationData);
-	return ((ret == 0) ? ECHERR_OK : ECHERR_NOT_FOUND);
+	LonStatusCode status;
+	status = IzotPersistentSegRestore(IzotPersistentSegApplicationData);
+	return ((status == 0) ? LonStatusNoError : LonStatusNotFound);
 }
 
-/*******************************End of eeprom.c *******************************/

@@ -1,5 +1,5 @@
 /*
- * util.c
+ * isi_util.c
  *
  * Copyright (c) 2022-2025 EnOcean
  * SPDX-License-Identifier: MIT
@@ -11,14 +11,40 @@
 
 #include <stdio.h>
 #include <stdarg.h>
-#include "isi/isi_int.h"
-
-#if PROCESSOR_IS(MC200)
-#include <wmtime.h>
-#endif
 
 #ifdef  __cplusplus
 extern "C" {
+#endif
+
+#include "izot/IzotPlatform.h"
+#include "izot/lon_types.h"
+#include "isi/isi_int.h"
+#include "lcs/lcs_api.h"
+#include "lcs/lcs_node.h"
+
+/*
+ * These helpers are used outside of ISI (e.g., by core API code).
+ * Keep them available regardless of ISI_ID.
+ */
+IzotByte high_byte(IzotUbits16 a)
+{
+    return (IzotByte)(a >> 8);
+}
+
+IzotByte low_byte(IzotUbits16 a)
+{
+    return (IzotByte)(a & 0x00FFu);
+}
+
+IzotWord make_long(IzotByte low_byte, IzotByte high_byte)
+{
+    IzotWord w;
+    IZOT_SET_UNSIGNED_WORD(w, (IzotUbits16)((((IzotUbits16)high_byte) << 8) | (IzotUbits16)low_byte));
+    return w;
+}
+
+#if PROCESSOR_IS(MC200)
+#include <wmtime.h>
 #endif
 
 #define thisRandomInit 1234          //for random_t()
@@ -60,6 +86,8 @@ IzotDomain* access_domain(int domainIndex)
      _IsiAPIDebug("End access_domain = %d\n", domainIndex);
     return pDomain;
 }
+
+#if !ISI_IS(ISI_ID_NO_ISI)
 
 /*
  * Updates the domain configuration for the specified index.
@@ -191,38 +219,6 @@ const IzotDatapointConfig* IsiGetNv(unsigned nvIndex)
  * Returns:
  *   The high byte of the 16-bit value
  */
-IzotByte high_byte(IzotUbits16 a)
-{
-	return ((unsigned char)(a>>8));
-}
-
-/*
- * Returns the low byte of a 16-bit value.
- * Parameters:
- *   a: 16-bit value
- * Returns:
- *   The low byte of the 16-bit value
- */
-IzotByte low_byte (IzotUbits16 a)
-{
-	return ((unsigned char)(a&(0x00FF)));
-}
-
-/*
- * Returns a 16-bit value composed of the specified low and high bytes.
- * Parameters:
- *   low_byte: Low byte of the 16-bit value
- *   high_byte: High byte of the 16-bit value
- * Returns:
- *   The combined 16-bit value
- */
-IzotWord make_long(IzotByte low_byte, IzotByte high_byte)
-{
-    IzotWord w;
-    IZOT_SET_UNSIGNED_WORD(w, (IzotUbits16)((high_byte<<8)|low_byte));
-	return w;
-}
-
 /*
  * Returns a 32-bit pseudo-random number.
  * Parameters:
@@ -232,7 +228,7 @@ IzotWord make_long(IzotByte low_byte, IzotByte high_byte)
  */
 unsigned int getRandom(void)
 {
-	unsigned m_w = IzotGetTickCount();
+	unsigned m_w = OsalGetTickCount();
 
 	m_z = 36969 * (m_z & 65535) + (m_z >> 4);
 	m_w = 18000 * (m_w & 65535) + (m_w >> 4);
@@ -465,6 +461,10 @@ LonStatusCode set_node_mode(unsigned mode, unsigned state)
 	return IzotSetNodeMode(mode, state);
 }
 
+#endif  // !ISI_IS(ISI_ID_NO_ISI)
+
 #ifdef  __cplusplus
 }
 #endif
+
+

@@ -1,40 +1,35 @@
-//
-// lcs_tsa.c
-//
-// Copyright (C) 2022 EnOcean
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy of
-// this software and associated documentation files (the "Software"), to deal in 
-// the Software without restriction, including without limitation the rights to
-// use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-// of the Software, and to permit persons to whom the Software is furnished to do
-// so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
+/*
+ * lcs_tsa.c
+ *
+ * Copyright (c) 2022-2025 EnOcean
+ * SPDX-License-Identifier: MIT
+ * See LICENSE file for details.
+ * 
+ * Title:   LON Stack Transport and Session Layers
+ * Purpose: Implements the transport and session layers of the LON Stack.
+ * Notes:   See ISO/IEC 14908-1, Sections 8 and 9 for LON protocol details.
+ * 
+ *          This module handles message transport and session management
+ *          as specified in the LON protocol.  This module also implements
+ *          an authentication sublayer that provides authentication services
+ *          for both the transport and session layers.  The transport layer,
+ *          session layer, and authentication sublayer are collectively
+ *          referred to as the TSA (Transport/Session/Authentication) module.
+ *          The transport layer provides reliable message delivery with
+ *          acknowledgements and retransmissions, as well as segmentation
+ *          and reassembly of messages that exceed the maximum PDU size.
+ *          The session layer provides request/response message services,
+ *          including matching responses to requests, and retransmitting
+ *          requests when responses are not received within a specified timeout
+ *          period.  The authentication sublayer provides challenge/response
+ *          authentication services for both the transport and session layers.
+ *          The TSA module uses the LON Stack transaction control sublayer (TCS)
+ *          to assign transaction IDs to outgoing messages, and to detect
+ *          duplicate incoming messages.
+ */
 
-/*********************************************************************
-    Reference:     ISO/IEC 14908.1, Sections 8, 9
-
-    Purpose:       LON transport, session, and authentication layers.
- *********************************************************************/
-
-/*------------------------------------------------------------------------------
- Section: Includes
- ------------------------------------------------------------------------------*/
 #include "lcs/lcs_tsa.h"
 
-/*--------------------------------------------------------------------
- Section: Constant Definitions.
- --------------------------------------------------------------------*/
 /* The last few tries for a message are sent using alternate path.
  The following constant determines how many are sent like this.
  A message is sent on alternate path if retries_left <= ALT_PATH_COUNT.
@@ -59,9 +54,6 @@
 	#define LT_AES_GCM_PACKET_CODE      0x4e
 #endif
 
-/*-------------------------------------------------------------------
- Section: Type Definitions.
- -------------------------------------------------------------------*/
 typedef enum {
     TRANSPORT, SESSION
 } Layer;
@@ -151,7 +143,7 @@ static void ReceiveRem(Layer layerIn);
 static void Deliver(IzotUbits16 rrIndexIn);
 
 static IzotBits16 AllocateRR(void);
-static Bool FindRR(RequestId id, IzotUbits16 *pIndex);
+static bool FindRR(RequestId id, IzotUbits16 *pIndex);
 static IzotBits16 RetrieveRR(SourceAddress srcAddrIn, IzotByte priorityIn);
 
 static IzotUbits16 ComputeRecvTimerValue(AddrMode addrModeIn, IzotByte group);
@@ -166,13 +158,13 @@ void Encrypt(IzotByte rand[], APDU *apdu, IzotUbits16 apduSize, IzotByte *pKey,
  Function: TSA_AddressConversion
  Purpose:  Convert address formats
  ******************************************************************/
-Status TSA_AddressConversion(IzotSendAddress* pSrc, DestinationAddress *pDst) 
+LonStatusCode TSA_AddressConversion(IzotSendAddress* pSrc, DestinationAddress *pDst) 
 {
-    Status sts = SUCCESS;
+    LonStatusCode sts = LonStatusNoError;
 
     pDst->dmn.domainIndex = IZOT_GET_ATTRIBUTE(pSrc->SubnetNode, IZOT_SENDSN_DOMAIN);
 
-// Check for group format
+    // Check for group format
     if (IZOT_GET_ATTRIBUTE(pSrc->Group, IZOT_SENDGROUP_TYPE)) {
         pDst->addressMode = AM_MULTICAST;
         pDst->addr.addr1.GroupId = pSrc->Group.GroupId;
@@ -180,7 +172,7 @@ Status TSA_AddressConversion(IzotSendAddress* pSrc, DestinationAddress *pDst)
         pDst->addressMode = (AddrMode) pSrc->SubnetNode.Type;
         switch (pDst->addressMode) {
         case IzotAddressUnassigned:
-            sts = FAILURE;
+            sts = LonStatusDestinationAddressMissing;
             break;
         case AM_SUBNET_NODE:
             pDst->addr.addr2a.Subnet = pSrc->SubnetNode.Subnet;
@@ -199,8 +191,8 @@ Status TSA_AddressConversion(IzotSendAddress* pSrc, DestinationAddress *pDst)
             break;
         default:
             /* It must be some invalid value. Let us fail. */
-            LCS_RecordError(IzotBadAddressType);
-            sts = FAILURE;
+            OsalPrintError(LonStatusBadAddressType, "TSA_AddressConversion: Unknown address mode");
+            sts = LonStatusBadAddressType;
         } /* switch */
     }
     return sts;
@@ -233,11 +225,11 @@ void SendCompletion(TSASendParam *tsaSendParamPtr, IzotByte success)
         appReceiveParamPtr->proxy = tsaSendParamPtr->proxy;
         appReceiveParamPtr->proxyCount = tsaSendParamPtr->proxyCount;
         appReceiveParamPtr->proxyDone = tsaSendParamPtr->proxyDone;
-        EnQueue(&gp->appCeRspInQ);
+        QueueWrite(&gp->appCeRspInQ);
         // When freeing, we init certain fields.  Ideally, the re-init would occur on every allocation, but this would require changing
         // lots of instances.  The allocation code calls no common init routine.  That would be a better approach.
         tsaSendParamPtr->proxy = FALSE;
-        DeQueue(tsaQPtr);
+        QueueDropHead(tsaQPtr);
     }
 }
 
@@ -262,6 +254,7 @@ void TSAReset(void)
 {
     IzotUbits16 queueItemSize;
     IzotUbits16 i;
+    LonStatusCode status;
     
     /* Allocate and initialize the input queue. */
     
@@ -274,8 +267,9 @@ void TSAReset(void)
     gp->tsaInQCnt = DecodeBufferCnt((IzotByte)IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_INBUF_CNT));
     queueItemSize = gp->tsaInBufSize + sizeof(TSAReceiveParam);
     
-    if (QueueInit(&gp->tsaInQ, queueItemSize, gp->tsaInQCnt) != SUCCESS) {
-        DBG_vPrintf(TRUE, "TSAReset: Unable to initialize the input queue.\n");
+    status = QueueInit(&gp->tsaInQ, queueItemSize, gp->tsaInQCnt);
+    if (status != LonStatusNoError) {
+        OsalPrintError(status, "TSAReset: Unable to initialize the input queue");
         gp->resetOk = FALSE;
         return;
     }
@@ -286,8 +280,9 @@ void TSAReset(void)
     gp->tsaOutQCnt = DecodeBufferCnt((IzotByte)IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_OUTBUF_CNT));
     queueItemSize = gp->tsaOutBufSize + sizeof(TSASendParam);
     
-    if (QueueInit(&gp->tsaOutQ, queueItemSize, gp->tsaOutQCnt) != SUCCESS) {
-        DBG_vPrintf(TRUE, "TSAReset: Unable to initialize the output queue.\n");
+    status = QueueInit(&gp->tsaOutQ, queueItemSize, gp->tsaOutQCnt);
+    if (status != LonStatusNoError) {
+        OsalPrintError(status, "TSAReset: Unable to initialize the output queue");
         gp->resetOk = FALSE;
         return;
     }
@@ -298,8 +293,9 @@ void TSAReset(void)
     gp->tsaOutPriQCnt = DecodeBufferCnt((IzotByte) IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_OUT_PRICNT));
     queueItemSize = gp->tsaOutPriBufSize + sizeof(TSASendParam);
     
-    if (QueueInit(&gp->tsaOutPriQ, queueItemSize, gp->tsaOutPriQCnt) != SUCCESS) {
-        DBG_vPrintf(TRUE, "TSAReset: Unable to initialize the priority output queue.\n");
+    status = QueueInit(&gp->tsaOutPriQ, queueItemSize, gp->tsaOutPriQCnt);
+    if (status != LonStatusNoError) {
+        OsalPrintError(status, "TSAReset: Unable to initialize the priority output queue");
         gp->resetOk = FALSE;
         return;
     }
@@ -309,8 +305,9 @@ void TSAReset(void)
     gp->tsaRespQCnt = gp->tsaOutQCnt;
     queueItemSize = gp->tsaRespBufSize + sizeof(TSASendParam);
     
-    if (QueueInit(&gp->tsaRespQ, queueItemSize, gp->tsaRespQCnt) != SUCCESS) {
-        DBG_vPrintf(TRUE, "TSAReset: Unable to initialize the responses queue.\n");
+    status = QueueInit(&gp->tsaRespQ, queueItemSize, gp->tsaRespQCnt);
+    if (status != LonStatusNoError) {
+        OsalPrintError(status, "TSAReset: Unable to initialize the responses queue");
         gp->resetOk = FALSE;
         return;
     }
@@ -322,18 +319,18 @@ void TSAReset(void)
     /* Initialize the receive records. */
     gp->recvRecCnt = RECEIVE_TRANS_COUNT;
     
-    gp->recvRec = AllocateStorage((IzotUbits16) (gp->recvRecCnt * sizeof(ReceiveRecord)));
+    gp->recvRec = OsalAllocateMemory((size_t) (gp->recvRecCnt * sizeof(ReceiveRecord)));
     if (gp->recvRec == NULL) {
         gp->resetOk = FALSE;
         return;
     }
     
     for (i = 0; i < gp->recvRecCnt; i++) {
-        gp->recvRec[i].response = AllocateStorage(DecodeBufferSize(RECV_REC_RESP_SIZE));
-        gp->recvRec[i].apdu = AllocateStorage(DecodeBufferSize(RECV_REC_APDU_SIZE));
+        gp->recvRec[i].response = OsalAllocateMemory(DecodeBufferSize(RECV_REC_RESP_SIZE));
+        gp->recvRec[i].apdu = OsalAllocateMemory(DecodeBufferSize(RECV_REC_APDU_SIZE));
     
         if (gp->recvRec[i].response == NULL || gp->recvRec[i].apdu == NULL) {
-            DBG_vPrintf(TRUE, "TSAReset: Insufficient space for response or apdu.\n");
+            OsalPrintError(LonStatusNoMemoryAvailable, "TSAReset: Insufficient space for response");
             gp->resetOk = FALSE;
             return;
         }
@@ -382,7 +379,7 @@ void TPSend(void)
     Priority transaction timer expired event.
     **************************************************/
     if (gp->priXmitRec.status == TRANSPORT_TX && !LonTimerRunning(&gp->priXmitRec.xmitTimer)) {
-        DBG_vPrintf(TRUE, "TPSend: Priority transaction timer expired event.\n");
+        OsalPrintDebug(LonStatusNoError, "TPSend: Priority transaction timer expired");
         XmitTimerExpiration(TRANSPORT, TRUE);
         return;
     }
@@ -390,7 +387,7 @@ void TPSend(void)
     Send a new priority message event.
     **************************************************/
     else if (gp->priXmitRec.status == UNUSED_TX && !QueueEmpty(&gp->tsaOutPriQ) && !QueueFull(&gp->nwOutPriQ)) {
-        DBG_vPrintf(TRUE, "TPSend: Send a new priority message event.\n");
+        OsalPrintDebug(LonStatusNoError, "TPSend: Send a new priority message");
         SendNewMsg(TRANSPORT, TRUE);
         return;
     }
@@ -398,14 +395,14 @@ void TPSend(void)
     Non-priority transaction timer expired event.
     *************************************************/
     else if (gp->xmitRec.status == TRANSPORT_TX && !LonTimerRunning(&gp->xmitRec.xmitTimer)) {
-        DBG_vPrintf(TRUE, "TPSend: Non-priority transaction timer expired event.\n");
+        OsalPrintDebug(LonStatusNoError, "TPSend: Non-priority transaction timer expired");
         XmitTimerExpiration(TRANSPORT, FALSE);
     }
     /***************************************************
     Send a new non-priority message.
     **************************************************/
     else if (gp->xmitRec.status == UNUSED_TX && !QueueEmpty(&gp->tsaOutQ) && !QueueFull(&gp->nwOutQ)) {
-        DBG_vPrintf(TRUE, "TPSend: Send a new non-priority message.\n");
+        OsalPrintDebug(LonStatusNoError, "TPSend: Send a new non-priority message");
         SendNewMsg(TRANSPORT, FALSE);
     } else {
         /* Either there is no work or there is no space. */
@@ -439,11 +436,11 @@ static void TerminateTrans(IzotByte priorityIn)
     
     if (priorityIn) {
         tsaQPtr = &gp->tsaOutPriQ;
-        tsaSendParamPtr = QueueHead(tsaQPtr);
+        tsaSendParamPtr = QueuePeek(tsaQPtr);
         xmitRecPtr = &gp->priXmitRec;
     } else {
         tsaQPtr = &gp->tsaOutQ;
-        tsaSendParamPtr = QueueHead(tsaQPtr);
+        tsaSendParamPtr = QueuePeek(tsaQPtr);
         xmitRecPtr = &gp->xmitRec;
     }
     
@@ -460,9 +457,9 @@ static void TerminateTrans(IzotByte priorityIn)
     xmitRecPtr->status = UNUSED_TX;
     
     if (success) {
-        DBG_vPrintf(TRUE, "TermTran: Terminated the transaction. Success.\n");
+        OsalPrintDebug(LonStatusNoError, "TerminateTrans: Transaction terminated with success");
     } else {
-        DBG_vPrintf(TRUE, "TermTran: Terminated the transaction. Fail.\n");
+        OsalPrintDebug(LonStatusNoError, "TerminateTrans: Transaction terminated with failure");
     }
     SendCompletion(tsaSendParamPtr, success);
     return;
@@ -497,13 +494,13 @@ static void XmitTimerExpiration(Layer layerIn, IzotByte priorityIn)
     
     if (priorityIn) {
         tsaQPtr = &gp->tsaOutPriQ;
-        tsaSendParamPtr = QueueHead(tsaQPtr);
+        tsaSendParamPtr = QueuePeek(tsaQPtr);
         nwQPtr = &gp->nwOutPriQ;
         nwSendParamPtr = QueueTail(nwQPtr);
         xmitRecPtr = &gp->priXmitRec;
     } else {
         tsaQPtr = &gp->tsaOutQ;
-        tsaSendParamPtr = QueueHead(tsaQPtr);
+        tsaSendParamPtr = QueuePeek(tsaQPtr);
         nwQPtr = &gp->nwOutQ;
         nwSendParamPtr = QueueTail(nwQPtr);
         xmitRecPtr = &gp->xmitRec;
@@ -522,28 +519,24 @@ static void XmitTimerExpiration(Layer layerIn, IzotByte priorityIn)
     
     /* Check if there is space in the network buffer for retransmission */
     if (QueueFull(nwQPtr)) {
-        /* We are losing a retTerminated the transaction. Success.ry chance locally due to lack of space
-        in network queue. If we don't want to lose the retry, we
-        simply delete the next two lines of code */
+        /* We are losing a retry chance locally due to lack of space
+        in network queue */
         xmitRecPtr->retriesLeft--;
         /* Start the transmit timer */
         SetLonTimer(&xmitRecPtr->xmitTimer, xmitRecPtr->xmitTimerValue);
-        DBG_vPrintf(TRUE, "XmitTimerExp: Retry failure due to no space in net");
+        OsalPrintError(LonStatusNoBufferAvailable, "XmitTimerExp: Retry failure due to no space in network queue");
         return;
     }
     
-    /* Now, we need to retransmit the message again. */
-    /* Form the PDU to be sent directly in the target queue. */
+    /* Retransmit the message */
+    /* Form the PDU to be sent directly in the target queue */
     pduPtr = (TSPDUPtr) (nwSendParamPtr + 1);
     pduPtr->auth = tsaSendParamPtr->auth;
-    if (xmitRecPtr->version == LsProtocolModeLegacy)
-    {
+    if (xmitRecPtr->version == LsProtocolModeLegacy) {
         pduPtr->transNum = xmitRecPtr->transNum;
         nwSendParamPtr->version = LsProtocolModeLegacy;
         dataIndex = 0;
-    } 
-    else 
-    {
+    } else {
         pduPtr->transNum = xmitRecPtr->transNum >> 8;
         pduPtr->data[0] = xmitRecPtr->transNum;
         nwSendParamPtr->version = LsProtocolModeEnhanced;
@@ -554,20 +547,20 @@ static void XmitTimerExpiration(Layer layerIn, IzotByte priorityIn)
         pduPtr->pduMsgType = UNACK_RPT_MSG;
         memcpy(&pduPtr->data[dataIndex], xmitRecPtr->apdu, xmitRecPtr->apduSize);
         pduSize = xmitRecPtr->apduSize + 1;
-        DBG_vPrintf(TRUE, "XmitTimerExp: Resending IzotServiceRepeated packet.\n");
+        OsalPrintDebug(LonStatusNoError, "XmitTimerExpiration: Resending repeated packet");
     } else if (xmitRecPtr->nwDestAddr.addressMode != AM_MULTICAST) {
         if (layerIn == TRANSPORT) {
             pduPtr->pduMsgType = ACKD_MSG;
-            DBG_vPrintf(TRUE, "XmitTimerExp: Resending IzotServiceAcknowledged packet.\n");
+            OsalPrintDebug(LonStatusNoError, "XmitTimerExpiration: Resending acknowledged packet");
         } else if (tsaSendParamPtr->service == IzotServiceRequest) {
             pduPtr->pduMsgType = REQUEST_MSG;
-            DBG_vPrintf(TRUE, "XmitTimerExp: Resending IzotServiceRequest packet.\n");
+            OsalPrintDebug(LonStatusNoError, "XmitTimerExpiration: Resending request packet");
         } else {
             /* Response Messages are retried. Something is wrong. */
             /* Force retriesLeft to 0 so that next time we will
             terminate the transaction. */
             xmitRecPtr->retriesLeft = 0;
-            DBG_vPrintf(TRUE, "XmitTimerExp: Response Message??. What is wrong?");
+            OsalPrintError(LonStatusTimerExpirationNotExpected, "XmitTimerExpiration: Timer expiration not expected");
             return;
         }
         memcpy(&pduPtr->data[dataIndex], xmitRecPtr->apdu, xmitRecPtr->apduSize);
@@ -595,8 +588,7 @@ static void XmitTimerExpiration(Layer layerIn, IzotByte priorityIn)
             }
             if (i == -1) {
                 /* There should have been at least one ack. */
-                DBG_vPrintf(TRUE, "XmitTimerExpiration: Something is wrong."
-                        " Check code. Atleast one ack member expected.\n");
+                OsalPrintError(LonStatusInternalError, "XmitTimerExpiration: Invalid code path, at least one ack member expected");
                 xmitRecPtr->retriesLeft = 0;
                 return;
             }
@@ -619,7 +611,7 @@ static void XmitTimerExpiration(Layer layerIn, IzotByte priorityIn)
             memcpy(&pduPtr->data[1 + dataIndex + length], xmitRecPtr->apdu, xmitRecPtr->apduSize);
             /* TSPDU = 1 byte header + 1 byte for length + M_LIST. */
             pduSize = xmitRecPtr->apduSize + 2 + length;
-            DBG_vPrintf(TRUE, "XmitTimerExp: Resending REMINDER  packet.\n");
+            OsalPrintDebug(LonStatusNoError, "XmitTimerExpiration: Resending reminder packet");
         } else {
             /* Length > 2 */
             /* A Pair is sent in this case. First, send the REMINDER
@@ -628,15 +620,14 @@ static void XmitTimerExpiration(Layer layerIn, IzotByte priorityIn)
             So, we need to make sure that the queue has space
             for 2 msgs. If not, return and come back later to
             do this case. */
-            queueSpace = QueueCnt(nwQPtr) - QueueSize(nwQPtr);
+            queueSpace = QueueCapacity(nwQPtr) - QueueSize(nwQPtr);
             if (queueSpace < 2) {
                 /* We are losing a retry chance locally due to lack
                 of space in network queue. */
                 xmitRecPtr->retriesLeft--;
                 /* Start the transmit timer. */
                 SetLonTimer(&xmitRecPtr->xmitTimer, xmitRecPtr->xmitTimerValue);
-                DBG_vPrintf(TRUE, "XmitTimerExp: Retry failure due to no"
-                        " space in network buffer.\n");
+                OsalPrintError(LonStatusNoBufferAvailable, "XmitTimerExpiration: Retry failure due to no space in network queue");
                 return; /* Not enough space in the queue. Come back. */
             }
             /* Send the REMINDER message. */
@@ -648,14 +639,11 @@ static void XmitTimerExpiration(Layer layerIn, IzotByte priorityIn)
     
                 pduPtr->auth = tsaSendParamPtr->auth;
                 pduPtr->pduMsgType = REMINDER_MSG;
-                if (xmitRecPtr->version == LsProtocolModeLegacy)
-                {
+                if (xmitRecPtr->version == LsProtocolModeLegacy) {
                     pduPtr->transNum = xmitRecPtr->transNum;
                     nwSendParamPtr->version = LsProtocolModeLegacy;
                     dataIndex = 0;
-                } 
-                else 
-                {
+                } else {
                     pduPtr->transNum = xmitRecPtr->transNum >> 8;
                     pduPtr->data[dataIndex] = xmitRecPtr->transNum;
                     nwSendParamPtr->version = LsProtocolModeEnhanced;
@@ -700,7 +688,7 @@ static void XmitTimerExpiration(Layer layerIn, IzotByte priorityIn)
                 nwSendParamPtr->altPath |= ALT_RETRY;
     
                 /* Add TSPDU into the queue. */
-                EnQueue(nwQPtr);
+                QueueWrite(nwQPtr);
             }
     
             /* Send the IzotServiceAcknowledged or IzotServiceRequest. */
@@ -708,14 +696,11 @@ static void XmitTimerExpiration(Layer layerIn, IzotByte priorityIn)
             nwSendParamPtr->dropIfUnconfigured = TRUE;
             pduPtr = (TSPDUPtr) ((char *) nwSendParamPtr + sizeof(NWSendParam));
             pduPtr->auth = tsaSendParamPtr->auth;
-            if (xmitRecPtr->version == LsProtocolModeLegacy)
-            {
+            if (xmitRecPtr->version == LsProtocolModeLegacy) {
                 pduPtr->transNum = xmitRecPtr->transNum;
                 nwSendParamPtr->version = LsProtocolModeLegacy;
                 dataIndex = 0;
-            } 
-            else 
-            {
+            } else {
                 pduPtr->transNum = xmitRecPtr->transNum >> 8;
                 pduPtr->data[dataIndex] = xmitRecPtr->transNum;
                 nwSendParamPtr->version = LsProtocolModeEnhanced;
@@ -729,7 +714,7 @@ static void XmitTimerExpiration(Layer layerIn, IzotByte priorityIn)
             memcpy(&pduPtr->data[dataIndex], xmitRecPtr->apdu, xmitRecPtr->apduSize);
             pduSize = xmitRecPtr->apduSize + 1;
     
-            DBG_vPrintf(TRUE, "XmitTimerExp: Resending REM/MSG pair.\n");
+            OsalPrintDebug(LonStatusNoError, "XmitTimerExpiration: Resending reminder/message pair");
         }
     }
     
@@ -780,11 +765,11 @@ static void XmitTimerExpiration(Layer layerIn, IzotByte priorityIn)
     nwSendParamPtr->pduSize = pduSize + dataIndex;
     
     xmitRecPtr->retriesLeft--;
-    DBG_vPrintf(TRUE, "XmitTimerExpiration: xmitRecPtr->retriesLeft = %d\n", xmitRecPtr->retriesLeft);
-    /* Add TSPDU into the queue. */
-    EnQueue(nwQPtr);
+    OsalPrintDebug(LonStatusNoError, "XmitTimerExpiration: %d retries left", xmitRecPtr->retriesLeft);
+    // Add TSPDU into the queue
+    QueueWrite(nwQPtr);
     
-    /* Start the transmit timer. */
+    // Start the transmit timer
     if (xmitRecPtr->retriesLeft == 0) {
         // Add in any "last retry" extra wait.  This wait is needed for proxy where a timeout happens simultaneously
         // on multiple repeaters and thus extra time is needed to propagate a failing response down the chain.
@@ -804,285 +789,283 @@ static void XmitTimerExpiration(Layer layerIn, IzotByte priorityIn)
  Comments:  This fn is called only if there is space in the
  corresponding queue of the network layer.
  ******************************************************************/
-static void SendNewMsg(Layer layerIn, IzotByte priorityIn) {
-Queue *tsaQPtr; /* Pointer to the source queue.    */
-TSASendParam *tsaSendParamPtr;/* Param in tsaQ (Pri or non-pri). */
-Queue *nwQPtr; /* Pointer to target queue.        */
-NWSendParam *nwSendParamPtr; /* Param in nwQ (Pri or non-pri).  */
-TransmitRecord *xmitRecPtr; /* Ptr to xmit rec.                */
-DestinationAddress nwDestAddr; /* Destination address.            */
-TSPDUPtr pduPtr; /* Pointer to TSPDU being formed.  */
-Status status;
-IzotUbits16 rptTimer;
-IzotByte retryCount;
-IzotUbits16 txTimer;
-IzotByte deltaBL;
-IzotUbits16 nwBufSize;
-IzotByte i;
-IzotByte dataIndex = 0;
-IzotUbits16 rrIndex;
-
-if (priorityIn) {
-    tsaQPtr = &gp->tsaOutPriQ;
-    tsaSendParamPtr = QueueHead(tsaQPtr);
-    nwQPtr = &gp->nwOutPriQ;
-    nwSendParamPtr = QueueTail(nwQPtr);
-    nwBufSize = gp->nwOutPriBufSize;
-    xmitRecPtr = &gp->priXmitRec;
-} else {
-    tsaQPtr = &gp->tsaOutQ;
-    tsaSendParamPtr = QueueHead(tsaQPtr);
-    nwQPtr = &gp->nwOutQ;
-    nwSendParamPtr = QueueTail(nwQPtr);
-    nwBufSize = gp->nwOutBufSize;
-    xmitRecPtr = &gp->xmitRec;
-}
-
-/* If processing a new message, make sure that it is for this
- layer. If not, we are done. */
-
-if (layerIn == TRANSPORT && tsaSendParamPtr->service != IzotServiceAcknowledged
-        && tsaSendParamPtr->service != IzotServiceRepeated) {
-    return;
-}
-
-// The tag value can have special values under normal conditions.  This is what NV_LAST_TAG()
-// checks for.  But, during proxy, the tag is a reqId and cannot be checked for special values.
-// I.e., the reqId is 0-65535 and special tags might be detected if not qualified.  Really
-// the tag should be opaque and the special values should be recorded separately.
-
-if (layerIn == TRANSPORT && !tsaSendParamPtr->proxy
-        && NV_LAST_TAG(tsaSendParamPtr->tag)) {
-    SendCompletion(tsaSendParamPtr, TRUE);
-    return;
-}
-
-if (layerIn == SESSION && tsaSendParamPtr->service != IzotServiceRequest) {
-    /* Responses are placed in the response queue. */
-    return;
-}
-
-/* Make sure that large group size is not used for ack
- or request service. */
-if (IZOT_GET_ATTRIBUTE(tsaSendParamPtr->destAddr.Group, IZOT_SENDGROUP_TYPE)
-        && IZOT_GET_ATTRIBUTE(tsaSendParamPtr->destAddr.Group, IZOT_SENDGROUP_TYPE) == 0
-        && tsaSendParamPtr->service != IzotServiceRepeated) {
-    /* Large groups can only use unack or unack_rpt services. */
-    /* Indicate failure of this message to application layer. */
-    SendCompletion(tsaSendParamPtr, FALSE);
-    return;
-}
-
-/* Make sure that groupSize is in the proper range. */
-#ifdef GROUP_SIZE_COMPATIBILITY
-if (IZOT_GET_ATTRIBUTE(tsaSendParamPtr->destAddr.Group, IZOT_SENDGROUP_TYPE)
-        && (IZOT_GET_ATTRIBUTE(tsaSendParamPtr->destAddr.Group, IZOT_SENDGROUP_SIZE) == 1
-                || IZOT_GET_ATTRIBUTE(tsaSendParamPtr->destAddr.Group, IZOT_SENDGROUP_SIZE) > MAX_GROUP_NUMBER
-                        + 1))
-#else
-if (IZOT_GET_ATTRIBUTE(tsaSendParamPtr->destAddr.Group, IZOT_SENDGROUP_TYPE) &&
-        IZOT_GET_ATTRIBUTE(tsaSendParamPtr->destAddr.Group, IZOT_SENDGROUP_SIZE) > MAX_GROUP_NUMBER)
-#endif
+static void SendNewMsg(Layer layerIn, IzotByte priorityIn)
 {
-    SendCompletion(tsaSendParamPtr, FALSE);
-    return;
-}
+    Queue *tsaQPtr; /* Pointer to the source queue.    */
+    TSASendParam *tsaSendParamPtr;/* Param in tsaQ (Pri or non-pri). */
+    Queue *nwQPtr; /* Pointer to target queue.        */
+    NWSendParam *nwSendParamPtr; /* Param in nwQ (Pri or non-pri).  */
+    TransmitRecord *xmitRecPtr; /* Ptr to xmit rec.                */
+    DestinationAddress nwDestAddr; /* Destination address.            */
+    TSPDUPtr pduPtr; /* Pointer to TSPDU being formed.  */
+    LonStatusCode status;
+    IzotUbits16 rptTimer;
+    IzotByte retryCount;
+    IzotUbits16 txTimer;
+    IzotByte deltaBL;
+    IzotUbits16 nwBufSize;
+    IzotByte i;
+    IzotByte dataIndex = 0;
+    IzotUbits16 rrIndex;
 
-/* Make sure there is space in network buffer. If not, we fail. */
-/* apdu + (tran or session header of 1 byte) should fit. */
-if ((tsaSendParamPtr->apduSize + 1) > nwBufSize) {
-    /* We can't send this message as it is too big for
-     the network layer's buffer. */
-    /* Right now, we haven't allocated any transmit record. */
-    /* So, we directly give the indication to application. */
-    SendCompletion(tsaSendParamPtr, FALSE);
-    return;
-}
-
-/* First, compute nwDestAddr from destAddr. */
-/* First, initialize domainIndex. Only if it is COMPUTE_DOMAIN_INDEX,
- we need to recompute it based on destAddr field value. */
-nwDestAddr.dmn = tsaSendParamPtr->dmn;
-
-// Do some stuff common to all address types
-txTimer = DecodeTxTimer((IzotByte) IZOT_GET_ATTRIBUTE(tsaSendParamPtr->destAddr.SubnetNode, IZOT_SENDSN_TRANSMIT_TIMER)
-#ifdef IZOT_PROXY
-        ,(IzotByte) tsaSendParamPtr->destAddr.SubnetNode.longTimer
-#endif
-        );
-rptTimer = DecodeRptTimer((IzotByte) IZOT_GET_ATTRIBUTE(tsaSendParamPtr->destAddr.SubnetNode, IZOT_SENDSN_REPEAT_TIMER));
-retryCount = IZOT_GET_ATTRIBUTE(tsaSendParamPtr->destAddr.SubnetNode, IZOT_SENDSN_RETRY);
-
-if (TSA_AddressConversion(&tsaSendParamPtr->destAddr, &nwDestAddr) == FAILURE) {
-    SendCompletion(tsaSendParamPtr, FALSE);
-    return;
-}
-
-if (tsaSendParamPtr->dmn.domainIndex == COMPUTE_DOMAIN_INDEX) {
-    nwDestAddr.dmn.domainIndex = IZOT_GET_ATTRIBUTE(tsaSendParamPtr->destAddr.SubnetNode, IZOT_SENDSN_DOMAIN);
-}
-
-if (nwDestAddr.addressMode == AM_BROADCAST) {
-    IZOT_SET_ATTRIBUTE(tsaSendParamPtr->destAddr.Broadcast, IZOT_SENDBCAST_RSVD1, 1);
-}
-
-/* Get transaction number using nwDestAddr. */
-status = NewTrans(priorityIn, nwDestAddr, &xmitRecPtr->transNum);
-if (status == FAILURE) {
-    /* Unable to get the transaction number. Give up. Try later. */
-    return;
-}
-
-/* Initialize the xmit record. */
-if (layerIn == TRANSPORT) {
-    xmitRecPtr->status = TRANSPORT_TX;
-} else {
-    xmitRecPtr->status = SESSION_TX;
-}
-
-xmitRecPtr->nwDestAddr = nwDestAddr; /* Save it for future use. */
-for (i = 0; i <= MAX_GROUP_NUMBER; i++) {
-    xmitRecPtr->ackReceived[i] = FALSE;
-}
-
-if (tsaSendParamPtr->proxy) {
-    if (tsaSendParamPtr->txInherit && FindRR(tsaSendParamPtr->tag, &rrIndex)) {
-        // OK, we take advantage of the fact that the tag for a proxy request is the same as the receive TX index
-        // for the incoming message.
-        xmitRecPtr->transNum = gp->recvRec[rrIndex].transNum;
-        OverrideTrans(priorityIn, xmitRecPtr->transNum);
+    if (priorityIn) {
+        tsaQPtr = &gp->tsaOutPriQ;
+        tsaSendParamPtr = QueuePeek(tsaQPtr);
+        nwQPtr = &gp->nwOutPriQ;
+        nwSendParamPtr = QueueTail(nwQPtr);
+        nwBufSize = gp->nwOutPriBufSize;
+        xmitRecPtr = &gp->priXmitRec;
+    } else {
+        tsaQPtr = &gp->tsaOutQ;
+        tsaSendParamPtr = QueuePeek(tsaQPtr);
+        nwQPtr = &gp->nwOutQ;
+        nwSendParamPtr = QueueTail(nwQPtr);
+        nwBufSize = gp->nwOutBufSize;
+        xmitRecPtr = &gp->xmitRec;
     }
-    xmitRecPtr->txTimerDeltaLast = tsaSendParamPtr->txTimerDeltaLast;
-    memcpy(&xmitRecPtr->altKey, &tsaSendParamPtr->altKey,
-            sizeof(xmitRecPtr->altKey));
-} else {
-    // Do these things really only need to apply to proxy?  Well, no, they could be general but the way cStack is structured
-    // requires that a new field in TSASendParam be initialized by every path that creates it and I don't want to go mess with all of them now.
-    xmitRecPtr->txTimerDeltaLast = 0;
-    xmitRecPtr->altKey.altKey = FALSE;
-}
 
-if (nwDestAddr.addressMode == AM_MULTICAST) {
-    /* If the node is a member of the group, then groupsize
-     field is set to 1 more than actual group size
-     by in  app layer or app pgm.
-     However, provide an option to set this to the
-     true group size and transport and session layers
-     will take care of this. */
-    xmitRecPtr->destCount = IZOT_GET_ATTRIBUTE(tsaSendParamPtr->destAddr.Group, IZOT_SENDGROUP_SIZE) - 1;
-    /* To be fully compatible with all applications, you must use the GROUP_SIZE_COMPATIBILITY
-     * option.  This behavior only affects explicitly addressed messages originated by the
-     * application. */
-#ifndef GROUP_SIZE_COMPATIBILITY
-    if (!IsGroupMember(IZOT_GET_ATTRIBUTE(tsaSendParamPtr->destAddr.Group, IZOT_SENDGROUP_DOMAIN),
-                    tsaSendParamPtr->destAddr.Group.GroupId,
-                    &groupMember))
+    /* If processing a new message, make sure that it is for this
+    layer. If not, we are done. */
+
+    if (layerIn == TRANSPORT && tsaSendParamPtr->service != IzotServiceAcknowledged
+            && tsaSendParamPtr->service != IzotServiceRepeated) {
+        return;
+    }
+
+    // The tag value can have special values under normal conditions.  This is what NV_LAST_TAG()
+    // checks for.  But, during proxy, the tag is a reqId and cannot be checked for special values.
+    // I.e., the reqId is 0-65535 and special tags might be detected if not qualified.  Really
+    // the tag should be opaque and the special values should be recorded separately.
+
+    if (layerIn == TRANSPORT && !tsaSendParamPtr->proxy
+            && NV_LAST_TAG(tsaSendParamPtr->tag)) {
+        SendCompletion(tsaSendParamPtr, TRUE);
+        return;
+    }
+
+    if (layerIn == SESSION && tsaSendParamPtr->service != IzotServiceRequest) {
+        /* Responses are placed in the response queue. */
+        return;
+    }
+
+    /* Make sure that large group size is not used for ack
+    or request service. */
+    if (IZOT_GET_ATTRIBUTE(tsaSendParamPtr->destAddr.Group, IZOT_SENDGROUP_TYPE)
+            && IZOT_GET_ATTRIBUTE(tsaSendParamPtr->destAddr.Group, IZOT_SENDGROUP_TYPE) == 0
+            && tsaSendParamPtr->service != IzotServiceRepeated) {
+        /* Large groups can only use unack or unack_rpt services. */
+        /* Indicate failure of this message to application layer. */
+        SendCompletion(tsaSendParamPtr, FALSE);
+        return;
+    }
+
+    /* Make sure that groupSize is in the proper range. */
+    #ifdef GROUP_SIZE_COMPATIBILITY
+    if (IZOT_GET_ATTRIBUTE(tsaSendParamPtr->destAddr.Group, IZOT_SENDGROUP_TYPE)
+            && (IZOT_GET_ATTRIBUTE(tsaSendParamPtr->destAddr.Group, IZOT_SENDGROUP_SIZE) == 1
+                    || IZOT_GET_ATTRIBUTE(tsaSendParamPtr->destAddr.Group, IZOT_SENDGROUP_SIZE) > MAX_GROUP_NUMBER
+                            + 1))
+    #else
+    if (IZOT_GET_ATTRIBUTE(tsaSendParamPtr->destAddr.Group, IZOT_SENDGROUP_TYPE) &&
+            IZOT_GET_ATTRIBUTE(tsaSendParamPtr->destAddr.Group, IZOT_SENDGROUP_SIZE) > MAX_GROUP_NUMBER)
+    #endif
     {
-        /* node is not a member & group size is true size */
-        xmitRecPtr->destCount =
-        IZOT_GET_ATTRIBUTE(tsaSendParamPtr->destAddr.Group, IZOT_SENDGROUP_SIZE);
+        SendCompletion(tsaSendParamPtr, FALSE);
+        return;
     }
-#endif
-    if (xmitRecPtr->destCount == 0) {
-        /* If the value is incorrect, set it to 1. We need at least
-         one acknowledgement or response. */
-        DBG_vPrintf(TRUE, "SendNewMsg: groupSize incorrect. Default assumed.\n");
+
+    /* Make sure there is space in network buffer. If not, we fail. */
+    /* apdu + (tran or session header of 1 byte) should fit. */
+    if ((tsaSendParamPtr->apduSize + 1) > nwBufSize) {
+        /* We can't send this message as it is too big for
+        the network layer's buffer. */
+        /* Right now, we haven't allocated any transmit record. */
+        /* So, we directly give the indication to application. */
+        SendCompletion(tsaSendParamPtr, FALSE);
+        return;
+    }
+
+    /* First, compute nwDestAddr from destAddr. */
+    /* First, initialize domainIndex. Only if it is COMPUTE_DOMAIN_INDEX,
+    we need to recompute it based on destAddr field value. */
+    nwDestAddr.dmn = tsaSendParamPtr->dmn;
+
+    // Do some stuff common to all address types
+    txTimer = DecodeTxTimer((IzotByte) IZOT_GET_ATTRIBUTE(tsaSendParamPtr->destAddr.SubnetNode, IZOT_SENDSN_TRANSMIT_TIMER)
+    #ifdef IZOT_PROXY
+            ,(IzotByte) tsaSendParamPtr->destAddr.SubnetNode.longTimer
+    #endif
+            );
+    rptTimer = DecodeRptTimer((IzotByte) IZOT_GET_ATTRIBUTE(tsaSendParamPtr->destAddr.SubnetNode, IZOT_SENDSN_REPEAT_TIMER));
+    retryCount = IZOT_GET_ATTRIBUTE(tsaSendParamPtr->destAddr.SubnetNode, IZOT_SENDSN_RETRY);
+
+    if (TSA_AddressConversion(&tsaSendParamPtr->destAddr, &nwDestAddr) != LonStatusNoError) {
+        SendCompletion(tsaSendParamPtr, FALSE);
+        return;
+    }
+
+    if (tsaSendParamPtr->dmn.domainIndex == COMPUTE_DOMAIN_INDEX) {
+        nwDestAddr.dmn.domainIndex = IZOT_GET_ATTRIBUTE(tsaSendParamPtr->destAddr.SubnetNode, IZOT_SENDSN_DOMAIN);
+    }
+
+    if (nwDestAddr.addressMode == AM_BROADCAST) {
+        IZOT_SET_ATTRIBUTE(tsaSendParamPtr->destAddr.Broadcast, IZOT_SENDBCAST_RSVD1, 1);
+    }
+
+    /* Get transaction number using nwDestAddr. */
+    status = NewTrans(priorityIn, nwDestAddr, &xmitRecPtr->transNum);
+    if (status != LonStatusNoError) {
+        /* Unable to get the transaction number. Give up. Try later. */
+        return;
+    }
+
+    /* Initialize the xmit record. */
+    if (layerIn == TRANSPORT) {
+        xmitRecPtr->status = TRANSPORT_TX;
+    } else {
+        xmitRecPtr->status = SESSION_TX;
+    }
+
+    xmitRecPtr->nwDestAddr = nwDestAddr; /* Save it for future use. */
+    for (i = 0; i <= MAX_GROUP_NUMBER; i++) {
+        xmitRecPtr->ackReceived[i] = FALSE;
+    }
+
+    if (tsaSendParamPtr->proxy) {
+        if (tsaSendParamPtr->txInherit && FindRR(tsaSendParamPtr->tag, &rrIndex)) {
+            // OK, we take advantage of the fact that the tag for a proxy request is the same as the receive TX index
+            // for the incoming message.
+            xmitRecPtr->transNum = gp->recvRec[rrIndex].transNum;
+            OverrideTrans(priorityIn, xmitRecPtr->transNum);
+        }
+        xmitRecPtr->txTimerDeltaLast = tsaSendParamPtr->txTimerDeltaLast;
+        memcpy(&xmitRecPtr->altKey, &tsaSendParamPtr->altKey,
+                sizeof(xmitRecPtr->altKey));
+    } else {
+        // Do these things really only need to apply to proxy?  Well, no, they could be general but the way cStack is structured
+        // requires that a new field in TSASendParam be initialized by every path that creates it and I don't want to go mess with all of them now.
+        xmitRecPtr->txTimerDeltaLast = 0;
+        xmitRecPtr->altKey.altKey = FALSE;
+    }
+
+    if (nwDestAddr.addressMode == AM_MULTICAST) {
+        /* If the node is a member of the group, then groupsize
+        field is set to 1 more than actual group size
+        by in  app layer or app pgm.
+        However, provide an option to set this to the
+        true group size and transport and session layers
+        will take care of this. */
+        xmitRecPtr->destCount = IZOT_GET_ATTRIBUTE(tsaSendParamPtr->destAddr.Group, IZOT_SENDGROUP_SIZE) - 1;
+        /* To be fully compatible with all applications, you must use the GROUP_SIZE_COMPATIBILITY
+        * option.  This behavior only affects explicitly addressed messages originated by the
+        * application. */
+    #ifndef GROUP_SIZE_COMPATIBILITY
+        if (!IsGroupMember(IZOT_GET_ATTRIBUTE(tsaSendParamPtr->destAddr.Group, IZOT_SENDGROUP_DOMAIN),
+                        tsaSendParamPtr->destAddr.Group.GroupId,
+                        &groupMember))
+        {
+            /* node is not a member & group size is true size */
+            xmitRecPtr->destCount =
+            IZOT_GET_ATTRIBUTE(tsaSendParamPtr->destAddr.Group, IZOT_SENDGROUP_SIZE);
+        }
+    #endif
+        if (xmitRecPtr->destCount == 0) {
+            /* If the value is incorrect, set it to 1. We need at least
+            one acknowledgement or response. */
+            OsalPrintError(LonStatusInvalidGroupSize, "SendNewMsg: Invalid group size, default assumed");
+            xmitRecPtr->destCount = 1;
+        }
+    } else {
         xmitRecPtr->destCount = 1;
     }
-} else {
-    xmitRecPtr->destCount = 1;
-}
 
-xmitRecPtr->retriesLeft = retryCount;
-xmitRecPtr->ackCount = 0;
-xmitRecPtr->apdu = (APDU *) (tsaSendParamPtr + 1);
-xmitRecPtr->apduSize = tsaSendParamPtr->apduSize;
-if (tsaSendParamPtr->service == IzotServiceRepeated) {
-    xmitRecPtr->xmitTimerValue = rptTimer;
-} else {
-    xmitRecPtr->xmitTimerValue = txTimer;
-}
-
-/* Form the TSPDU to be sent directly in queue. */
-pduPtr = (TSPDUPtr) ((char *) nwSendParamPtr + sizeof(NWSendParam));
-pduPtr->auth = tsaSendParamPtr->auth;
-/* Save auth status so that if a challenge comes later on
- we can at least verify that it was legitimate challenge */
-xmitRecPtr->auth = tsaSendParamPtr->auth;
-
-if (tsaSendParamPtr->service == IzotServiceRepeated) {
-    pduPtr->pduMsgType = UNACK_RPT_MSG;
-    DBG_vPrintf(TRUE, "SendNewMsg: Sending a new IzotServiceRepeated packet.\n");
-} else if (layerIn == TRANSPORT) {
-    pduPtr->pduMsgType = ACKD_MSG;
-    DBG_vPrintf(TRUE, "SendNewMsg: Sending a new IzotServiceAcknowledged packet.\n");
-} else if (tsaSendParamPtr->service == IzotServiceRequest) {
-    pduPtr->pduMsgType = REQUEST_MSG;
-    DBG_vPrintf(TRUE, "SendNewMsg: Sending a new REQ packet.\n");
-} else {
-    DBG_vPrintf(TRUE, "SendNewMsg: Something is wrong. Unknown service.\n");
-}
-
-if (xmitRecPtr->version == LsProtocolModeLegacy)
-{
-    pduPtr->transNum = xmitRecPtr->transNum;
-    nwSendParamPtr->version = LsProtocolModeLegacy;
-    dataIndex = 0;
-} 
-else 
-{
-    pduPtr->transNum = xmitRecPtr->transNum >> 8;
-    pduPtr->data[0] = xmitRecPtr->transNum;
-    nwSendParamPtr->version = LsProtocolModeEnhanced;
-    dataIndex = 1;
-}
-memcpy(&pduPtr->data[dataIndex], xmitRecPtr->apdu, xmitRecPtr->apduSize);
-
-/* Compute the delta backlog value. */
-deltaBL = 1; /* For subnet and unique node id messages. */
-if (tsaSendParamPtr->service == IzotServiceRepeated) {
-    deltaBL = xmitRecPtr->retriesLeft;
-} else if (nwDestAddr.addressMode == AM_BROADCAST) {
-    if (IZOT_GET_ATTRIBUTE(tsaSendParamPtr->destAddr.Broadcast, 
-    IZOT_SENDBCAST_BACKLOG)) {
-        deltaBL = IZOT_GET_ATTRIBUTE(tsaSendParamPtr->destAddr.Broadcast, 
-                                                        IZOT_SENDBCAST_BACKLOG);
+    xmitRecPtr->retriesLeft = retryCount;
+    xmitRecPtr->ackCount = 0;
+    xmitRecPtr->apdu = (APDU *) (tsaSendParamPtr + 1);
+    xmitRecPtr->apduSize = tsaSendParamPtr->apduSize;
+    if (tsaSendParamPtr->service == IzotServiceRepeated) {
+        xmitRecPtr->xmitTimerValue = rptTimer;
     } else {
-        deltaBL = 15;
+        xmitRecPtr->xmitTimerValue = txTimer;
     }
-} else if (nwDestAddr.addressMode == AM_MULTICAST) {
-    deltaBL = xmitRecPtr->destCount;
-}
 
-/* Fill in the NWSendParam structure. */
-nwSendParamPtr->dropIfUnconfigured = TRUE;
-nwSendParamPtr->destAddr = nwDestAddr;
-nwSendParamPtr->altPath = tsaSendParamPtr->altPath;
-if (layerIn == TRANSPORT) {
-    nwSendParamPtr->pduType = TPDU_TYPE;
-} else {
-    nwSendParamPtr->pduType = SPDU_TYPE;
-}
-nwSendParamPtr->deltaBL = deltaBL;
+    /* Form the TSPDU to be sent directly in queue. */
+    pduPtr = (TSPDUPtr) ((char *) nwSendParamPtr + sizeof(NWSendParam));
+    pduPtr->auth = tsaSendParamPtr->auth;
+    /* Save auth status so that if a challenge comes later on
+    we can at least verify that it was legitimate challenge */
+    xmitRecPtr->auth = tsaSendParamPtr->auth;
 
-/* UnAck_rpt packets do not use alternate path. */
-if (!tsaSendParamPtr->altPathOverride) {
-    nwSendParamPtr->altPath &= ~ALT_PATH;
-    if (tsaSendParamPtr->service != IzotServiceRepeated && 
-    (retryCount <= ALT_PATH_COUNT)) {
-        nwSendParamPtr->altPath |= ALT_PATH;
+    if (tsaSendParamPtr->service == IzotServiceRepeated) {
+        pduPtr->pduMsgType = UNACK_RPT_MSG;
+        OsalPrintDebug(LonStatusNoError, "SendNewMsg: Sending a new repeated packet");
+    } else if (layerIn == TRANSPORT) {
+        pduPtr->pduMsgType = ACKD_MSG;
+        OsalPrintDebug(LonStatusNoError, "SendNewMsg: Sending a new acknowledged packet");
+    } else if (tsaSendParamPtr->service == IzotServiceRequest) {
+        pduPtr->pduMsgType = REQUEST_MSG;
+        OsalPrintDebug(LonStatusNoError, "SendNewMsg: Sending a new request packet");
+    } else {
+        OsalPrintError(LonStatusInvalidMessageService, "SendNewMsg: Invalid message service");
     }
-}
 
-nwSendParamPtr->pduSize = xmitRecPtr->apduSize + dataIndex + 1;
+    if (xmitRecPtr->version == LsProtocolModeLegacy) {
+        pduPtr->transNum = xmitRecPtr->transNum;
+        nwSendParamPtr->version = LsProtocolModeLegacy;
+        dataIndex = 0;
+    } else {
+        pduPtr->transNum = xmitRecPtr->transNum >> 8;
+        pduPtr->data[0] = xmitRecPtr->transNum;
+        nwSendParamPtr->version = LsProtocolModeEnhanced;
+        dataIndex = 1;
+    }
+    memcpy(&pduPtr->data[dataIndex], xmitRecPtr->apdu, xmitRecPtr->apduSize);
 
-/* Add the TSPDU into the queue. */
-EnQueue(nwQPtr);
+    /* Compute the delta backlog value. */
+    deltaBL = 1; /* For subnet and unique node id messages. */
+    if (tsaSendParamPtr->service == IzotServiceRepeated) {
+        deltaBL = xmitRecPtr->retriesLeft;
+    } else if (nwDestAddr.addressMode == AM_BROADCAST) {
+        if (IZOT_GET_ATTRIBUTE(tsaSendParamPtr->destAddr.Broadcast, 
+        IZOT_SENDBCAST_BACKLOG)) {
+            deltaBL = IZOT_GET_ATTRIBUTE(tsaSendParamPtr->destAddr.Broadcast, 
+                                                            IZOT_SENDBCAST_BACKLOG);
+        } else {
+            deltaBL = 15;
+        }
+    } else if (nwDestAddr.addressMode == AM_MULTICAST) {
+        deltaBL = xmitRecPtr->destCount;
+    }
 
-/* Start the transmit timer. */
-SetLonTimer(&xmitRecPtr->xmitTimer, xmitRecPtr->xmitTimerValue);
+    /* Fill in the NWSendParam structure. */
+    nwSendParamPtr->dropIfUnconfigured = TRUE;
+    nwSendParamPtr->destAddr = nwDestAddr;
+    nwSendParamPtr->altPath = tsaSendParamPtr->altPath;
+    if (layerIn == TRANSPORT) {
+        nwSendParamPtr->pduType = TPDU_TYPE;
+    } else {
+        nwSendParamPtr->pduType = SPDU_TYPE;
+    }
+    nwSendParamPtr->deltaBL = deltaBL;
 
-return;
+    /* UnAck_rpt packets do not use alternate path. */
+    if (!tsaSendParamPtr->altPathOverride) {
+        nwSendParamPtr->altPath &= ~ALT_PATH;
+        if (tsaSendParamPtr->service != IzotServiceRepeated && 
+        (retryCount <= ALT_PATH_COUNT)) {
+            nwSendParamPtr->altPath |= ALT_PATH;
+        }
+    }
+
+    nwSendParamPtr->pduSize = xmitRecPtr->apduSize + dataIndex + 1;
+
+    /* Add the TSPDU into the queue. */
+    QueueWrite(nwQPtr);
+
+    /* Start the transmit timer. */
+    SetLonTimer(&xmitRecPtr->xmitTimer, xmitRecPtr->xmitTimerValue);
+
+    return;
 }
 
 /*****************************************************************
@@ -1093,67 +1076,67 @@ return;
  apprpriate functions. Also handle receive timers.
  Comments:  None
  ******************************************************************/
-void TPReceive(void) {
-TSAReceiveParam *tsaReceiveParamPtr;/* Param in tsaQ. */
-TSPDUPtr pduInPtr; /* Pointer to TPDU received. */
-IzotBits16 i;
+void TPReceive(void)
+{
+    TSAReceiveParam *tsaReceiveParamPtr;/* Param in tsaQ. */
+    TSPDUPtr pduInPtr; /* Pointer to TPDU received. */
+    IzotBits16 i;
 
-/* Update all the receive timers, if they do exist */
-for (i = 0; i < gp->recvRecCnt; i++) {
-    if (gp->recvRec[i].status == TRANSPORT_RR) {
-        if (LonTimerExpired(&gp->recvRec[i].recvTimer)) {
-            /* Timer expired. See if RR can be released. */
-            DBG_vPrintf(TRUE, "\nTPReceive: Receive timer expired.\n");
-            gp->recvRec[i].status = UNUSED_RR; /* Release the RR */
+    /* Update all the receive timers, if they do exist */
+    for (i = 0; i < gp->recvRecCnt; i++) {
+        if (gp->recvRec[i].status == TRANSPORT_RR) {
+            if (LonTimerExpired(&gp->recvRec[i].recvTimer)) {
+                /* Timer expired. See if RR can be released. */
+                OsalPrintDebug(LonStatusNoError, "TPReceive: Receive timer expired");
+                gp->recvRec[i].status = UNUSED_RR; /* Release the RR */
+            }
         }
     }
-}
 
-/* Check if there is TPDU to be processed. */
-if (QueueEmpty(&gp->tsaInQ)) {
-    /* There is nothing to process. */
-    return;
-}
+    /* Check if there is TPDU to be processed. */
+    if (QueueEmpty(&gp->tsaInQ)) {
+        /* There is nothing to process. */
+        return;
+    }
 
-tsaReceiveParamPtr = QueueHead(&gp->tsaInQ);
-pduInPtr = (TSPDUPtr) (tsaReceiveParamPtr + 1);
+    tsaReceiveParamPtr = QueuePeek(&gp->tsaInQ);
+    pduInPtr = (TSPDUPtr) (tsaReceiveParamPtr + 1);
 
-/* Check if the PDU is for transport layer. If not, we are done. */
-if (tsaReceiveParamPtr->pduType != TPDU_TYPE) {
-    return;
-}
+    /* Check if the PDU is for transport layer. If not, we are done. */
+    if (tsaReceiveParamPtr->pduType != TPDU_TYPE) {
+        return;
+    }
 
-if (tsaReceiveParamPtr->pduSize < 1) {
-    DBG_vPrintf(TRUE, "TPReceive: Illegal PDU size.\n");
-    DeQueue(&gp->tsaInQ);
-    return;
-}
+    if (tsaReceiveParamPtr->pduSize < 1) {
+        OsalPrintError(LonStatusInvalidMessageLength, "TPReceive: Invalid packet size");
+        QueueDropHead(&gp->tsaInQ);
+        return;
+    }
 
-LCS_LogRxStat(tsaReceiveParamPtr->altPath,
-        (pduInPtr->pduMsgType == ACK_MSG) ? RX_SOLICITED : RX_UNSOLICITED);
+    LCS_LogRxStat(tsaReceiveParamPtr->altPath,
+            (pduInPtr->pduMsgType == ACK_MSG) ? RX_SOLICITED : RX_UNSOLICITED);
 
-/* We have a TPDU to be processed. Check the type and
- process accordingly. */
-switch (pduInPtr->pduMsgType) {
-case ACK_MSG:
-    TPReceiveAck();
+    /* We have a TPDU to be processed. Check the type and
+    process accordingly. */
+    switch (pduInPtr->pduMsgType) {
+    case ACK_MSG:
+        TPReceiveAck();
+        return;
+    case ACKD_MSG:
+        /* Fall through. */
+    case UNACK_RPT_MSG:
+        ReceiveNewMsg(TRANSPORT);
+        return;
+    case REMINDER_MSG:
+        /* Fall through. */
+    case REM_MSG_MSG:
+        ReceiveRem(TRANSPORT);
+        return;
+    default:
+        QueueDropHead(&gp->tsaInQ);
+        OsalPrintError(LonStatusUnknownPdu, "TPReceive: Unknown transaction packet type received");
+    }
     return;
-case ACKD_MSG:
-    /* Fall through. */
-case UNACK_RPT_MSG:
-    ReceiveNewMsg(TRANSPORT);
-    return;
-case REMINDER_MSG:
-    /* Fall through. */
-case REM_MSG_MSG:
-    ReceiveRem(TRANSPORT);
-    return;
-default:
-    DBG_vPrintf(TRUE, "TPReceive: Unknown TPDU type received.\n");
-    DeQueue(&gp->tsaInQ);
-    LCS_RecordError(IzotUnknownPdu);
-}
-return;
 }
 
 /*****************************************************************
@@ -1164,143 +1147,139 @@ return;
  Comments:  ACK might correspond to a transmit record or it may be
  stale, in which case we ignore it.
  ******************************************************************/
-static void TPReceiveAck(void) {
-TSAReceiveParam *tsaReceiveParamPtr;
-TSPDUPtr pduPtr;
-TransmitRecord *xmitRecPtr; /* Ptr to xmit rec (pri or nonpri). */
-IzotUbits16 transNum;
-
-tsaReceiveParamPtr = QueueHead(&gp->tsaInQ);
-pduPtr = (TSPDUPtr) (tsaReceiveParamPtr + 1);
-
-if (tsaReceiveParamPtr->version == LsProtocolModeLegacy)
+static void TPReceiveAck(void)
 {
-    transNum = pduPtr->transNum;
-}
-else
-{
-    transNum = (IzotUbits16)(pduPtr->transNum) << 8 | pduPtr->data[0];
-}
+    TSAReceiveParam *tsaReceiveParamPtr;
+    TSPDUPtr pduPtr;
+    TransmitRecord *xmitRecPtr; /* Ptr to xmit rec (pri or nonpri). */
+    IzotUbits16 transNum;
 
-/* Set the corresponding transmit pointer. */
-if (tsaReceiveParamPtr->priority) {
-    xmitRecPtr = &gp->priXmitRec;
-} else {
-    xmitRecPtr = &gp->xmitRec;
-}
+    tsaReceiveParamPtr = QueuePeek(&gp->tsaInQ);
+    pduPtr = (TSPDUPtr) (tsaReceiveParamPtr + 1);
 
-if (ValidateTrans(tsaReceiveParamPtr->priority, transNum)
-        == TRANS_NOT_CURRENT) {
-    /* Stale ACK. Ignore it. */
-    DeQueue(&gp->tsaInQ);
-    DBG_vPrintf(TRUE, "TPReceiveAck: Stale Ack Discarded");
-    INCR_STATS(LcsLateAck);
-    return;
-}
-
-/* Check if the ACK really corresponds to the transaction in progress. */
-if (xmitRecPtr->status != TRANSPORT_TX
-        || xmitRecPtr->nwDestAddr.dmn.domainIndex
-                != tsaReceiveParamPtr->srcAddr.dmn.domainIndex) {
-    /* Transmit record is not ours or the domain index for Ack
-     and the transaction do not match. */
-    DeQueue(&gp->tsaInQ);
-    DBG_vPrintf(TRUE, "TPReceiveAck: Stale ack discarded.\n");
-    INCR_STATS(LcsLateAck);
-    return;
-}
-
-if (xmitRecPtr->nwDestAddr.addressMode == AM_SUBNET_NODE && 
-    (xmitRecPtr->nwDestAddr.addr.addr2a.Subnet != 
-    tsaReceiveParamPtr->srcAddr.subnetAddr.Subnet || 
-    IZOT_GET_ATTRIBUTE(xmitRecPtr->nwDestAddr.addr.addr2a, IZOT_RECEIVESN_NODE) 
-    != IZOT_GET_ATTRIBUTE(tsaReceiveParamPtr->srcAddr.subnetAddr, 
-    IZOT_RECEIVESN_NODE))) {
-    /* Source address of ACK does not match destination address of
-     transmit record. */
-    /* ACK does not seem to correspond to what we are expecting. */
-    DeQueue(&gp->tsaInQ);
-    DBG_vPrintf(TRUE, "TPReceiveAck: Stale Ack discarded.\n");
-    INCR_STATS(LcsLateAck);
-    return;
-}
-
-if (xmitRecPtr->nwDestAddr.addressMode == AM_MULTICAST
-    && (tsaReceiveParamPtr->srcAddr.addressMode != AM_MULTICAST_ACK
-        || xmitRecPtr->nwDestAddr.addr.addr1.GroupId
-            != tsaReceiveParamPtr->srcAddr.ackNode.groupAddr.group.GroupId)) {
-    /* AM_MULTICAST message but not AM_MULTICAST_ACK or the ack's group
-     # does not match that of xmitRecord. */
-    /* ACK does not seem to correspond to what we are expecting. */
-    DeQueue(&gp->tsaInQ);
-    DBG_vPrintf(TRUE, "TPReceiveAck: Stale ack discarded.\n");
-    INCR_STATS(LcsLateAck);
-    return;
-}
-
-/* For broadcast messages, ACK can come back with subnet value of 0
- from unconfigured nodes. We should accept these acks too. */
-if (xmitRecPtr->nwDestAddr.addressMode == AM_BROADCAST
-        && tsaReceiveParamPtr->srcAddr.subnetAddr.Subnet != 0
-        && xmitRecPtr->nwDestAddr.addr.addr0.SubnetId != 0
-        && xmitRecPtr->nwDestAddr.addr.addr0.SubnetId
-                != tsaReceiveParamPtr->srcAddr.subnetAddr.Subnet) {
-    /* Subnet broadcast but the ACK's subnet does not match .*/
-    /* ACK does not seem to correspond to what we are expecting. */
-    DeQueue(&gp->tsaInQ);
-    DBG_vPrintf(TRUE, "TPReceiveAck: Stale ack discarded.\n");
-    INCR_STATS(LcsLateAck);
-    return;
-}
-
-switch (xmitRecPtr->nwDestAddr.addressMode) {
-case AM_BROADCAST:   /* Fall Through. */
-case AM_SUBNET_NODE: /* Fall Through. */
-case AM_UNIQUE_NODE_ID:
-    /* Normally the first ack should have terminated the transaction.
-     If it did not, we can try to terminate again. There is no
-     harm in doing this. Also, there is no harm in increment
-     ackCount as XmitTimerExpiration checks for ackCount >= 1. */
-    xmitRecPtr->ackCount++; /* Got one more ack. */
-    TerminateTrans(tsaReceiveParamPtr->priority);
-    break;
-case AM_MULTICAST:
-    /* Group acknowledgement. */
-    if (tsaReceiveParamPtr->srcAddr.ackNode.groupAddr.member > MAX_GROUP_NUMBER) 
-    {
-        DBG_vPrintf(TRUE, "TPReceiveAck: Invalid group number.\n");
-        break;
-    }
-    if (!xmitRecPtr->ackReceived[tsaReceiveParamPtr->srcAddr.ackNode.groupAddr.member]) {
-        /* We did not receive this ack in past. */
-        xmitRecPtr->ackReceived[tsaReceiveParamPtr->srcAddr.ackNode.groupAddr.member]
-                = TRUE;
-        xmitRecPtr->ackCount++;
-        DBG_vPrintf(TRUE, "TPReceiveAck: A new multicast ACK recvd.\n");
+    if (tsaReceiveParamPtr->version == LsProtocolModeLegacy) {
+        transNum = pduPtr->transNum;
     } else {
-        /* Else, it is a duplicate Ack. Ignore it. */
-        DBG_vPrintf(TRUE, "TPReceiveAck: A Duplicate Mul. ACK ignored");
+        transNum = (IzotUbits16)(pduPtr->transNum) << 8 | pduPtr->data[0];
     }
-    if (xmitRecPtr->destCount == xmitRecPtr->ackCount) {
+
+    /* Set the corresponding transmit pointer. */
+    if (tsaReceiveParamPtr->priority) {
+        xmitRecPtr = &gp->priXmitRec;
+    } else {
+        xmitRecPtr = &gp->xmitRec;
+    }
+
+    if (ValidateTrans(tsaReceiveParamPtr->priority, transNum)
+            == TRANS_NOT_CURRENT) {
+        /* Stale ACK. Ignore it. */
+        QueueDropHead(&gp->tsaInQ);
+        OsalPrintDebug(LonStatusNoError, "TPReceiveAck: Discarded stale acknowledgement");
+        INCR_STATS(LcsLateAck);
+        return;
+    }
+
+    /* Check if the ACK really corresponds to the transaction in progress. */
+    if (xmitRecPtr->status != TRANSPORT_TX
+            || xmitRecPtr->nwDestAddr.dmn.domainIndex
+                    != tsaReceiveParamPtr->srcAddr.dmn.domainIndex) {
+        /* Transmit record is not ours or the domain index for Ack
+        and the transaction do not match. */
+        QueueDropHead(&gp->tsaInQ);
+        OsalPrintDebug(LonStatusNoError, "TPReceiveAck: Discarded stale acknowledgement");
+        INCR_STATS(LcsLateAck);
+        return;
+    }
+
+    if (xmitRecPtr->nwDestAddr.addressMode == AM_SUBNET_NODE && 
+        (xmitRecPtr->nwDestAddr.addr.addr2a.Subnet != 
+        tsaReceiveParamPtr->srcAddr.subnetAddr.Subnet || 
+        IZOT_GET_ATTRIBUTE(xmitRecPtr->nwDestAddr.addr.addr2a, IZOT_RECEIVESN_NODE) 
+        != IZOT_GET_ATTRIBUTE(tsaReceiveParamPtr->srcAddr.subnetAddr, 
+        IZOT_RECEIVESN_NODE))) {
+        /* Source address of ACK does not match destination address of
+        transmit record. */
+        /* ACK does not seem to correspond to what we are expecting. */
+        QueueDropHead(&gp->tsaInQ);
+        OsalPrintDebug(LonStatusNoError, "TPReceiveAck: Discarded stale acknowledgement");
+        INCR_STATS(LcsLateAck);
+        return;
+    }
+
+    if (xmitRecPtr->nwDestAddr.addressMode == AM_MULTICAST
+        && (tsaReceiveParamPtr->srcAddr.addressMode != AM_MULTICAST_ACK
+            || xmitRecPtr->nwDestAddr.addr.addr1.GroupId
+                != tsaReceiveParamPtr->srcAddr.ackNode.groupAddr.group.GroupId)) {
+        /* AM_MULTICAST message but not AM_MULTICAST_ACK or the ack's group
+        # does not match that of xmitRecord. */
+        /* ACK does not seem to correspond to what we are expecting. */
+        QueueDropHead(&gp->tsaInQ);
+        OsalPrintDebug(LonStatusNoError, "TPReceiveAck: Discarded stale acknowledgement");
+        INCR_STATS(LcsLateAck);
+        return;
+    }
+
+    /* For broadcast messages, ACK can come back with subnet value of 0
+    from unconfigured nodes. We should accept these acks too. */
+    if (xmitRecPtr->nwDestAddr.addressMode == AM_BROADCAST
+            && tsaReceiveParamPtr->srcAddr.subnetAddr.Subnet != 0
+            && xmitRecPtr->nwDestAddr.addr.addr0.SubnetId != 0
+            && xmitRecPtr->nwDestAddr.addr.addr0.SubnetId
+                    != tsaReceiveParamPtr->srcAddr.subnetAddr.Subnet) {
+        /* Subnet broadcast but the ACK's subnet does not match .*/
+        /* ACK does not seem to correspond to what we are expecting. */
+        QueueDropHead(&gp->tsaInQ);
+        OsalPrintDebug(LonStatusNoError, "TPReceiveAck: Discarded stale acknowledgement");
+        INCR_STATS(LcsLateAck);
+        return;
+    }
+
+    switch (xmitRecPtr->nwDestAddr.addressMode) {
+    case AM_BROADCAST:   /* Fall Through. */
+    case AM_SUBNET_NODE: /* Fall Through. */
+    case AM_UNIQUE_NODE_ID:
+        /* Normally the first ack should have terminated the transaction.
+        If it did not, we can try to terminate again. There is no
+        harm in doing this. Also, there is no harm in increment
+        ackCount as XmitTimerExpiration checks for ackCount >= 1. */
+        xmitRecPtr->ackCount++; /* Got one more ack. */
         TerminateTrans(tsaReceiveParamPtr->priority);
+        break;
+    case AM_MULTICAST:
+        /* Group acknowledgement. */
+        if (tsaReceiveParamPtr->srcAddr.ackNode.groupAddr.member > MAX_GROUP_NUMBER) 
+        {
+            OsalPrintError(LonStatusInvalidMessageAddress, "TPReceiveAck: Invalid group number");
+            break;
+        }
+        if (!xmitRecPtr->ackReceived[tsaReceiveParamPtr->srcAddr.ackNode.groupAddr.member]) {
+            /* We did not receive this ack in past. */
+            xmitRecPtr->ackReceived[tsaReceiveParamPtr->srcAddr.ackNode.groupAddr.member]
+                    = TRUE;
+            xmitRecPtr->ackCount++;
+            OsalPrintDebug(LonStatusNoError, "TPReceiveAck: Received a new multicast acknowledgement");
+        } else {
+            /* Else, it is a duplicate Ack. Ignore it. */
+            OsalPrintDebug(LonStatusNoError, "TPReceiveAck: Ignored a duplicate multicast acknowledgement");
+        }
+        if (xmitRecPtr->destCount == xmitRecPtr->ackCount) {
+            TerminateTrans(tsaReceiveParamPtr->priority);
+        }
+        break;
+    default:
+        OsalPrintError(LonStatusBadAddressType, "TPReceiveAck: Invalid address mode in acknowledgement");
     }
-    break;
-default:
-    LCS_RecordError(IzotBadAddressType);
-    DBG_vPrintf(TRUE, "TPReceiveAck: Invalid address mode");
+
+    QueueDropHead(&gp->tsaInQ);
+    OsalPrintDebug(LonStatusNoError, "TPReceiveAck: Received acknowledgement; %d total acknowledgements received", xmitRecPtr->ackCount);
+    /* Restart the transmit timer if the transmit record is still active. */
+    if (xmitRecPtr->status != UNUSED_TX) {
+        SetLonTimer(&xmitRecPtr->xmitTimer, xmitRecPtr->xmitTimerValue);
+    }
+
+    return;
 }
 
-DBG_vPrintf(TRUE, "TPReceiveAck: Ack was received.\n");
-
-DeQueue(&gp->tsaInQ);
-
-/* Restart the Xmit Timer if the Xmit record is still active. */
-if (xmitRecPtr->status != UNUSED_TX) {
-    SetLonTimer(&xmitRecPtr->xmitTimer, xmitRecPtr->xmitTimerValue);
-}
-
-return;
-}
 #ifdef SECURITY_II
 void prepareNpdu(TSAReceiveParam *tsaReceiveParamPtr, TSPDUPtr pduPtr, IzotByte *pNpdu, int *npduHdrLen)
 {
@@ -1359,6 +1338,7 @@ void prepareNpdu(TSAReceiveParam *tsaReceiveParamPtr, TSPDUPtr pduPtr, IzotByte 
 	memcpy(&pNpdu[j], (IzotByte *)pduPtr, tsaReceiveParamPtr->pduSize);
 }
 #endif
+
 /*****************************************************************
  Function:  SNReceiveResponse
  Returns:   None
@@ -1367,219 +1347,219 @@ void prepareNpdu(TSAReceiveParam *tsaReceiveParamPtr, TSPDUPtr pduPtr, IzotByte 
  Comments:  Response should correspond to current transaction in
  progress Or else it is thrown away.
  ******************************************************************/
-static void SNReceiveResponse(void) {
-TSAReceiveParam *tsaReceiveParamPtr;
-TSASendParam *tsaSendParamPtr;
-TSPDUPtr pduPtr;
-TransmitRecord *xmitRecPtr; /* Ptr to xmit rec (pri or nonpri). */
-APPReceiveParam *appReceiveParamPtr;
-APDU *apduPtr;
-IzotUbits16 transNum;
-IzotByte dataIndex = 0;
-
-tsaReceiveParamPtr = QueueHead(&gp->tsaInQ);
-pduPtr = (TSPDUPtr) (tsaReceiveParamPtr + 1);
-
-if (tsaReceiveParamPtr->version == LsProtocolModeLegacy)
+static void SNReceiveResponse(void)
 {
-    transNum = pduPtr->transNum;
-    dataIndex = 0;
-}
-else 
-{
-    transNum = (IzotUbits16)(pduPtr->transNum) << 8 | pduPtr->data[0];
-    dataIndex = 1;
-}
+    TSAReceiveParam *tsaReceiveParamPtr;
+    TSASendParam *tsaSendParamPtr;
+    TSPDUPtr pduPtr;
+    TransmitRecord *xmitRecPtr; /* Ptr to xmit rec (pri or nonpri). */
+    APPReceiveParam *appReceiveParamPtr;
+    APDU *apduPtr;
+    IzotUbits16 transNum;
+    IzotByte dataIndex = 0;
 
-#ifdef SECURITY_II
-if (pduPtr->data[dataIndex] == LT_AES_GCM_PACKET_CODE && getSecurityIITxInfo()) {
-	Byte npdu[256];
-	int npduHdrLen = 0;
-	memset(npdu, 0, 256);
-	prepareNpdu(tsaReceiveParamPtr, pduPtr, npdu, &npduHdrLen);
-	if (processAesGcm(true, IzotServiceResponse, tsaReceiveParamPtr->priority, 
-		&pduPtr->data[dataIndex] /* Encrypted APDU with AES-GCM header, it does not contain TPDU header */, 
-		tsaReceiveParamPtr->pduSize - 1 - dataIndex, /* Length of original Encrypted APDU */
-		npdu, npduHdrLen + 1)) { // TBD we need to add 2 if enhanced mode
-		return;
-	}
-}
-#endif
+    tsaReceiveParamPtr = QueuePeek(&gp->tsaInQ);
+    pduPtr = (TSPDUPtr) (tsaReceiveParamPtr + 1);
 
-/* Set the corresponding transmit pointer. */
-if (tsaReceiveParamPtr->priority) {
-    xmitRecPtr = &gp->priXmitRec;
-    tsaSendParamPtr = QueueHead(&gp->tsaOutPriQ);
-} else {
-    xmitRecPtr = &gp->xmitRec;
-    tsaSendParamPtr = QueueHead(&gp->tsaOutQ);
-}
-
-if (ValidateTrans(tsaReceiveParamPtr->priority, transNum)
-        == TRANS_NOT_CURRENT) {
-    /* Unsolicited response. Ignore it. */
-    DBG_vPrintf(TRUE, "SNReceiveResponse: Unsolicited response ignored.\n");
-    DeQueue(&gp->tsaInQ);
-    INCR_STATS(LcsLateAck);
-    return;
-}
-
-/* Check if possible if the Response really corresponds to the
- transaction in progress. */
-if (xmitRecPtr->status != SESSION_TX || xmitRecPtr->nwDestAddr.dmn.domainIndex
-        != tsaReceiveParamPtr->srcAddr.dmn.domainIndex) {
-    /* Transmit record is not ours or the domain indices for
-     the response and the transaction record do not match. */
-    DeQueue(&gp->tsaInQ);
-    DBG_vPrintf(TRUE, "SNReceiveResponse: Stale response discarded.\n");
-    INCR_STATS(LcsLateAck);
-    return;
-}
-
-if (xmitRecPtr->nwDestAddr.addressMode == AM_SUBNET_NODE
-    && (xmitRecPtr->nwDestAddr.addr.addr2a.Subnet
-    != tsaReceiveParamPtr->srcAddr.subnetAddr.Subnet
-    || IZOT_GET_ATTRIBUTE(xmitRecPtr->nwDestAddr.addr.addr2a, 
-    IZOT_RECEIVESN_NODE) != IZOT_GET_ATTRIBUTE(
-    tsaReceiveParamPtr->srcAddr.subnetAddr, IZOT_RECEIVESN_NODE))) {
-    /* Source address of response does not match dest addr of
-     transmit record. */
-    /* Response does not seem to correspond to what we are expecting. */
-    DeQueue(&gp->tsaInQ);
-    DBG_vPrintf(TRUE, "SNReceiveResponse: Stale response discarded.\n");
-    INCR_STATS(LcsLateAck);
-    return;
-}
-
-if (xmitRecPtr->nwDestAddr.addressMode == AM_MULTICAST
-    && (tsaReceiveParamPtr->srcAddr.addressMode != AM_MULTICAST_ACK
-        || xmitRecPtr->nwDestAddr.addr.addr1.GroupId
-            != tsaReceiveParamPtr->srcAddr.ackNode.groupAddr.group.GroupId)) {
-    /* AM_MULTICAST message but not AM_MULTICAST_ACK or the response's group
-     # does not match that of xmitRecord. */
-    /* Response does not seem to correspond to what we are expecting. */
-    DeQueue(&gp->tsaInQ);
-    DBG_vPrintf(TRUE, "SNReceiveResponse: Stale response discarded.\n");
-    INCR_STATS(LcsLateAck);
-    return;
-}
-
-/* For brodacast messages, the subnet in the response can be 0 from
- unconfigured nodes. Another possibility is that the response might
- come through a router in a scenerio where the router replaces the
- subnet with its own. Thus the response can be valid even if the
- subnet does not match. So, we should skip this test. */
-
-/* Check if there is space in application layer's input queue. */
-if (QueueFull(&gp->appCeRspInQ)) {
-    return; /* Can't give the response yet. Come back later. */
-}
-
-appReceiveParamPtr = QueueTail(&gp->appCeRspInQ);
-apduPtr = (APDU *) (appReceiveParamPtr + 1);
-
-/* Deliver the partial response to application layer. */
-appReceiveParamPtr->indication = MESSAGE;
-appReceiveParamPtr->srcAddr = tsaReceiveParamPtr->srcAddr;
-appReceiveParamPtr->service = IzotServiceResponse;
-appReceiveParamPtr->priority = tsaReceiveParamPtr->priority;
-appReceiveParamPtr->pduSize = tsaReceiveParamPtr->pduSize - 1;
-
-// Replace: Changed �appReceiveParamPtr->auth = TRUE;� to default. Not sure if this is a good fix� but the
-//          issue here was that the response packet is thrown out because auth != TRUE even though the
-//          requesting node has answered the initiated challenge correctly and the response containing the
-//          data is sent
-appReceiveParamPtr->auth = FALSE;
-appReceiveParamPtr->tag = tsaSendParamPtr->tag;
-appReceiveParamPtr->proxy = tsaSendParamPtr->proxy;
-appReceiveParamPtr->proxyCount = tsaSendParamPtr->proxyCount;
-appReceiveParamPtr->proxyDone = tsaSendParamPtr->proxyDone;
-appReceiveParamPtr->xcvrParams = tsaReceiveParamPtr->xcvrParams;
-memcpy(apduPtr, &pduPtr->data[dataIndex], 
-tsaReceiveParamPtr->pduSize - dataIndex - 1);
-
-// Special case for bidirectional signal strength responses.  These
-// are amended with the signal strength of this response message!
-if (xmitRecPtr->apdu->code.allBits == (ND_opcode_base | ND_QUERY_XCVR_BIDIR)
-    && appReceiveParamPtr->pduSize == 1 + IZOT_COMMUNICATIONS_PARAMETER_LENGTH) 
-{
-    memcpy(&apduPtr->data[IZOT_COMMUNICATIONS_PARAMETER_LENGTH], 
-    &tsaReceiveParamPtr->xcvrParams, IZOT_COMMUNICATIONS_PARAMETER_LENGTH);
-    appReceiveParamPtr->pduSize += IZOT_COMMUNICATIONS_PARAMETER_LENGTH;
-}
-
-// Once we deliver a proxy response, we don't want to deliver any other response or completion code because
-// this is a one shot deal.  If the transaction is not a request, then the proxy response occurs at the time
-// of the completion event (see ProcessLtepCompletion()).
-tsaSendParamPtr->proxyDone = true;
-
-/* Don't deliver the response to application yet. It could be
- a duplicate. */
-switch (xmitRecPtr->nwDestAddr.addressMode) {
-case AM_BROADCAST:
-    /* We deliver up to N responses to app layer where N =
-     tsaSendParamPtr->destAddr.Broadcast.maxResponses.
-     But we succeed if at least one resp is received. */
-    if (xmitRecPtr->ackCount < 
-    IZOT_GET_ATTRIBUTE(tsaSendParamPtr->destAddr.Broadcast, 
-    IZOT_SENDBCAST_RSVD1)) 
+    if (tsaReceiveParamPtr->version == LsProtocolModeLegacy)
     {
-        EnQueue(&gp->appCeRspInQ);
-        xmitRecPtr->ackCount++;
-        if (xmitRecPtr->ackCount == IZOT_GET_ATTRIBUTE(
-        tsaSendParamPtr->destAddr.Broadcast, IZOT_SENDBCAST_RSVD1)) {
-            TerminateTrans(tsaReceiveParamPtr->priority);
+        transNum = pduPtr->transNum;
+        dataIndex = 0;
+    }
+    else 
+    {
+        transNum = (IzotUbits16)(pduPtr->transNum) << 8 | pduPtr->data[0];
+        dataIndex = 1;
+    }
+
+    #ifdef SECURITY_II
+    if (pduPtr->data[dataIndex] == LT_AES_GCM_PACKET_CODE && getSecurityIITxInfo()) {
+        uint8_t npdu[256];
+        int npduHdrLen = 0;
+        memset(npdu, 0, 256);
+        prepareNpdu(tsaReceiveParamPtr, pduPtr, npdu, &npduHdrLen);
+        if (processAesGcm(true, IzotServiceResponse, tsaReceiveParamPtr->priority, 
+            &pduPtr->data[dataIndex] /* Encrypted APDU with AES-GCM header, it does not contain TPDU header */, 
+            tsaReceiveParamPtr->pduSize - 1 - dataIndex, /* Length of original Encrypted APDU */
+            npdu, npduHdrLen + 1)) { // TBD we need to add 2 if enhanced mode
+            return;
         }
     }
-    /* else, we don't want this response. Ignore it. */
-    break;
-case AM_SUBNET_NODE: /* Fall through. */
-case AM_UNIQUE_NODE_ID:
-    if (xmitRecPtr->ackCount == 0) {
-        EnQueue(&gp->appCeRspInQ);
-        xmitRecPtr->ackCount++; /* First response. */
-        TerminateTrans(tsaReceiveParamPtr->priority);
-    }
-    /* else, it is a duplicate response. Ignore it. */
-    break;
-case AM_MULTICAST:
-    /* Group request message. Check response address mode. */
-    if (tsaReceiveParamPtr->srcAddr.addressMode != AM_MULTICAST_ACK) {
-        DBG_vPrintf(TRUE, "SNReceiveResponse: RESPONSE should be AM_MULTICAST_ACK.\n");
-        break;
-    }
-    if (tsaReceiveParamPtr->srcAddr.ackNode.groupAddr.member > 
-    MAX_GROUP_NUMBER) {
-        DBG_vPrintf(TRUE, "SNReceiveResponse: Invalid group number.\n");
-        break;
-    }
-    if (!xmitRecPtr->ackReceived[tsaReceiveParamPtr->srcAddr.ackNode.groupAddr.member]) {
-        DBG_vPrintf(TRUE, "SNReceiveResp: A multicast resp delivered.\n");
-        EnQueue(&gp->appCeRspInQ);
-        xmitRecPtr->ackReceived[tsaReceiveParamPtr->srcAddr.ackNode.groupAddr.member]
-                = TRUE;
-        xmitRecPtr->ackCount++;
+    #endif
+
+    /* Set the corresponding transmit pointer. */
+    if (tsaReceiveParamPtr->priority) {
+        xmitRecPtr = &gp->priXmitRec;
+        tsaSendParamPtr = QueuePeek(&gp->tsaOutPriQ);
     } else {
-        /* Else, it is a duplicate response. Ignore it */
-        DBG_vPrintf(TRUE, "SNReceiveResp: A duplicate multicast response ignored.\n");
+        xmitRecPtr = &gp->xmitRec;
+        tsaSendParamPtr = QueuePeek(&gp->tsaOutQ);
     }
-    if (xmitRecPtr->destCount == xmitRecPtr->ackCount) {
-        TerminateTrans(tsaReceiveParamPtr->priority);
+
+    if (ValidateTrans(tsaReceiveParamPtr->priority, transNum)
+            == TRANS_NOT_CURRENT) {
+        /* Unsolicited response. Ignore it. */
+        QueueDropHead(&gp->tsaInQ);
+        INCR_STATS(LcsLateAck);
+        OsalPrintDebug(LonStatusNoError, "SNReceiveResponse: Ignored unsolicited response");
+        return;
     }
-    break;
-default:
-    LCS_RecordError(IzotBadAddressType);
-    DBG_vPrintf(TRUE, "SNReceiveResponse: Invalid address mode.\n");
-}
 
-DeQueue(&gp->tsaInQ);
+    /* Check if possible if the Response really corresponds to the
+    transaction in progress. */
+    if (xmitRecPtr->status != SESSION_TX || xmitRecPtr->nwDestAddr.dmn.domainIndex
+            != tsaReceiveParamPtr->srcAddr.dmn.domainIndex) {
+        /* Transmit record is not ours or the domain indices for
+        the response and the transaction record do not match. */
+        QueueDropHead(&gp->tsaInQ);
+        INCR_STATS(LcsLateAck);
+        OsalPrintDebug(LonStatusNoError, "SNReceiveResponse: Discarded stale response");
+        return;
+    }
 
-/* Restart the timer if the xmit rec is still active. */
-if (xmitRecPtr->status != UNUSED_TX) {
-    SetLonTimer(&xmitRecPtr->xmitTimer, xmitRecPtr->xmitTimerValue);
-}
+    if (xmitRecPtr->nwDestAddr.addressMode == AM_SUBNET_NODE
+        && (xmitRecPtr->nwDestAddr.addr.addr2a.Subnet
+        != tsaReceiveParamPtr->srcAddr.subnetAddr.Subnet
+        || IZOT_GET_ATTRIBUTE(xmitRecPtr->nwDestAddr.addr.addr2a, 
+        IZOT_RECEIVESN_NODE) != IZOT_GET_ATTRIBUTE(
+        tsaReceiveParamPtr->srcAddr.subnetAddr, IZOT_RECEIVESN_NODE))) {
+        /* Source address of response does not match dest addr of
+        transmit record. */
+        /* Response does not seem to correspond to what we are expecting. */
+        QueueDropHead(&gp->tsaInQ);
+        INCR_STATS(LcsLateAck);
+        OsalPrintDebug(LonStatusNoError, "SNReceiveResponse: Discarded stale response");
+        return;
+    }
 
-return;
+    if (xmitRecPtr->nwDestAddr.addressMode == AM_MULTICAST
+        && (tsaReceiveParamPtr->srcAddr.addressMode != AM_MULTICAST_ACK
+            || xmitRecPtr->nwDestAddr.addr.addr1.GroupId
+                != tsaReceiveParamPtr->srcAddr.ackNode.groupAddr.group.GroupId)) {
+        /* AM_MULTICAST message but not AM_MULTICAST_ACK or the response's group
+        # does not match that of xmitRecord. */
+        /* Response does not seem to correspond to what we are expecting. */
+        QueueDropHead(&gp->tsaInQ);
+        INCR_STATS(LcsLateAck);
+        OsalPrintDebug(LonStatusNoError, "SNReceiveResponse: Discarded stale response");
+        return;
+    }
+
+    /* For brodacast messages, the subnet in the response can be 0 from
+    unconfigured nodes. Another possibility is that the response might
+    come through a router in a scenerio where the router replaces the
+    subnet with its own. Thus the response can be valid even if the
+    subnet does not match. So, we should skip this test. */
+
+    /* Check if there is space in application layer's input queue. */
+    if (QueueFull(&gp->appCeRspInQ)) {
+        return; /* Can't give the response yet. Come back later. */
+    }
+
+    appReceiveParamPtr = QueueTail(&gp->appCeRspInQ);
+    apduPtr = (APDU *) (appReceiveParamPtr + 1);
+
+    /* Deliver the partial response to application layer. */
+    appReceiveParamPtr->indication = MESSAGE;
+    appReceiveParamPtr->srcAddr = tsaReceiveParamPtr->srcAddr;
+    appReceiveParamPtr->service = IzotServiceResponse;
+    appReceiveParamPtr->priority = tsaReceiveParamPtr->priority;
+    appReceiveParamPtr->pduSize = tsaReceiveParamPtr->pduSize - 1;
+
+    // Replace: Changed �appReceiveParamPtr->auth = TRUE;� to default. Not sure if this is a good fix� but the
+    //          issue here was that the response packet is thrown out because auth != TRUE even though the
+    //          requesting node has answered the initiated challenge correctly and the response containing the
+    //          data is sent
+    appReceiveParamPtr->auth = FALSE;
+    appReceiveParamPtr->tag = tsaSendParamPtr->tag;
+    appReceiveParamPtr->proxy = tsaSendParamPtr->proxy;
+    appReceiveParamPtr->proxyCount = tsaSendParamPtr->proxyCount;
+    appReceiveParamPtr->proxyDone = tsaSendParamPtr->proxyDone;
+    appReceiveParamPtr->xcvrParams = tsaReceiveParamPtr->xcvrParams;
+    memcpy(apduPtr, &pduPtr->data[dataIndex], 
+    tsaReceiveParamPtr->pduSize - dataIndex - 1);
+
+    // Special case for bidirectional signal strength responses.  These
+    // are amended with the signal strength of this response message!
+    if (xmitRecPtr->apdu->code.allBits == (ND_opcode_base | ND_QUERY_XCVR_BIDIR)
+        && appReceiveParamPtr->pduSize == 1 + IZOT_COMMUNICATIONS_PARAMETER_LENGTH) 
+    {
+        memcpy(&apduPtr->data[IZOT_COMMUNICATIONS_PARAMETER_LENGTH], 
+        &tsaReceiveParamPtr->xcvrParams, IZOT_COMMUNICATIONS_PARAMETER_LENGTH);
+        appReceiveParamPtr->pduSize += IZOT_COMMUNICATIONS_PARAMETER_LENGTH;
+    }
+
+    // Once we deliver a proxy response, we don't want to deliver any other response or completion code because
+    // this is a one shot deal.  If the transaction is not a request, then the proxy response occurs at the time
+    // of the completion event (see ProcessLtepCompletion()).
+    tsaSendParamPtr->proxyDone = true;
+
+    /* Don't deliver the response to application yet. It could be
+    a duplicate. */
+    switch (xmitRecPtr->nwDestAddr.addressMode) {
+    case AM_BROADCAST:
+        /* We deliver up to N responses to app layer where N =
+        tsaSendParamPtr->destAddr.Broadcast.maxResponses.
+        But we succeed if at least one resp is received. */
+        if (xmitRecPtr->ackCount < 
+        IZOT_GET_ATTRIBUTE(tsaSendParamPtr->destAddr.Broadcast, 
+        IZOT_SENDBCAST_RSVD1)) 
+        {
+            QueueWrite(&gp->appCeRspInQ);
+            xmitRecPtr->ackCount++;
+            if (xmitRecPtr->ackCount == IZOT_GET_ATTRIBUTE(
+            tsaSendParamPtr->destAddr.Broadcast, IZOT_SENDBCAST_RSVD1)) {
+                TerminateTrans(tsaReceiveParamPtr->priority);
+            }
+        }
+        /* else, we don't want this response. Ignore it. */
+        break;
+    case AM_SUBNET_NODE: /* Fall through. */
+    case AM_UNIQUE_NODE_ID:
+        if (xmitRecPtr->ackCount == 0) {
+            QueueWrite(&gp->appCeRspInQ);
+            xmitRecPtr->ackCount++; /* First response. */
+            TerminateTrans(tsaReceiveParamPtr->priority);
+        }
+        /* else, it is a duplicate response. Ignore it. */
+        break;
+    case AM_MULTICAST:
+        /* Group request message. Check response address mode. */
+        if (tsaReceiveParamPtr->srcAddr.addressMode != AM_MULTICAST_ACK) {
+            OsalPrintError(LonStatusInvalidMessageAddress, "SNReceiveResponse: Invalid response to group request message");
+            break;
+        }
+        if (tsaReceiveParamPtr->srcAddr.ackNode.groupAddr.member > 
+        MAX_GROUP_NUMBER) {
+            OsalPrintError(LonStatusInvalidMessageAddress, "SNReceiveResponse: Invalid group number");
+            break;
+        }
+        if (!xmitRecPtr->ackReceived[tsaReceiveParamPtr->srcAddr.ackNode.groupAddr.member]) {
+            OsalPrintDebug(LonStatusNoError, "SNReceiveResp: Multicast response delivered");
+            QueueWrite(&gp->appCeRspInQ);
+            xmitRecPtr->ackReceived[tsaReceiveParamPtr->srcAddr.ackNode.groupAddr.member]
+                    = TRUE;
+            xmitRecPtr->ackCount++;
+        } else {
+            /* Else, it is a duplicate response. Ignore it */
+            OsalPrintDebug(LonStatusNoError, "SNReceiveResp: Ignored duplicate multicast response");
+        }
+        if (xmitRecPtr->destCount == xmitRecPtr->ackCount) {
+            TerminateTrans(tsaReceiveParamPtr->priority);
+        }
+        break;
+    default:
+        OsalPrintError(LonStatusInvalidMessageMode, "SNReceiveResponse: Invalid address mode in response");
+    }
+
+    QueueDropHead(&gp->tsaInQ);
+
+    /* Restart the timer if the xmit rec is still active. */
+    if (xmitRecPtr->status != UNUSED_TX) {
+        SetLonTimer(&xmitRecPtr->xmitTimer, xmitRecPtr->xmitTimerValue);
+    }
+
+    return;
 }
 
 /*****************************************************************
@@ -1591,198 +1571,196 @@ return;
  Comments:  The message could be new or a duplicate. If new, we
  need to allocate a RR. If not, we use the existing RR.
  ******************************************************************/
-static void ReceiveNewMsg(Layer layerIn) {
-TSAReceiveParam *tsaReceiveParamPtr;
-TSPDUPtr pduPtr;
-IzotUbits16 recvTimerValue;
-IzotBits16 i;
-IzotByte initRR; /* Used to check if RR needs to init. */
-IzotUbits16 transNum;
-IzotByte dataIndex = 0;
-/* We have a new msg in TSA In queue. */
-
-tsaReceiveParamPtr = QueueHead(&gp->tsaInQ);
-pduPtr = (TSPDUPtr) (tsaReceiveParamPtr + 1);
-
-if (tsaReceiveParamPtr->version == LsProtocolModeLegacy)
+static void ReceiveNewMsg(Layer layerIn)
 {
-    transNum = pduPtr->transNum;
-    dataIndex = 0;
-} 
-else 
-{
-    transNum = (IzotUbits16)(pduPtr->transNum) << 8 | pduPtr->data[0];
-    dataIndex = 1;
-}
+    TSAReceiveParam *tsaReceiveParamPtr;
+    TSPDUPtr pduPtr;
+    IzotUbits16 recvTimerValue;
+    IzotBits16 i;
+    IzotByte initRR; /* Used to check if RR needs to init. */
+    IzotUbits16 transNum;
+    IzotByte dataIndex = 0;
+    /* We have a new msg in TSA In queue. */
 
-/* First retrieve associated RR, if it exists. */
-/* Since we can receive at most one message from a node
- (one for priority & one for non-priority), we can reuse
- receive records if the sender determines that a message
- transmission is over by transmitting a new message with a
- new transaction number or different service (i.e layer) or
- a new APDU. */
+    tsaReceiveParamPtr = QueuePeek(&gp->tsaInQ);
+    pduPtr = (TSPDUPtr) (tsaReceiveParamPtr + 1);
 
-i = RetrieveRR(tsaReceiveParamPtr->srcAddr, tsaReceiveParamPtr->priority);
+    if (tsaReceiveParamPtr->version == LsProtocolModeLegacy) {
+        transNum = pduPtr->transNum;
+        dataIndex = 0;
+    } else {
+        transNum = (IzotUbits16)(pduPtr->transNum) << 8 | pduPtr->data[0];
+        dataIndex = 1;
+    }
 
-if (i == -1) {
-    /* No Associated RR found. We need to allocate a new one. */
-    i = AllocateRR();
+    /* First retrieve associated RR, if it exists. */
+    /* Since we can receive at most one message from a node
+    (one for priority & one for non-priority), we can reuse
+    receive records if the sender determines that a message
+    transmission is over by transmitting a new message with a
+    new transaction number or different service (i.e layer) or
+    a new APDU. */
+
+    i = RetrieveRR(tsaReceiveParamPtr->srcAddr, tsaReceiveParamPtr->priority);
 
     if (i == -1) {
-        /* Unable to allocate a new RR. */
-        INCR_STATS(LcsRxTxFull);
-        DBG_vPrintf(TRUE, "ReceiveNewMsg: Unable to allocate RR. Msg is lost.\n");
-        DeQueue(&gp->tsaInQ); /* Remove item from queue. */
+        /* No Associated RR found. We need to allocate a new one. */
+        i = AllocateRR();
+
+        if (i == -1) {
+            /* Unable to allocate a new RR. */
+            INCR_STATS(LcsRxTxFull);
+            OsalPrintError(LonStatusReceiveRecordNotAvailable, "ReceiveNewMsg: Unable to allocate receive record; messsage lost");
+            QueueDropHead(&gp->tsaInQ); /* Remove item from queue. */
+            return;
+        }
+        /* We did allocate a new RR. We need to init this RR. */
+        initRR = TRUE;
+    } else if (gp->recvRec[i].transNum != transNum || gp->recvRec[i].status
+            != (layerIn == TRANSPORT ? TRANSPORT_RR : SESSION_RR)
+            || tsaReceiveParamPtr->pduSize - 1 != gp->recvRec[i].apduSize ||
+    /* This check causes the contents of the APDU to always be factored into the duplicate
+    * detection algorithm.  It is considered a requirement that the APDU contents be
+    * factored into the duplicate detection algorithm only in the case where the
+    * message is authenticated and the request is idempotent (because retries are
+    * not re-authenticated).  Whether this is done by storing the entire APDU
+    * for comparison or storing only the APDU length and a checksum of the APDU
+    * data is implementation dependent.  If a checksum method is used, the
+    * checksum should be at least 24 bits in length.  In the case where a
+    * non-matching APDU vectors into an existing authenticated transaction, two
+    * choices are possible:
+    * a. Treat the message as if it were not a duplicate (as is done here).
+    * b. Treat the message as a duplicate but mark it as not authenticated (if
+    *    it is necessary to deliver the retry to the application - see
+    *    "Saved Response Length" below). */
+    memcmp(&pduPtr->data[dataIndex], gp->recvRec[i].apdu, 
+    gp->recvRec[i].apduSize) != 0) {
+        /* Something does not match. Must be a new message from
+        the sender. Let us reuse this RR, even if it is a
+        request. If it is a request and response comes later,
+        it won't match this record anyway due to reqid. */
+
+        initRR = TRUE;
+        /* If the old message was not delivered, increment lost msg stat */
+        if (gp->recvRec[i].transState != DELIVERED && gp->recvRec[i].transState
+                != DONE && gp->recvRec[i].transState != RESPONDED) {
+            INCR_STATS(LcsLost);
+        }
+    } else {
+        /* It is an existing RR with everything matching. */
+        /* Nothing to do. We use the information in existing RR. */
+        /* Set the alternate path bit based on new message so that
+        acks, challenge etc will use the same path. Change only if
+        it is not already using alternate path. */
+
+        gp->recvRec[i].altPath |= tsaReceiveParamPtr->altPath;
+        initRR = FALSE;
+    }
+
+    if (initRR) {
+    #ifdef SECURITY_II
+        if (pduPtr->data[dataIndex] == LT_AES_GCM_PACKET_CODE) {
+            uint8_t npdu[256];
+            int npduHdrLen = 0;
+            IzotServiceType serviceType;
+            memset(npdu, 0, 256);
+            if (layerIn == TRANSPORT) {
+                serviceType = pduPtr->pduMsgType == ACKD_MSG ? IzotServiceAcknowledged    : IzotServiceRepeated;
+            } else {
+                serviceType = IzotServiceRequest;
+            }
+            
+            prepareNpdu(tsaReceiveParamPtr, pduPtr, npdu, &npduHdrLen);
+            if (processAesGcm(true, serviceType, tsaReceiveParamPtr->priority, 
+                &pduPtr->data[dataIndex] /* Encrypted APDU with AES-GCM header, it does not contain TPDU header */, 
+                tsaReceiveParamPtr->pduSize - 1 - dataIndex, /* Length of original Encrypted APDU */
+                npdu, npduHdrLen + 1)) { // TBD we need to add 2 if enhanced mode
+                return;
+            }
+        }
+    #endif	
+        
+        if (layerIn == TRANSPORT) {
+            gp->recvRec[i].status = TRANSPORT_RR;
+        } else {
+            gp->recvRec[i].status = SESSION_RR;
+        }
+        gp->recvRec[i].srcAddr = tsaReceiveParamPtr->srcAddr;
+        gp->recvRec[i].transNum = transNum;
+        gp->recvRec[i].transState = JUST_RECEIVED;
+        gp->recvRec[i].priority = tsaReceiveParamPtr->priority;
+        gp->recvRec[i].altPath = tsaReceiveParamPtr->altPath;
+        gp->recvRec[i].version = tsaReceiveParamPtr->version;
+        gp->recvRec[i].auth = FALSE;
+        gp->recvRec[i].reqId = 0; /* Init to invalid reqid. */
+        if (layerIn == TRANSPORT) {
+            gp->recvRec[i].serviceType = pduPtr->pduMsgType == ACKD_MSG ? 
+            IzotServiceAcknowledged    : IzotServiceRepeated;
+        } else {
+            gp->recvRec[i].serviceType = IzotServiceRequest;
+            /* reqId can wrap around. Never use 0 as reqId so that
+            a valid reqId will never match a receive record that
+            does not correspond to corresponding request. */
+            if (gp->reqId == 0) {
+                gp->reqId++;
+            }
+            gp->recvRec[i].reqId = gp->reqId++;
+        }
+        gp->recvRec[i].apduSize = tsaReceiveParamPtr->pduSize - 1 - dataIndex;
+        memcpy(gp->recvRec[i].apdu, &pduPtr->data[dataIndex], 
+        gp->recvRec[i].apduSize); /* Store the APDU. */
+        /* Compute the recvTimer value to be used. */
+        recvTimerValue = ComputeRecvTimerValue(
+                tsaReceiveParamPtr->srcAddr.addressMode,
+                tsaReceiveParamPtr->srcAddr.group.GroupId);
+        SetLonTimer(&gp->recvRec[i].recvTimer, recvTimerValue);
+    }
+
+    QueueDropHead(&gp->tsaInQ); /* Remove item from queue. */
+
+    /* Now, we have a RR for this message. */
+    /* Determine if the msg needs authentication and store. */
+    /* Allow authentication for UnAck_Rpt. */
+    gp->recvRec[i].needAuth = NodeConfigured() && pduPtr->auth 
+    #ifdef SECURITY_II
+    && !securityIIAuthenticationRequired()
+    #endif
+    ;
+
+    /* Authentication is performed if it is a new message or
+    in the process of authenticating and it needs to be
+    authenticated. */
+    if ((gp->recvRec[i].transState == JUST_RECEIVED || gp->recvRec[i].transState
+            == AUTHENTICATING) && gp->recvRec[i].needAuth) {
+        /* The message needs authentication. Initiate Challenge. */
+        /* Or ReInitiate Challenge as the prev one is probably lost. */
+        OsalPrintDebug(LonStatusNoError, "ReceiveNewMsg: Initiating challenge");
+        InitiateChallenge(i);
         return;
     }
-    /* We did allocate a new RR. We need to init this RR. */
-    initRR = TRUE;
-} else if (gp->recvRec[i].transNum != transNum || gp->recvRec[i].status
-        != (layerIn == TRANSPORT ? TRANSPORT_RR : SESSION_RR)
-        || tsaReceiveParamPtr->pduSize - 1 != gp->recvRec[i].apduSize ||
-/* This check causes the contents of the APDU to always be factored into the duplicate
- * detection algorithm.  It is considered a requirement that the APDU contents be
- * factored into the duplicate detection algorithm only in the case where the
- * message is authenticated and the request is idempotent (because retries are
- * not re-authenticated).  Whether this is done by storing the entire APDU
- * for comparison or storing only the APDU length and a checksum of the APDU
- * data is implementation dependent.  If a checksum method is used, the
- * checksum should be at least 24 bits in length.  In the case where a
- * non-matching APDU vectors into an existing authenticated transaction, two
- * choices are possible:
- * a. Treat the message as if it were not a duplicate (as is done here).
- * b. Treat the message as a duplicate but mark it as not authenticated (if
- *    it is necessary to deliver the retry to the application - see
- *    "Saved Response Length" below). */
-memcmp(&pduPtr->data[dataIndex], gp->recvRec[i].apdu, 
-gp->recvRec[i].apduSize) != 0) {
-    /* Something does not match. Must be a new message from
-     the sender. Let us reuse this RR, even if it is a
-     request. If it is a request and response comes later,
-     it won't match this record anyway due to reqid. */
 
-    initRR = TRUE;
-    /* If the old message was not deliverd, increment lost msg stat */
     if (gp->recvRec[i].transState != DELIVERED && gp->recvRec[i].transState
-            != DONE && gp->recvRec[i].transState != RESPONDED) {
-        INCR_STATS(LcsLost);
-    }
-} else {
-    /* It is an existing RR with everything matching. */
-    /* Nothing to do. We use the information in existing RR. */
-    /* Set the alternate path bit based on new message so that
-     acks, challenge etc will use the same path. Change only if
-     it is not already using alternate path. */
-
-    gp->recvRec[i].altPath |= tsaReceiveParamPtr->altPath;
-    initRR = FALSE;
-}
-
-if (initRR) {
-#ifdef SECURITY_II
-	if (pduPtr->data[dataIndex] == LT_AES_GCM_PACKET_CODE) {
-		Byte npdu[256];
-		int npduHdrLen = 0;
-		IzotServiceType serviceType;
-		memset(npdu, 0, 256);
-		if (layerIn == TRANSPORT) {
-			serviceType = pduPtr->pduMsgType == ACKD_MSG ? IzotServiceAcknowledged    : IzotServiceRepeated;
-		} else {
-			serviceType = IzotServiceRequest;
-		}
-		
-		prepareNpdu(tsaReceiveParamPtr, pduPtr, npdu, &npduHdrLen);
-		if (processAesGcm(true, serviceType, tsaReceiveParamPtr->priority, 
-			&pduPtr->data[dataIndex] /* Encrypted APDU with AES-GCM header, it does not contain TPDU header */, 
-			tsaReceiveParamPtr->pduSize - 1 - dataIndex, /* Length of original Encrypted APDU */
-			npdu, npduHdrLen + 1)) { // TBD we need to add 2 if enhanced mode
-			return;
-		}
-	}
-#endif	
-	
-    if (layerIn == TRANSPORT) {
-        gp->recvRec[i].status = TRANSPORT_RR;
+            != RESPONDED && gp->recvRec[i].transState != DONE) {
+        /* Deliver the message to the application layer. */
+        Deliver(i);
     } else {
-        gp->recvRec[i].status = SESSION_RR;
+        OsalPrintDebug(LonStatusNoError, "ReceiveNewMsg: Received previously delivered message");
     }
-    gp->recvRec[i].srcAddr = tsaReceiveParamPtr->srcAddr;
-    gp->recvRec[i].transNum = transNum;
-    gp->recvRec[i].transState = JUST_RECEIVED;
-    gp->recvRec[i].priority = tsaReceiveParamPtr->priority;
-    gp->recvRec[i].altPath = tsaReceiveParamPtr->altPath;
-    gp->recvRec[i].version = tsaReceiveParamPtr->version;
-    gp->recvRec[i].auth = FALSE;
-    gp->recvRec[i].reqId = 0; /* Init to invalid reqid. */
+
     if (layerIn == TRANSPORT) {
-        gp->recvRec[i].serviceType = pduPtr->pduMsgType == ACKD_MSG ? 
-        IzotServiceAcknowledged    : IzotServiceRepeated;
-    } else {
-        gp->recvRec[i].serviceType = IzotServiceRequest;
-        /* reqId can wrap around. Never use 0 as reqId so that
-         a valid reqId will never match a receive record that
-         does not correspond to corresponding request. */
-        if (gp->reqId == 0) {
-            gp->reqId++;
+        if (gp->recvRec[i].transState == DELIVERED && gp->recvRec[i].serviceType
+                == IzotServiceAcknowledged) {
+            /* Compose and send the acknowledgement. */
+            TPSendAck(i);
         }
-        gp->recvRec[i].reqId = gp->reqId++;
+    } else if (gp->recvRec[i].transState == RESPONDED) {
+        /* Must be a request that was already responded. */
+        /* We already have a resp. Simply send it. */
+        SNSendResponse(i, FALSE, FALSE); /* It can't be a null response. */
+    } else if (gp->recvRec[i].transState == DONE) {
+        OsalPrintDebug(LonStatusNoError, "ReceiveNewMsg: No action required for received message");
     }
-    gp->recvRec[i].apduSize = tsaReceiveParamPtr->pduSize - 1 - dataIndex;
-    memcpy(gp->recvRec[i].apdu, &pduPtr->data[dataIndex], 
-    gp->recvRec[i].apduSize); /* Store the APDU. */
-    /* Compute the recvTimer value to be used. */
-    recvTimerValue = ComputeRecvTimerValue(
-            tsaReceiveParamPtr->srcAddr.addressMode,
-            tsaReceiveParamPtr->srcAddr.group.GroupId);
-    SetLonTimer(&gp->recvRec[i].recvTimer, recvTimerValue);
-}
-
-DeQueue(&gp->tsaInQ); /* Remove item from queue. */
-
-/* Now, we have a RR for this message. */
-/* Determine if the msg needs authentication and store. */
-/* Allow authentication for UnAck_Rpt. */
-gp->recvRec[i].needAuth = NodeConfigured() && pduPtr->auth 
-#ifdef SECURITY_II
-&& !securityIIAuthenticationRequired()
-#endif
-;
-
-/* Authentication is performed if it is a new message or
- in the process of authenticating and it needs to be
- authenticated. */
-if ((gp->recvRec[i].transState == JUST_RECEIVED || gp->recvRec[i].transState
-        == AUTHENTICATING) && gp->recvRec[i].needAuth) {
-    /* The message needs authentication. Initiate Challenge. */
-    /* Or ReInitiate Challenge as the prev one is probably lost. */
-    DBG_vPrintf(TRUE, "ReceiveNewMsg: Initiating Challenge.\n");
-    InitiateChallenge(i);
     return;
-}
-
-if (gp->recvRec[i].transState != DELIVERED && gp->recvRec[i].transState
-        != RESPONDED && gp->recvRec[i].transState != DONE) {
-    /* Deliver the message to the application layer. */
-    Deliver(i);
-} else {
-    DBG_vPrintf(TRUE, "ReceiveNewMsg: Msg received was already delivered.\r\n");
-}
-
-if (layerIn == TRANSPORT) {
-    if (gp->recvRec[i].transState == DELIVERED && gp->recvRec[i].serviceType
-            == IzotServiceAcknowledged) {
-        /* Compose and send the acknowledgement. */
-        TPSendAck(i);
-    }
-} else if (gp->recvRec[i].transState == RESPONDED) {
-    /* Must be a request that was already responded. */
-    /* We already have a resp. Simply send it. */
-    SNSendResponse(i, FALSE, FALSE); /* It can't be a null response. */
-} else if (gp->recvRec[i].transState == DONE) {
-    DBG_vPrintf(TRUE, "ReceiveNewMsg: Nothing to do.\n");
-}
-return;
 }
 
 /*****************************************************************
@@ -1794,239 +1772,236 @@ return;
  or a response(for Session) if possible.
  Comments:  None
  ******************************************************************/
-static void ReceiveRem(Layer layerIn) {
-TSAReceiveParam *tsaReceiveParamPtr;
-TSPDUPtr pduPtr;
-IzotBits16 i;
-APDU *apduPtr;
-IzotUbits16 apduSize;
-IzotByte length;
-IzotByte member;
-IzotByte mlistIndex, mlistOffset;
-IzotByte *mlistPtr;
-IzotUbits16 recvTimerValue;
-IzotUbits16 transNum;
-IzotByte dataIndex = 0;
-
-/* We have a REMINDER or REM/MSG in TSA input queue. */
-
-tsaReceiveParamPtr = QueueHead(&gp->tsaInQ);
-pduPtr = (TSPDUPtr) (tsaReceiveParamPtr + 1);
-if (tsaReceiveParamPtr->version == LsProtocolModeLegacy)
+static void ReceiveRem(Layer layerIn)
 {
-    transNum = pduPtr->transNum;
-    dataIndex = 0;
-} 
-else 
-{
-    transNum = (IzotUbits16)(pduPtr->transNum) << 8 | pduPtr->data[0];
-    dataIndex = 1;
-}
+    TSAReceiveParam *tsaReceiveParamPtr;
+    TSPDUPtr pduPtr;
+    IzotBits16 i;
+    APDU *apduPtr;
+    IzotUbits16 apduSize;
+    IzotByte length;
+    IzotByte member;
+    IzotByte mlistIndex, mlistOffset;
+    IzotByte *mlistPtr;
+    IzotUbits16 recvTimerValue;
+    IzotUbits16 transNum;
+    IzotByte dataIndex = 0;
 
-length = pduPtr->data[dataIndex];
+    /* We have a REMINDER or REM/MSG in TSA input queue. */
 
-if (pduPtr->pduMsgType == REMINDER_MSG) {
-    apduSize = 0;
-    apduPtr = NULL;
-} else {
-    /* Must be REM_MSG_MSG. */
-    /* TSPDU header size before APDU is actual 1 byte header,
-     1 byte length field and the length of M_List field. */
-    apduSize = tsaReceiveParamPtr->pduSize - 2 - length - dataIndex;
-    apduPtr = (APDU *) &pduPtr->data[1 + dataIndex + length];
-}
-
-/* First retrieve the associated RR, if it exists. */
-i = RetrieveRR(tsaReceiveParamPtr->srcAddr, tsaReceiveParamPtr->priority);
-
-/* Check if the REMINDER msg has an associated RR. */
-if (i == -1 && pduPtr->pduMsgType == REMINDER_MSG) {
-    /* No associated RR. Discard this REMINDER msg. */
-    DBG_vPrintf(TRUE, "ReceiveRem: REMINDER msg has no associated RR");
-    DeQueue(&gp->tsaInQ);
-    return;
-}
-
-if (i != -1 && (gp->recvRec[i].srcAddr.addressMode != AM_MULTICAST
-        || gp->recvRec[i].transNum != transNum || gp->recvRec[i].status
-        != (layerIn == TRANSPORT ? TRANSPORT_RR : SESSION_RR) || (apduPtr
-        && apduSize != gp->recvRec[i].apduSize) || (apduPtr && memcmp(apduPtr,
-        gp->recvRec[i].apdu, apduSize) != 0)))
-
-{
-    /* Associate RR does not match properly. Either it is not
-     a multicast message or transNum does not match or
-     APDU does not match. This is not OK for REMINDER_MSG.
-     If it is however REM_MSG_MSG, we want to treat it as a
-     new message. */
-    if (pduPtr->pduMsgType == REMINDER_MSG) {
-        DBG_vPrintf(TRUE, "ReceiveRem: Associated RR does not match.\n");
-        DeQueue(&gp->tsaInQ);
-        return;
-    }
-    if (gp->recvRec[i].transState == DELIVERED || gp->recvRec[i].transState
-            == DONE) {
-        /* Reuse this receive record. We will free this record and allocate
-         a new one. */
-        gp->recvRec[i].status = UNUSED_RR;
-        i = -1;
+    tsaReceiveParamPtr = QueuePeek(&gp->tsaInQ);
+    pduPtr = (TSPDUPtr) (tsaReceiveParamPtr + 1);
+    if (tsaReceiveParamPtr->version == LsProtocolModeLegacy) {
+        transNum = pduPtr->transNum;
+        dataIndex = 0;
     } else {
-        i = -1; /* Allocate new one. */
+        transNum = (IzotUbits16)(pduPtr->transNum) << 8 | pduPtr->data[0];
+        dataIndex = 1;
     }
-}
 
-if (i != -1 && gp->recvRec[i].serviceType == IzotServiceRepeated) {
+    length = pduPtr->data[dataIndex];
+
     if (pduPtr->pduMsgType == REMINDER_MSG) {
-        /* We should not have gotton this REMINDER as the original
-         message was IzotServiceRepeated. So, ignore this message. */
-        DBG_vPrintf(TRUE, "ReceiveRem: Original msg is IzotServiceRepeated.\n");
-        DeQueue(&gp->tsaInQ);
+        apduSize = 0;
+        apduPtr = NULL;
+    } else {
+        /* Must be REM_MSG_MSG. */
+        /* TSPDU header size before APDU is actual 1 byte header,
+        1 byte length field and the length of M_List field. */
+        apduSize = tsaReceiveParamPtr->pduSize - 2 - length - dataIndex;
+        apduPtr = (APDU *) &pduPtr->data[1 + dataIndex + length];
+    }
+
+    /* First retrieve the associated RR, if it exists. */
+    i = RetrieveRR(tsaReceiveParamPtr->srcAddr, tsaReceiveParamPtr->priority);
+
+    /* Check if the REMINDER msg has an associated RR. */
+    if (i == -1 && pduPtr->pduMsgType == REMINDER_MSG) {
+        /* No associated RR. Discard this REMINDER msg. */
+        OsalPrintDebug(LonStatusNoError, "ReceiveRem: Discarded reminder message with no associated receive record");
+        QueueDropHead(&gp->tsaInQ);
         return;
     }
-    /* Treat REM_MSG_MSG as new one. Fack this by setting i to -1. */
-    i = -1;
-}
 
-if (i != -1) {
-    /* We have already received the corresponding APDU. */
-    /* Probably the ack or response sent earlier was lost. */
-    /* Sent the ack or response again. */
-    if (!IsGroupMember(gp->recvRec[i].srcAddr.dmn.domainIndex,
-            gp->recvRec[i].srcAddr.group.GroupId, &member)) {
-        /* We are not member of the group used for this msg.
-         Strange! Ignore this msg too!
-         Network layer should not have delivered such msg
-         to upper layers. */
-        DBG_vPrintf(TRUE, "ReceiveRem: Strange! Not a group member!!.\n");
-        DeQueue(&gp->tsaInQ);
-        return;
-    }
-    mlistIndex = member / 8;
-    mlistOffset = member % 8;
-    mlistPtr = &pduPtr->data[1 + dataIndex];
-    if (length == 0 || mlistIndex >= length || (mlistPtr[mlistIndex] & (1
-            << mlistOffset)) == 0) {
-        /* We are asked to respond. Server did not get our ack or response. */
-
-        /* If it is a REMINDER_MSG, it will be followed by the retry.
-         So, we simply ignore it. */
+    if (i != -1 && (gp->recvRec[i].srcAddr.addressMode != AM_MULTICAST
+            || gp->recvRec[i].transNum != transNum || gp->recvRec[i].status
+            != (layerIn == TRANSPORT ? TRANSPORT_RR : SESSION_RR) || (apduPtr
+            && apduSize != gp->recvRec[i].apduSize) || (apduPtr && memcmp(apduPtr,
+            gp->recvRec[i].apdu, apduSize) != 0))) {
+        /* Associate RR does not match properly. Either it is not
+        a multicast message or transNum does not match or
+        APDU does not match. This is not OK for REMINDER_MSG.
+        If it is however REM_MSG_MSG, we want to treat it as a
+        new message. */
         if (pduPtr->pduMsgType == REMINDER_MSG) {
-            DeQueue(&gp->tsaInQ);
+            OsalPrintDebug(LonStatusNoError, "ReceiveRem: Dropped reminder message with mismatched receive record");
+            QueueDropHead(&gp->tsaInQ);
             return;
         }
-
-        if (gp->recvRec[i].needAuth
-                && (gp->recvRec[i].transState == JUST_RECEIVED
-                        || gp->recvRec[i].transState == AUTHENTICATING)) {
-            /* Need authentication. Either a new msg or prev challenge
-             was lost. */
-            DBG_vPrintf(TRUE, "ReceiveRem: Initiating Challenge.\n");
-            InitiateChallenge(i);
-            DeQueue(&gp->tsaInQ);
-            return;
-        }
-        if (gp->recvRec[i].transState != DELIVERED && gp->recvRec[i].transState
-                != RESPONDED && gp->recvRec[i].transState != DONE) {
-            /* Deliver the message to application layer. */
-            Deliver(i);
-        }
-
-        /* Send ack or response. */
         if (gp->recvRec[i].transState == DELIVERED || gp->recvRec[i].transState
-                == RESPONDED) {
-            DeQueue(&gp->tsaInQ);
-            if (layerIn == TRANSPORT) {
-                /* Compose and send the acknowledgement. */
-                TPSendAck(i);
-            } else if (gp->recvRec[i].transState == RESPONDED) {
-                SNSendResponse(i, FALSE, FALSE); /* can't be null resp. */
+                == DONE) {
+            /* Reuse this receive record. We will free this record and allocate
+            a new one. */
+            gp->recvRec[i].status = UNUSED_RR;
+            i = -1;
+        } else {
+            i = -1; /* Allocate new one. */
+        }
+    }
+
+    if (i != -1 && gp->recvRec[i].serviceType == IzotServiceRepeated) {
+        if (pduPtr->pduMsgType == REMINDER_MSG) {
+            /* We should not have gotton this REMINDER as the original
+            message was IzotServiceRepeated. So, ignore this message. */
+            QueueDropHead(&gp->tsaInQ);
+            OsalPrintDebug(LonStatusNoError, "ReceiveRem: Ignored repeated message without previous original message");
+            return;
+        }
+        /* Treat REM_MSG_MSG as new one. Fack this by setting i to -1. */
+        i = -1;
+    }
+
+    if (i != -1) {
+        /* We have already received the corresponding APDU. */
+        /* Probably the ack or response sent earlier was lost. */
+        /* Sent the ack or response again. */
+        if (!IsGroupMember(gp->recvRec[i].srcAddr.dmn.domainIndex,
+                gp->recvRec[i].srcAddr.group.GroupId, &member)) {
+            /* We are not member of the group used for this msg.
+            Strange! Ignore this msg too!
+            Network layer should not have delivered such msg
+            to upper layers. */
+            OsalPrintDebug(LonStatusNoError, "ReceiveRem: Ignored unexpected group message; not a group member");
+            QueueDropHead(&gp->tsaInQ);
+            return;
+        }
+        mlistIndex = member / 8;
+        mlistOffset = member % 8;
+        mlistPtr = &pduPtr->data[1 + dataIndex];
+        if (length == 0 || mlistIndex >= length || (mlistPtr[mlistIndex] & (1
+                << mlistOffset)) == 0) {
+            /* We are asked to respond. Server did not get our ack or response. */
+
+            /* If it is a REMINDER_MSG, it will be followed by the retry.
+            So, we simply ignore it. */
+            if (pduPtr->pduMsgType == REMINDER_MSG) {
+                QueueDropHead(&gp->tsaInQ);
+                return;
+            }
+
+            if (gp->recvRec[i].needAuth
+                    && (gp->recvRec[i].transState == JUST_RECEIVED
+                            || gp->recvRec[i].transState == AUTHENTICATING)) {
+                /* Need authentication. Either a new msg or prev challenge
+                was lost. */
+                OsalPrintDebug(LonStatusNoError, "ReceiveRem: Initiating authentication challenge");
+                InitiateChallenge(i);
+                QueueDropHead(&gp->tsaInQ);
+                return;
+            }
+            if (gp->recvRec[i].transState != DELIVERED && gp->recvRec[i].transState
+                    != RESPONDED && gp->recvRec[i].transState != DONE) {
+                /* Deliver the message to application layer. */
+                Deliver(i);
+            }
+
+            /* Send ack or response. */
+            if (gp->recvRec[i].transState == DELIVERED || gp->recvRec[i].transState
+                    == RESPONDED) {
+                QueueDropHead(&gp->tsaInQ);
+                if (layerIn == TRANSPORT) {
+                    /* Compose and send the acknowledgement. */
+                    TPSendAck(i);
+                } else if (gp->recvRec[i].transState == RESPONDED) {
+                    SNSendResponse(i, FALSE, FALSE); /* can't be null resp. */
+                } else {
+                    /* We are still waiting for a response. */
+                    OsalPrintDebug(LonStatusNoError, "ReceiveRem: No response yet or null response");
+                }
             } else {
-                /* we are still waiting for a response. */
-                DBG_vPrintf(TRUE, "ReceiveRem: Don't have response yet or have null response.\n");
+                /* We are still waiting for resp & so can't respond
+                or in DONE state indicating server already received
+                the ack or response. */
+                QueueDropHead(&gp->tsaInQ);
+                OsalPrintDebug(LonStatusNoError, "ReceiveRem: Cannot respond or no need to respond");
             }
         } else {
-            /* We are still waiting for resp & so can't respond
-             or in DONE state indicating server already received
-             the ack or response. */
-            DBG_vPrintf(TRUE, "ReceiveRem: Can't respond or no need to respond.\n");
-            DeQueue(&gp->tsaInQ);
+            /* We are not asked to acknowledege or respond. Ignore msg. */
+            if (gp->recvRec[i].transState == DELIVERED || gp->recvRec[i].transState
+                    == RESPONDED) {
+                /* Note down the fact that the ack or resp has been received */
+                gp->recvRec[i].transState = DONE;
+            }
+            QueueDropHead(&gp->tsaInQ);
+            OsalPrintDebug(LonStatusNoError, "ReceiveRem: Ignored message due to no request for acknowledgement or response");
+        }
+        return;
+    }
+
+    /* Now we must have a REM_MSG_MSG with no associated RR. */
+    /* REMINDER msg with no associated record was taken care of
+    earlier. */
+    i = AllocateRR();
+    if (i == -1) {
+        /* Unable to allocate a new RR. Give up. */
+        return;
+    }
+    if (layerIn == TRANSPORT) {
+        gp->recvRec[i].status = TRANSPORT_RR;
+    } else {
+        gp->recvRec[i].status = SESSION_RR;
+    }
+    gp->recvRec[i].srcAddr = tsaReceiveParamPtr->srcAddr;
+    gp->recvRec[i].transNum = transNum;
+    gp->recvRec[i].transState = JUST_RECEIVED;
+    gp->recvRec[i].priority = tsaReceiveParamPtr->priority;
+    gp->recvRec[i].altPath = tsaReceiveParamPtr->altPath;
+    gp->recvRec[i].version = tsaReceiveParamPtr->version;
+    gp->recvRec[i].auth = FALSE; /* Not authenticated yet. */
+    if (layerIn == TRANSPORT) {
+        /* We have REM/MSG. So service type must be IzotServiceAcknowledged. */
+        gp->recvRec[i].serviceType = IzotServiceAcknowledged;
+    } else {
+        gp->recvRec[i].serviceType = IzotServiceRequest;
+        /* reqId can wrap around. Never use 0 as reqId so that
+        a valid reqId will never match a receive record that
+        does not correspond to corresponding request. */
+        if (gp->reqId == 0) {
+            gp->reqId++;
+        }
+        gp->recvRec[i].reqId = gp->reqId++;
+    }
+    gp->recvRec[i].apduSize = apduSize;
+    memcpy(gp->recvRec[i].apdu, apduPtr, apduSize);
+    /* Compute the recvTimer value to be used. */
+    recvTimerValue = ComputeRecvTimerValue(tsaReceiveParamPtr->srcAddr.addressMode,
+            tsaReceiveParamPtr->srcAddr.group.GroupId);
+    QueueDropHead(&gp->tsaInQ); /* Remove the item from queue. */
+
+    SetLonTimer(&gp->recvRec[i].recvTimer, recvTimerValue);
+
+    gp->recvRec[i].needAuth = pduPtr->auth;
+
+    /* Now, we have a RR for this message. */
+    if (gp->recvRec[i].needAuth) {
+        /* The message needs authentication. Initiate authentication challenge. */
+        OsalPrintDebug(LonStatusNoError, "ReceiveRem: Initiating authentication challenge");
+        InitiateChallenge(i);
+        return;
+    }
+
+    /* Deliver the message to the application layer. */
+    Deliver(i);
+
+    if (layerIn == TRANSPORT) {
+        if (gp->recvRec[i].transState == DELIVERED) {
+            /* Compose and send the acknowledgement. */
+            TPSendAck(i);
         }
     } else {
-        /* We are not asked to acknowledege or respond. Ignore msg. */
-        if (gp->recvRec[i].transState == DELIVERED || gp->recvRec[i].transState
-                == RESPONDED) {
-            /* Note down the fact that the ack or resp has been received */
-            gp->recvRec[i].transState = DONE;
-        }DBG_vPrintf(TRUE, "ReceiveRem: We are not asked to ack or respond.\n");
-        DeQueue(&gp->tsaInQ);
+        /* We just delivered. Can't have a response yet. */
     }
     return;
-}
-
-/* Now we must have a REM_MSG_MSG with no associated RR. */
-/* REMINDER msg with no associated record was taken care of
- earlier. */
-i = AllocateRR();
-if (i == -1) {
-    /* Unable to allocate a new RR. Give up. */
-    return;
-}
-if (layerIn == TRANSPORT) {
-    gp->recvRec[i].status = TRANSPORT_RR;
-} else {
-    gp->recvRec[i].status = SESSION_RR;
-}
-gp->recvRec[i].srcAddr = tsaReceiveParamPtr->srcAddr;
-gp->recvRec[i].transNum = transNum;
-gp->recvRec[i].transState = JUST_RECEIVED;
-gp->recvRec[i].priority = tsaReceiveParamPtr->priority;
-gp->recvRec[i].altPath = tsaReceiveParamPtr->altPath;
-gp->recvRec[i].version = tsaReceiveParamPtr->version;
-gp->recvRec[i].auth = FALSE; /* Not authenticated yet. */
-if (layerIn == TRANSPORT) {
-    /* We have REM/MSG. So service type must be IzotServiceAcknowledged. */
-    gp->recvRec[i].serviceType = IzotServiceAcknowledged;
-} else {
-    gp->recvRec[i].serviceType = IzotServiceRequest;
-    /* reqId can wrap around. Never use 0 as reqId so that
-     a valid reqId will never match a receive record that
-     does not correspond to corresponding request. */
-    if (gp->reqId == 0) {
-        gp->reqId++;
-    }
-    gp->recvRec[i].reqId = gp->reqId++;
-}
-gp->recvRec[i].apduSize = apduSize;
-memcpy(gp->recvRec[i].apdu, apduPtr, apduSize);
-/* Compute the recvTimer value to be used. */
-recvTimerValue = ComputeRecvTimerValue(tsaReceiveParamPtr->srcAddr.addressMode,
-        tsaReceiveParamPtr->srcAddr.group.GroupId);
-DeQueue(&gp->tsaInQ); /* Remove the item from queue. */
-
-SetLonTimer(&gp->recvRec[i].recvTimer, recvTimerValue);
-
-gp->recvRec[i].needAuth = pduPtr->auth;
-
-/* Now, we have a RR for this message. */
-if (gp->recvRec[i].needAuth) {
-    /* The message needs authentication. Initiate Challenge. */
-    DBG_vPrintf(TRUE, "ReceiveRem: Initiating Challenge.\n");
-    InitiateChallenge(i);
-    return;
-}
-
-/* Deliver the message to the application layer. */
-Deliver(i);
-
-if (layerIn == TRANSPORT) {
-    if (gp->recvRec[i].transState == DELIVERED) {
-        /* Compose and send the acknowledgement. */
-        TPSendAck(i);
-    }
-} else {
-    /* We just delivered. Can't have a response yet. */
-}
-return;
 }
 
 /*****************************************************************
@@ -2038,75 +2013,73 @@ return;
  output queue, then nothing is sent.
  Comments:  None.
  ******************************************************************/
-static void TPSendAck(IzotUbits16 rrIndexIn) {
-NWSendParam *nwSendParamPtr; /* Ptr to NW Send Param. */
-TSPDUPtr pduPtr; /* Ptr to TPDU sent.     */
-Queue *nwQueuePtr;
-DestinationAddress destAddr;
-IzotByte dataIndex = 0;
-
-if (gp->recvRec[rrIndexIn].priority) {
-    nwQueuePtr = &gp->nwOutPriQ;
-} else {
-    nwQueuePtr = &gp->nwOutQ;
-}
-
-if (QueueFull(nwQueuePtr)) {
-    return; /* Can't send the acknowledgement now. */
-}
-
-nwSendParamPtr = QueueTail(nwQueuePtr);
-pduPtr = (TSPDUPtr) (nwSendParamPtr + 1);
-
-/* Form the TPDU directly in the network layer's queue. */
-pduPtr->auth = FALSE; /* Acks are not authenticated. */
-pduPtr->pduMsgType = ACK_MSG;
-if (gp->recvRec[rrIndexIn].version == LsProtocolModeLegacy)
+static void TPSendAck(IzotUbits16 rrIndexIn)
 {
-    pduPtr->transNum = gp->recvRec[rrIndexIn].transNum;
-    nwSendParamPtr->version = LsProtocolModeLegacy;
-    dataIndex = 0;
-} 
-else 
-{
-    pduPtr->transNum = gp->recvRec[rrIndexIn].transNum >> 8;
-    pduPtr->data[0] = gp->recvRec[rrIndexIn].transNum;
-    nwSendParamPtr->version = LsProtocolModeEnhanced;
-    dataIndex = 1;
-}
+    NWSendParam *nwSendParamPtr; /* Ptr to NW Send Param. */
+    TSPDUPtr pduPtr; /* Ptr to TPDU sent.     */
+    Queue *nwQueuePtr;
+    DestinationAddress destAddr;
+    IzotByte dataIndex = 0;
 
-/* Fill in the details for the network layer. */
-
-/* First, form sender's (i.e our) address. */
-destAddr.dmn = gp->recvRec[rrIndexIn].srcAddr.dmn;
-
-/* We send unicast ACK or multicast ACK depending on msg recvd. */
-if (gp->recvRec[rrIndexIn].srcAddr.addressMode == AM_MULTICAST) {
-    /* Send ACK in address format 2b. */
-    destAddr.addressMode = AM_MULTICAST_ACK;
-    destAddr.addr.addr2b.subnetAddr = gp->recvRec[rrIndexIn].srcAddr.subnetAddr;
-    destAddr.addr.addr2b.groupAddr.group.GroupId = 
-                                   gp->recvRec[rrIndexIn].srcAddr.group.GroupId;
-    if (!IsGroupMember(destAddr.dmn.domainIndex,
-            destAddr.addr.addr2b.groupAddr.group.GroupId,
-            &destAddr.addr.addr2b.groupAddr.member)) {
-        DBG_vPrintf(TRUE, "SendACKTPDU: Ack msg for a non-existing group.\n");
-        return;
+    if (gp->recvRec[rrIndexIn].priority) {
+        nwQueuePtr = &gp->nwOutPriQ;
+    } else {
+        nwQueuePtr = &gp->nwOutQ;
     }
-} else {
-    /* Send Ack in address format 2a. */
-    destAddr.addressMode = AM_SUBNET_NODE;
-    destAddr.addr.addr2a = gp->recvRec[rrIndexIn].srcAddr.subnetAddr;
-}
 
-nwSendParamPtr->dropIfUnconfigured = FALSE; /* acks are not dropped */
-nwSendParamPtr->destAddr = destAddr;
-nwSendParamPtr->pduType = TPDU_TYPE;
-nwSendParamPtr->deltaBL = 0;
-nwSendParamPtr->altPath = gp->recvRec[rrIndexIn].altPath | ALT_CHANNEL_LOCK;
-nwSendParamPtr->pduSize = 1 + dataIndex;
-DBG_vPrintf(TRUE, "TPSendAck. Sending an ACK.\n");
-EnQueue(nwQueuePtr);
+    if (QueueFull(nwQueuePtr)) {
+        return; /* Can't send the acknowledgement now. */
+    }
+
+    nwSendParamPtr = QueueTail(nwQueuePtr);
+    pduPtr = (TSPDUPtr) (nwSendParamPtr + 1);
+
+    /* Form the TPDU directly in the network layer's queue. */
+    pduPtr->auth = FALSE; /* Acks are not authenticated. */
+    pduPtr->pduMsgType = ACK_MSG;
+    if (gp->recvRec[rrIndexIn].version == LsProtocolModeLegacy) {
+        pduPtr->transNum = gp->recvRec[rrIndexIn].transNum;
+        nwSendParamPtr->version = LsProtocolModeLegacy;
+        dataIndex = 0;
+    } else {
+        pduPtr->transNum = gp->recvRec[rrIndexIn].transNum >> 8;
+        pduPtr->data[0] = gp->recvRec[rrIndexIn].transNum;
+        nwSendParamPtr->version = LsProtocolModeEnhanced;
+        dataIndex = 1;
+    }
+
+    /* Fill in the details for the network layer. */
+
+    /* First, form sender's (i.e our) address. */
+    destAddr.dmn = gp->recvRec[rrIndexIn].srcAddr.dmn;
+
+    /* We send unicast ACK or multicast ACK depending on msg recvd. */
+    if (gp->recvRec[rrIndexIn].srcAddr.addressMode == AM_MULTICAST) {
+        /* Send ACK in address format 2b. */
+        destAddr.addressMode = AM_MULTICAST_ACK;
+        destAddr.addr.addr2b.subnetAddr = gp->recvRec[rrIndexIn].srcAddr.subnetAddr;
+        destAddr.addr.addr2b.groupAddr.group.GroupId = 
+                                    gp->recvRec[rrIndexIn].srcAddr.group.GroupId;
+        if (!IsGroupMember(destAddr.dmn.domainIndex,
+                destAddr.addr.addr2b.groupAddr.group.GroupId,
+                &destAddr.addr.addr2b.groupAddr.member)) {
+            OsalPrintDebug(LonStatusNoError, "SendACKTPDU: Message acknowledged for a non-existing group");
+            return;
+        }
+    } else {
+        /* Send Ack in address format 2a. */
+        destAddr.addressMode = AM_SUBNET_NODE;
+        destAddr.addr.addr2a = gp->recvRec[rrIndexIn].srcAddr.subnetAddr;
+    }
+
+    nwSendParamPtr->dropIfUnconfigured = FALSE; /* acks are not dropped */
+    nwSendParamPtr->destAddr = destAddr;
+    nwSendParamPtr->pduType = TPDU_TYPE;
+    nwSendParamPtr->deltaBL = 0;
+    nwSendParamPtr->altPath = gp->recvRec[rrIndexIn].altPath | ALT_CHANNEL_LOCK;
+    nwSendParamPtr->pduSize = 1 + dataIndex;
+    OsalPrintDebug(LonStatusNoError, "TPSendAck: Sending an acknowledgment");
+    QueueWrite(nwQueuePtr);
 }
 
 /*****************************************************************
@@ -2123,119 +2096,116 @@ EnQueue(nwQueuePtr);
  function know about how to respond anyway?)
  ******************************************************************/
 static void SNSendResponse(IzotUbits16 rrIndexIn, IzotByte nullResponse,
-    IzotByte flexResponse) {
-NWSendParam *nwSendParamPtr; /* Ptr to NW Send Param. */
-TSPDUPtr pduPtr; /* Ptr to TPDU sent.     */
-Queue *nwQueuePtr;
-DestinationAddress destAddr;
-IzotByte dataIndex = 0;
-
-if (gp->recvRec[rrIndexIn].priority) {
-    nwQueuePtr = &gp->nwOutPriQ;
-} else {
-    nwQueuePtr = &gp->nwOutQ;
-}
-
-if (QueueFull(nwQueuePtr) && !nullResponse) {
-    return; /* Can't sent the response now. */
-}
-
-if (gp->recvRec[rrIndexIn].transState != RESPONDED
-        && gp->recvRec[rrIndexIn].transState != DONE) {
-    DBG_vPrintf(TRUE, "SNSendResponse: How can I be called without at least one resp?\n");
-    return;
-}
-
-if (nullResponse) {
-    /* Set state to DONE and do not send the response. */
-    DBG_vPrintf(TRUE, "SendResponse: Null response. Nothing goes out.\n");
-    gp->recvRec[rrIndexIn].transState = DONE;
-    return;
-}
-
-nwSendParamPtr = QueueTail(nwQueuePtr);
-pduPtr = (TSPDUPtr) (nwSendParamPtr + 1);
-
-if (gp->nwOutBufSize < gp->recvRec[rrIndexIn].rspSize + 1) {
-    DBG_vPrintf(TRUE, "SNSendResponse: Network buf too small for response.\n");
-    return;
-}
-pduPtr->auth = FALSE; /* Responses are not authenticated. */
-pduPtr->pduMsgType = RESPONSE_MSG;
-if (gp->recvRec[rrIndexIn].version == LsProtocolModeLegacy)
+        IzotByte flexResponse) 
 {
-    pduPtr->transNum = gp->recvRec[rrIndexIn].transNum;
-    nwSendParamPtr->version = LsProtocolModeLegacy;
-    dataIndex = 0;
-} 
-else 
-{
-    pduPtr->transNum = gp->recvRec[rrIndexIn].transNum >> 8;
-    pduPtr->data[0] = gp->recvRec[rrIndexIn].transNum;
-    nwSendParamPtr->version = LsProtocolModeEnhanced;
-    dataIndex = 1;
-}
-/* Copy the existing response from RR */
-if (gp->recvRec[rrIndexIn].rspSize <= DecodeBufferSize(TSA_RESP_BUF_SIZE)) {
-    /* *** Saved Response Length *** */
-    /* This implementation saves the entire response in the receive transaction record.  Thus,
-     * if and when a retry of the request is received, the response can be re-transmitted without
-     * re-delivering the request to the application for construction of a response.  It is acceptable
-     * to save only responses of certain length (e.g., as little as 1 byte) in order to minimize
-     * RAM use.  Under these conditions, a retry of a request which illicited a response of length
-     * greater than that minimium length is considered to be idempotent (can be safely executed
-     * again) and may be re-delivered to the application for reformulation of the response.  It
-     * is also required that under these conditions that the application be informed of the
-     * duplicate nature of the request in case the application chooses to treat the request as
-     * non-idempotent by saving the response for retransmission without recomputation.  In this
-     * case a key must also be provided for the application to use to map the request to a saved
-     * response. */
-    memcpy(&pduPtr->data[dataIndex], gp->recvRec[rrIndexIn].response,
-            gp->recvRec[rrIndexIn].rspSize);
-} else {
-    DBG_vPrintf(TRUE, "SNSendResponse: Discarding a long response.\n");
-    return;
-}
+    NWSendParam *nwSendParamPtr; /* Ptr to NW Send Param. */
+    TSPDUPtr pduPtr; /* Ptr to TPDU sent.     */
+    Queue *nwQueuePtr;
+    DestinationAddress destAddr;
+    IzotByte dataIndex = 0;
 
-/* Fill in the details for the network layer. */
-destAddr.dmn = gp->recvRec[rrIndexIn].srcAddr.dmn;
+    if (gp->recvRec[rrIndexIn].priority) {
+        nwQueuePtr = &gp->nwOutPriQ;
+    } else {
+        nwQueuePtr = &gp->nwOutQ;
+    }
 
-if (flexResponse) {
-    // Make it look like a flex domain response so that we use 0/0 for the source subnet/node.
-    destAddr.dmn.domainIndex = FLEX_DOMAIN;
-}
+    if (QueueFull(nwQueuePtr) && !nullResponse) {
+        return; /* Can't sent the response now. */
+    }
 
-/* We send unicast response or multicast response depending on
- the request received. */
-if (gp->recvRec[rrIndexIn].srcAddr.addressMode == AM_MULTICAST) {
-    /* Send the response in address format 2b. */
-    destAddr.addressMode = AM_MULTICAST_ACK;
-    destAddr.addr.addr2b.subnetAddr = gp->recvRec[rrIndexIn].srcAddr.subnetAddr;
-    destAddr.addr.addr2b.groupAddr.group.GroupId = 
-                                   gp->recvRec[rrIndexIn].srcAddr.group.GroupId;
-
-    if (!IsGroupMember(destAddr.dmn.domainIndex,
-            destAddr.addr.addr2b.groupAddr.group.GroupId,
-            &destAddr.addr.addr2b.groupAddr.member)) {
-        DBG_vPrintf(TRUE, 
-        "SNSendResponse: Response for a non-existing group.\n");
+    if (gp->recvRec[rrIndexIn].transState != RESPONDED
+            && gp->recvRec[rrIndexIn].transState != DONE) {
+        OsalPrintError(LonStatusTransactionFailure, "SNSendResponse: Function called without at least one response");
         return;
     }
-} else {
-    /* Send response in address format 2a. */
-    destAddr.addressMode = AM_SUBNET_NODE;
-    destAddr.addr.addr2a = gp->recvRec[rrIndexIn].srcAddr.subnetAddr;
-}
 
-nwSendParamPtr->dropIfUnconfigured = FALSE; /* responses are not dropped */
-nwSendParamPtr->destAddr = destAddr;
-nwSendParamPtr->pduType = SPDU_TYPE;
-nwSendParamPtr->deltaBL = 0;
-nwSendParamPtr->altPath = gp->recvRec[rrIndexIn].altPath | ALT_CHANNEL_LOCK;
-nwSendParamPtr->pduSize = gp->recvRec[rrIndexIn].rspSize + dataIndex + 1;
+    if (nullResponse) {
+        /* Set state to done and do not send the response. */
+        OsalPrintDebug(LonStatusNoError, "SendResponse: Nothing sent for null response");
+        gp->recvRec[rrIndexIn].transState = DONE;
+        return;
+    }
 
-DBG_vPrintf(TRUE, "SNSendResponse: Sending a response.\n");
-EnQueue(nwQueuePtr);
+    nwSendParamPtr = QueueTail(nwQueuePtr);
+    pduPtr = (TSPDUPtr) (nwSendParamPtr + 1);
+
+    if (gp->nwOutBufSize < gp->recvRec[rrIndexIn].rspSize + 1) {
+        OsalPrintError(LonStatusBufferSizeTooSmall, "SNSendResponse: Network buffer too small for response");
+        return;
+    }
+    pduPtr->auth = FALSE; /* Responses are not authenticated. */
+    pduPtr->pduMsgType = RESPONSE_MSG;
+    if (gp->recvRec[rrIndexIn].version == LsProtocolModeLegacy){
+        pduPtr->transNum = gp->recvRec[rrIndexIn].transNum;
+        nwSendParamPtr->version = LsProtocolModeLegacy;
+        dataIndex = 0;
+    } else {
+        pduPtr->transNum = gp->recvRec[rrIndexIn].transNum >> 8;
+        pduPtr->data[0] = gp->recvRec[rrIndexIn].transNum;
+        nwSendParamPtr->version = LsProtocolModeEnhanced;
+        dataIndex = 1;
+    }
+    /* Copy the existing response from RR */
+    if (gp->recvRec[rrIndexIn].rspSize <= DecodeBufferSize(TSA_RESP_BUF_SIZE)) {
+        /* *** Saved Response Length *** */
+        /* This implementation saves the entire response in the receive transaction record.  Thus,
+        * if and when a retry of the request is received, the response can be re-transmitted without
+        * re-delivering the request to the application for construction of a response.  It is acceptable
+        * to save only responses of certain length (e.g., as little as 1 byte) in order to minimize
+        * RAM use.  Under these conditions, a retry of a request which illicited a response of length
+        * greater than that minimium length is considered to be idempotent (can be safely executed
+        * again) and may be re-delivered to the application for reformulation of the response.  It
+        * is also required that under these conditions that the application be informed of the
+        * duplicate nature of the request in case the application chooses to treat the request as
+        * non-idempotent by saving the response for retransmission without recomputation.  In this
+        * case a key must also be provided for the application to use to map the request to a saved
+        * response. */
+        memcpy(&pduPtr->data[dataIndex], gp->recvRec[rrIndexIn].response,
+                gp->recvRec[rrIndexIn].rspSize);
+    } else {
+        OsalPrintDebug(LonStatusNoError, "SNSendResponse: Discarded a long response");
+        return;
+    }
+
+    /* Fill in the details for the network layer. */
+    destAddr.dmn = gp->recvRec[rrIndexIn].srcAddr.dmn;
+
+    if (flexResponse) {
+        // Make it look like a flex domain response so that we use 0/0 for the source subnet/node.
+        destAddr.dmn.domainIndex = FLEX_DOMAIN;
+    }
+
+    /* We send unicast response or multicast response depending on
+    the request received. */
+    if (gp->recvRec[rrIndexIn].srcAddr.addressMode == AM_MULTICAST) {
+        /* Send the response in address format 2b. */
+        destAddr.addressMode = AM_MULTICAST_ACK;
+        destAddr.addr.addr2b.subnetAddr = gp->recvRec[rrIndexIn].srcAddr.subnetAddr;
+        destAddr.addr.addr2b.groupAddr.group.GroupId = 
+                                    gp->recvRec[rrIndexIn].srcAddr.group.GroupId;
+
+        if (!IsGroupMember(destAddr.dmn.domainIndex,
+                destAddr.addr.addr2b.groupAddr.group.GroupId,
+                &destAddr.addr.addr2b.groupAddr.member)) {
+            OsalPrintDebug(LonStatusNoError, "SNSendResponse: Response for a non-existing group");
+            return;
+        }
+    } else {
+        /* Send response in address format 2a. */
+        destAddr.addressMode = AM_SUBNET_NODE;
+        destAddr.addr.addr2a = gp->recvRec[rrIndexIn].srcAddr.subnetAddr;
+    }
+
+    nwSendParamPtr->dropIfUnconfigured = FALSE; /* responses are not dropped */
+    nwSendParamPtr->destAddr = destAddr;
+    nwSendParamPtr->pduType = SPDU_TYPE;
+    nwSendParamPtr->deltaBL = 0;
+    nwSendParamPtr->altPath = gp->recvRec[rrIndexIn].altPath | ALT_CHANNEL_LOCK;
+    nwSendParamPtr->pduSize = gp->recvRec[rrIndexIn].rspSize + dataIndex + 1;
+
+    OsalPrintDebug(LonStatusNoError, "SNSendResponse: Sending a response");
+    QueueWrite(nwQueuePtr);
 }
 
 /*****************************************************************
@@ -2246,54 +2216,55 @@ EnQueue(nwQueuePtr);
  to the application layer.
  Comments:  layerIn is not needed as it is not used.
  ******************************************************************/
-static void Deliver(IzotUbits16 rrIndexIn) {
-APPReceiveParam *appReceiveParamPtr;
-char *apduInPtr;
-IzotUbits16 i = rrIndexIn; /* Use i instead of rrIndexIn. */
+static void Deliver(IzotUbits16 rrIndexIn) 
+{
+    APPReceiveParam *appReceiveParamPtr;
+    char *apduInPtr;
+    IzotUbits16 i = rrIndexIn; /* Use i instead of rrIndexIn. */
 
-if (gp->recvRec[i].needAuth && gp->recvRec[i].transState != AUTHENTICATED) {
-    /* The message needs authentication but was not authenticated. */
-    gp->recvRec[i].transState = DONE;
-    return;
-}
+    if (gp->recvRec[i].needAuth && gp->recvRec[i].transState != AUTHENTICATED) {
+        /* The message needs authentication but was not authenticated. */
+        gp->recvRec[i].transState = DONE;
+        return;
+    }
 
-if (QueueFull(&gp->appInQ)) {
-    /* We can wait, but then we may not be able to guarantee delivery in
-     sequence from a given source node. So, it is better to drop the
-     message and let the retry mechanism take care of redelivery. */
-    DBG_vPrintf(TRUE, "Deliver: No space for the message");
-    INCR_STATS(LcsLost);
-    return;
-}
+    if (QueueFull(&gp->appInQ)) {
+        /* We can wait, but then we may not be able to guarantee delivery in
+        sequence from a given source node. So, it is better to drop the
+        message and let the retry mechanism take care of redelivery. */
+        INCR_STATS(LcsLost);
+        OsalPrintError(LonStatusNoBufferAvailable, "Deliver: No buffer available to send the message");
+        return;
+    }
 
-appReceiveParamPtr = QueueTail(&gp->appInQ);
-apduInPtr = (char *) (appReceiveParamPtr + 1);
+    appReceiveParamPtr = QueueTail(&gp->appInQ);
+    apduInPtr = (char *) (appReceiveParamPtr + 1);
 
-appReceiveParamPtr->indication = MESSAGE;
-appReceiveParamPtr->srcAddr = gp->recvRec[i].srcAddr;
-appReceiveParamPtr->service = gp->recvRec[i].serviceType;
-appReceiveParamPtr->priority = gp->recvRec[i].priority;
-appReceiveParamPtr->altPath = gp->recvRec[i].altPath;
-appReceiveParamPtr->auth = gp->recvRec[i].auth;
-appReceiveParamPtr->pduSize = gp->recvRec[i].apduSize;
-appReceiveParamPtr->reqId = gp->recvRec[i].reqId;
-appReceiveParamPtr->xcvrParams = gp->recvRec[i].xcvrParams;
-appReceiveParamPtr->proxy = FALSE;
+    appReceiveParamPtr->indication = MESSAGE;
+    appReceiveParamPtr->srcAddr = gp->recvRec[i].srcAddr;
+    appReceiveParamPtr->service = gp->recvRec[i].serviceType;
+    appReceiveParamPtr->priority = gp->recvRec[i].priority;
+    appReceiveParamPtr->altPath = gp->recvRec[i].altPath;
+    appReceiveParamPtr->auth = gp->recvRec[i].auth;
+    appReceiveParamPtr->pduSize = gp->recvRec[i].apduSize;
+    appReceiveParamPtr->reqId = gp->recvRec[i].reqId;
+    appReceiveParamPtr->xcvrParams = gp->recvRec[i].xcvrParams;
+    appReceiveParamPtr->proxy = FALSE;
 
-if (gp->appInBufSize < gp->recvRec[i].apduSize) {
-    DBG_vPrintf(TRUE, "Deliver: APDU size too big");
-    /* We can never deliver this APDU. So, make it look like
-     it was delivered so that it can be discarded. We don't
-     want to send any ACK or response for this message. */
-    LCS_RecordError(IzotWritePastEndOfApplBuffer);
-    return;
-}
-/* Now it should be safe to do memcpy. */
-memcpy(apduInPtr, gp->recvRec[i].apdu, gp->recvRec[i].apduSize);
-EnQueue(&gp->appInQ);
-gp->recvRec[i].transState = DELIVERED;
-DBG_vPrintf(TRUE, 
-"Deliver: Packet has been delivered to the application layer.\n");
+    if (gp->appInBufSize < gp->recvRec[i].apduSize) {
+        /* We can never deliver this APDU. So, make it look like
+        it was delivered so that it can be discarded. We don't
+        want to send any ACK or response for this message. */
+        OsalPrintError(LonStatusWritePastEndOfApplBuffer, 
+                "Deliver: Packet size (%02X) too big for application buffer (%02X); dropping packet",
+                gp->recvRec[i].apduSize, gp->appInBufSize);
+        return;
+    }
+    /* Now it should be safe to do memcpy. */
+    memcpy(apduInPtr, gp->recvRec[i].apdu, gp->recvRec[i].apduSize);
+    QueueWrite(&gp->appInQ);
+    gp->recvRec[i].transState = DELIVERED;
+    OsalPrintDebug(LonStatusNoError, "Deliver: Packet delivered to the application layer");
 }
 
 /*****************************************************************
@@ -2308,34 +2279,33 @@ DBG_vPrintf(TRUE,
  or group if the message is multicast.
  Comments:  None
  ******************************************************************/
-static IzotBits16 RetrieveRR(SourceAddress srcAddrIn, IzotByte priorityIn) {
-IzotBits16 i;
+static IzotBits16 RetrieveRR(SourceAddress srcAddrIn, IzotByte priorityIn) 
+{
+    IzotBits16 i;
 
-/* Search through all the receive records for a match. */
-for (i = 0; i < gp->recvRecCnt; i++) {
-    if (priorityIn == gp->recvRec[i].priority &&
-    /* Destination subnet/node match is based on domainIndex. */
-    srcAddrIn.dmn.domainIndex == gp->recvRec[i].srcAddr.dmn.domainIndex
-            && (srcAddrIn.addressMode == gp->recvRec[i].srcAddr.addressMode) &&
-    /* Source node address should always match. */
-    (memcmp(&srcAddrIn.subnetAddr, &gp->recvRec[i].srcAddr.subnetAddr,
-            sizeof(IzotReceiveSubnetNode)) == 0) &&
-    /* Make sure AM_BROADCAST address matches for broadcast messages. */
-    (srcAddrIn.addressMode != AM_BROADCAST || srcAddrIn.broadcastSubnet
-            == gp->recvRec[i].srcAddr.broadcastSubnet) &&
-    /* Make sure AM_MULTICAST address matches for multicast messages. */
-    (srcAddrIn.addressMode != AM_MULTICAST || srcAddrIn.group.GroupId
-            == gp->recvRec[i].srcAddr.group.GroupId))
-
-    {
-        break;
+    /* Search through all the receive records for a match. */
+    for (i = 0; i < gp->recvRecCnt; i++) {
+        if (priorityIn == gp->recvRec[i].priority &&
+        /* Destination subnet/node match is based on domainIndex. */
+        srcAddrIn.dmn.domainIndex == gp->recvRec[i].srcAddr.dmn.domainIndex
+                && (srcAddrIn.addressMode == gp->recvRec[i].srcAddr.addressMode) &&
+        /* Source node address should always match. */
+        (memcmp(&srcAddrIn.subnetAddr, &gp->recvRec[i].srcAddr.subnetAddr,
+                sizeof(IzotReceiveSubnetNode)) == 0) &&
+        /* Make sure AM_BROADCAST address matches for broadcast messages. */
+        (srcAddrIn.addressMode != AM_BROADCAST || srcAddrIn.broadcastSubnet
+                == gp->recvRec[i].srcAddr.broadcastSubnet) &&
+        /* Make sure AM_MULTICAST address matches for multicast messages. */
+        (srcAddrIn.addressMode != AM_MULTICAST || srcAddrIn.group.GroupId
+                == gp->recvRec[i].srcAddr.group.GroupId)) {
+            break;
+        }
     }
-}
-if (i == gp->recvRecCnt) {
-    return (-1); /* Matching RR was not found. */
-}
+    if (i == gp->recvRecCnt) {
+        return (-1); /* Matching RR was not found. */
+    }
 
-return (i); /* Found matching RR. */
+    return (i); /* Found matching RR. */
 }
 
 /*****************************************************************
@@ -2345,17 +2315,18 @@ return (i); /* Found matching RR. */
  Purpose:   To find an index in the RR table that is UNUSED.
  Comments:  None
  ******************************************************************/
-static IzotBits16 AllocateRR(void) {
-IzotBits16 i;
+static IzotBits16 AllocateRR(void) 
+{
+    IzotBits16 i;
 
-/* First search for one which is unused. */
-for (i = 0; i < gp->recvRecCnt; i++) {
-    if (gp->recvRec[i].status == UNUSED_RR) {
-        return (i); /* Found one that is unused. */
+    /* First search for one which is unused. */
+    for (i = 0; i < gp->recvRecCnt; i++) {
+        if (gp->recvRec[i].status == UNUSED_RR) {
+            return (i); /* Found one that is unused. */
+        }
     }
-}
 
-return (-1);
+    return (-1);
 }
 
 /*****************************************************************
@@ -2364,20 +2335,21 @@ return (-1);
  Purpose:   To find an RR with the specified ID.
  Comments:  None
  ******************************************************************/
-static Bool FindRR(RequestId id, IzotUbits16 *pIndex) {
-Bool result = true;
-IzotUbits16 i;
-for (i = 0; i < gp->recvRecCnt; i++) {
-    if (gp->recvRec[i].status == SESSION_RR && gp->recvRec[i].reqId == id) {
-        break;
+static bool FindRR(RequestId id, IzotUbits16 *pIndex) 
+{
+    bool result = true;
+    IzotUbits16 i;
+    for (i = 0; i < gp->recvRecCnt; i++) {
+        if (gp->recvRec[i].status == SESSION_RR && gp->recvRec[i].reqId == id) {
+            break;
+        }
     }
-}
-if (i == gp->recvRecCnt || gp->recvRec[i].serviceType != IzotServiceRequest
-        || gp->recvRec[i].transState != DELIVERED) {
-    result = false;
-}
-*pIndex = i;
-return result;
+    if (i == gp->recvRecCnt || gp->recvRec[i].serviceType != IzotServiceRequest
+            || gp->recvRec[i].transState != DELIVERED) {
+        result = false;
+    }
+    *pIndex = i;
+    return result;
 }
 
 /*****************************************************************
@@ -2390,39 +2362,40 @@ return result;
  Comments:  None
  ******************************************************************/
 static IzotUbits16 ComputeRecvTimerValue(AddrMode addrModeIn,
-    IzotByte groupIdIn) {
-IzotUbits16 i, max = 0, temp;
+        IzotByte groupIdIn) 
+{
+    IzotUbits16 i, max = 0, temp;
 
-if (addrModeIn == AM_UNIQUE_NODE_ID) {
-    return (NGTIMER_SPCL_VAL);
-}
+    if (addrModeIn == AM_UNIQUE_NODE_ID) {
+        return (NGTIMER_SPCL_VAL);
+    }
 
-if (addrModeIn == AM_MULTICAST) {
-    /* Search through the address table to find the receiver timer val. */
-    /* If there is more than one entry with the same group,
-     use the one with the max rcv timer value */
-    for (i = 0; i < NUM_ADDR_TBL_ENTRIES; i++) {
-        if (IZOT_GET_ATTRIBUTE(eep->addrTable[i].Group, 
-        IZOT_ADDRESS_GROUP_TYPE) == 1 && eep->addrTable[i].Group.Group 
-        == groupIdIn) {
-            /* Group format match */
-            temp = DecodeRcvTimer(
-                       (IzotByte) IZOT_GET_ATTRIBUTE(eep->addrTable[i].Group, 
-                                  IZOT_ADDRESS_GROUP_RECEIVE_TIMER));
-            /* Using the maximum receive timer for the group is not required.  It
-             * is acceptable to use the receive timer for the first group entry
-             * found in the table. */
-            if (temp > max) {
-                max = temp;
+    if (addrModeIn == AM_MULTICAST) {
+        /* Search through the address table to find the receiver timer val. */
+        /* If there is more than one entry with the same group,
+        use the one with the max rcv timer value */
+        for (i = 0; i < NUM_ADDR_TBL_ENTRIES; i++) {
+            if (IZOT_GET_ATTRIBUTE(eep->addrTable[i].Group, 
+            IZOT_ADDRESS_GROUP_TYPE) == 1 && eep->addrTable[i].Group.Group 
+            == groupIdIn) {
+                /* Group format match */
+                temp = DecodeRcvTimer(
+                        (IzotByte) IZOT_GET_ATTRIBUTE(eep->addrTable[i].Group, 
+                                    IZOT_ADDRESS_GROUP_RECEIVE_TIMER));
+                /* Using the maximum receive timer for the group is not required.  It
+                * is acceptable to use the receive timer for the first group entry
+                * found in the table. */
+                if (temp > max) {
+                    max = temp;
+                }
             }
         }
+        return (max);
     }
-    return (max);
-}
 
-/* All other messages use non-group timer value. */
-return (DecodeRcvTimer((IzotByte) IZOT_GET_ATTRIBUTE(eep->configData, 
-                                                      IZOT_CONFIG_NONGRPRCV)));
+    /* All other messages use non-group timer value. */
+    return (DecodeRcvTimer((IzotByte) IZOT_GET_ATTRIBUTE(eep->configData, 
+                                                        IZOT_CONFIG_NONGRPRCV)));
 }
 
 /*****************************************************************
@@ -2451,97 +2424,97 @@ return (DecodeRcvTimer((IzotByte) IZOT_GET_ATTRIBUTE(eep->configData,
  nothing to do. return.
  Note:
  ******************************************************************/
-void SNSend(void) {
-TSASendParam *tsaSendParamPtr;
-IzotUbits16 i;
+void SNSend(void) 
+{
+    TSASendParam *tsaSendParamPtr;
+    IzotUbits16 i;
 
-/* Delay SNSend after power-up or external reset. */
-if (SendBlocked()) {
-    return; /* Do nothing */
-}
+    /* Delay SNSend after power-up or external reset. */
+    if (SendBlocked()) {
+        return; /* Do nothing */
+    }
 
-/**************************************************
- Send response, if any, first. Responses are not like transactions
- and hence it is better to send it first.
- **************************************************/
-if (!QueueEmpty(&gp->tsaRespQ) && !QueueFull(&gp->nwOutQ)) {
-    /* We have a response to be sent out.
-     Make sure the response is not stale.
-     Response should have a reqId.
-     If there is no RR for this reqId, then it is stale.
-     Throw the response away, if it is stale. */
-    tsaSendParamPtr = QueueHead(&gp->tsaRespQ);
+    /**************************************************
+     Send response, if any, first. Responses are not like transactions
+    and hence it is better to send it first.
+    **************************************************/
+    if (!QueueEmpty(&gp->tsaRespQ) && !QueueFull(&gp->nwOutQ)) {
+        /* We have a response to be sent out.
+        Make sure the response is not stale.
+        Response should have a reqId.
+        If there is no RR for this reqId, then it is stale.
+        Throw the response away, if it is stale. */
+        tsaSendParamPtr = QueuePeek(&gp->tsaRespQ);
 
-    if (tsaSendParamPtr->service != IzotServiceResponse) {
-        /* Throw away this message. Only responses are
-         allowed in this queue. */
-        DBG_vPrintf(TRUE, "SNSend: Response queue is only for responses.\n");
-        DeQueue(&gp->tsaRespQ);
+        if (tsaSendParamPtr->service != IzotServiceResponse) {
+            /* Throw away this message. Only responses are
+            allowed in this queue. */
+            QueueDropHead(&gp->tsaRespQ);
+            OsalPrintDebug(LonStatusNoError, "SNSend: Non-response message discarded from response queue");
+            return;
+        }
+
+        /* Search for the associated RR for this response. */
+        if (!FindRR(tsaSendParamPtr->reqId, &i)) {
+            /* Stale or duplicate response. Ignore it. */
+            QueueDropHead(&gp->tsaRespQ);
+            INCR_STATS(LcsLateAck);
+            OsalPrintDebug(LonStatusNoError, "SNSend: Stale or duplicate response discarded");
+            return;
+        }
+        /* Copy the response to the receive record and send response. */
+        gp->recvRec[i].rspSize = tsaSendParamPtr->apduSize;
+        /* Resp should fit in response field as it was found to be
+        fit in the TSA queue. */
+        memcpy(gp->recvRec[i].response, (char *) (tsaSendParamPtr + 1),
+                gp->recvRec[i].rspSize);
+
+        gp->recvRec[i].transState = RESPONDED;
+        SNSendResponse(i, tsaSendParamPtr->nullResponse,
+                tsaSendParamPtr->flexResponse);
+        QueueDropHead(&gp->tsaRespQ);
         return;
     }
 
-    /* Search for the associated RR for this response. */
-    if (!FindRR(tsaSendParamPtr->reqId, &i)) {
-        /* Stale or duplicate response. Ignore it. */
-        DeQueue(&gp->tsaRespQ);
-        DBG_vPrintf(TRUE, "SNSend: Discarding stale or duplicate response.\r\n");
-        INCR_STATS(LcsLateAck);
+    /***************************************************
+     Priority transmit timer expired event.
+    **************************************************/
+    if (gp->priXmitRec.status == SESSION_TX && !LonTimerRunning(
+            &gp->priXmitRec.xmitTimer)) {
+        OsalPrintDebug(LonStatusNoError, "SNSend: Priority transmit timer expired");
+        XmitTimerExpiration(SESSION, TRUE);
         return;
     }
-    /* Copy the response to the receive record and send response. */
-    gp->recvRec[i].rspSize = tsaSendParamPtr->apduSize;
-    /* Resp should fit in response field as it was found to be
-     fit in the TSA queue. */
-    memcpy(gp->recvRec[i].response, (char *) (tsaSendParamPtr + 1),
-            gp->recvRec[i].rspSize);
+    /***************************************************
+     Send a new priority message event.
+    **************************************************/
+    else if (gp->priXmitRec.status == UNUSED_TX && !QueueEmpty(&gp->tsaOutPriQ)
+            && !QueueFull(&gp->nwOutPriQ)) {
+        OsalPrintDebug(LonStatusNoError, "SNSend: Send a new priority message");
+        SendNewMsg(SESSION, TRUE);
+        return;
+    }
+    /***************************************************
+     Non-priority timer expired event.
+    *************************************************/
+    else if (gp->xmitRec.status == SESSION_TX && !LonTimerRunning(
+            &gp->xmitRec.xmitTimer)) {
+        OsalPrintDebug(LonStatusNoError, "SNSend: Non-priority timer expired");
+        XmitTimerExpiration(SESSION, FALSE);
+    }
+    /***************************************************
+     Send a new non-priority message.
+    **************************************************/
+    else if (gp->xmitRec.status == UNUSED_TX && !QueueEmpty(&gp->tsaOutQ)
+            && !QueueFull(&gp->nwOutQ)) {
+        OsalPrintDebug(LonStatusNoError, "SNSend: Send a new non-priority message");
+        SendNewMsg(SESSION, FALSE);
+    } else {
+        /* Either there is no work or there is no space. */
+        return;
+    }
 
-    gp->recvRec[i].transState = RESPONDED;
-    SNSendResponse(i, tsaSendParamPtr->nullResponse,
-            tsaSendParamPtr->flexResponse);
-    DeQueue(&gp->tsaRespQ);
     return;
-}
-
-/***************************************************
- Priority transmit timer expired event.
- **************************************************/
-if (gp->priXmitRec.status == SESSION_TX && !LonTimerRunning(
-        &gp->priXmitRec.xmitTimer)) {
-    DBG_vPrintf(TRUE, "\n\nSNSend:  Priority transmit timer expired event.\n");
-    XmitTimerExpiration(SESSION, TRUE);
-    return;
-}
-/***************************************************
- Send a new priority message event.
- **************************************************/
-else if (gp->priXmitRec.status == UNUSED_TX && !QueueEmpty(&gp->tsaOutPriQ)
-        && !QueueFull(&gp->nwOutPriQ)) {
-    DBG_vPrintf(TRUE, "\n\nSNSend:  Send a new priority message event.\n");
-    SendNewMsg(SESSION, TRUE);
-    return;
-}
-/***************************************************
- Non-priority timer expired event.
- *************************************************/
-else if (gp->xmitRec.status == SESSION_TX && !LonTimerRunning(
-        &gp->xmitRec.xmitTimer)) {
-    DBG_vPrintf(TRUE, "\n\nSNSend:   Non-priority timer expired event.\n");
-    XmitTimerExpiration(SESSION, FALSE);
-}
-/***************************************************
- Send a new non-priority message.
- **************************************************/
-else if (gp->xmitRec.status == UNUSED_TX && !QueueEmpty(&gp->tsaOutQ)
-        && !QueueFull(&gp->nwOutQ)) {
-    DBG_vPrintf(TRUE, "\n\nSNSend:  Send a new non-priority message.\n");
-    SendNewMsg(SESSION, FALSE);
-} else {
-    /* Either there is no work or there is no space. */
-    return;
-}
-
-return;
-
 }
 
 /*****************************************************************
@@ -2551,68 +2524,70 @@ return;
  Purpose:   To receive and process incoming SPDU's.
  Comments:  None
  ******************************************************************/
-void SNReceive(void) {
-TSAReceiveParam *tsaReceiveParamPtr;/* Param in tsa input queue.  */
-TSPDUPtr spduInPtr; /* Pointer to SPDU received. */
-IzotBits16 i;
+void SNReceive(void) 
+{
+    TSAReceiveParam *tsaReceiveParamPtr;/* Param in tsa input queue.  */
+    TSPDUPtr spduInPtr; /* Pointer to SPDU received. */
+    IzotBits16 i;
 
-/* Update Receive Timers, if they do exist */
-for (i = 0; i < gp->recvRecCnt; i++) {
-    if (gp->recvRec[i].status == SESSION_RR) {
-        if (LonTimerExpired(&gp->recvRec[i].recvTimer)) {
-            /* Timer expired. Release the receive record. */
-            DBG_vPrintf(TRUE, "SNReceive: Receive timer expired.\n");
-            gp->recvRec[i].status = UNUSED_RR; /* Release the RR */
+    /* Update Receive Timers, if they do exist */
+    for (i = 0; i < gp->recvRecCnt; i++) {
+        if (gp->recvRec[i].status == SESSION_RR) {
+            if (LonTimerExpired(&gp->recvRec[i].recvTimer)) {
+                /* Timer expired. Release the receive record. */
+                OsalPrintDebug(LonStatusNoError, "SNReceive: Receive timer expired");
+                gp->recvRec[i].status = UNUSED_RR; /* Release the RR */
+            }
         }
     }
-}
 
-/* Check if there is SPDU to be processed. */
-if (QueueEmpty(&gp->tsaInQ)) {
-    /* There is nothing to process. */
+    /* Check if there is SPDU to be processed. */
+    if (QueueEmpty(&gp->tsaInQ)) {
+        /* There is nothing to process. */
+        return;
+    }
+
+    tsaReceiveParamPtr = QueuePeek(&gp->tsaInQ);
+    spduInPtr = (TSPDUPtr) ((char *) tsaReceiveParamPtr + sizeof(TSAReceiveParam));
+
+    /* Check if the PDU is for session layer. If not, we are done. */
+    if (tsaReceiveParamPtr->pduType != SPDU_TYPE) {
+        OsalPrintDebug(LonStatusNoError, "SNReceive: Non-session layer packet discarded from session layer");
+        return;
+    }
+
+    if (tsaReceiveParamPtr->pduSize < 1) {
+        QueueDropHead(&gp->tsaInQ);
+        OsalPrintDebug(LonStatusInvalidMessageLength, "SNReceive: Invalid packet size");
+        return;
+    }
+
+    LCS_LogRxStat(tsaReceiveParamPtr->altPath, (spduInPtr->pduMsgType
+            == RESPONSE_MSG) ? RX_SOLICITED : RX_UNSOLICITED);
+
+    /* We have a SPDU to be processed. Check the type and
+    process accordingly. */
+
+    switch (spduInPtr->pduMsgType) {
+    case RESPONSE_MSG:
+        SNReceiveResponse();
+        return;
+    case REQUEST_MSG:
+        ReceiveNewMsg(SESSION);
+        return;
+    case REMINDER_MSG:
+        /* Fall through. */
+    case REM_MSG_MSG:
+        ReceiveRem(SESSION);
+        return;
+    default:
+        QueueDropHead(&gp->tsaInQ);
+        OsalPrintError(LonStatusUnknownPdu, 
+                "SNReceive: Dropped received packet with unknown session packet type (%02X)",
+                spduInPtr->pduMsgType);
+    }
+
     return;
-}
-
-tsaReceiveParamPtr = QueueHead(&gp->tsaInQ);
-spduInPtr = (TSPDUPtr) ((char *) tsaReceiveParamPtr + sizeof(TSAReceiveParam));
-
-/* Check if the PDU is for session layer. If not, we are done. */
-if (tsaReceiveParamPtr->pduType != SPDU_TYPE) {
-    DBG_vPrintf(TRUE, "SNReceive: tsaReceiveParamPtr->pduType != SPDU_TYPE\n");
-    return;
-}
-
-if (tsaReceiveParamPtr->pduSize < 1) {
-    DBG_vPrintf(TRUE, "SNReceive: Illegal PDU size.\n");
-    DeQueue(&gp->tsaInQ);
-    return;
-}
-
-LCS_LogRxStat(tsaReceiveParamPtr->altPath, (spduInPtr->pduMsgType
-        == RESPONSE_MSG) ? RX_SOLICITED : RX_UNSOLICITED);
-
-/* We have a SPDU to be processed. Check the type and
- process accordingly. */
-
-switch (spduInPtr->pduMsgType) {
-case RESPONSE_MSG:
-    SNReceiveResponse();
-    return;
-case REQUEST_MSG:
-    ReceiveNewMsg(SESSION);
-    return;
-case REMINDER_MSG:
-    /* Fall through. */
-case REM_MSG_MSG:
-    ReceiveRem(SESSION);
-    return;
-default:
-    LCS_RecordError(IzotUnknownPdu);
-    DBG_vPrintf(TRUE, "SNReceive: Unknown SPDU type received.\n");
-    DeQueue(&gp->tsaInQ);
-}
-
-return;
 }
 
 /*****************************************************************
@@ -2624,19 +2599,20 @@ return;
  to unavailable space in network queue.
  Comments:  None
  ******************************************************************/
-void AuthSend(void) {
-IzotBits16 i;
+void AuthSend(void)
+{
+    IzotBits16 i;
 
-/* Only thing the authentication layer can do here is to check if any
- challenges need to be sent. */
-for (i = 0; i < gp->recvRecCnt; i++) {
-    if (gp->recvRec[i].status != UNUSED_RR && gp->recvRec[i].needAuth
-            && gp->recvRec[i].transState == JUST_RECEIVED) {
-        InitiateChallenge(i);
+    /* Only thing the authentication layer can do here is to check if any
+    challenges need to be sent. */
+    for (i = 0; i < gp->recvRecCnt; i++) {
+        if (gp->recvRec[i].status != UNUSED_RR && gp->recvRec[i].needAuth
+                && gp->recvRec[i].transState == JUST_RECEIVED) {
+            InitiateChallenge(i);
+        }
     }
-}
 
-return;
+    return;
 }
 
 /*****************************************************************
@@ -2647,43 +2623,42 @@ return;
  Comments:  None
  ******************************************************************/
 
-void AuthReceive(void) {
-TSAReceiveParam *tsaReceiveParamPtr; /* Parameter in tsa input queue. */
-AuthPDUPtr pduInPtr; /* Ptr to PDU received. */
+void AuthReceive(void)
+{
+    TSAReceiveParam *tsaReceiveParamPtr; /* Parameter in tsa input queue. */
+    AuthPDUPtr pduInPtr; /* Ptr to PDU received. */
 
-/* Check if there is AuthPDU to be processed. */
-if (QueueEmpty(&gp->tsaInQ)) {
-    /* There is nothing to process. */
-    return;
-}
+    /* Check if there is AuthPDU to be processed. */
+    if (QueueEmpty(&gp->tsaInQ)) {
+        /* There is nothing to process. */
+        return;
+    }
 
-tsaReceiveParamPtr = QueueHead(&gp->tsaInQ);
-pduInPtr = (AuthPDUPtr) (tsaReceiveParamPtr + 1);
+    tsaReceiveParamPtr = QueuePeek(&gp->tsaInQ);
+    pduInPtr = (AuthPDUPtr) (tsaReceiveParamPtr + 1);
 
-/* Check if the PDU is for session layer. If not, we are done. */
-if (tsaReceiveParamPtr->pduType != AUTHPDU_TYPE) {
-    return;
-}
+    /* Check if the PDU is for session layer. If not, we are done. */
+    if (tsaReceiveParamPtr->pduType != AUTHPDU_TYPE) {
+        return;
+    }
 
-/* We have a AuthPDU to be processed. Check the type and
- process accordingly. */
-if (pduInPtr->pduMsgType == CHALLENGE_MSG || pduInPtr->pduMsgType
-        == CHALLENGE_OMA_MSG) {
-    DBG_vPrintf(TRUE, "AuthReceive: SendReplyToChallenge\n");
-    LCS_LogRxStat(tsaReceiveParamPtr->altPath, RX_SOLICITED);
-    SendReplyToChallenge((IzotByte) (pduInPtr->pduMsgType == CHALLENGE_OMA_MSG));
-} else if (pduInPtr->pduMsgType == REPLY_MSG || pduInPtr->pduMsgType
-        == REPLY_OMA_MSG) {
-    // We consider a reply to be unsolicited because it is the result of an unsolicited message.
-    LCS_LogRxStat(tsaReceiveParamPtr->altPath, RX_UNSOLICITED);
-    ProcessReply((IzotByte) (pduInPtr->pduMsgType == REPLY_OMA_MSG));
-} else {
-    DBG_vPrintf(TRUE, "AuthReceive: Unknown pdu type received.\n");
-    LCS_RecordError(IzotUnknownPdu);
-    DeQueue(&gp->tsaInQ);
-    return;
-}
-
+    /* We have a AuthPDU to be processed. Check the type and
+    process accordingly. */
+    if (pduInPtr->pduMsgType == CHALLENGE_MSG || pduInPtr->pduMsgType
+            == CHALLENGE_OMA_MSG) {
+        OsalPrintDebug(LonStatusNoError, "AuthReceive: Send reply to authentication challenge");
+        LCS_LogRxStat(tsaReceiveParamPtr->altPath, RX_SOLICITED);
+        SendReplyToChallenge((IzotByte) (pduInPtr->pduMsgType == CHALLENGE_OMA_MSG));
+    } else if (pduInPtr->pduMsgType == REPLY_MSG || pduInPtr->pduMsgType
+            == REPLY_OMA_MSG) {
+        // We consider a reply to be unsolicited because it is the result of an unsolicited message.
+        LCS_LogRxStat(tsaReceiveParamPtr->altPath, RX_UNSOLICITED);
+        ProcessReply((IzotByte) (pduInPtr->pduMsgType == REPLY_OMA_MSG));
+    } else {
+        QueueDropHead(&gp->tsaInQ);
+        OsalPrintError(LonStatusUnknownPdu, "AuthReceive: Dropped packet with unknown authentication type (%02X)", pduInPtr->pduMsgType);
+        return;
+    }
 }
 
 /*****************************************************************
@@ -2702,17 +2677,13 @@ static void InitiateChallenge(IzotUbits16 rrIndexIn)
     IzotByte         i;
     IzotByte         dataIndex;
 
-    if (gp->recvRec[rrIndexIn].priority)
-    {
+    if (gp->recvRec[rrIndexIn].priority) {
         nwQueuePtr = &gp->nwOutPriQ;
-    }
-    else
-    {
+    } else {
         nwQueuePtr = &gp->nwOutQ;
     }
 
-    if (QueueFull(nwQueuePtr))
-    {
+    if (QueueFull(nwQueuePtr)) {
         /* No space to send challenge anyway. Come back later. */
         return;
     }
@@ -2720,14 +2691,11 @@ static void InitiateChallenge(IzotUbits16 rrIndexIn)
     nwSendParamPtr = QueueTail(nwQueuePtr);
     pduOutPtr      = (AuthPDU *)(nwSendParamPtr + 1);
 
-    if (gp->recvRec[rrIndexIn].version == LsProtocolModeLegacy) 
-    {
+    if (gp->recvRec[rrIndexIn].version == LsProtocolModeLegacy) {
         pduOutPtr->transNum = gp->recvRec[rrIndexIn].transNum;
         nwSendParamPtr->version = LsProtocolModeLegacy;
         dataIndex = 0;
-    } 
-    else 
-    {
+    } else {
         pduOutPtr->transNum = gp->recvRec[rrIndexIn].transNum >> 8;
         pduOutPtr->data[0] = gp->recvRec[rrIndexIn].transNum;
         nwSendParamPtr->version = LsProtocolModeEnhanced;
@@ -2735,14 +2703,12 @@ static void InitiateChallenge(IzotUbits16 rrIndexIn)
     }
     
     /* First compute the random bytes to be sent */
-    if (gp->recvRec[rrIndexIn].transState != AUTHENTICATING)
-    {
+    if (gp->recvRec[rrIndexIn].transState != AUTHENTICATING) {
         /* Generate random number only the first time we are called
            for this message. subsequent calls use the same rand. */
-        for (i = 0; i < 8; i++)
-        {
+        for (i = 0; i < 8; i++) {
             randomValue[i] = (IzotByte)((gp->prevChallenge[i] + rand() % 256 +
-                                     IzotGetTickCount() % 256) % 256);
+                                     OsalGetTickCount() % 256) % 256);
             gp->prevChallenge[i] = randomValue[i];
         }
         memcpy(gp->recvRec[rrIndexIn].rand, randomValue, 8); /* Save */
@@ -2750,15 +2716,12 @@ static void InitiateChallenge(IzotUbits16 rrIndexIn)
 
     /* Form the challenge AuthPDU. */
     pduOutPtr->fmt = addrModeToFmt[gp->recvRec[rrIndexIn].srcAddr.addressMode];
-    if (gp->recvRec[rrIndexIn].srcAddr.addressMode == AM_MULTICAST)
-    {
+    if (gp->recvRec[rrIndexIn].srcAddr.addressMode == AM_MULTICAST) {
         /* For Multicast message, send the group info with AuthPDU. */
         nwSendParamPtr->pduSize = 10 + dataIndex;
         pduOutPtr->data[dataIndex + 8] = 
                                    gp->recvRec[rrIndexIn].srcAddr.group.GroupId;
-    }
-    else
-    {
+    } else {
         nwSendParamPtr->pduSize = 9 + dataIndex;
     }
     pduOutPtr->pduMsgType  = AuthOma() ? CHALLENGE_OMA_MSG : CHALLENGE_MSG;
@@ -2766,37 +2729,36 @@ static void InitiateChallenge(IzotUbits16 rrIndexIn)
            gp->recvRec[rrIndexIn].rand,
            8);
 
-/* Now fill in the NWSendParam structure. */
-nwSendParamPtr->dropIfUnconfigured = FALSE; /* Challenges are not dropped */
-/* Challenge must have come from a particular node.
- Use format 2b for multicast and format 2a for others. */
-nwSendParamPtr->destAddr.dmn = gp->recvRec[rrIndexIn].srcAddr.dmn;
-if (gp->recvRec[rrIndexIn].srcAddr.addressMode == AM_MULTICAST) {
-    nwSendParamPtr->destAddr.addressMode = AM_MULTICAST_ACK;
-    nwSendParamPtr->destAddr.addr.addr2b.subnetAddr
-            = gp->recvRec[rrIndexIn].srcAddr.subnetAddr;
-    nwSendParamPtr->destAddr.addr.addr2b.groupAddr.group.GroupId
-            = gp->recvRec[rrIndexIn].srcAddr.group.GroupId;
-    if (!IsGroupMember(gp->recvRec[rrIndexIn].srcAddr.dmn.domainIndex,
-            gp->recvRec[rrIndexIn].srcAddr.group.GroupId,
-            &nwSendParamPtr->destAddr.addr.addr2b.groupAddr.member)) {
-        DBG_vPrintf(TRUE, 
-                "InitiateChallenge: Strange: We are not member of group???.\n");
-        return; /* Don't challenge. This case should not happen. */
+    /* Now fill in the NWSendParam structure. */
+    nwSendParamPtr->dropIfUnconfigured = FALSE; /* Challenges are not dropped */
+    /* Challenge must have come from a particular node.
+    Use format 2b for multicast and format 2a for others. */
+    nwSendParamPtr->destAddr.dmn = gp->recvRec[rrIndexIn].srcAddr.dmn;
+    if (gp->recvRec[rrIndexIn].srcAddr.addressMode == AM_MULTICAST) {
+        nwSendParamPtr->destAddr.addressMode = AM_MULTICAST_ACK;
+        nwSendParamPtr->destAddr.addr.addr2b.subnetAddr
+                = gp->recvRec[rrIndexIn].srcAddr.subnetAddr;
+        nwSendParamPtr->destAddr.addr.addr2b.groupAddr.group.GroupId
+                = gp->recvRec[rrIndexIn].srcAddr.group.GroupId;
+        if (!IsGroupMember(gp->recvRec[rrIndexIn].srcAddr.dmn.domainIndex,
+                gp->recvRec[rrIndexIn].srcAddr.group.GroupId,
+                &nwSendParamPtr->destAddr.addr.addr2b.groupAddr.member)) {
+            OsalPrintError(LonStatusException, "InitiateChallenge: Ignored invalid challenge request");
+            return; /* Don't challenge. This case should not happen. */
+        }
+    } else {
+        nwSendParamPtr->destAddr.addressMode = AM_SUBNET_NODE;
+        nwSendParamPtr->destAddr.addr.addr2a = 
+                                        gp->recvRec[rrIndexIn].srcAddr.subnetAddr;
     }
-} else {
-    nwSendParamPtr->destAddr.addressMode = AM_SUBNET_NODE;
-    nwSendParamPtr->destAddr.addr.addr2a = 
-                                      gp->recvRec[rrIndexIn].srcAddr.subnetAddr;
-}
 
-nwSendParamPtr->pduType = AUTHPDU_TYPE;
-nwSendParamPtr->deltaBL = 0;
-nwSendParamPtr->altPath = gp->recvRec[rrIndexIn].altPath | ALT_CHANNEL_LOCK;
-gp->recvRec[rrIndexIn].transState = AUTHENTICATING;
-EnQueue(nwQueuePtr);
-DBG_vPrintf(TRUE, "InitiateChallenge: Sending a challenge.\n");
-return;
+    nwSendParamPtr->pduType = AUTHPDU_TYPE;
+    nwSendParamPtr->deltaBL = 0;
+    nwSendParamPtr->altPath = gp->recvRec[rrIndexIn].altPath | ALT_CHANNEL_LOCK;
+    gp->recvRec[rrIndexIn].transState = AUTHENTICATING;
+    QueueWrite(nwQueuePtr);
+    OsalPrintDebug(LonStatusNoError, "InitiateChallenge: Sending an authentication challenge");
+    return;
 }
 
 /*****************************************************************
@@ -2807,36 +2769,37 @@ return;
  Comments:  None
  ******************************************************************/
 void ReplyOmaDestAddr(SourceAddress* pSrcAddr, AuthPDUPtr pPdu,
-    OmaAddress* pOmaAddr) {
-memset(pOmaAddr, 0xFF, sizeof(OmaAddress));
+        OmaAddress* pOmaAddr) 
+{
+    memset(pOmaAddr, 0xFF, sizeof(OmaAddress));
 
-switch (pPdu->fmt) {
-case AF_UNIQUE_ID:
-    memcpy(pOmaAddr->physical.uniqueId, eep->readOnlyData.UniqueNodeId,
-            IZOT_UNIQUE_ID_LENGTH);
-    break;
-case AF_SUBNETNODE:
-    pOmaAddr->logical.addr.snode.Subnet
-            = eep->domainTable[pSrcAddr->dmn.domainIndex].Subnet;
-    IZOT_SET_ATTRIBUTE(pOmaAddr->logical.addr.snode, IZOT_RECEIVESN_SELFIELD, 0);
-    IZOT_SET_ATTRIBUTE(pOmaAddr->logical.addr.snode, IZOT_RECEIVESN_NODE, 
-        IZOT_GET_ATTRIBUTE(eep->domainTable[pSrcAddr->dmn.domainIndex], 
-                                                        IZOT_DOMAIN_NODE));
-    break;
-case AF_MULTICAST:
-    pOmaAddr->logical.addr.group = pPdu->data[8];
-    break;
-}
+    switch (pPdu->fmt) {
+    case AF_UNIQUE_ID:
+        memcpy(pOmaAddr->physical.uniqueId, eep->readOnlyData.UniqueNodeId,
+                IZOT_UNIQUE_ID_LENGTH);
+        break;
+    case AF_SUBNETNODE:
+        pOmaAddr->logical.addr.snode.Subnet
+                = eep->domainTable[pSrcAddr->dmn.domainIndex].Subnet;
+        IZOT_SET_ATTRIBUTE(pOmaAddr->logical.addr.snode, IZOT_RECEIVESN_SELFIELD, 0);
+        IZOT_SET_ATTRIBUTE(pOmaAddr->logical.addr.snode, IZOT_RECEIVESN_NODE, 
+            IZOT_GET_ATTRIBUTE(eep->domainTable[pSrcAddr->dmn.domainIndex], 
+                                                            IZOT_DOMAIN_NODE));
+        break;
+    case AF_MULTICAST:
+        pOmaAddr->logical.addr.group = pPdu->data[8];
+        break;
+    }
 
-if (pPdu->fmt != AF_UNIQUE_ID) {
-    // We use the domain table version because the algorithm always uses 6 bytes and we need
-    // predictable contents.  This assumes that the NM assigns consistent padding to the unused
-    // bytes of the domain ID!!!!
-    IzotDomain *pDom = &eep->domainTable[pSrcAddr->dmn.domainIndex];
-    pOmaAddr->logical.domainLen = 
-                            IZOT_GET_ATTRIBUTE_P(pDom, IZOT_DOMAIN_ID_LENGTH);
-    memcpy(pOmaAddr->logical.domainId, pDom->Id, DOMAIN_ID_LEN);
-}
+    if (pPdu->fmt != AF_UNIQUE_ID) {
+        // We use the domain table version because the algorithm always uses 6 bytes and we need
+        // predictable contents.  This assumes that the NM assigns consistent padding to the unused
+        // bytes of the domain ID!!!!
+        IzotDomain *pDom = &eep->domainTable[pSrcAddr->dmn.domainIndex];
+        pOmaAddr->logical.domainLen = 
+                                IZOT_GET_ATTRIBUTE_P(pDom, IZOT_DOMAIN_ID_LENGTH);
+        memcpy(pOmaAddr->logical.domainId, pDom->Id, DOMAIN_ID_LEN);
+    }
 }
 
 /*****************************************************************
@@ -2846,35 +2809,36 @@ if (pPdu->fmt != AF_UNIQUE_ID) {
  Purpose:   This routine sets up the OMA destination address on receipt of a challenge
  Comments:  None
  ******************************************************************/
-void ChallengeOmaDestAddr(DestinationAddress* pAddr, OmaAddress* pOmaAddr) {
-memset(pOmaAddr, 0xFF, sizeof(OmaAddress));
+void ChallengeOmaDestAddr(DestinationAddress* pAddr, OmaAddress* pOmaAddr)
+{
+    memset(pOmaAddr, 0xFF, sizeof(OmaAddress));
 
-switch (pAddr->addressMode) {
-case AM_UNIQUE_NODE_ID:
-    memcpy(pOmaAddr->physical.uniqueId, pAddr->addr.addr3.UniqueId,
-            IZOT_UNIQUE_ID_LENGTH);
-    break;
-case AM_SUBNET_NODE:
-    pOmaAddr->logical.addr.snode = pAddr->addr.addr2a;
-    IZOT_SET_ATTRIBUTE(pOmaAddr->logical.addr.snode, IZOT_RECEIVESN_SELFIELD, 0);
-    break;
-case AM_MULTICAST:
-    pOmaAddr->logical.addr.group = pAddr->addr.addr1.GroupId;
-    break;
-default:
-    // These shouldn't occur
-    break;
-}
+    switch (pAddr->addressMode) {
+    case AM_UNIQUE_NODE_ID:
+        memcpy(pOmaAddr->physical.uniqueId, pAddr->addr.addr3.UniqueId,
+                IZOT_UNIQUE_ID_LENGTH);
+        break;
+    case AM_SUBNET_NODE:
+        pOmaAddr->logical.addr.snode = pAddr->addr.addr2a;
+        IZOT_SET_ATTRIBUTE(pOmaAddr->logical.addr.snode, IZOT_RECEIVESN_SELFIELD, 0);
+        break;
+    case AM_MULTICAST:
+        pOmaAddr->logical.addr.group = pAddr->addr.addr1.GroupId;
+        break;
+    default:
+        // These shouldn't occur
+        break;
+    }
 
-if (pAddr->addressMode != AM_UNIQUE_NODE_ID) {
-    // We use the domain table version because the algorithm always uses 6 bytes and we need
-    // predictable contents.  This assumes that the NM assigns consistent padding to the unused
-    // bytes of the domain ID!!!!
-    IzotDomain *pDom = &eep->domainTable[pAddr->dmn.domainIndex];
-    pOmaAddr->logical.domainLen 
-                            = IZOT_GET_ATTRIBUTE_P(pDom, IZOT_DOMAIN_ID_LENGTH);
-    memcpy(pOmaAddr->logical.domainId, pDom->Id, DOMAIN_ID_LEN);
-}
+    if (pAddr->addressMode != AM_UNIQUE_NODE_ID) {
+        // We use the domain table version because the algorithm always uses 6 bytes and we need
+        // predictable contents.  This assumes that the NM assigns consistent padding to the unused
+        // bytes of the domain ID!!!!
+        IzotDomain *pDom = &eep->domainTable[pAddr->dmn.domainIndex];
+        pOmaAddr->logical.domainLen 
+                                = IZOT_GET_ATTRIBUTE_P(pDom, IZOT_DOMAIN_ID_LENGTH);
+        memcpy(pOmaAddr->logical.domainId, pDom->Id, DOMAIN_ID_LEN);
+    }
 }
 
 /*****************************************************************
@@ -2884,141 +2848,136 @@ if (pAddr->addressMode != AM_UNIQUE_NODE_ID) {
  Purpose:   To send a reply to a challenge just received.
  Comments:  None
  ******************************************************************/
-static void SendReplyToChallenge(IzotByte useOma) {
-TSAReceiveParam *tsaReceiveParamPtr; /* Parameter in tsa input queue. */
-AuthPDUPtr pduInPtr; /* Ptr to PDU received. */
-AuthPDUPtr pduOutPtr; /* Ptr to PDU sent.     */
-NWSendParam *nwSendParamPtr;
-Queue *nwQueuePtr;
-TransmitRecord *xmitRecPtr;
-IzotByte encryptValue[8];
-OmaAddress omaDest;
-IzotUbits16 transNum;
-IzotByte randomBytes[8] = {0};
-IzotByte dataIndex = 0;
-
-tsaReceiveParamPtr = QueueHead(&gp->tsaInQ);
-pduInPtr = (AuthPDUPtr) (tsaReceiveParamPtr + 1);
-
-if (tsaReceiveParamPtr->version == LsProtocolModeLegacy) 
+static void SendReplyToChallenge(IzotByte useOma)
 {
-    transNum = pduInPtr->transNum;
-    dataIndex = 0;
-} 
-else 
-{
-    transNum = (IzotUbits16)(pduInPtr->transNum) << 8 | pduInPtr->data[0];
-    dataIndex = 1;
-}
-memcpy(&randomBytes[0], &pduInPtr->data[dataIndex], 8);
+    TSAReceiveParam *tsaReceiveParamPtr; /* Parameter in tsa input queue. */
+    AuthPDUPtr pduInPtr; /* Ptr to PDU received. */
+    AuthPDUPtr pduOutPtr; /* Ptr to PDU sent.     */
+    NWSendParam *nwSendParamPtr;
+    Queue *nwQueuePtr;
+    TransmitRecord *xmitRecPtr;
+    IzotByte encryptValue[8];
+    OmaAddress omaDest;
+    IzotUbits16 transNum;
+    IzotByte randomBytes[8] = {0};
+    IzotByte dataIndex = 0;
 
-if (tsaReceiveParamPtr->srcAddr.dmn.domainIndex == FLEX_DOMAIN) {
-    /* Challenge was received in flex domain which is not
-     possible. We don't initiate challenge in flex domain.
-     Ignore the challenge. */
-    DeQueue(&gp->tsaInQ);
-    return;
-}
+    tsaReceiveParamPtr = QueuePeek(&gp->tsaInQ);
+    pduInPtr = (AuthPDUPtr) (tsaReceiveParamPtr + 1);
 
-if (tsaReceiveParamPtr->priority) {
-    nwQueuePtr = &gp->nwOutPriQ;
-    xmitRecPtr = &gp->priXmitRec;
-} else {
-    nwQueuePtr = &gp->nwOutQ;
-    xmitRecPtr = &gp->xmitRec;
-}
-
-/* Make sure that this challenge for current transaction
- in progress. If not, it is stale. Ignore it. */
-/* Also do not reply if we did not set auth bit or
- the group value in challenge msg, if present,
- does not match the one in transmit record. */
-if (xmitRecPtr->status == UNUSED_TX || !xmitRecPtr->auth || transNum
-        != xmitRecPtr->transNum || addrFmtToMode[pduInPtr->fmt]
-        != xmitRecPtr->nwDestAddr.addressMode || (pduInPtr->fmt == 1
-        && xmitRecPtr->nwDestAddr.addr.addr1.GroupId != 
-        pduInPtr->data[dataIndex + 8])) {
-    DeQueue(&gp->tsaInQ);
-    INCR_STATS(LcsLateAck);
-    return;
-}
-
-if (QueueFull(nwQueuePtr)) {
-    /* No Space to send reply anyway. Come back later. */
-    return;
-}
-nwSendParamPtr = QueueTail(nwQueuePtr);
-pduOutPtr = (AuthPDU *) (nwSendParamPtr + 1);
-
-// If we are not using the alternate key, then fill it in from the domain
-if (!xmitRecPtr->altKey.altKey) {
-    int i;
-    int domIdx = useOma ? 0 : tsaReceiveParamPtr->srcAddr.dmn.domainIndex;
-    for (i = 0; i < 2 && domIdx < 2; i++) {
-        memcpy(xmitRecPtr->altKey.altKeyValue[i], eep->domainTable[domIdx].Key,
-                sizeof(xmitRecPtr->altKey.altKeyValue));
-        domIdx++;
+    if (tsaReceiveParamPtr->version == LsProtocolModeLegacy) {
+        transNum = pduInPtr->transNum;
+        dataIndex = 0;
+    } else {
+        transNum = (IzotUbits16)(pduInPtr->transNum) << 8 | pduInPtr->data[0];
+        dataIndex = 1;
     }
-}
+    memcpy(&randomBytes[0], &pduInPtr->data[dataIndex], 8);
 
-// Set up OMA destination address
-ChallengeOmaDestAddr(&xmitRecPtr->nwDestAddr, &omaDest);
+    if (tsaReceiveParamPtr->srcAddr.dmn.domainIndex == FLEX_DOMAIN) {
+        /* Challenge was received in flex domain which is not
+        possible. We don't initiate challenge in flex domain.
+        Ignore the challenge. */
+        QueueDropHead(&gp->tsaInQ);
+        return;
+    }
 
-/* First compute the cryptoBytes to be sent. */
+    if (tsaReceiveParamPtr->priority) {
+        nwQueuePtr = &gp->nwOutPriQ;
+        xmitRecPtr = &gp->priXmitRec;
+    } else {
+        nwQueuePtr = &gp->nwOutQ;
+        xmitRecPtr = &gp->xmitRec;
+    }
 
-Encrypt(randomBytes, xmitRecPtr->apdu, xmitRecPtr->apduSize,
-    (IzotByte*) xmitRecPtr->altKey.altKeyValue, encryptValue, useOma, &omaDest);
+    /* Make sure that this challenge for current transaction
+    in progress. If not, it is stale. Ignore it. */
+    /* Also do not reply if we did not set auth bit or
+    the group value in challenge msg, if present,
+    does not match the one in transmit record. */
+    if (xmitRecPtr->status == UNUSED_TX || !xmitRecPtr->auth || transNum
+            != xmitRecPtr->transNum || addrFmtToMode[pduInPtr->fmt]
+            != xmitRecPtr->nwDestAddr.addressMode || (pduInPtr->fmt == 1
+            && xmitRecPtr->nwDestAddr.addr.addr1.GroupId != 
+            pduInPtr->data[dataIndex + 8])) {
+        QueueDropHead(&gp->tsaInQ);
+        INCR_STATS(LcsLateAck);
+        return;
+    }
 
-/* Form the reply AuthPDU. */
-pduOutPtr->fmt = pduInPtr->fmt;
+    if (QueueFull(nwQueuePtr)) {
+        /* No Space to send reply anyway. Come back later. */
+        return;
+    }
+    nwSendParamPtr = QueueTail(nwQueuePtr);
+    pduOutPtr = (AuthPDU *) (nwSendParamPtr + 1);
 
-if (pduInPtr->fmt == 1) {
-    pduOutPtr->data[dataIndex + 8] = pduInPtr->data[dataIndex + 8];
-    nwSendParamPtr->pduSize = 10;
-} else {
-    nwSendParamPtr->pduSize = 9;
-}
+    // If we are not using the alternate key, then fill it in from the domain
+    if (!xmitRecPtr->altKey.altKey) {
+        int i;
+        int domIdx = useOma ? 0 : tsaReceiveParamPtr->srcAddr.dmn.domainIndex;
+        for (i = 0; i < 2 && domIdx < 2; i++) {
+            memcpy(xmitRecPtr->altKey.altKeyValue[i], eep->domainTable[domIdx].Key,
+                    sizeof(xmitRecPtr->altKey.altKeyValue));
+            domIdx++;
+        }
+    }
 
-pduOutPtr->pduMsgType = useOma ? REPLY_OMA_MSG : REPLY_MSG;
-if (tsaReceiveParamPtr->version == LsProtocolModeLegacy) 
-{
-    pduOutPtr->transNum = xmitRecPtr->transNum;
-    nwSendParamPtr->version = LsProtocolModeLegacy;
-    dataIndex = 0;
-} 
-else 
-{
-    pduOutPtr->transNum = xmitRecPtr->transNum >> 8;
-    pduOutPtr->data[0] = xmitRecPtr->transNum;
-    nwSendParamPtr->version = LsProtocolModeEnhanced;
-    nwSendParamPtr->pduSize += 1;
-    dataIndex = 1;
-}
-memcpy(&pduOutPtr->data[dataIndex], encryptValue, 8);
-/* Now fill in the NWSendParam structure */
-nwSendParamPtr->dropIfUnconfigured = FALSE; /* Replies are not dropped */
+    // Set up OMA destination address
+    ChallengeOmaDestAddr(&xmitRecPtr->nwDestAddr, &omaDest);
 
-/* Use subnet addressing to send to that node unless we received the challenge with src node 0 from a NID formatted request. */
-if (IZOT_GET_ATTRIBUTE(tsaReceiveParamPtr->srcAddr.subnetAddr, 
-IZOT_RECEIVESN_NODE) == 0 && pduInPtr->fmt == 3) {
-    nwSendParamPtr->destAddr = xmitRecPtr->nwDestAddr;
-} else {
-    nwSendParamPtr->destAddr.addressMode = AM_SUBNET_NODE;
-    nwSendParamPtr->destAddr.addr.addr2a
-            = tsaReceiveParamPtr->srcAddr.subnetAddr;
-}
+    /* First compute the cryptoBytes to be sent. */
 
-nwSendParamPtr->destAddr.dmn.domainIndex
-        = tsaReceiveParamPtr->srcAddr.dmn.domainIndex;
-nwSendParamPtr->pduType = AUTHPDU_TYPE;
-nwSendParamPtr->deltaBL = 0;
-nwSendParamPtr->altPath = tsaReceiveParamPtr->altPath | ALT_CHANNEL_LOCK;
-EnQueue(nwQueuePtr);
-DeQueue(&gp->tsaInQ);
-DBG_vPrintf(TRUE, "SendReply: Sending a reply msg.\n");
-/* Restart the transmit timer. */
-SetLonTimer(&xmitRecPtr->xmitTimer, xmitRecPtr->xmitTimerValue);
-return;
+    Encrypt(randomBytes, xmitRecPtr->apdu, xmitRecPtr->apduSize,
+        (IzotByte*) xmitRecPtr->altKey.altKeyValue, encryptValue, useOma, &omaDest);
+
+    /* Form the reply AuthPDU. */
+    pduOutPtr->fmt = pduInPtr->fmt;
+
+    if (pduInPtr->fmt == 1) {
+        pduOutPtr->data[dataIndex + 8] = pduInPtr->data[dataIndex + 8];
+        nwSendParamPtr->pduSize = 10;
+    } else {
+        nwSendParamPtr->pduSize = 9;
+    }
+
+    pduOutPtr->pduMsgType = useOma ? REPLY_OMA_MSG : REPLY_MSG;
+    if (tsaReceiveParamPtr->version == LsProtocolModeLegacy) {
+        pduOutPtr->transNum = xmitRecPtr->transNum;
+        nwSendParamPtr->version = LsProtocolModeLegacy;
+        dataIndex = 0;
+    } else {
+        pduOutPtr->transNum = xmitRecPtr->transNum >> 8;
+        pduOutPtr->data[0] = xmitRecPtr->transNum;
+        nwSendParamPtr->version = LsProtocolModeEnhanced;
+        nwSendParamPtr->pduSize += 1;
+        dataIndex = 1;
+    }
+    memcpy(&pduOutPtr->data[dataIndex], encryptValue, 8);
+    /* Now fill in the NWSendParam structure */
+    nwSendParamPtr->dropIfUnconfigured = FALSE; /* Replies are not dropped */
+
+    /* Use subnet addressing to send to that node unless we received the challenge with src node 0 from a NID formatted request. */
+    if (IZOT_GET_ATTRIBUTE(tsaReceiveParamPtr->srcAddr.subnetAddr, 
+    IZOT_RECEIVESN_NODE) == 0 && pduInPtr->fmt == 3) {
+        nwSendParamPtr->destAddr = xmitRecPtr->nwDestAddr;
+    } else {
+        nwSendParamPtr->destAddr.addressMode = AM_SUBNET_NODE;
+        nwSendParamPtr->destAddr.addr.addr2a
+                = tsaReceiveParamPtr->srcAddr.subnetAddr;
+    }
+
+    nwSendParamPtr->destAddr.dmn.domainIndex
+            = tsaReceiveParamPtr->srcAddr.dmn.domainIndex;
+    nwSendParamPtr->pduType = AUTHPDU_TYPE;
+    nwSendParamPtr->deltaBL = 0;
+    nwSendParamPtr->altPath = tsaReceiveParamPtr->altPath | ALT_CHANNEL_LOCK;
+    QueueWrite(nwQueuePtr);
+    QueueDropHead(&gp->tsaInQ);
+    OsalPrintDebug(LonStatusNoError, "SendReply: Sending an authentication challenge reply message");
+    /* Restart the transmit timer. */
+    SetLonTimer(&xmitRecPtr->xmitTimer, xmitRecPtr->xmitTimerValue);
+    return;
 }
 
 /*****************************************************************
@@ -3029,138 +2988,134 @@ return;
  challenge sent earlier.
  Comments:  None
  ******************************************************************/
-static void ProcessReply(IzotByte useOma) {
-TSAReceiveParam *tsaReceiveParamPtr; /* Parameter in tsa input queue. */
-AuthPDUPtr pduInPtr; /* Ptr to PDU received. */
-IzotBits16 i;
-IzotByte encryptValue[8];
-IzotByte domainIndex;
-IzotByte authKey[2][IZOT_AUTHENTICATION_KEY_LENGTH];
-OmaAddress omaAddr;
-IzotUbits16 transNum;
-IzotByte cryptoBytes[8] = {0};
-IzotByte dataIndex = 0;
-
-tsaReceiveParamPtr = QueueHead(&gp->tsaInQ);
-pduInPtr = (AuthPDUPtr) (tsaReceiveParamPtr + 1);
-
-if (tsaReceiveParamPtr->version == LsProtocolModeLegacy) 
+static void ProcessReply(IzotByte useOma)
 {
-    transNum = pduInPtr->transNum;
-    dataIndex = 0;
-} 
-else 
-{
-    transNum = (IzotUbits16)(pduInPtr->transNum) << 8 | pduInPtr->data[0];
-    dataIndex = 1;
-}
-memcpy(&cryptoBytes[0], &pduInPtr->data[dataIndex], 8);
+    TSAReceiveParam *tsaReceiveParamPtr; /* Parameter in tsa input queue. */
+    AuthPDUPtr pduInPtr; /* Ptr to PDU received. */
+    IzotBits16 i;
+    IzotByte encryptValue[8];
+    IzotByte domainIndex;
+    IzotByte authKey[2][IZOT_AUTHENTICATION_KEY_LENGTH];
+    OmaAddress omaAddr;
+    IzotUbits16 transNum;
+    IzotByte cryptoBytes[8] = {0};
+    IzotByte dataIndex = 0;
 
-/* If the reply indicates that the original address format is
- multicast, then make sure that the receive record matches
- this group number. Force it so that RetriveRR will do the
- match. */
-tsaReceiveParamPtr->srcAddr.group.GroupId = pduInPtr->data[dataIndex + 8];
+    tsaReceiveParamPtr = QueuePeek(&gp->tsaInQ);
+    pduInPtr = (AuthPDUPtr) (tsaReceiveParamPtr + 1);
 
-/* The address format of the reply will be different from the address
- format of the original message. The original address format is in
- the Reply PDU. Change the addressmode in source address before
- calling RetrieveRR. */
-tsaReceiveParamPtr->srcAddr.addressMode = addrFmtToMode[pduInPtr->fmt];
-
-/* Retrieve the associated record.
-
- If the original address format is broadcast, we don't have
- the subnet number in the current reply(as the reply itself does
- not use broadcast address mode) and hence we can't match
- subnet number. So, we don't support authentication in
- broadcast mode. */
-
-i = RetrieveRR(tsaReceiveParamPtr->srcAddr, tsaReceiveParamPtr->priority);
-
-if (i == -1) {
-    /* We did not find an associated RR. Ignore reply. */
-    DeQueue(&gp->tsaInQ);
-    INCR_STATS(LcsLateAck);
-    return;
-}
-
-/* We have a RR. */
-
-/* Check if we have already authenticated. */
-if (gp->recvRec[i].transState != AUTHENTICATING) {
-    /* Ignore this reply as it is probably a duplicate. */
-    DeQueue(&gp->tsaInQ);
-    return;
-}
-
-/* Check if other things match to make sure that we are
- authenticating the right RR. */
-if (pduInPtr->fmt == 1 && pduInPtr->data[dataIndex + 8] != 
-gp->recvRec[i].srcAddr.group.GroupId) {
-    /* Group in AuthPDU does not match one in RR. */
-    DBG_vPrintf(TRUE, "ProcessReply: Group does not match. Ignore reply.\n");
-    DeQueue(&gp->tsaInQ);
-    return;
-}
-
-if (transNum != gp->recvRec[i].transNum) {
-    /* Transaction Number does not match. Ignore reply. */
-    DBG_vPrintf(TRUE, "ProcessReply: TId does not match. Ignore reply.\n");
-    DeQueue(&gp->tsaInQ);
-    return;
-}
-
-/* Now check if the reply matches our encryption. */
-/* First compute the value of E(range, apdu) */
-
-domainIndex = gp->recvRec[i].srcAddr.dmn.domainIndex;
-
-if (useOma) {
-    memcpy(authKey[0], eep->domainTable[0].Key, sizeof(authKey[0]));
-    memcpy(authKey[1], eep->domainTable[1].Key, sizeof(authKey[1]));
-} else {
-    int domIdx = domainIndex;
-    if (domIdx == FLEX_DOMAIN) {
-        // For flex domain auth with traditional, take the key from the first configured domain.
-        domIdx 
-        = IZOT_GET_ATTRIBUTE(eep->domainTable[0], IZOT_DOMAIN_INVALID) ? 1 : 0;
+    if (tsaReceiveParamPtr->version == LsProtocolModeLegacy) {
+        transNum = pduInPtr->transNum;
+        dataIndex = 0;
+    } else {
+        transNum = (IzotUbits16)(pduInPtr->transNum) << 8 | pduInPtr->data[0];
+        dataIndex = 1;
     }
-    memcpy(authKey[0], eep->domainTable[domIdx].Key, sizeof(authKey[0]));
-}
+    memcpy(&cryptoBytes[0], &pduInPtr->data[dataIndex], 8);
 
-memcpy(&pduInPtr->data[0], &cryptoBytes[0], 8);
-if (pduInPtr->fmt == 1)
-{
-    pduInPtr->data[8] = pduInPtr->data[dataIndex + 8];
-}
-ReplyOmaDestAddr(&gp->recvRec[i].srcAddr, pduInPtr, &omaAddr);
+    /* If the reply indicates that the original address format is
+    multicast, then make sure that the receive record matches
+    this group number. Force it so that RetriveRR will do the
+    match. */
+    tsaReceiveParamPtr->srcAddr.group.GroupId = pduInPtr->data[dataIndex + 8];
 
-Encrypt(gp->recvRec[i].rand, gp->recvRec[i].apdu, gp->recvRec[i].apduSize,
-        (IzotByte*) authKey, encryptValue, useOma, &omaAddr);
+    /* The address format of the reply will be different from the address
+    format of the original message. The original address format is in
+    the Reply PDU. Change the addressmode in source address before
+    calling RetrieveRR. */
+    tsaReceiveParamPtr->srcAddr.addressMode = addrFmtToMode[pduInPtr->fmt];
 
-if (memcmp(encryptValue, cryptoBytes, 8) == 0) {
-    /* Matches */
-    DBG_vPrintf(TRUE, "ProcessReply: Reply matches.\n");
-    gp->recvRec[i].auth = TRUE;
-} else {
-    DBG_vPrintf(TRUE, "ProcessReply: Reply Does not match\n");
-    LCS_RecordError(IzotAuthenticationMismatch);
-    gp->recvRec[i].auth = FALSE;
-}
-gp->recvRec[i].transState = AUTHENTICATED;
+    /* Retrieve the associated record.
 
-/* Deliver the message now to the application layer. */
-Deliver(i);
+    If the original address format is broadcast, we don't have
+    the subnet number in the current reply(as the reply itself does
+    not use broadcast address mode) and hence we can't match
+    subnet number. So, we don't support authentication in
+    broadcast mode. */
 
-/* Send ack message if it is for transport layer and ackd msg. */
-if (gp->recvRec[i].status == TRANSPORT_RR && gp->recvRec[i].serviceType == 
-IzotServiceAcknowledged    && gp->recvRec[i].transState == DELIVERED) {
-    TPSendAck(i);
-}
+    i = RetrieveRR(tsaReceiveParamPtr->srcAddr, tsaReceiveParamPtr->priority);
 
-DeQueue(&gp->tsaInQ);
-return;
+    if (i == -1) {
+        /* We did not find an associated RR. Ignore reply. */
+        QueueDropHead(&gp->tsaInQ);
+        INCR_STATS(LcsLateAck);
+        return;
+    }
+
+    /* We have a RR. */
+
+    /* Check if we have already authenticated. */
+    if (gp->recvRec[i].transState != AUTHENTICATING) {
+        /* Ignore this reply as it is probably a duplicate. */
+        QueueDropHead(&gp->tsaInQ);
+        return;
+    }
+
+    /* Check if other things match to make sure that we are
+    authenticating the right RR. */
+    if (pduInPtr->fmt == 1 && pduInPtr->data[dataIndex + 8] != 
+    gp->recvRec[i].srcAddr.group.GroupId) {
+        /* Group in AuthPDU does not match one in RR. */
+        OsalPrintDebug(LonStatusInvalidMessageAddress, "ProcessReply: Ignoring reply with invalid group");
+        QueueDropHead(&gp->tsaInQ);
+        return;
+    }
+
+    if (transNum != gp->recvRec[i].transNum) {
+        /* Transaction Number does not match. Ignore reply. */
+        OsalPrintDebug(LonStatusTransactionFailure, "ProcessReply: Ignoring reply with invalid transaction number");
+        QueueDropHead(&gp->tsaInQ);
+        return;
+    }
+
+    /* Now check if the reply matches our encryption. */
+    /* First compute the value of E(range, apdu) */
+
+    domainIndex = gp->recvRec[i].srcAddr.dmn.domainIndex;
+
+    if (useOma) {
+        memcpy(authKey[0], eep->domainTable[0].Key, sizeof(authKey[0]));
+        memcpy(authKey[1], eep->domainTable[1].Key, sizeof(authKey[1]));
+    } else {
+        int domIdx = domainIndex;
+        if (domIdx == FLEX_DOMAIN) {
+            // For flex domain auth with traditional, take the key from the first configured domain.
+            domIdx 
+            = IZOT_GET_ATTRIBUTE(eep->domainTable[0], IZOT_DOMAIN_INVALID) ? 1 : 0;
+        }
+        memcpy(authKey[0], eep->domainTable[domIdx].Key, sizeof(authKey[0]));
+    }
+
+    memcpy(&pduInPtr->data[0], &cryptoBytes[0], 8);
+    if (pduInPtr->fmt == 1) {
+        pduInPtr->data[8] = pduInPtr->data[dataIndex + 8];
+    }
+    ReplyOmaDestAddr(&gp->recvRec[i].srcAddr, pduInPtr, &omaAddr);
+
+    Encrypt(gp->recvRec[i].rand, gp->recvRec[i].apdu, gp->recvRec[i].apduSize,
+            (IzotByte*) authKey, encryptValue, useOma, &omaAddr);
+
+    if (memcmp(encryptValue, cryptoBytes, 8) == 0) {
+        /* Matches */
+        OsalPrintDebug(LonStatusNoError, "ProcessReply: Authentication challenge reply matches");
+        gp->recvRec[i].auth = TRUE;
+    } else {
+        OsalPrintError(LonStatusAuthenticationMismatch, "ProcessReply: Authentication failed for message from domain %d", domainIndex);
+        gp->recvRec[i].auth = FALSE;
+    }
+    gp->recvRec[i].transState = AUTHENTICATED;
+
+    /* Deliver the message now to the application layer. */
+    Deliver(i);
+
+    /* Send ack message if it is for transport layer and ackd msg. */
+    if (gp->recvRec[i].status == TRANSPORT_RR && gp->recvRec[i].serviceType == 
+    IzotServiceAcknowledged    && gp->recvRec[i].transState == DELIVERED) {
+        TPSendAck(i);
+    }
+
+    QueueDropHead(&gp->tsaInQ);
+    return;
 }
 
 /*****************************************************************
@@ -3174,57 +3129,55 @@ return;
  ******************************************************************/
 void Encrypt(IzotByte randIn[], APDU *apduIn, IzotUbits16 apduSizeIn, 
 IzotByte *pKey,    IzotByte encryptValueOut[], IzotByte isOma, 
-OmaAddress* pOmaDest) {
-Int8om i, j, k;
-IzotByte m, n;
-IzotByte *apduBytes = (IzotByte*) &apduIn->code;
-IzotUbits16 apduSize = apduSizeIn;
+OmaAddress* pOmaDest)
+{
+    int16_t i, j, k;
+    IzotByte m, n;
+    IzotByte *apduBytes = (IzotByte*) &apduIn->code;
+    IzotUbits16 apduSize = apduSizeIn;
 
-IzotByte omaBuffer[MAX_DATA_SIZE + sizeof(OmaAddress)];
-int keyLength;
-int keyIterations; // Number of iterations over the key bytes.
-// For classic keys, this is the same as
-// the key length, but for OMA, its 1 1/2 times
-// the key length - byte 0-11 followed by 0-5.
+    IzotByte omaBuffer[MAX_DATA_SIZE + sizeof(OmaAddress)];
+    int keyLength;
+    int keyIterations; // Number of iterations over the key bytes.
+    // For classic keys, this is the same as
+    // the key length, but for OMA, its 1 1/2 times
+    // the key length - byte 0-11 followed by 0-5.
 
-if (isOma) {
-    // Include OMA destination data with the message data.
-    memcpy(omaBuffer, pOmaDest, sizeof(OmaAddress));
-    memcpy(&omaBuffer[sizeof(OmaAddress)], apduBytes, apduSize);
-    apduBytes = omaBuffer;
-    apduSize += sizeof(OmaAddress);
-    keyLength = OMA_KEY_LEN;
-    keyIterations = OMA_KEY_LEN + OMA_KEY_LEN / 2;
-} else {
-    keyLength = IZOT_AUTHENTICATION_KEY_LENGTH;
-    keyIterations = keyLength; // Once over the entire key.
-}
+    if (isOma) {
+        // Include OMA destination data with the message data.
+        memcpy(omaBuffer, pOmaDest, sizeof(OmaAddress));
+        memcpy(&omaBuffer[sizeof(OmaAddress)], apduBytes, apduSize);
+        apduBytes = omaBuffer;
+        apduSize += sizeof(OmaAddress);
+        keyLength = OMA_KEY_LEN;
+        keyIterations = OMA_KEY_LEN + OMA_KEY_LEN / 2;
+    } else {
+        keyLength = IZOT_AUTHENTICATION_KEY_LENGTH;
+        keyIterations = keyLength; // Once over the entire key.
+    }
 
-for (i = 0; i < 8; i++) {
-    encryptValueOut[i] = randIn[i];
-}
+    for (i = 0; i < 8; i++) {
+        encryptValueOut[i] = randIn[i];
+    }
 
-while (apduSize > 0) {
-    for (i = 0; i < keyIterations; i++) {
-        for (j = 7; j >= 0; j--) {
-            k = (j + 1) % 8;
-            if (apduSize > 0) {
-                m = apduBytes[--apduSize];
-            } else {
-                m = 0;
-            }
-            n = ~(encryptValueOut[j] + j);
-            if (pKey[i % keyLength] & (1 << (7 - j))) {
-                encryptValueOut[j] = encryptValueOut[k] + m + ((n << 1) + (n
-                        >> 7));
-            } else {
-                encryptValueOut[j] = encryptValueOut[k] + m - ((n >> 1) + (n
-                        << 7));
+    while (apduSize > 0) {
+        for (i = 0; i < keyIterations; i++) {
+            for (j = 7; j >= 0; j--) {
+                k = (j + 1) % 8;
+                if (apduSize > 0) {
+                    m = apduBytes[--apduSize];
+                } else {
+                    m = 0;
+                }
+                n = ~(encryptValueOut[j] + j);
+                if (pKey[i % keyLength] & (1 << (7 - j))) {
+                    encryptValueOut[j] = encryptValueOut[k] + m + ((n << 1) + (n
+                            >> 7));
+                } else {
+                    encryptValueOut[j] = encryptValueOut[k] + m - ((n >> 1) + (n
+                            << 7));
+                }
             }
         }
     }
 }
-
-}
-
-/*------------------------End of tsa.c------------------------*/

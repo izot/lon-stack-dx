@@ -1,34 +1,22 @@
-//
-// lcs_queue.h
-//
-// Copyright (C) 2022 EnOcean
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy of
-// this software and associated documentation files (the "Software"), to deal in 
-// the Software without restriction, including without limitation the rights to
-// use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-// of the Software, and to permit persons to whom the Software is furnished to do
-// so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
-
-/*********************************************************************
-       Purpose:        Handle queue operations. Use a dynamic array
-                       for circular implementation of a queue.
-                       Choose the size of a queue item and the queue
-                       capacity when the queue is created. It is
-                       up to the user of the queue to interpret
-                       the contents of the queue item.
-*********************************************************************/
+/*
+ * lcs_queue.h
+ *
+ * Copyright (c) 2022-2025 EnOcean
+ * SPDX-License-Identifier: MIT
+ * See LICENSE file for details.
+ * 
+ * Title:   Queue and Ring Buffer Operations
+ * Purpose: Defines functions to handle queue and ring buffer operations.
+ * Notes:   This module provides a simple queue and ring buffer implementation
+ *          using dynamic memory allocation. Queues are used for storing items
+ *          of fixed size, while ring buffers are used for byte streams.
+ *          Both data structures support basic operations such as
+ *          initialization, adding/removing items, and querying size/capacity.
+ *          For queues, the user must specify the size of each item and the
+ *          total capacity when initializing.  For ring buffers, the user 
+ *          specifies the total byte capacity.  The data storage for both 
+ *          structures is allocated within the initialization functions.
+ */
 
 #ifndef _LCS_QUEUE_H
 #define _LCS_QUEUE_H
@@ -38,49 +26,150 @@
 
 #include "izot/IzotPlatform.h"
 #include "izot/IzotApi.h"
-#include "izot/IzotTypes.h"
+#include "izot/lon_types.h"
 #include "lcs/lcs_eia709_1.h"   /* To get Byte, Boolean & Status         */
 #include "lcs/lcs_timer.h"      /* For LonTimer required by lcs_node.h   */
-#include "lcs/lcs_node.h"       /* To get AllocateStorage.               */
 
+// Maximum static capacity for any RingBuffer instance. Can be overridden
+// before including this header (e.g., via compiler flag) if larger bursts are needed.
+#ifndef RING_BUFFER_MAX_CAPACITY
+#define RING_BUFFER_MAX_CAPACITY 2048
+#endif
 
-/*-------------------------------------------------------------------
-  Section: Function Prototypes
-  -------------------------------------------------------------------*/
-/* QueueSize returns the current size of the queue. */
-IzotUbits16    QueueSize(Queue *qInp);
+typedef struct RingBuffer {
+    size_t   size;      // active capacity in bytes (<= RING_BUFFER_MAX_CAPACITY)
+    size_t   head;      // write position
+    size_t   tail;      // read position
+    size_t   count;     // bytes currently stored
+    uint8_t  data[RING_BUFFER_MAX_CAPACITY]; // internal storage
+} RingBuffer;
 
-/* QueueCnt returns the capacity (i.e max items) of the queue. */
-IzotUbits16    QueueCnt(Queue *qInp);
+/*****************************************************************
+ * Section: Queue Operations Function Declarations
+ *****************************************************************/
+/*
+ * Initializes a queue with the specified capacity and entry size.
+ * Parameters:
+ *   queue_out: Pointer to the queue to initialize.
+ *   entry_size: Size of each entry in the queue in bytes.
+ *   queue_capacity: Capacity of the queue in entries.
+ * Returns:
+ *   LonStatusNoError if successful; LonStatusCode error code if unsuccessful.
+ * Notes:
+ *  The data storage for the queue is allocated within this function.
+ *  After allocating the storage, the head and tail pointers are
+ *  initialized to point to the start of the data storage, the
+ *  queue size is initialized to zero, and the entry size is stored.
+ */
+LonStatusCode QueueInit(Queue *queue_out, size_t entry_size, size_t queue_capacity);
 
-/* QueueItemSize returns the size of each item in the queue. */
-IzotUbits16    QueueItemSize(Queue *qInp);
+/* 
+ * Returns the current size of a queue.
+ * Parameters:
+ *   queue_in: Pointer to the queue.
+ * Returns:
+ *   The current size (# of items) of the queue.
+ */
+size_t QueueSize(Queue *queue_in);
+
+/* QueueCapacity returns the capacity (i.e max items) of the queue. */
+size_t QueueCapacity(Queue *queue_in);
+
+/* QueueEntrySize returns the size of each item in the queue. */
+size_t QueueEntrySize(Queue *queue_in);
 
 /* QueueFull returns TRUE if the queue is full and FALSE otherwise. */
-IzotByte   QueueFull(Queue *qInp);
+IzotBool QueueFull(Queue *queue_in);
 
 /* QueueEmpty returns TRUE if the queue is empty and FALSE else. */
-IzotByte   QueueEmpty(Queue *qInp);
+IzotBool QueueEmpty(Queue *queue_in);
 
-/* DeQueue removes an item (i.e advances head) from the queue. */
-void      DeQueue(Queue *qInOut);
+/* QueueDropHead removes an item (i.e advances head) from the queue. */
+void QueueDropHead(Queue *queue_in_out);
 
 /* Enqueue adds an item (i.e advances tail) to queue. */
-void      EnQueue(Queue *qInOut);
+void QueueWrite(Queue *queue_in_out);
 
-/* QueueHead returns the pointer to the head of the queue so that
+/* QueuePeek returns the pointer to the head of the queue so that
    client can examine the queue's first item without actually
-   removing it. If needed it can be removed with DeQueue. */
-void     *QueueHead(Queue *qInp);
+   removing it. If needed it can be removed with QueueDropHead. */
+void *QueuePeek(Queue *queue_in);
 
 /* QueueTail returns the pointer to the tail of the queue (i.e free
    space) so that a new item can be formed directly in the queue
-   before calling EnQueue. It is important to make sure that the
+   before calling QueueWrite. It is important to make sure that the
    Queue is not Full before filling an item. */
-void     *QueueTail(Queue *qInp);
+void *QueueTail(Queue *queue_in);
 
-/* QueueInit is used to initialize a queue. Client specifies the
-   size of each item in queue and the count (capacity) of queue. */
-Status    QueueInit(Queue *qOut, IzotUbits16 itemSize, IzotUbits16 qCnt);
+/*****************************************************************
+ * Section: Ring Buffer Operations Function Declarations
+ *****************************************************************/
+/*
+ * Initializes a ring buffer with the specified capacity.
+ * Parameters:
+ *   rb: Pointer to the ring buffer to initialize.
+ *   capacity: Capacity of the ring buffer in bytes.
+ * Returns:
+ *   LonStatusNoError if successful; LonStatusCode error code if unsuccessful.
+ */
+LonStatusCode RingBufferInit(RingBuffer *rb, size_t capacity);
+
+/*
+ * Returns the available space in a ring buffer.
+ * Parameters:
+ *   rb: Pointer to the ring buffer.
+ * Returns:
+ *   Number of bytes available for writing.
+ */
+size_t RingBufferAvail(const RingBuffer *rb);
+
+/*
+ * Returns the number of bytes currently stored in a ring buffer.
+ * Parameters:
+ *   rb: Pointer to the ring buffer.
+ * Returns:
+ *   Number of bytes currently stored.
+ */
+size_t RingBufferSize(const RingBuffer *rb);
+
+/*
+ * Clears a ring buffer, removing all stored data.
+ * Parameters:
+ *   rb: Pointer to the ring buffer.
+ */
+void RingBufferClear(RingBuffer *rb);
+
+/*
+ * Writes data to a ring buffer.
+ * Parameters:
+ *   rb: Pointer to the ring buffer.
+ *   src: Pointer to the source data buffer.
+ *   len: Number of bytes to write.
+ * Returns:
+ *   Number of bytes actually written.
+ */
+size_t RingBufferWrite(RingBuffer *rb, const uint8_t *src, size_t len);
+
+/*
+ * Peeks data from a ring buffer without removing it.
+ * Parameters:
+ *   rb: Pointer to the ring buffer.
+ *   dst: Pointer to the destination data buffer.
+ *   len: Number of bytes to peek.
+ * Returns:
+ *   Number of bytes actually peeked.
+ */
+size_t RingBufferPeek(const RingBuffer *rb, uint8_t *dst, size_t len);
+
+/*
+ * Reads data from the ring buffer, removing it.
+ * Parameters:
+ *   rb: Pointer to the ring buffer.
+ *   dst: Pointer to the destination data buffer.
+ *   len: Number of bytes to read.
+ * Returns:
+ *   Number of bytes actually read.
+ */
+size_t RingBufferRead(RingBuffer *rb, uint8_t *dst, size_t len);
 
 #endif  // _LCS_QUEUE_H

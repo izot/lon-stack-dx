@@ -1,223 +1,336 @@
-//
-// lcs_queue.c
-//
-// Copyright (C) 2022 EnOcean
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy of
-// this software and associated documentation files (the "Software"), to deal in 
-// the Software without restriction, including without limitation the rights to
-// use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-// of the Software, and to permit persons to whom the Software is furnished to do
-// so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
+/*
+ * lcs_queue.c
+ *
+ * Copyright (c) 2022-2025 EnOcean
+ * SPDX-License-Identifier: MIT
+ * See LICENSE file for details.
+ * 
+ * Title:   Queue and Ring Buffer Operations
+ * Purpose: Defines functions to handle queue and ring buffer operations.
+ * Notes:   This module provides a simple queue and ring buffer implementation
+ *          using dynamic memory allocation. Queues are used for storing items
+ *          of fixed size, while ring buffers are used for byte streams.
+ *          Both data structures support basic operations such as
+ *          initialization, adding/removing items, and querying size/capacity.
+ *          For queues, the user must specify the size of each item and the
+ *          total capacity when initializing.  For ring buffers, the user 
+ *          specifies the total byte capacity.  The data storage for both 
+ *          structures is allocated within the initialization functions.
+ */
 
-/*********************************************************************
-       Purpose:        Handle queue operations. See queue.h for
-                       details of these operations.
-*********************************************************************/
-
-/*------------------------------------------------------------------------------
-  Section: Includes
-  ------------------------------------------------------------------------------*/
 #include "lcs/lcs_queue.h"
 
-/*-------------------------------------------------------------------
-  Section: Constant Definitions
-  -------------------------------------------------------------------*/
-
-/*-------------------------------------------------------------------
-  Section: Type Definitions
-  -------------------------------------------------------------------*/
-
-/*-------------------------------------------------------------------
-  Section: Globals
-  -------------------------------------------------------------------*/
-
-/*-------------------------------------------------------------------
-  Section: Local Function Prototypes
-  -------------------------------------------------------------------*/
-
-/*-------------------------------------------------------------------
-  Section: Function Definitions
-  -------------------------------------------------------------------*/
-
 /*****************************************************************
-Function:  QueueSize
-Returns:   The current size (# of items) of the queue.
-Reference: None
-Purpose:   To determine the number of items currently in queue.
-Comments:  None
-******************************************************************/
-IzotUbits16 QueueSize(Queue *qInp)
+ * Section: Queue Function Definitions
+ *****************************************************************/
+/*
+ * Initializes a queue with the specified capacity and entry size.
+ * Parameters:
+ *   queue_out: Pointer to the queue to initialize.
+ *   entry_size: Size of each entry in the queue in bytes.
+ *   queue_capacity: Capacity of the queue in entries.
+ * Returns:
+ *   LonStatusNoError if successful; LonStatusCode error code if unsuccessful.
+ * Notes:
+ *  The data storage for the queue is allocated within this function.
+ *  After allocating the storage, the head and tail pointers are
+ *  initialized to point to the start of the data storage, the
+ *  queue size is initialized to zero, and the entry size is stored.
+ */
+LonStatusCode QueueInit(Queue *queue_out, size_t entry_size, size_t queue_capacity)
 {
-    return(qInp->queueSize);
+    queue_out->itemSize  = entry_size;
+    queue_out->queueCnt  = queue_capacity;
+
+    queue_out->data = OsalAllocateMemory((size_t)(entry_size * queue_capacity));
+
+    if (queue_out->data == NULL) {
+        return(LonStatusNoMemoryAvailable);
+    }
+
+    // Initialize other fields
+    queue_out->head      = queue_out->data;
+    queue_out->tail      = queue_out->data;
+    queue_out->queueSize = 0;
+
+    return(LonStatusNoError);
 }
 
-/*****************************************************************
-Function:  QueueCnt
-Returns:   The capacity of the queue.
-Reference: None
-Purpose:   To get the max # of items that can be stored in queue.
-Comments:  None
-******************************************************************/
-IzotUbits16 QueueCnt(Queue *qInp)
+/*
+ * Returns the capacity (max items) of a queue.
+ * Parameters:
+ *   queue_in: Pointer to the queue.
+ * Returns:
+ *   The capacity (max # of items) of the queue.
+ */
+size_t QueueCapacity(Queue *queue_in)
 {
-    return(qInp->queueCnt);
+    return(queue_in->queueCnt);
 }
 
-/*****************************************************************
-Function:  QueueItemSize
-Returns:   The size of each item in the queue.
-Reference: None
-Purpose:   To get the size of items in the queue.
-Comments:  None
-******************************************************************/
-IzotUbits16  QueueItemSize(Queue *qInp)
+/*
+ * Returns the available space in a queue.
+ * Parameters:
+ *   queue_in: Pointer to the queue.
+ * Returns:
+ *   Number of queue entries available for writing.
+ */
+size_t QueueAvail(Queue *queue_in)
 {
-    return(qInp->itemSize);
+    return(queue_in->queueCnt - queue_in->queueSize);
 }
 
-/*****************************************************************
-Function:  QueueFull
-Returns:   TRUE if the queue is full, FALSE otherwise
-Reference: None
-Purpose:   To check whether the queue is full or not.
-Comments:  None
-******************************************************************/
-IzotByte QueueFull(Queue *qInp)
+/* 
+ * Returns the current size (# of items) of a queue.
+ * Parameters:
+ *   queue_in: Pointer to the queue.
+ * Returns:
+ *   The current size (# of items) of the queue.
+ */
+size_t QueueSize(Queue *queue_in)
 {
-    return(qInp->queueCnt == qInp->queueSize);
+    return(queue_in->queueSize);
 }
 
-/*****************************************************************
-Function:  QueueEmpty
-Returns:   TRUE if the queue is empty, FALSE otherwise
-Reference: None
-Purpose:   To check whether a queue is empty or not.
-Comments:  None
-******************************************************************/
-IzotByte QueueEmpty(Queue *qInp)
+/*
+ * Returns TRUE if the specified queue is full, FALSE otherwise.
+ * Parameters:
+ *   queue_in: Pointer to the queue.
+ * Returns:
+ *   TRUE if the queue is full, FALSE otherwise.
+ */
+IzotBool QueueFull(Queue *queue_in)
 {
-    return(qInp->queueSize == 0);
+    return(queue_in->queueCnt == queue_in->queueSize);
 }
 
-/*****************************************************************
-Function:  DeQueue
-Returns:   None
-Reference: None
-Purpose:   To remove an item from the queue.
-Comments:  If the queue is empty, an error message is printed and
-           nothing is done on the queue.
-******************************************************************/
-void DeQueue(Queue *qInOut)
+/*
+ * Returns TRUE if the specified queue is empty, FALSE otherwise.
+ * Parameters:
+ *   queue_in: Pointer to the queue.
+ * Returns:
+ *   TRUE if the queue is empty, FALSE otherwise.   
+ */
+IzotBool QueueEmpty(Queue *queue_in)
 {
-    if (qInOut->queueSize == 0)
-    {
-        DBG_vPrintf(TRUE, "DeQueue: Queue is empty.\n");
+    return(queue_in->queueSize == 0);
+}
+
+/*
+ * Returns the size of each entry in a queue.
+ * Parameters:
+ *   queue_in: Pointer to the queue.
+ * Returns:
+ *   The size of each entry in the queue.
+ */
+size_t QueueEntrySize(Queue *queue_in)
+{
+    return(queue_in->itemSize);
+}
+
+/*
+ * Removes an entry from the head of the specified queue.
+ * Parameters:
+ *   queue_in_out: Pointer to the queue.
+ * Returns:
+ *   None.
+ * Notes:
+ *   An error message is logged and nothing is done if the queue is empty.
+ */
+void QueueDropHead(Queue *queue_in_out)
+{
+    if (queue_in_out->queueSize == 0) {
+        OsalPrintDebug(LonStatusNoError, "QueueDropHead: Queue is empty");
         return;
     }
-    qInOut->queueSize--;
-    qInOut->head = qInOut->head + qInOut->itemSize;
-    /* Wrap around if the ptr goes past the array */
-    if (qInOut->head ==
-            (qInOut->data + qInOut->itemSize * qInOut->queueCnt))
-    {
-        qInOut->head = qInOut->data;
+    queue_in_out->queueSize--;
+    queue_in_out->head = queue_in_out->head + queue_in_out->itemSize;
+    // Wrap around if the ptr goes past the array
+    if (queue_in_out->head ==
+            (queue_in_out->data + queue_in_out->itemSize * queue_in_out->queueCnt)) {
+        queue_in_out->head = queue_in_out->data;
     }
 }
 
-/*****************************************************************
-Function:  EnQueue
-Returns:   None
-Reference: None
-Purpose:   To add an item to the queue.
-Comments:  The item added is directly placed in queue before calling
-           this function. Thus, this function does not handle the item.
-           If the queue is full, then an error message is printed
-           and nothing is done.
-******************************************************************/
-void EnQueue(Queue *qInOut)
+/*
+ *  Adds an entry to the specified queue.
+ *  Parameters:
+ *    queue_in_out: Pointer to the queue.
+ *  Returns:
+ *    None.
+ *  Notes:
+ *    The entry to be added must already be placed in the queue entry
+ *    before calling this function.  The entry is written to the tail
+ *    of the queue.  If the queue is full, no entry is added and an 
+ *    error message is logged.
+ */
+void QueueWrite(Queue *queue_in_out)
 {
-    if (qInOut->queueSize == qInOut->queueCnt)
-    {
-    	DBG_vPrintf(TRUE, "EnQueue: Queue is full.\n");
+    if (queue_in_out->queueSize == queue_in_out->queueCnt) {
+    	OsalPrintError(LonStatusNoBufferAvailable, "QueueWrite: Queue is full");
         return;
     }
-    qInOut->queueSize++;
-    qInOut->tail = qInOut->tail + qInOut->itemSize;
-    /* Wrap around if the ptr goes past the array. */
-    if (qInOut->tail ==
-            (qInOut->data + qInOut->itemSize * qInOut->queueCnt))
-    {
-        qInOut->tail = qInOut->data;
+    queue_in_out->queueSize++;
+    queue_in_out->tail = queue_in_out->tail + queue_in_out->itemSize;
+    // Wrap around if the ptr goes past the array
+    if (queue_in_out->tail ==
+            (queue_in_out->data + queue_in_out->itemSize * queue_in_out->queueCnt)) {
+        queue_in_out->tail = queue_in_out->data;
     }
 
 }
 
-/*****************************************************************
-Function:  QueueHead
-Returns:   The ptr to the head of the queue.
-Reference: None
-Purpose:   To access the head of the queue directly from queue.
-           Clients can examine the item directly from queue without
-           removing it first.
-Comments:  None
-******************************************************************/
-void *QueueHead(Queue *qInp)
+/*
+ * Returns a pointer to the head (next out) of the specified queue.
+ * Parameters:
+ *   queue_in: Pointer to the queue.
+ * Returns:
+ *   A pointer to the head of the queue is returned without
+ *   modifying the queue.
+ */
+void *QueuePeek(Queue *queue_in)
 {
-    return(qInp->head);
+    return(queue_in->head);
+}
+
+/*
+ * Returns a pointer to the tail (next in) of the specified queue.
+ * Parameters:
+ *   queue_in: Pointer to the queue.
+ * Returns:
+ *   A pointer to the tail (next in) of the queue is returned without
+ *   modifying the queue.
+ */
+void *QueueTail(Queue *queue_in)
+{
+    return(queue_in->tail);
 }
 
 /*****************************************************************
-Function:  QueueTail
-Returns:   The ptr to the head of the queue.
-Reference: None
-Purpose:   To access the tail of the queue. The returned pointer
-           can be used by the client to form the new item
-           in the queue directly. Client should make sure that the
-           queue is not full before filling the new item.
-Comments:  None
-******************************************************************/
-void *QueueTail(Queue *qInp)
+ * Section: Ring Buffer Function Definitions
+ *****************************************************************/
+/*
+ * Initializes a ring buffer with the specified capacity.
+ * Parameters:
+ *   rb: Pointer to the ring buffer to initialize.
+ *   capacity: Capacity of the ring buffer in bytes.
+ * Returns:
+ *   LonStatusNoError if successful; LonStatusCode error code if unsuccessful.
+ */
+LonStatusCode RingBufferInit(RingBuffer *rb, size_t capacity)
 {
-    return(qInp->tail);
+    if (!rb || capacity == 0) return LonStatusInvalidParameter;
+    if (capacity > RING_BUFFER_MAX_CAPACITY) return LonStatusInvalidParameter;
+    rb->size = capacity;
+    rb->head = rb->tail = rb->count = 0;
+    return LonStatusNoError;
 }
 
-/*****************************************************************
-Function:  QueueInit
-Returns:   Status the operation: SUCCESS or FAILURE
-Reference: None
-Purpose:   To initialize the queue by allocating storage for data
-           and recording the item size and cnt values (capacity).
-Comments:  None
-******************************************************************/
-Status QueueInit(Queue *qOut, IzotUbits16 itemSizeIn, IzotUbits16 qCntIn)
+/*
+ * Returns the available space in a ring buffer.
+ * Parameters:
+ *   rb: Pointer to the ring buffer.
+ * Returns:
+ *   Number of free bytes available for writing.
+ */
+size_t RingBufferAvail(const RingBuffer *rb)
 {
-    qOut->itemSize  = itemSizeIn;
-    qOut->queueCnt  = qCntIn;
+    return rb ? (rb->size - rb->count) : 0;
+}
 
-    qOut->data = AllocateStorage((IzotUbits16)(itemSizeIn * qCntIn));
-    if (qOut->data == NULL)
-    {
-        return(FAILURE);
+/*
+ * Returns the number of bytes currently stored in a ring buffer.
+ * Parameters:
+ *   rb: Pointer to the ring buffer.
+ * Returns:
+ *   Number of bytes currently stored.
+ */
+size_t RingBufferSize(const RingBuffer *rb)
+{
+    return rb ? rb->count : 0;
+}
+
+/*
+ * Clears a ring buffer, resetting head, tail, and count.
+ * Parameters:
+ *   rb: Pointer to the ring buffer.
+ * Returns:
+ *   None
+ */
+void RingBufferClear(RingBuffer *rb)
+{
+    if (rb) {
+        rb->head = rb->tail = rb->count = 0;
     }
-
-    /* Initialize other fields */
-    qOut->head      = qOut->data;
-    qOut->tail      = qOut->data;
-    qOut->queueSize = 0;
-
-    return(SUCCESS);
 }
 
-/*************************End of queue.c***************************/
+/*
+ * Writes data to a ring buffer.
+ * Parameters:
+ *   rb: Pointer to the ring buffer.
+ *   src: Pointer to the source data buffer.
+ *   len: Number of bytes to write.
+ * Returns:
+ *   Number of bytes actually written.
+ */
+size_t RingBufferWrite(RingBuffer *rb, const uint8_t *src, size_t len)
+{
+    if (!rb || !src || len == 0) return 0;
+    size_t space = RingBufferAvail(rb);
+    size_t to_write = (len > space) ? space : len;
+    size_t written = 0;
+    while (written < to_write) {
+        size_t space_end = rb->size - rb->head;
+        size_t chunk = to_write - written;
+        if (chunk > space_end) chunk = space_end;
+        memcpy(&rb->data[rb->head], src + written, chunk);
+        rb->head = (rb->head + chunk) % rb->size;
+        rb->count += chunk;
+        written += chunk;
+    }
+    return written;
+}
+
+/*
+ * Peeks data from a ring buffer without removing it.
+ * Parameters:
+ *   rb: Pointer to the ring buffer.
+ *   dst: Pointer to the destination data buffer.
+ *   len: Number of bytes to peek.
+ * Returns:
+ *   Number of bytes actually peeked.
+ */
+size_t RingBufferPeek(const RingBuffer *rb, uint8_t *dst, size_t len)
+{
+    if (!rb || !dst || len == 0) return 0;
+    size_t to_read = (len > rb->count) ? rb->count : len;
+    size_t read = 0;
+    size_t tail = rb->tail;
+    while (read < to_read) {
+        size_t avail_end = rb->size - tail;
+        size_t chunk = to_read - read;
+        if (chunk > avail_end) chunk = avail_end;
+        memcpy(dst + read, &rb->data[tail], chunk);
+        tail = (tail + chunk) % rb->size;
+        read += chunk;
+    }
+    return read;
+}
+
+/*
+ * Reads data from the ring buffer, removing it.
+ * Parameters:
+ *   rb: Pointer to the ring buffer.
+ *   dst: Pointer to the destination data buffer.
+ *   len: Number of bytes to read.
+ * Returns:
+ *   Number of bytes actually read.
+ */
+size_t RingBufferRead(RingBuffer *rb, uint8_t *dst, size_t len)
+{
+    if (!rb || !dst || len == 0) return 0;
+    size_t got = RingBufferPeek(rb, dst, len);
+    rb->tail = (rb->tail + got) % rb->size;
+    rb->count -= got;
+    return got;
+}

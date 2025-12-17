@@ -1,0 +1,35 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug Example1 on Raspberry Pi (gdbserver)",
+      "type": "cppdbg",
+      "request": "launch",
+      "MIMode": "gdb",
+      "miDebuggerPath": "/opt/homebrew/bin/aarch64-linux-gnu-gdb",
+      "program": "${workspaceFolder}/build/arm64/lon_stack_example1",
+      "args": [],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}",
+      "environment": [],
+      "externalConsole": false,
+      "preLaunchTask": "Start gdbserver on Raspberry Pi (Example1)",
+      "miDebuggerServerAddress": "${input:piHost}:2345",
+      "setupCommands": [
+        {
+          "description": "Enable pretty-printing",
+          "text": "-enable-pretty-printing",
+          "ignoreFailures": true
+        }
+      ]
+    }
+  ],
+  "inputs": [
+    {
+      "id": "piHost",
+      "type": "promptString",
+      "description": "Raspberry Pi host (hostname or IP)",
+      "default": "raspberrypi.local"
+    }
+  ]
+}

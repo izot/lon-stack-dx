@@ -1,5 +1,5 @@
 /*
- * IzotTypes.h
+ * lon_types.h
  *
  * Copyright (c) 2023-2025 EnOcean
  * SPDX-License-Identifier: MIT
@@ -13,57 +13,11 @@
 #define _IZOT_TYPES_H
 
 #include "izot/IzotPlatform.h"
-#include "izot/IapTypes.h"       // IAP type definitions
-
-// System and LON protocol stack error codes logged in the LON stack error log.
-// The codes can be accessed using the Query Status network management command.
-// The standard system errors range above value 128. Values between 1 and 128
-// are application-specific (but serious) errors. Values used by the LON
-// stack are also included in the <IzotSystemError> enumeration.  The standard
-// system error codes are described in the ISO/IEC 14908-1 protocol standard.
-typedef IZOT_ENUM_BEGIN(IzotSystemError) {
-    /*   0 */ IzotNoError                       = 0,
-    /* 129 */ IzotBadEvent                      = 129u,
-    /* 130 */ IzotDatapointLengthMismatch       = 130u,
-    /* 131 */ IzotDatapointMsgTooShort          = 131u,
-    /* 132 */ IzotEepromWriteFail               = 132u,
-    /* 133 */ IzotBadAddressType                = 133u,
-    /* 134 */ IzotPreemptionModeTimeout         = 134u,
-    /* 135 */ IzotAlreadyPreempted              = 135u,
-    /* 136 */ IzotSyncDatapointUpdateLost       = 136u,
-    /* 137 */ IzotInvalidRespAlloc              = 137u,
-    /* 138 */ IzotInvalidDomain                 = 138u,
-    /* 139 */ IzotReadPastEndOfMsg              = 139u,
-    /* 140 */ IzotWritePastEndOfMsg             = 140u,
-    /* 141 */ IzotInvalidAddrTableIndex         = 141u,
-    /* 142 */ IzotIncompleteMsg                 = 142u,
-    /* 143 */ IzotDatapointUpdateOnOutput       = 143u,
-    /* 144 */ IzotNoMsgAvail                    = 144u,
-    /* 145 */ IzotIllegalSend                   = 145u,
-    /* 146 */ IzotUnknownPdu                    = 146u,
-    /* 147 */ IzotInvalidDatapointIndex         = 147u,
-    /* 148 */ IzotDivideByZero                  = 148u,
-    /* 149 */ IzotInvalidApplError              = 149u,
-    /* 150 */ IzotMemoryAllocFailure            = 150u,
-    /* 151 */ IzotWritePastEndOfNetBuffer       = 151u,
-    /* 152 */ IzotApplCheckSumError             = 152u,
-    /* 153 */ IzotCnfgCheckSumError             = 153u,
-    /* 154 */ IzotInvalidXcvrRegAddr            = 154u,
-    /* 155 */ IzotXcvrRegTimeout                = 155u,
-    /* 156 */ IzotWritePastEndOfApplBuffer      = 156u,
-    /* 157 */ IzotIoReady                       = 157u,
-    /* 158 */ IzotSelfTestFailed                = 158u,
-    /* 159 */ IzotSubnetRouter                  = 159u,
-    /* 160 */ IzotAuthenticationMismatch        = 160u,
-    /* 161 */ IzotSeltInstSemaphoreSet          = 161u,
-    /* 162 */ IzotReadWriteSemaphoreSet         = 162u,
-    /* 163 */ IzotApplSignatureBad              = 163u,
-    /* 164 */ IzotRouterFirmwareVersionMismatch = 164u
-} IZOT_ENUM_END(IzotSystemError);
+#include "izot/iap_types.h"       // IAP type definitions
 
 // Return status codes
 typedef enum {
-    LonStatusNoError                        = 0,    // No error; used by the IZOT_SUCCESS macro
+    LonStatusNoError                        = 0,    // No error; used by the LON_SUCCESS macro
 
     // Original LDV codes
     LonStatusNotFound						= 1,
@@ -96,7 +50,7 @@ typedef enum {
     LonStatusInvalidDeviceInfo				= 24,
     LonStatusDeviceInUse					= 25,
     LonStatusNotImplemented					= 26,
-    LonStatusInavlidParameter				= 27,
+    LonStatusInvalidParameter				= 27,   // Invalid parameter specified
     LonStatusInvalidDriverId				= 28,
     LonStatusInvalidDataFormat				= 29,
     LonStatusInternalError					= 30,
@@ -117,29 +71,33 @@ typedef enum {
     LonStatusAppBufferSizeMismatchWarning	= 46,	// Application buffer input-output size mismatch may cause problems (warning only)
 
     // LON stack codes
-	LonStatusOutOfRange						= 50,
-	LonStatusTimeout						= 51,
-	LonStatusNoMemoryAvailable				= 52,
-	LonStatusUnderflow						= 53,
-	LonStatusOverflow						= 54,
-	LonStatusDataIntegrityError				= 55,
-	LonStatusSecurityViolation				= 56,
-	LonStatusCreateFailure					= 57,
-	LonStatusRemoveFailure					= 58,
-	LonStatusInvalidOperation				= 59,
-	LonStatusInvalidParameter				= 60,   // Invalid parameter specified
-	LonStatusOffline						= 61,   // Operation not supported while device is offline
-	LonStatusChecksumError					= 62,	// Checksum error detected
+	LonStatusOutOfRange						= 47,
+	LonStatusTimeout						= 48,
+	LonStatusNoMemoryAvailable				= 49,
+	LonStatusUnderflow						= 50,
+	LonStatusOverflow						= 51,
+	LonStatusDataIntegrityError				= 52,
+	LonStatusSecurityViolation				= 53,
+	LonStatusCreateFailure					= 54,
+	LonStatusRemoveFailure					= 55,
+	LonStatusInvalidOperation				= 56,
+	LonStatusOffline						= 57,   // Operation not supported while device is offline
+	LonStatusChecksumError					= 58,	// Checksum error detected
+    LonStatusTransactionInProgress			= 59,   // A transaction is already in progress
+    LonStatusTransactionNotAvailable        = 60,   // No transaction available
+    LonStatusTransactionFailure             = 61,   // Transaction failed
+    LonStatusModeChangeFailure              = 62,   // Failed to change mode
+    LonStatusNotConfiguredOnline            = 63,   // Device not configured and online
 
     // OSAL codes
-	LonStatusCriticalSectionError			= 63,	// Generic error accessing a critical section
-	LonStatusSemaphoreError					= 64,	// Generic error creating or accessing a binary semaphore
-	LonStatusEventError						= 65,	// Generic error creating or accessing an event
-	LonStatusTaskCreationError				= 66,	// Failed to create a task
-
+	LonStatusCriticalSectionError			= 64,	// Generic error accessing a critical section
+	LonStatusSemaphoreError					= 65,	// Generic error creating or accessing a binary semaphore
+	LonStatusEventError						= 66,	// Generic error creating or accessing an event
+    LonStatusTaskCreationError				= 67,	// Failed to create a task
+ 
 	// Interoperable Self Installation (ISI) codes
-	IsiNoConnectionSpace					= 67,	// No space for connection
-	IsiEngineNotRunning						= 68,	// ISI engine not running
+	LonStatusNoISIConnectionSpace			= 68,	// No space for ISI connection
+	LonStatusIsiEngineNotRunning			= 69,	// ISI engine not running
 
 	// Datapoint-related codes
 	LonStatusDpIndexInvalid 				= 70,	// Invalid datapoint index
@@ -149,15 +107,20 @@ typedef enum {
 	LonStatusDpPollOutputDatapoint			= 74,   // Cannot poll output datapoint
 	LonStatusInputDpPropagateFailure		= 75,   // Cannot propagate input datapoint
 	LonStatusPolledDpPropagateFailure		= 76,   // Cannot propagate polled datapoint
+    LonStatusOutputDpPropagateFailure		= 77,   // Cannot propagate output datapoint
+    LonStatusNoSpaceInNvTable               = 78,   // No space in NV table for new datapoint
+    LonStatusInvalidNvName                  = 79,   // Invalid network variable name
 
    	// Application message-related codes
 	LonStatusDestinationAddressMissing 		= 80,   // Explicit destination required but missing
 	LonStatusInvalidMessageTag				= 81,   // Invalid message tag provided
-	LonStatusInvalidMessageLength			= 82,   // Message data exceeds limits
-	LonStatusInvalidMessageService			= 83,   // Message cannot be sent as a request
+	LonStatusInvalidMessageLength			= 82,   // Invalid message size
+	LonStatusInvalidMessageService			= 83,   // Invalid message service
 	LonStatusInvalidMessageCode				= 84,   // Invalid message code
 	LonStatusInvalidMessageCorrelator		= 85,   // Invalid message correlator
 	LonStatusInvalidMessageAddress			= 86,   // Invalid message address
+    LonStatusInvalidMessageCommand          = 87,   // Invalid message command
+    LonStatusInvalidMessageMode             = 88,   // Invalid message mode
 
    	// Network interface-related codes
 	LonStatusLniNotDefined					= 89,	// No Network Interface defined. See IzotGetMyNetworkInterface in IzoTHandlers.c
@@ -181,23 +144,37 @@ typedef enum {
 	LonStatusCallbackNotRegistered			= 105,	// Callback function has not been registered
 	LonStatusCallbackExceptionError			= 106,	// An exception when executing a callback function
 	LonStatusUnknownStackDeviceType			= 107,  // Unknown LON stack device type
+    LonStatusProxyFailure                   = 108,  // Proxy operation failed
 
 	// Persistent data management codes
-	LonStatusInvalidSegmentType   			= 108,  // Not a supported persistent segment type
-	LonStatusPersistentDataFailure			= 109,	// Generic persistent data failure
-	LonStatusIvalidPersistentDataSize		= 110,	// Persistent data size is not supported
-	LonStatusPersistentDataDirError			= 111,	// Persistent data directory error
-	LonStatusPersistentDataAccessError		= 112,	// Persistent data access error
+	LonStatusInvalidSegmentType   			= 110,  // Not a supported persistent segment type
+	LonStatusPersistentDataFailure			= 111,	// Generic persistent data failure
+	LonStatusIvalidPersistentDataSize		= 112,	// Persistent data size is not supported
+	LonStatusPersistentDataDirError			= 113,	// Persistent data directory error
+	LonStatusPersistentDataAccessError		= 114,	// Persistent data access error
 
 	// Direct Memory File (DMF) access codes
 	LonStatusDmfAddressOutOfRange			= 115,	// DMF address + count is out of range for operation
 	LonStatusDmfReadOnly					= 116,  // Write to read-only DMF area
 	LonStatusDmfNoDriver					= 117,	// No DMF driver defined
+
+    // Interoperable Update Protocol (IUP) codes
+    LonStatusIupNotInitialized              = 118,  // IUP not initialized
+    LonStatusIupInvalidImage                = 119,  // Invalid IUP image
+    LonStatusIupInvalidParameter            = 120,  // Invalid IUP parameter
+    LonStatusIupTransferInProgress          = 121,  // IUP transfer already in progress
+    LonStatusIupNoTransferInProgress        = 122,  // No IUP transfer in progress
+    LonStatusIupInsufficientMemory          = 123,  // Insufficient memory for IUP operation
+    LonStatusIupImageWriteFailure           = 124,  // Failed to write IUP image to persistent memory
+    LonStatusIupInvalidState                = 125,  // Invalid IUP state for requested operation
+    LonStatusIupTransferFailure             = 126,  // IUP transfer failed
+    LonStatusIupConfirmationFailure         = 127,  // IUP confirmation failed
+
 	// System and LON stack error codes logged in the system event log.
 	// these can be accessed using the Query Status network management command.
 	// The standard system errors range from 129 to 255. Values between 1 and 128
 	// are application-specific (but serious) errors. Values used by the LON
-	// stack are also included in the <IzotSystemError> enumeration.  The standard
+	// stack are also included in the <LonStatusCode> enumeration.  The standard
 	// system error codes are described in the ISO/IEC 14908-1 protocol standard.
 	LonStatusBadEvent						= 129,
 	LonStatusDatapointLengthMismatch		= 130,
@@ -235,6 +212,19 @@ typedef enum {
     LonStatusReadWriteSemaphoreSet			= 162,
     LonStatusApplSignatureBad				= 163,
     LonStatusRouterFirmwareVersionMismatch	= 164,
+    LonStatusInvalidBufferSize              = 166,
+    LonStatusInvalidFirmwareImage           = 167,
+    LonStatusInvalidGroupSize               = 168,
+    LonStatusInvalidNvLength                = 169,
+    LonStatusInvalidPacketLength            = 170,
+    LonStatusInvalidSelector                = 171,
+    LonStatusInvalidSelfDocumentation       = 172,
+    LonStatusInvalidTimer                   = 173,
+    LonStatusNoSelectorsAvailable           = 174,
+    LonStatusNoSpaceInConfigTable           = 175,
+    LonStatusResetFailed                    = 176,
+    LonStatusTimerExpirationNotExpected     = 177,
+    LonStatusReceiveRecordNotAvailable      = 178,
 
 	// Add any platform and application-specific system error codes 
 	// with values between 513 (0x201) and 639 (0x27F), which will be 
@@ -252,7 +242,7 @@ typedef enum {
 } LonStatusCode;
 
 // Evaluate success or failure of an LonStatusCode value
-#define IZOT_SUCCESS(n)   ((n) == LonStatusNoError)
+#define LON_SUCCESS(n)   ((n) == LonStatusNoError)
 
 // Type conversions
 #define IZOT_GET_UNSIGNED_WORD(n)          (((uint16_t)((n).msb) << 8)+(uint16_t)((n).lsb))
@@ -362,34 +352,32 @@ typedef IzotByte IzotGroupId;
 typedef IzotByte IzotNodeId;
 
 /*
- *  Neuron Chip and Smart Transceiver model codes.
- *  This enumeration lists all model codes for Neuron Chips or Smart
- *  Transceivers.
+ *  LON architecture types.
  */
-typedef IZOT_ENUM_BEGIN(IzotNeuronModel) {
-    /*  0 */ IzotNeuron3150Code    =  0,  /* 3150, FT 3150 */
-    /*  1 */ IzotNeuronPl3150Code  =  1,  /* PL 3150 */
-    /*  2 */ IzotNeuron3150LCode   =  2,  /* CY7C53150L */
-    /*  8 */ IzotNeuron3120Code    =  8,  /* Legacy 3120 */
-    /*  9 */ IzotNeuron3120E1Code  =  9,  /* 3120E1, TMPN3120FE1M */
-    /* 10 */ IzotNeuron3120E2Code  = 10,  /* 3120E2 */
-    /* 11 */ IzotNeuron3120E3Code  = 11,  /* 3120E3, TMPN3120FE3M */
-    /* 12 */ IzotNeuron3120A20Code = 12,  /* 3120A20 */
-    /* 13 */ IzotNeuron3120E5Code  = 13,  /* 3120E5, TMPN3120FE5M */
-    /* 14 */ IzotNeuron3120E4Code  = 14,  /* CY7C53120E4, FT 3120-E4 */
-    /* 15 */ IzotNeuronPl3120E4Code= 15,  /* PL 3120-E4 */
-    /* 16 */ IzotNeuron3120L8Code  = 16,  /* CY7C53120L8 */
-    /* 17 */ IzotNeuronPl3170Code  = 17,  /* PL 3170 */
-    /* 32 */ IzotNeuronFT5000Code  = 32,  /* FT 5000 */
-    /* 33 */ IzotNeuron5000Code    = 33,  /* Neuron 5000 */
-    /* 36 */ IzotNeuronFT6050Code  = 36,  /* FT 6050 */
-    /* 37 */ IzotNeuron6050Code    = 37,  /* Neuron 6050 */
-    /* 38 */ IzotNeuronFT6010Code  = 38,  /* FT 6010 */
-    /* 39 */ IzotNeuron6010Code    = 39,  /* Neuron 6010 */
-    /*112 */ IzotNeuronSLBCode     = 112, /* Streetlight Bridge */
-    /*114 */ IzotNeuronIzotCode    = 114, /* Izot Device Stack based device */
-    /*128 */ IzotNeuronGenericCode = 128  /* Generic model code */
-} IZOT_ENUM_END(IzotNeuronModel);
+typedef IZOT_ENUM_BEGIN(LonArchitecture) {
+    /*  0 */ LonNeuron3150Arch     =  0,  /* 3150, FT 3150 */
+    /*  1 */ LonNeuronPl3150Arch   =  1,  /* PL 3150 */
+    /*  2 */ LonNeuron3150LArch    =  2,  /* CY7C53150L */
+    /*  8 */ LonNeuron3120Arch     =  8,  /* Legacy 3120 */
+    /*  9 */ LonNeuron3120E1Arch   =  9,  /* 3120E1, TMPN3120FE1M */
+    /* 10 */ LonNeuron3120E2Arch   = 10,  /* 3120E2 */
+    /* 11 */ LonNeuron3120E3Arch   = 11,  /* 3120E3, TMPN3120FE3M */
+    /* 12 */ LonNeuron3120A20Arch  = 12,  /* 3120A20 */
+    /* 13 */ LonNeuron3120E5Arch   = 13,  /* 3120E5, TMPN3120FE5M */
+    /* 14 */ LonNeuron3120E4Arch   = 14,  /* CY7C53120E4, FT 3120-E4 */
+    /* 15 */ LonNeuronPl3120E4Arch = 15,  /* PL 3120-E4 */
+    /* 16 */ LonNeuron3120L8Arch   = 16,  /* CY7C53120L8 */
+    /* 17 */ LonNeuronPl3170Arch   = 17,  /* PL 3170 */
+    /* 32 */ LonNeuronFT5000Arch   = 32,  /* FT 5000 */
+    /* 33 */ LonNeuron5000Arch     = 33,  /* Neuron 5000 */
+    /* 36 */ LonNeuronFT6050Arch   = 36,  /* FT 6050 */
+    /* 37 */ LonNeuron6050Arch     = 37,  /* Neuron 6050 */
+    /* 38 */ LonNeuronFT6010Arch   = 38,  /* FT 6010 */
+    /* 39 */ LonNeuron6010Arch     = 39,  /* Neuron 6010 */
+    /*114 */ LonStackDxArch        = 112, /* LON Stack DX based device */
+    /*115 */ LonStackExArch        = 114, /* LON Stack EX based device */
+    /*128 */ LonGenericArch        = 128  /* Generic model code */
+} IZOT_ENUM_END(LonArchitecture);
 
 /*
  *  Neuron Chip and Smart Transceiver state values.
@@ -398,7 +386,6 @@ typedef IZOT_ENUM_BEGIN(IzotNeuronModel) {
  *  the Query Status command to one of these values, use the <IZOT_NODE_STATE>
  *  macro. To test for the offline flag, use the <IZOT_NODE_STATE_OFFLINE> macro.
  */
-
 #define IZOT_OFFLINE_BIT 0x08
 #define IZOT_NODE_STATE_MASK 0x07
 
@@ -450,7 +437,7 @@ typedef IZOT_ENUM_BEGIN(IzotNodeMode) {
 
 /*
  *  Decodes the last reset cause.
-*/
+ */
 typedef IZOT_ENUM_BEGIN(IzotResetCause) {
     /* 0x00 */ IzotResetCleared = 0x00,
     /* 0x01 */ IzotPowerUpReset = 0x01,
@@ -1677,7 +1664,7 @@ typedef IZOT_STRUCT_BEGIN(IzotConfigData)
 #define IZOT_READONLY_CHECKSUM_SHIFT        4
 #define IZOT_READONLY_CHECKSUM_FIELD        CheckSumMinorNum
 
-#define IZOT_READONLY_MINORNUM_MASK         0x0F    /* minorModelNum */
+#define IZOT_READONLY_MINORNUM_MASK         0x0F    /* minorArchNum */
 #define IZOT_READONLY_MINORNUM_SHIFT        0
 #define IZOT_READONLY_MINORNUM_FIELD        CheckSumMinorNum
 
@@ -1816,14 +1803,14 @@ typedef IZOT_STRUCT_BEGIN(IzotConfigData)
 typedef IZOT_STRUCT_BEGIN(IzotReadOnlyData)
 {
     IzotUniqueId  UniqueNodeId;      /* 48-bit unique ID of Neuron Chip or Smart Transceiver              */
-    IzotByte  ModelNum;              /* Model Number for Ref. Impl.                                       */
-    IzotByte  CheckSumMinorNum;      /* contains checksum for Unique Node ID and minorModelNum (0-128). Use IZOT_READONLY_* macros. */
+    IzotByte  ArchNum;              /* Model Number for Ref. Impl.                                       */
+    IzotByte  CheckSumMinorNum;      /* contains checksum for Unique Node ID and minorArchNum (0-128). Use IZOT_READONLY_* macros. */
     IzotByte  DatapointFixed[2];            /* Location of nv fixed table.                                       */
     IzotByte  ReadOnly_1;            /* Contains:  (Use IZOT_READONLY_* macros. )                            */
                                      /* readWriteProtect , 1,       read+write protect flag.              */
                                      /* runWhenUnconf    , 1,       1=> Application runs.                 */
                                      /* nvCount          , 6,       0 for reference implementation.       */
-    IzotByte  SnvtStruct[2];         /* 0xFFFF for reference implementation.                              */
+    IzotByte  SnvtStruct[2];         /* 0xFFFF for LON Stack.                              */
     IzotProgramId ProgramId;         /* Program ID string (array of 8 bytes)                              */
     IzotByte  ReadOnly_2;            /* Contains:  (Use IZOT_READONLY_* macros. )                          */
                                      /* dpProcessingOff  , 1,       Must be one for NodeUtil.             */
@@ -1884,8 +1871,8 @@ typedef IZOT_STRUCT_BEGIN(IzotStatus)
     IZOT_ENUM(IzotResetCause) ResetCause;
     IZOT_ENUM(IzotNodeState)  NodeState;
     IzotByte                 VersionNumber;
-    IZOT_ENUM(IzotSystemError) ErrorLog;
-    IZOT_ENUM(IzotNeuronModel) ModelNumber;
+    IZOT_ENUM(LonStatusCode) ErrorLog;
+    IZOT_ENUM(LonArchitecture) ArchitectureNumber;
     /*
      * The following members are available through the local <IzotQueryStatus>
      * API only, but are not transmitted in response to a query status network
@@ -1925,10 +1912,10 @@ typedef IZOT_ENUM_BEGIN(IzotNmMessageCode)
     IzotNmUpdateKey                     = 0x65,
     IzotNmUpdateAddr                    = 0x66,
     IzotNmQueryAddr                     = 0x67,
-    IzotNmQueryDatapointConfig                 = 0x68,
+    IzotNmQueryDatapointConfig          = 0x68,
     IzotNmUpdateGroupAddr               = 0x69,
     IzotNmQueryDomain                   = 0x6A,
-    IzotNmUpdateDatapointConfig                = 0x6B,
+    IzotNmUpdateDatapointConfig         = 0x6B,
     IzotNmSetNodeMode                   = 0x6C,
     IzotNmReadMemory                    = 0x6D,
     IzotNmWriteMemory                   = 0x6E,
@@ -1938,7 +1925,7 @@ typedef IZOT_ENUM_BEGIN(IzotNmMessageCode)
     IzotNmAppCommand                    = IzotNmWink,
     IzotNmMemoryRefresh                 = 0x71,
     IzotNmQuerySnvt                     = 0x72,
-    IzotNmDatapointFetch                       = 0x73,
+    IzotNmDatapointFetch                = 0x73,
     IzotNmDeviceEscape                  = 0x7D,
     IzotNmRouterEscape                  = 0x7E,
     IzotNmServicePin                    = 0x7F
@@ -3695,20 +3682,23 @@ typedef void (*IzotisiTickFunction)(void);
 #define NV_ALIAS_TABLE_SIZE    254     /* Check management tool for any restriction on maximum size */
 
 /*******************************************************************************
-    The LON Stack uses an array to allocate storage space dynamically.
-    The size of the array used for this allocation is determined
-    by this constant. If it is too low, it may be impossible
+    For some targets, OsalAllocateMemory() uses an array to allocate storage
+    space dynamically.  The size of the array used for this allocation is 
+    determined by this constant. If it is too low, it may be impossible
     to allocate necessary buffers or data structures.  If it is
     too high, some memory is unused.  To determine an appropriate value,
     set MALLOC_SIZE to some high value, run a test application, stop, and
     check gp->mallocUsedSize to determine the current usage.
     This array space is allocated during reset of all layers.
     Tracing through the reset code of all layers will indicate
-    the approximate size of this array necessary.
-    If AllocateStorage function in node.c is rewritten to use malloc, then
-    this constant will not be used.
+    the approximate size of this array necessary.  The MALLOC_SIZE value
+    is not used if the target's OsalAllocateMemory() implementation
+    does not use such an array.  For example, if the OsalAllocateMemory()
+    implementation uses malloc(), this constant is not used.
 *******************************************************************************/
+#ifndef MALLOC_SIZE
 #define MALLOC_SIZE     10050
+#endif
 
 /*------------------------------------------------------------------------------
  LON/IP constants.
@@ -3742,6 +3732,5 @@ typedef struct
 {
 	IzotUbits32	start;			// Time watch started
 } LonWatch;
-
 
 #endif /* _IZOT_TYPES_H */

@@ -1,64 +1,27 @@
-// Copyright (C) 2023 EnOcean
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy of
-// this software and associated documentation files (the "Software"), to deal in 
-// the Software without restriction, including without limitation the rights to
-// use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-// of the Software, and to permit persons to whom the Software is furnished to do
-// so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
+/*
+ * lcs_custom.c
+ *
+ * Copyright (c) 2022-2025 EnOcean
+ * SPDX-License-Identifier: MIT
+ * See LICENSE file for details.
+ * 
+ * Title:   LON Stack Customization Constants and Global Data
+ * Purpose: Provides constant definitions and a global data structure
+ *          to customize the LON Stack for a specific device.
+ * Notes:   This file can be modified to customize the LON Stack
+ *          for a specific device.  The constants defined in this
+ *          file can be changed to set default values for
+ *          ReadOnlyData, ConfigData, Domain Table, and Address Table
+ *          members.  The global data structure 'customDataGbl' can be
+ *          used to hold any implementation-specific values.
+ * 
+ *          Some or all of these values will be overwritten by
+ *          network management tools when this device is loaded.
+ * 
+ *          See ISO/IEC 14908-1 for details on the LON protocol parameters.
+ */
 
-/*******************************************************************************
-          File:        lcs_custom.c
-
-     Reference:        ISO/IEC 14908-1
-
-       Purpose:        To allow custom values for global data
-                       of protocol stack.
-
-          Note:        Some or all of these values will be overwritten by
-                       network management tools when this node is loaded.
-*******************************************************************************/
-
-/*------------------------------------------------------------------------------
-Section: Includes
-------------------------------------------------------------------------------*/
 #include "lcs/lcs_custom.h"
 
-/*------------------------------------------------------------------------------
-Section: Constant Definitions
-------------------------------------------------------------------------------*/
-/* None */
-
-/*------------------------------------------------------------------------------
-Section: Type Definitions
-------------------------------------------------------------------------------*/
-/* None */
-
-/*------------------------------------------------------------------------------
-Section: Globals
-------------------------------------------------------------------------------*/
-CustomData  customDataGbl[NUM_STACKS];
+CustomData customDataGbl[NUM_STACKS];
 CustomData *cp;
-
-/*------------------------------------------------------------------------------
-Section: Local Function Prototypes
-------------------------------------------------------------------------------*/
-/* None */
-
-/*------------------------------------------------------------------------------
-Section: Function Definitions
-------------------------------------------------------------------------------*/
-/* None */
-
-/*******************************End of custom.c *******************************/

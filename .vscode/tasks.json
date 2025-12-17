@@ -1,0 +1,74 @@
+{
+  "version": "2.0.0",
+  "inputs": [
+    {
+      "id": "piHost",
+      "type": "promptString",
+      "description": "Raspberry Pi host (hostname or IP)",
+      "default": "raspberrypi.local"
+    },
+    {
+      "id": "piUser",
+      "type": "promptString",
+      "description": "Raspberry Pi username",
+      "default": "pi"
+    },
+    {
+      "id": "piDestDir",
+      "type": "promptString",
+      "description": "Destination directory on Raspberry Pi",
+      "default": "~/lon-stack-dx"
+    },
+    {
+      "id": "piPort",
+      "type": "promptString",
+      "description": "SSH port",
+      "default": "22"
+    }
+  ],
+  "tasks": [
+    {
+      "label": "Build Example1 (arm64-cross)",
+      "type": "shell",
+      "command": "cmake --build --preset arm64-cross -j",
+      "group": "build",
+      "problemMatcher": ["$gcc"]
+    },
+    {
+      "label": "Deploy Example1 to Raspberry Pi",
+      "type": "shell",
+      "command": "mkdir -p \"${workspaceFolder}/build/arm64\" && scp -P ${input:piPort} \"${workspaceFolder}/build/arm64/lon_stack_example1\" \"${input:piUser}@${input:piHost}:${input:piDestDir}/lon_stack_example1\" && ssh -p ${input:piPort} \"${input:piUser}@${input:piHost}\" \"chmod +x ${input:piDestDir}/lon_stack_example1\"",
+      "dependsOn": ["Build Example1 (arm64-cross)"],
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    },
+    {
+      "label": "Run Example1 on Raspberry Pi",
+      "type": "shell",
+      "command": "ssh -p ${input:piPort} \"${input:piUser}@${input:piHost}\" \"cd ${input:piDestDir} && ./lon_stack_example1\"",
+      "dependsOn": ["Deploy Example1 to Raspberry Pi"],
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    },
+    {
+      "label": "Start gdbserver on Raspberry Pi (Example1)",
+      "type": "shell",
+      "isBackground": true,
+      "command": "ssh -p ${input:piPort} \"${input:piUser}@${input:piHost}\" \"cd ${input:piDestDir} && chmod +x ./lon_stack_example1 && gdbserver :2345 ./lon_stack_example1\"",
+      "dependsOn": ["Deploy Example1 to Raspberry Pi"],
+      "dependsOrder": "sequence",
+      "problemMatcher": {
+        "pattern": [
+          {
+            "regexp": "^$"
+          }
+        ],
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "gdbserver",
+          "endsPattern": "Listening on port 2345"
+        }
+      }
+    }
+  ]
+}

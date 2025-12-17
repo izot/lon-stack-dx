@@ -6,11 +6,10 @@
  * See LICENSE file for details.
  * 
  * Title:   LON Stack Data Link Layer for LON USB and MIP Data Links
- * Purpose: Implements layer 2 (data link layer) of the ISO/IEC 14908-1
- *          LON protocol stack.
+ * Purpose: Implements the LON data link layer (Layer 2) of the 
+ *          ISO/IEC 14908-1 LON protocol stack.
  * Notes:   The functions in this file support LON data links using a
- *          LON USB network interface such as the U10 or U60, on a Neuron
- *          processor with MIP firmware.
+ *          LON USB network interface such as the U10 or U60.
  */
 
 #include "lcs/lcs_link.h"
@@ -54,11 +53,11 @@ static LonTimer lonLinkXcvrPlFetchTimer;
 typedef struct {
     char *name;
     LonLinkHandle handle;
-    Bool linkOpened;
-	Bool isPowerLine;
-    Bool fetchXcvrParams;
+    bool linkOpened;
+	bool isPowerLine;
+    bool fetchXcvrParams;
     XcvrParam xcvrParams;
-    Bool setPlPhase;
+    bool setPlPhase;
 } LonNiDef;
 
 // LON network interface definition array
@@ -116,15 +115,15 @@ void LKReset(void)
     IzotUbits16 queueItemSize;
     IzotByte   *p;  // Used to initialize lkInQ
     IzotUbits16 i;
-    Bool anyPowerLineNi = false; // True if any LON NI is power line
-    LDVCode lonNiSts = LDV_OK;
+    bool anyPowerLineNi = false; // True if any LON NI is power line
+    LonStatusCode lonNiSts = LonStatusNoError;
 
     // Allocate and initialize the input queue
     gp->lkInBufSize = DecodeBufferSize((IzotUbits16)gp->nwInBufSize) + 6;
     gp->lkInQCnt = DecodeBufferCnt((IzotUbits16)gp->nwInQCnt);
-    gp->lkInQ = AllocateStorage((IzotUbits16)(gp->lkInBufSize * gp->lkInQCnt));
+    gp->lkInQ = OsalAllocateMemory((size_t)(gp->lkInBufSize * gp->lkInQCnt));
     if (gp->lkInQ == NULL) {
-        ErrorMsg("LKReset: Unable to initialize the input queue.\n");
+        OsalPrintError(LonStatusNoMemoryAvailable, "LKReset: Unable to initialize the input queue");
         gp->resetOk = FALSE;
         return;
     }
@@ -132,7 +131,7 @@ void LKReset(void)
     p = gp->lkInQ;
     for (i=0; i < gp->lkInQCnt; i++) {
         *p = 0;
-        p = (Byte *)((char *)p + gp->lkInBufSize);
+        p = (uint8_t *)((char *)p + gp->lkInBufSize);
     }
     gp->lkInQHeadPtr = gp->lkInQTailPtr = gp->lkInQ;
 
@@ -141,8 +140,9 @@ void LKReset(void)
     gp->lkOutQCnt    = DecodeBufferCnt((IzotUbits16)gp->nwOutQCnt);
     queueItemSize    = gp->lkOutBufSize + sizeof(LKSendParam);
 
-    if (QueueInit(&gp->lkOutQ, queueItemSize, gp->lkOutQCnt)!= SUCCESS) {
-        ErrorMsg("LKReset: Unable to init the output queue.\n");
+    lonNiSts = QueueInit(&gp->lkOutQ, queueItemSize, gp->lkOutQCnt);
+    if (lonNiSts != LonStatusNoError) {
+        OsalPrintError(lonNiSts, "LKReset: Unable to initialize the output queue");
         gp->resetOk = FALSE;
         return;
     }
@@ -152,8 +152,9 @@ void LKReset(void)
     gp->lkOutPriQCnt = DecodeBufferCnt((IzotUbits16)gp->nwOutPriQCnt);
     queueItemSize = gp->lkOutPriBufSize + sizeof(LKSendParam);
 
-    if (QueueInit(&gp->lkOutPriQ, queueItemSize, gp->lkOutPriQCnt) != SUCCESS) {
-        ErrorMsg("LKReset: Unable to initialize the priority output queue.\n");
+    lonNiSts = QueueInit(&gp->lkOutPriQ, queueItemSize, gp->lkOutPriQCnt);
+    if (lonNiSts != LonStatusNoError) {
+        OsalPrintError(lonNiSts, "LKReset: Unable to initialize the priority output queue");
         gp->resetOk = FALSE;
         return;
     }
@@ -163,9 +164,9 @@ void LKReset(void)
 
 		lonNiSts = OpenLonLink(lonNi[niIndex].name, &handle);
 
-        if (lonNiSts != LDV_OK) {
-            DBG_vPrintf(TRUE, "LKReset: Unable to open LON link %s, error %d\n",
-                    lonNi[niIndex].name, lonNiSts);
+        if (lonNiSts != LonStatusNoError) {
+            OsalPrintDebug(lonNiSts, "LKReset: Unable to open LON link %s",
+                    lonNi[niIndex].name);
             lonNi[niIndex].linkOpened = false;
             continue;
 		}
@@ -173,7 +174,7 @@ void LKReset(void)
 
 		if (lonNi[niIndex].isPowerLine) {
             anyPowerLineNi = true;
-			Bool requestUid = true;
+			bool requestUid = true;
 	
 			// Get the device Unique ID (Neuron ID or MAC ID) from the LON
             // network interface on every boot.  If this doesn't work, reset
@@ -187,10 +188,10 @@ void LKReset(void)
                         0x00, 0x00, UNIQUE_NODE_ID_LEN};
 				L2Frame sicbIn;
 				OsalSleep(UNIQUE_ID_FETCH_INTERVAL);
-				if (requestUid && WriteLonLink(handle, (void*)&nidRead, (short)(nidRead.len+2)) == LDV_OK) {
+				if (requestUid && WriteLonLink(handle, (void*)&nidRead, (short)(nidRead.len+2)) == LonStatusNoError) {
 					requestUid = false;
 				}
-				if (ReadLonLink(handle, &sicbIn, sizeof(sicbIn)) == LDV_OK
+				if (ReadLonLink(handle, &sicbIn, sizeof(sicbIn)) == LonStatusNoError
                         && sicbIn.cmd == nicbRESPONSE 
                         && (sicbIn.pdu[0]&0x0F) == LNM_TAG 
                         && sicbIn.pdu[14] == (NM_resp_success|NM_READ_MEMORY)) {
@@ -229,10 +230,10 @@ void LKSend(void)
 {
     LKSendParam     *lkSendParamPtr;
     Queue           *lkSendQueuePtr;
-    Byte            *npduPtr;
+    uint8_t            *npduPtr;
     LPDUHeader      *lpduHeaderPtr;
-    Bool             fetchTimerExpired;
-    Bool             priority;
+    bool             fetchTimerExpired;
+    bool             priority;
 	L2Frame		     sicb;
 	int				 niIndex;
 
@@ -243,7 +244,7 @@ void LKSend(void)
         }
         if (lonNi[niIndex].isPowerLine && lonNi[niIndex].setPlPhase) {
             L2Frame mode = {nicbPHASE|2, 0};
-            lonNi[niIndex].setPlPhase = WriteLonLink(lonNi[niIndex].handle, &mode, 2) != LDV_OK;
+            lonNi[niIndex].setPlPhase = WriteLonLink(lonNi[niIndex].handle, &mode, 2) != LonStatusNoError;
         }
     }
 
@@ -258,8 +259,8 @@ void LKSend(void)
         return; // Nothing to send
     }
 
-	lkSendParamPtr = QueueHead(lkSendQueuePtr);
-	npduPtr        = (Byte *) (lkSendParamPtr + 1);
+	lkSendParamPtr = QueuePeek(lkSendQueuePtr);
+	npduPtr        = (uint8_t *) (lkSendParamPtr + 1);
 
 	sicb.cmd = 0x12;
 	sicb.len = lkSendParamPtr->pduSize+1;
@@ -279,7 +280,7 @@ void LKSend(void)
 		WriteLonLink(lonNi[niIndex].handle, &sicb, (short)(sicb.len+2));
 	}
 
-	DeQueue(lkSendQueuePtr);
+	QueueDropHead(lkSendQueuePtr);
 
     return;
 }
@@ -313,7 +314,7 @@ void LKReceive(void)
 	int				niIndex;
 	
 	for (niIndex=0; niIndex<NUM_LON_NI; niIndex++) {
-		if (ReadLonLink(lonNi[niIndex].handle, &sicb, sizeof(sicb)) == LDV_OK) {
+		if (ReadLonLink(lonNi[niIndex].handle, &sicb, sizeof(sicb)) == LonStatusNoError) {
             // Packet found to process
 			break;
 		}
@@ -382,11 +383,11 @@ void LKReceive(void)
     } else {
         // Queue entry available--receive the packet
         nwReceiveParamPtr = QueueTail(&gp->nwInQ);
-        npduPtr           = (Byte *)(nwReceiveParamPtr + 1);
+        npduPtr           = (uint8_t *)(nwReceiveParamPtr + 1);
 
         nwReceiveParamPtr->priority = lpduHeaderPtr->priority;
         nwReceiveParamPtr->altPath  = lpduHeaderPtr->altPath;
-        tempPtr = (Byte *)((char *)lpduHeaderPtr + 1);
+        tempPtr = (uint8_t *)((char *)lpduHeaderPtr + 1);
         nwReceiveParamPtr->pduSize  = lpduSize - 3;
         // The following line has been commented out because
         // there is no xcvrParams field in NWReceiveParam and
@@ -400,9 +401,9 @@ void LKReceive(void)
         if (nwReceiveParamPtr->pduSize <= gp->nwInBufSize) {
             memcpy(npduPtr, tempPtr, nwReceiveParamPtr->pduSize);
         } else {
-            ErrorMsg("LKReceive: NPDU size is too large.\n");
+            OsalPrintError(LonStatusNoMemoryAvailable, "LKReceive: NPDU size is too large");
         }
-        EnQueue(&gp->nwInQ);
+        QueueWrite(&gp->nwInQ);
     }
     *(gp->lkInQHeadPtr) = 0;
     gp->lkInQHeadPtr = gp->lkInQHeadPtr + gp->lkInBufSize;
@@ -423,7 +424,7 @@ void LKReceive(void)
  * Returns:
  *   None
  */
-void CRC16(Byte bufInOut[], IzotUbits16 sizeIn)
+void CRC16(uint8_t bufInOut[], IzotUbits16 sizeIn)
 {
     IzotUbits16 poly = 0x1021;       // Generator polynomial
     IzotUbits16 crc = 0xffff;
@@ -482,7 +483,7 @@ void LKFetchXcvrPl(int index)
     if (lonNi[index].isPowerLine) {
 	    // Send the fetch message; if send fails, set the fetch flag to try again next time
 	    lonNi[index].fetchXcvrParams = WriteLonLink(lonNi[index].handle,
-                (L2Frame*)&sicbOut, (short)(sicbOut.len+2)) != LDV_OK;
+                (L2Frame*)&sicbOut, (short)(sicbOut.len+2)) != LonStatusNoError;
     }
 }
 

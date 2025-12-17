@@ -6,11 +6,10 @@
  * See LICENSE file for details.
  * 
  * Title:   LON Stack Data Link Layer for LON USB and MIP Data Links
- * Purpose: Implements layer 2 (data link layer) of the ISO/IEC 14908-1
- *          LON protocol stack.
+ * Purpose: Implements the LON data link layer (Layer 2) of the 
+ *          ISO/IEC 14908-1 LON protocol stack.
  * Notes:   The functions in this file support LON data links using a
- *          LON USB network interface such as the U10 or U60, on a Neuron
- *          processor with MIP firmware.
+ *          LON USB network interface such as the U10 or U60.
  */
 
 #ifndef _LINK_H

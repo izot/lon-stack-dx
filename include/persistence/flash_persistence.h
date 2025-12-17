@@ -1,46 +1,25 @@
-//
-// IzotPersitentFlashDirect.h
-//
-// Copyright (C) 2023-2025 EnOcean
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy of
-// this software and associated documentation files (the "Software"), to deal in 
-// the Software without restriction, including without limitation the rights to
-// use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-// of the Software, and to permit persons to whom the Software is furnished to do
-// so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
-
 /*
- * Abstract:
- * Example implementation of the Izot non-volatile data (PERSISTENT) functions
- * using Marvell 88MC200 flash access routines. 
+ * flash_persistence.h
+ *
+ * Copyright (c) 2023-2025 EnOcean
+ * SPDX-License-Identifier: MIT
+ * See LICENSE file for details.
  * 
- * You can port this file to support your hardware and application
- * requirements.
+ * Title:   Persistent Memory Management for the Marvell 88MC200
+ * Purpose: Provides an example implementation of persistent memory management
+ *          using Marvell 88MC200 flash access routines.
+ * Notes:   This implementation can be ported to support other hardware and
+ *          application requirements.
  */
-#if !defined(DEFINED_IZOTPERSISTENTFLASHDIRECT_H)
-#define DEFINED_IZOTPERSISTENTFLASHDIRECT_H
+
+#if !defined(DEFINED_FLASH_PERSISTENCE_H)
+#define DEFINED_FLASH_PERSISTENCE_H
 
 #include <stdio.h>
 #include <string.h>
 
 #include "izot/IzotPlatform.h"
 
-
-/*------------------------------------------------------------------------------
-  Section: Macros
-  ------------------------------------------------------------------------------*/
 #ifdef FLASH_DEBUG
 	#define FLASH_PRINTF	wmprintf
 #endif
@@ -216,5 +195,5 @@ extern LonStatusCode IzotFlashSegExitTransaction(const IzotPersistentSegType per
 extern void ErasePersistenceData(void);
 extern void ErasePersistenceConfig(void);
 
-#endif  /* defined(DEFINED_IZOTPERSISTENTFLASHDIRECT_H) */
+#endif  /* defined(DEFINED_FLASH_PERSISTENCE_H) */
  

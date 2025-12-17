@@ -1,33 +1,14 @@
-//
-// iup.h
-//
-// Copyright (C) 2023-2025 EnOcean
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy of
-// this software and associated documentation files (the "Software"), to deal in 
-// the Software without restriction, including without limitation the rights to
-// use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-// of the Software, and to permit persons to whom the Software is furnished to do
-// so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
-
 /*
- * Title: Image Update Protocol header file
+ * lcs_iup.h
  *
- * Abstract:
- * This header file contains the Network Management function declarations for
- * the LON Image Update protocol
+ * Copyright (c) 2022-2025 EnOcean
+ * SPDX-License-Identifier: MIT
+ * See LICENSE file for details.
+ * 
+ * Title:   Image Update Protocol (IUP) Implementation
+ * Purpose: Provides functions to support the LON Image Update Protocol (IUP).
  */
+
 #ifndef _IUP_H
 #define _IUP_H
 
@@ -35,10 +16,8 @@
 #include <string.h>
 #include "izot/IzotPlatform.h"
 #include "izot/IzotApi.h"
-#include "abstraction/IzotHal.h"
-// #include "abstraction/endian.h"
-#include "lcs/iup.h"
 #include "lcs/lcs_api.h"
+#include "lcs/lcs_iup.h"
 #include "lcs/lcs_netmgmt.h"
 #include "lcs/lcs_timer.h"
 #include "lcs/lcs_node.h"
@@ -50,9 +29,6 @@
     #include <partition.h>
 #endif
 
-/*------------------------------------------------------------------------------
-Section: Constant Definitions
-------------------------------------------------------------------------------*/
 // Expanded NM command for IUP
 #define NME_IUP_INIT				0x1C
 #define NME_IUP_TRANSFER			0x1D

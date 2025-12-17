@@ -1,37 +1,18 @@
-// Copyright (C) 2022 Dialog Semiconductor
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy of
-// this software and associated documentation files (the "Software"), to deal in 
-// the Software without restriction, including without limitation the rights to
-// use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-// of the Software, and to permit persons to whom the Software is furnished to do
-// so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
-
-/***************************************************************
- *  vldv.h
+/*
+ * vldv.h
  *
- *  This file contains the, typedefs, and literals for the
- *  LON(R) Applications Programming Interface Driver LDV level
- *  interface.
- *
- *  Date Created:  August 8th, 1990
- ****************************************************************/
+ * Copyright (c) 1990-2025 EnOcean
+ * SPDX-License-Identifier: MIT
+ * See LICENSE file for details.
+ * 
+ * Title:   LON Driver API Definitions
+ * Purpose: Specifies the LON Driver API (LDV) level interface including
+ *          typedefs and literals for the API.
+ * Notes:   Created August 8th, 1990.
+ */
 
 #ifndef __VLDV_H
 #define __VLDV_H
-
-#include "common/EchelonStandardDefinitions.h"
 
 // Local NI commands
 #define nicbRESPONSE		0x16
@@ -59,43 +40,18 @@
 
 #define LDV_EXTERNAL_FN
 
-typedef void            * pVoid;
-typedef short           * pShort;
-typedef char            * pStr;
-
-#define LDVCODES \
-    LDVCODE(OK,					0)	\
-    LDVCODE(NOT_FOUND,			1)	\
-    LDVCODE(ALREADY_OPEN,		2)	\
-    LDVCODE(NOT_OPEN,			3)	\
-    LDVCODE(DEVICE_ERR,			4)	\
-    LDVCODE(INVALID_DEVICE_ID,	5)	\
-    LDVCODE(NO_MSG_AVAIL,		6)	\
-    LDVCODE(NO_BUFF_AVAIL,		7)	\
-    LDVCODE(NO_RESOURCES,		8)	\
-    LDVCODE(INVALID_BUF_LEN,	9)	\
-	LDVCODE(NOT_ENABLED,		10) \
-	LDVCODE(INITIALIZATION_FAILED, 11) \
-	LDVCODE(OPEN_FAILURE,		   12) 	
-
-#undef LDVCODE
-#define LDVCODE(sym,val) LDV_##sym = val,
-
-enum
+#ifdef  __cplusplus
+extern "C"
 {
-	LDVCODES
-};
-
-typedef short LDVCode;
-
-C_API_START
+#endif  // __cplusplus
 	
-LDVCode LDV_EXTERNAL_FN OpenLonLink(const char* name, pShort handle);
-LDVCode LDV_EXTERNAL_FN CloseLonLink(short handle);
-LDVCode LDV_EXTERNAL_FN ReadLonLink(short handle, pVoid msg, short len);
-LDVCode LDV_EXTERNAL_FN WriteLonLink(short handle, pVoid msg, short len);
+LonStatusCode LDV_EXTERNAL_FN OpenLonLink(const char *name, short *handle);
+LonStatusCode LDV_EXTERNAL_FN CloseLonLink(short handle);
+LonStatusCode LDV_EXTERNAL_FN ReadLonLink(short handle, void *msg, short len);
+LonStatusCode LDV_EXTERNAL_FN WriteLonLink(short handle, void *msg, short len);
 
-C_API_END
+#ifdef __cplusplus
+}
+#endif  // __cplusplus
 
 #endif	// __VLDV_H
-

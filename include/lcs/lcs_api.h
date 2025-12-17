@@ -1,52 +1,54 @@
-//
-// lcs_api.h
-//
-// Copyright (C) 2022 EnOcean
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy of
-// this software and associated documentation files (the "Software"), to deal in 
-// the Software without restriction, including without limitation the rights to
-// use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-// of the Software, and to permit persons to whom the Software is furnished to do
-// so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
+/*
+ * lcs_api.h
+ *
+ * Copyright (c) 2022-2025 EnOcean
+ * SPDX-License-Identifier: MIT
+ * See LICENSE file for details.
+ * 
+ * Title:   LON Stack Application Layer API
+ * Purpose: Implements the LON application layer (Layer 7) API.
+ * Notes:   See ISO/IEC 14908-1, Section 10 for LON protocol details.
+ *          See Section 10.6 for Application Protocol State Variables.
+ * 
+ *          The functions in lcs_api.c are called by the application program
+ *          to perform various operations related to LON messaging and network
+ *          variables. 
+ *
+ *          lcs_api.c implements the API functions used by the application
+ *          program to interact with the LON stack application layer to send
+ *          and receive network variable updates and LON messages. Some of
+ *          the main functions are:
+ *          MsgAlloc():     Allocates a message buffer for the application
+ *                          program to create a message to be sent out.
+ *          MsgSend():      Sends the message created by the application
+ *                          program using the MsgAlloc() function.
+ *          MsgReceive():   Receives messages destined to the application
+ *                          program.
+ *          RespAlloc():    Allocates a response buffer for the application
+ *                          program to create a response to be sent out.
+ *          RespSend():     Sends the response created by the application
+ *                          program using the RespAlloc() function.
+ *          RespReceive():  Receives responses destined to the application
+ *                          program.
+ *          AddNV():        Adds a network variable to the application
+ *                          program with the given properties.
+ *          Propagate():    Sends all output network variables in the device.
+ *          PropagateNV():  Sends a specific output network variable.
+ *          Poll():         Polls all input network variables in the device.
+ *          PollNV():       Polls a specific input network variable.
+ *          GoOffline():    Puts the application offline.
+ *          GoUnconfigured(): Puts the application unconfigured.
+ *          NewMsgTag():    Returns a new message tag for the application program
+ *                          to use when sending messages.
+ *          ManualServiceRequestMessage(): Sends a manual service request message.
+ */
 
-/*********************************************************************
-  References:     ISO/IEC 14908-1
-                  Section 10. Application Layer
-                  Section 10.6. Application Protocol State Variables
-
-  Purpose:        LON DX Stack Application Program Interface
-                  This is the interface file for the LON DX Stack API.
-*********************************************************************/
 #ifndef _LCS_API_H
 #define _LCS_API_H
 
-/*------------------------------------------------------------------------------
-Section: Includes
-------------------------------------------------------------------------------*/
 #include "lcs/lcs_custom.h"
 #include "lcs/lcs_eia709_1.h"
 #include "lcs/lcs_timer.h"
-
-/*------------------------------------------------------------------------------
-Section: Constant Definitions
-------------------------------------------------------------------------------*/
-/* None */
-
-/*********************************************************************
-Section: Type Definitions
-*********************************************************************/
 
 #ifdef __cplusplus
 extern "C" {
@@ -245,10 +247,10 @@ void GoUnconfigured(void);
 MsgTag NewMsgTag(BindNoBind bindStatusIn);
 
 /* To send a manual service request message  */
-IzotByte ManualServiceRequestMessage(void);
+LonStatusCode ManualServiceRequestMessage(void);
 
 /* Functions that must be defined in applications using this API */
-extern Status AppInit(void);             /* Application initialization      */
+extern LonStatusCode AppInit(void);             /* Application initialization      */
 void DoApp(IzotBool isOnline);      /* Application processing          */
 void LCS_RegisterClearStatsCallback(void (*cb)(void));
 extern void setMem(const unsigned addr, const unsigned size);
@@ -262,4 +264,3 @@ extern void SetAppSignature(unsigned appSignature);
 extern void readIupPersistData(void);
 
 #endif   /* #ifndef _LCS_API_H */
-/********************************api.h*******************************/

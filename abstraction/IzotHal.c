@@ -13,22 +13,52 @@
  *          Linux hosts as well as the Marvell 88MC200.
  */
 
-#include <stdlib.h>
-
-#ifdef  __cplusplus
-extern "C" {
+// Define feature test macros before any system headers
+#ifndef _POSIX_C_SOURCE
+#define _POSIX_C_SOURCE 200809L
 #endif
+#ifndef _DEFAULT_SOURCE
+#define _DEFAULT_SOURCE
+#endif
+#ifndef _DARWIN_C_SOURCE
+#define _DARWIN_C_SOURCE
+#endif
+#ifndef _BSD_SOURCE
+#define _BSD_SOURCE
+#endif
+#ifndef _XOPEN_SOURCE
+#define _XOPEN_SOURCE 700
+#endif
+
+#include <stdlib.h>
+#include <sys/types.h>
 
 #include "izot/IzotPlatform.h" // Project-specific configuration
 
-#if OS_IS(LINUX)
+// Forward declare sync() for platforms that need it
+#if defined(__APPLE__) || defined(__unix__) || defined(__linux__)
+extern void sync(void);
+#endif
+
+// Include networking headers for all Unix-like systems
+// MUST come after sys/types.h and in this specific order for macOS
+#if OS_IS(LINUX) || defined(__unix__) || defined(__APPLE__) || defined(_POSIX_VERSION)
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
-#include <sys/reboot.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 #include <net/if.h>
+#ifdef __APPLE__
+#include <sys/sockio.h>
+#include <ifaddrs.h>
+#include <net/if_dl.h>
+#endif
+#ifdef __linux__
+#include <linux/if_packet.h>
+#endif
 #include <fcntl.h>
 #include <unistd.h>
 #include <errno.h>
@@ -36,7 +66,21 @@ extern "C" {
 #ifndef SIOCGIFHWADDR
 #define SIOCGIFHWADDR 0x8927
 #endif
-#endif // OS_IS(LINUX)
+#ifndef IFNAMSIZ
+#define IFNAMSIZ 16
+#endif
+#endif
+
+// Additional Linux-specific headers (not macOS)
+#if OS_IS(LINUX) && defined(__linux__)
+#include <sys/reboot.h>
+#endif
+
+// Linux kernel headers
+#if OS_IS(LINUX_KERNEL)
+    #include <linux/if.h>
+    #include <linux/netdevice.h>
+#endif // OS_IS(LINUX) || OS_IS(LINUX_KERNEL)
 
 #if OS_IS(LINUX) || OS_IS(FREERTOS)
 #include <sys/types.h>
@@ -49,7 +93,9 @@ extern "C" {
 #include <mc200_pinmux.h>
 #endif // PROCESSOR_IS(MC200)
 
-#include "abstraction/IzotHal.h"
+#ifdef  __cplusplus
+extern "C" {
+#endif
 
 /*****************************************************************
  * Section: Globals
@@ -70,7 +116,7 @@ mdev_t *flashFd = NULL; // File descriptor for the flash device
 #endif // PROCESSOR_IS(MC200)
 
 /*****************************************************************
- * Section: Function Definitions
+ * Section: Storage Function Definitions
  *****************************************************************/
 
 /* 
@@ -89,7 +135,7 @@ LonStatusCode HalCreateConfigDirectory(const char *path, mode_t mode) {
     size_t len;
     char *p;
 
-    if (!IZOT_SUCCESS(persistentMemError)) {
+    if (!LON_SUCCESS(persistentMemError)) {
         return persistentMemError;
     }
     if (!path || !*path || strlen(path) >= sizeof(tmp)) {
@@ -157,7 +203,7 @@ LonStatusCode HalCreateConfigDirectory(const char *path, mode_t mode) {
  */
 LonStatusCode HalFlashDrvInit(void)
 {
-    if (!IZOT_SUCCESS(persistentMemError)) {   
+    if (!LON_SUCCESS(persistentMemError)) {   
         return persistentMemError;
     }
     if (persistentMemInitialized) {
@@ -202,7 +248,7 @@ LonStatusCode HalFlashDrvInit(void)
 LonStatusCode HalGetFlashInfo(size_t *offset, size_t *region_size,
         int *number_of_blocks, size_t *block_size, int *number_of_regions)
 {
-    if (!IZOT_SUCCESS(persistentMemError)) {   
+    if (!LON_SUCCESS(persistentMemError)) {   
         return persistentMemError;
     }
 
@@ -240,7 +286,7 @@ LonStatusCode HalGetFlashInfo(size_t *offset, size_t *region_size,
  */
 LonStatusCode HalFlashDrvOpen(void)
 {
-    if (!IZOT_SUCCESS(persistentMemError)) {   
+    if (!LON_SUCCESS(persistentMemError)) {   
         return persistentMemError;
     }
 #if OS_IS(LINUX)
@@ -278,7 +324,7 @@ LonStatusCode HalFlashDrvOpen(void)
  */
 LonStatusCode HalFlashDrvClose(void)
 {
-    if (!IZOT_SUCCESS(persistentMemError)) {   
+    if (!LON_SUCCESS(persistentMemError)) {   
         return persistentMemError;
     }
 #if OS_IS(LINUX)
@@ -307,7 +353,7 @@ LonStatusCode HalFlashDrvClose(void)
  */
 LonStatusCode HalFlashDrvErase(size_t start, size_t size)
 {
-    if (!IZOT_SUCCESS(persistentMemError)) {   
+    if (!LON_SUCCESS(persistentMemError)) {   
         return persistentMemError;
     }
 #if OS_IS(LINUX)
@@ -378,7 +424,7 @@ LonStatusCode HalFlashDrvErase(size_t start, size_t size)
  */
 LonStatusCode HalFlashDrvWrite(IzotByte *buf, size_t start, size_t size)
 {
-    if (!IZOT_SUCCESS(persistentMemError)) {   
+    if (!LON_SUCCESS(persistentMemError)) {   
         return persistentMemError;
     }
 #if OS_IS(LINUX)
@@ -437,7 +483,7 @@ LonStatusCode HalFlashDrvWrite(IzotByte *buf, size_t start, size_t size)
  */
 LonStatusCode HalFlashDrvRead(IzotByte *buf, size_t start, size_t size)
 {
-    if (!IZOT_SUCCESS(persistentMemError)) {   
+    if (!LON_SUCCESS(persistentMemError)) {   
         return persistentMemError;
     }
 #if OS_IS(LINUX)
@@ -483,6 +529,200 @@ LonStatusCode HalFlashDrvRead(IzotByte *buf, size_t start, size_t size)
 #endif
 }
 
+/*****************************************************************
+ * Section: USB TTY Interface Function Definitions
+ *****************************************************************/
+int HalOpenUsb(const char *usb_dev_name, int ldisc)
+{
+    if (!usb_dev_name || ldisc < 0 || ldisc >= NR_LDISCS) {
+        return -1;
+    }
+#if OS_IS(LINUX)
+    int fd = open(usb_dev_name, O_RDWR | O_NOCTTY | O_NONBLOCK);
+    if (fd < 0) return -1;
+
+    // Set custom line discipline if requested
+    if (ldisc >= 0) {
+        if (ioctl(fd, TIOCSETD, &ldisc) < 0) {
+            close(fd);
+            return -2;
+        }
+    }
+
+    // Set raw mode
+    struct termios tio;
+    if (tcgetattr(fd, &tio) < 0) {
+        close(fd);
+        return -3;
+    }
+    cfmakeraw(&tio);
+    tio.c_cc[VMIN] = 1;
+    tio.c_cc[VTIME] = 0;
+    if (tcsetattr(fd, TCSANOW, &tio) < 0) {
+        close(fd);
+        return -4;
+    }
+    return fd;
+#elif OS_IS(FREERTOS)
+    // For FreeRTOS, assume descriptor is a UART-like driver and not standard POSIX fd.
+    // Placeholder: integrate with platform-specific open API when available.
+    // int fd = open(usb_dev_name, ...);
+    // if (fd < 0) return -1;
+    // return fd;
+    return -1; // Not implemented
+#else
+    // Placeholder: integrate with platform-specific open API when available.
+    return -1; // Not implemented
+#endif
+}
+
+void HalCloseUsb(int fd)
+{
+    if (fd >= 0)
+        close(fd);
+}
+
+/*
+ * Writes data to the LON USB network interface.
+ * Parameters:
+ *   fd: File descriptor of the opened LON USB network interface
+ *   buf: Pointer to the data buffer to write
+ *   len: Number of bytes to write
+ *   bytes_written: Pointer to size_t to receive the number of bytes written
+ * Returns:
+ *   LonStatusNoError on success; LonStatusCode error code if unsuccessful.
+ * Notes:
+ *   The entire buffer is written unless a non-recoverable error occurs.
+ *   For Linux, it retries on EINTR and EAGAIN. For partial progress followed
+ *   by error, the already-written byte count is returned via bytes_written.
+ */
+LonStatusCode HalWriteUsb(int fd, const void *buf, size_t len, size_t *bytes_written)
+{
+#if OS_IS(LINUX)
+    const uint8_t *p = (const uint8_t*)buf;
+    size_t total = 0;
+    if (bytes_written) *bytes_written = 0;
+    const int MAX_POLL_MS = 5000;        // overall soft budget
+    const int SLICE_MS = 100;            // poll slice
+    int elapsed = 0;
+    struct pollfd pfd; pfd.fd = fd; pfd.events = POLLOUT;
+    while (total < len) {
+        ssize_t n = write(fd, p + total, len - total);
+        if (n > 0) { total += (size_t)n; continue; }
+        if (n == -1) {
+            if (errno == EINTR) continue; // transient
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                int to = (elapsed + SLICE_MS > MAX_POLL_MS) ? (MAX_POLL_MS - elapsed) : SLICE_MS;
+                if (to <= 0) { // budget exhausted
+                    if (bytes_written) *bytes_written = total;
+                    return LonStatusTimeout;
+                }
+                int pr = poll(&pfd, 1, to);
+                if (pr < 0) {
+                    if (errno == EINTR) continue; // reattempt
+                    if (bytes_written) *bytes_written = total;
+                    OsalPrintError(LonStatusWriteFailed, "HalWriteUsb poll error (errno=%d)", errno);
+                    return LonStatusWriteFailed;
+                }
+                elapsed += to;
+                continue; // try write again
+            }
+            LonStatusCode ec = LonStatusWriteFailed;
+            if (errno == ENODEV || errno == EIO) ec = LonStatusInterfaceError;
+            else if (errno == ETIMEDOUT) ec = LonStatusTimeout;
+            if (bytes_written) *bytes_written = total;
+            OsalPrintError(ec, "HalWriteUsb failed after %zu/%zu bytes (errno=%d)", total, len, errno);
+            return ec;
+        }
+    }
+    if (bytes_written) *bytes_written = total;
+#elif OS_IS(FREERTOS)
+    // For FreeRTOS, assume descriptor is a UART-like driver and not standard POSIX fd.
+    // Placeholder: integrate with platform-specific write API when available.
+    // size_t total = 0;
+    // const uint8_t *p = (const uint8_t*)buf;
+    // while (total < len) {
+    // int rc = write(fd, p + total, len - total); // depends on provided BSP
+    //     if (rc > 0) { total += (size_t)rc; continue; }
+    //     if (rc < 0) { if (bytes_written) *bytes_written = total; return LonStatusWriteFailed; }
+    // }
+    if (bytes_written) *bytes_written = 0;
+    OsalPrintError(LonStatusWriteFailed, "HalWriteUsb() not implemented");
+    return LonStatusWriteFailed;
+#else
+    // Placeholder: integrate with platform-specific write API when available.
+    // size_t total = 0; const uint8_t *p = (const uint8_t*)buf;
+    // while (total < len) {
+    //     ssize_t n = write(fd, p + total, len - total);
+    //     if (n <= 0) { if (bytes_written) *bytes_written = total; return LonStatusWriteFailed; }
+    //     total += (size_t)n;
+    // }
+    // if (bytes_written) *bytes_written = total;
+    // return LonStatusNoError;
+    if (bytes_written) *bytes_written = 0;
+    OsalPrintError(LonStatusWriteFailed, "HalWriteUsb() not implemented");
+    return LonStatusWriteFailed;
+#endif
+    return LonStatusNoError;
+}
+
+/*
+ * Polls and reads data from the LON USB network interface.
+ * Parameters:
+ *   fd: File descriptor of the opened LON USB network interface
+ *   buf: Pointer to the data buffer to receive read data
+ *   len: Number of bytes to read
+ *   bytes_read: Pointer to ssize_t to receive the number of bytes read
+ * Returns:
+ *   LonStatusNoError on success; LonStatusCode error code if unsuccessful
+ * Notes:
+ *   This function performs a non-blocking read. If no data is available,
+ *   it returns LonStatusNoMessageAvailable. If data is available, it reads
+ *   up to 'len' bytes and returns the number of bytes read via 'bytes_read'.
+ *   Drivers can call this function periodically to retrieve incoming data,
+ *   or implement code to asynchronously call LonUsbFeedRx() to feed data
+ *   received from the LON USB network interface into the RX ring buffer.
+ */
+LonStatusCode HalReadUsb(int fd, void *buf, size_t len, ssize_t *bytes_read)
+{
+#if OS_IS(LINUX)
+    if (fd < 0 || !buf || len == 0 || !bytes_read) {
+        OsalPrintError(LonStatusInvalidParameter, "HalReadUsb invalid parameter");
+        return LonStatusInvalidParameter;
+    }
+    *bytes_read = read(fd, buf, len);
+    if (*bytes_read < 0) {
+        if (errno == EAGAIN || errno == EWOULDBLOCK) {
+            return LonStatusNoMessageAvailable;
+        }
+        OsalPrintError(LonStatusReadFailed, "Read error %d", errno);
+        return LonStatusReadFailed;
+    }
+    if (*bytes_read == 0) {
+        OsalPrintError(LonStatusInterfaceError, "Read returned 0 bytes; device may be disconnected");
+        return LonStatusInterfaceError;
+    }
+    OsalPrintTrace(LonStatusNoError, "Read %zd bytes", *bytes_read);
+    return LonStatusNoError;
+#elif OS_IS(FREERTOS)
+    // HalReadUsb for FreeRTOS depends on the specific UART or USB stack in use;
+    // implement a non-blocking read from the LON USB network interface here,
+    // or implement code to asynchronously call LonUsbFeedRx() to feed data 
+    // received from the LON USB network interface into the RX ring buffer
+    #pragma message("Optional: implement OS-dependent definition of HalReadUsb()")
+    return LonStatusNoMessageAvailable;
+#else
+    // Implement a non-blocking read from the LON USB network interface here,
+    // or implement code to asynchronously call LonUsbFeedRx() to feed data 
+    // received from the LON USB network interface into the RX ring buffer
+    #pragma message("Optional: implement OS-dependent definition of HalReadUsb()")
+    return LonStatusNoMessageAvailable;
+#endif
+}
+
+/*****************************************************************
+ * Section: MAC Address Function Definition
+ *****************************************************************/
 /*
  * Gets the MAC address of the host IP interface.
  * Parameters:
@@ -497,7 +737,8 @@ LonStatusCode HalFlashDrvRead(IzotByte *buf, size_t start, size_t size)
  */ 
 LonStatusCode HalGetMacAddress(unsigned char *mac)
 {
-#if OS_IS(LINUX)
+#if (OS_IS(LINUX) || defined(__APPLE__) || defined(__unix__)) && !PROCESSOR_IS(MC200)
+    // Unix-like systems (Linux, macOS, BSD)
     const char *iface = "eth0";
     int fd;
     struct ifreq ifr;
@@ -511,13 +752,25 @@ LonStatusCode HalGetMacAddress(unsigned char *mac)
     memset(&ifr, 0, sizeof(ifr));
     strncpy(ifr.ifr_name, iface, IFNAMSIZ-1);
 
+#if defined(__linux__) && !defined(__APPLE__)
+    // Linux uses SIOCGIFHWADDR
     if (ioctl(fd, SIOCGIFHWADDR, &ifr) == -1) {
-        // ioctl error
         close(fd);
         return LonStatusDeviceUniqeIdNotAvailable;
     }
-
-    return LonStatusNoError; // Success
+    memcpy(mac, ifr.ifr_hwaddr.sa_data, 6);
+#elif defined(__APPLE__) || defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
+    // macOS/BSD use getifaddrs() - ioctl doesn't work the same way
+    // For now, return not available on macOS
+    close(fd);
+    return LonStatusDeviceUniqeIdNotAvailable;
+#else
+    close(fd);
+    return LonStatusDeviceUniqeIdNotAvailable;
+#endif
+    
+    close(fd);
+    return LonStatusNoError;
 #elif PROCESSOR_IS(MC200)
     return (wlan_get_mac_address(mac) ? LonStatusDeviceUniqeIdNotAvailable : LonStatusNoError);
 #else
@@ -525,6 +778,9 @@ LonStatusCode HalGetMacAddress(unsigned char *mac)
 #endif
 }
 
+/*****************************************************************
+ * Section: Reboot Function Definition
+ *****************************************************************/
 /*
  * Reboots the host device.
  * Parameters:
@@ -538,7 +794,8 @@ LonStatusCode HalReboot(void)
 {
     LonStatusCode ret = LonStatusHostRebootFailure;
 
-#if OS_IS(LINUX)
+#if defined(__linux__) && !defined(__APPLE__)
+    // Linux-specific reboot (requires sys/reboot.h and RB_AUTOBOOT)
     // Sync filesystems before rebooting
     sync();
 
@@ -549,6 +806,9 @@ LonStatusCode HalReboot(void)
     }
 #elif PROCESSOR_IS(MC200)
     arch_reboot();
+#else
+    // Platform doesn't support reboot, or not implemented
+    ret = LonStatusNotImplemented;
 #endif
     // Should not reach here
     return ret;

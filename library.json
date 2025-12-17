@@ -9,7 +9,7 @@
       "-Iinclude/isi",
       "-Iinclude/izot",
       "-Iinclude/lcs",
-      "-Iinclude/ls_udp",
+      "-Iinclude/lon_udp",
       "-Iinclude/persistence"
     ]
   }

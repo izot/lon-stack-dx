@@ -164,7 +164,7 @@ typedef enum {
 
 // ISI variables fall into two sections, persistent ones, and not persistent
 // ones. Both are held in one structure each. The structures are defined here
-// (and implemented in vars.c. The defaults are also set there)
+// (and implemented in isi_vars.c. The defaults are also set there)
 typedef struct {
 #ifdef  ISI_SUPPORT_TIMG
     IzotByte    Devices;            // Latest device count

@@ -1,33 +1,17 @@
-//
-// Persitent.h
-//
-// Copyright (C) 2022-2025 EnOcean
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy of
-// this software and associated documentation files (the "Software"), to deal in 
-// the Software without restriction, including without limitation the rights to
-// use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-// of the Software, and to permit persons to whom the Software is furnished to do
-// so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
-
 /*
- * Abstract:
- * API to store the information in the hardware flash memory.  The API manages the
- * information with a peristent header. The persistent header contains the
- * application signature to verify the information while reading or writing 
- * to the flash memory.
+ * lon_persistence.h
+ *
+ * Copyright (c) 2023-2025 EnOcean
+ * SPDX-License-Identifier: MIT
+ * See LICENSE file for details.
+ * 
+ * Title:   Persistent Memory Management
+ * Purpose: Provides functions to manage persistent memory storage.
+ * Notes:   This module handles reading and writing data to hardware flash
+ *          memory, ensuring data integrity with a persistent header
+ *          containing an application signature.
  */
+
 #ifndef _PERSISTENT_H
 #define _PERSISTENT_H
 
@@ -45,10 +29,6 @@
 #include <wm_os.h>
 #endif
 
-
-/*------------------------------------------------------------------------------
-  Section: Definations
-  ------------------------------------------------------------------------------*/
 typedef IZOT_STRUCT_BEGIN(IzotPersistenceHeader)
 {
 	unsigned int length;
@@ -58,10 +38,9 @@ typedef IZOT_STRUCT_BEGIN(IzotPersistenceHeader)
 	unsigned short checksum;
 } IZOT_STRUCT_END(IzotPersistenceHeader);
 
-/*------------------------------------------------------------------------------
-  Section: Function Prototypes
-  ------------------------------------------------------------------------------*/
-
+/*****************************************************************
+ * Section: Function Declarations
+ *****************************************************************/
 /*
  * Function: IzotPersistentSegGetHeaderSize
  * This function compute Persistent header size

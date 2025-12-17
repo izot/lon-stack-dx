@@ -1,31 +1,31 @@
-//
-// lcs_node.h
-//
-// Copyright (C) 2022-2025 EnOcean
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy of
-// this software and associated documentation files (the "Software"), to deal in 
-// the Software without restriction, including without limitation the rights to
-// use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-// of the Software, and to permit persons to whom the Software is furnished to do
-// so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
-
-/*********************************************************************
-  Purpose:        To define the type definitions needed by the upper
-                  layers of the LON stack and to define interface
-                  functions for some of these data structures.
-*********************************************************************/
+/*
+ * lcs_node.h
+ *
+ * Copyright (c) 2022-2025 EnOcean
+ * SPDX-License-Identifier: MIT
+ * See LICENSE file for details.
+ * 
+ * Title:   LON Stack Configuration Data Structures and Type Definitions
+ * Purpose: Defines configuration data structures and other type definitions
+ *          required by the LON Stack upper layers and provides interface
+ *          functions to access some of the data structures.
+ * Notes:   See ISO/IEC 14908-1 for LON protocol details.
+ * 
+ *          The LON Stack supports multiple LON stack instances on the same
+ *          host. Each stack has its own configuration and runtime data
+ *          structures.  ProtocolStackData is a global structure defined in
+ *          lcs/lcs_node.h.  An array of ProtocolStackData structures is
+ *          used so that each stack has its own data that it works on. The
+ *          LON stack scheduler assign the selected ProtocolStackData structure
+ *          to a global pointer named gp for the current LON stack instance
+ *          before the stack code is executed. The number of stack instances
+ *          is defined by the constant NUM_STACKS in IzotPlatform.h.  The
+ *          default is 1.  Each stack instance has its own copy of the NmMap
+ *          structure that holds the runtime data for the network management 
+ *          layer. The support for multiple-stacks does not include support
+ *          for the MAC layer to handle multiple stacks or multiple application
+ *          programs. A true multi-stack system needs some extra coding.
+ */
 
 #ifndef _NODE_H
 #define _NODE_H
@@ -36,8 +36,7 @@
 #include <stdint.h>
 
 #include "izot/IzotPlatform.h"
-#include "izot/IzotTypes.h"
-#include "common/EchelonStandardDefinitions.h"
+#include "izot/lon_types.h"
 #include "isi/isi_int.h"
 #include "abstraction/IzotEndian.h"
 #include "lcs/lcs_api.h"
@@ -55,9 +54,6 @@
 extern "C" {
 #endif
 
-/*-------------------------------------------------------------------
-  Section: Constant Definitions
-  -------------------------------------------------------------------*/
 /* Define the size of the table maintained by the transaction control
    sublayer that keeps track of each possible destination address
    in packets sent to make sure that we don't assign the same tid as in the
@@ -77,10 +73,6 @@ extern "C" {
 #define ADDR_INDEX(hi,lo) (hi<<4 | lo)
 /*Used to correct the responses in the NmQuerySiData() function*/
 #define OFFSET_OF_SI_DATA_BUFFER_IN_SNVT_STRUCT 6
-
-/*-------------------------------------------------------------------
-  Section: Type Definitions
-  -------------------------------------------------------------------*/
 
 /* Turn off alignment by compiler to make sure that the structure sizes
    are as we intend them to be with no padding */
@@ -764,7 +756,7 @@ typedef struct
     Queue          nvOutIndexQ;
     IzotUbits16    nvOutIndexQCnt;
     IzotUbits16    nvOutIndexBufSize;
-    Status         nvOutStatus;      /* Used to give NVUpdateCompletes for Propagate. */
+    LonStatusCode  nvOutStatus;      /* Used to give NVUpdateCompletes for Propagate. */
     IzotByte       nvOutCanSchedule; /* TRUE --> can continue to schedule. */
     IzotBits16     nvOutIndex;       /* current primary index scheduled.   */
 
@@ -783,9 +775,9 @@ typedef struct
 
     Queue          nvInIndexQ;
     IzotUbits16    nvInIndexQCnt;
-    Status         nvInDataStatus; /* true if any valid data from external node
+    LonStatusCode  nvInDataStatus; /* true if any valid data from external node
                                     is received or nv is turnaround only. */
-    Status         nvInTranStatus; /* true if all transactions for the poll succeeded. */
+    LonStatusCode  nvInTranStatus; /* true if all transactions for the poll succeeded. */
     IzotByte       nvInCanSchedule; /* TRUE --> can continue to schedule. */
     IzotBits16     nvInIndex;       /* current primary index scheduled.   */
 
@@ -814,8 +806,8 @@ typedef struct
     IzotUbits16 nextBindableMsgTag;
     IzotUbits16 nextNonbindableMsgTag;
 
-	LonTimer ledTimer;		/* To flash service LED */
-    LonTimer checksumTimer;	/* How often to checksum */
+	LonTimer ledTimer;		/* Timer for flashing the Service LED */
+    LonTimer checksumTimer;	/* Timer for configuration checksum verification */
 
 	LonTimer proxyBufferWait;
 
@@ -849,7 +841,7 @@ typedef struct
     /* Checksum for config structure */
     IzotByte            configCheckSum; /* Exclusive or of successive bytes in
                              config structure */
-    IzotSystemError     errorLog;
+    LonStatusCode     errorLog;
 	Dimensions          dimensions;
 	IzotByte            nvInitCount;
 	IzotByte            nodeState;
@@ -907,9 +899,9 @@ extern   IzotDpProperty      izot_dp_prop[NV_TABLE_SIZE];
   Section: Function Prototypes
   -------------------------------------------------------------------*/
 IzotDomain  *AccessDomain(IzotByte indexIn);
-Status   UpdateDomain(const IzotDomain *domainInp, IzotByte indexIn, IzotByte includeKey);
+LonStatusCode   UpdateDomain(const IzotDomain *domainInp, IzotByte indexIn, IzotByte includeKey);
 IzotAddress *AccessAddress(IzotUbits16 indexIn);
-Status   UpdateAddress(const IzotAddress *addrEntryInp, IzotUbits16 indexIn);
+LonStatusCode   UpdateAddress(const IzotAddress *addrEntryInp, IzotUbits16 indexIn);
 IzotUbits16  AddrTableIndex(IzotByte domainIndexIn, IzotByte groupIn);
 IzotByte IsGroupMember(IzotByte domainIndex, IzotByte groupIn,
                       IzotByte *groupMemberOut);
@@ -925,10 +917,9 @@ void     UpdateNV(IzotDatapointConfig *nvStructInp, IzotUbits16 indexIn);
 IzotAliasConfig *AccessAlias(IzotUbits16 indexIn);
 void     UpdateAlias(IzotAliasConfig *aliasStructInp, IzotUbits16 indexIn);
 IzotUbits16 AliasTableIndex(char varNameIn[]);
-void    *AllocateStorage(IzotUbits16 size);
 void     NodeReset(IzotByte firstReset);
 void	 NodeReset_wrapper(void);
-Status   InitEEPROM(uint32_t signature);
+LonStatusCode   InitEEPROM(uint32_t signature);
 IzotByte CheckSum8(void *data, IzotUbits16 lengthIn);
 IzotByte ComputeConfigCheckSum(void);
 IzotBits16 GetPrimaryIndex(IzotBits16 nvIndexIn);
@@ -936,7 +927,7 @@ IzotDatapointConfig *GetNVStructPtr(IzotBits16 nvIndexIn);
 IzotByte IsTagBound(IzotByte tagin);
 IzotByte IsNVBound(IzotBits16 nvIndexIn);
 IzotBool AppPgmRuns(void);
-void     MsgCompletes(Status status, MsgTag tag);
+void     MsgCompletes(LonStatusCode status, MsgTag tag);
 IzotByte NodeConfigured(void);		    // Node is honoring its configuration
 IzotByte NodeUnConfigured(void);		// Node is not running and not honoring configuration (not necessarily the same as !NodeConfigured())
 void	 LCS_LogRxStat(AltPathFlags altPath, RxStatType type);
@@ -944,18 +935,11 @@ void	 NM_Init(void);
 IzotBool IsPhysicalResetRequested(void);
 void     PhysicalResetRequested(void);
 
-// Workaround EchErr definition problem
-#ifndef ECHERR_DEFINED
-#define ECHERR_DEFINED
-typedef uint16_t EchErr;
-#endif
-
 // APIs that follow the AREA_<Name> convention:
-void	 LCS_RecordError(IzotSystemError err);
 void	 LCS_WriteNvm(void);
-EchErr	 LCS_ReadNvm(void);
+LonStatusCode LCS_ReadNvm(void);
 void     LCS_WriteNvs(void);
-EchErr   LCS_ReadNvs(void);
+LonStatusCode LCS_ReadNvs(void);
 void	 LCS_InitAddress(void);
 void 	 LCS_InitAlias(void);
 IzotByte izot_get_device_state(void);
@@ -980,17 +964,9 @@ extern IzotBool IzotFilterMsgArrived(const IzotReceiveAddress* const pAddress, c
 extern IzotBool IzotFilterResponseArrived(const IzotResponseAddress* const pAddress, const unsigned tag,
 								const IzotByte code, const IzotByte* const pData, const unsigned dataLength);									
 
-#if DEBUG_LCS
-void    DebugMsg(char debugMsg[]);
-void    ErrorMsg(char errMessageIn[]);
-#else
-#define DebugMsg(x)
-#define ErrorMsg(x)
-#endif
-
 #ifdef  __cplusplus
 }
 #endif
 
 #endif   /* #ifndef _NODE_H */
-/*******************************node.h*******************************/
+

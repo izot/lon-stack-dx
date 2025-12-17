@@ -1,51 +1,30 @@
-//
-// lcs_netmgmt.h
-//
-// Copyright (C) 2022 EnOcean
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy of
-// this software and associated documentation files (the "Software"), to deal in 
-// the Software without restriction, including without limitation the rights to
-// use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-// of the Software, and to permit persons to whom the Software is furnished to do
-// so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
+/*
+ * lcs_netmgmt.c
+ *
+ * Copyright (c) 2022-2025 EnOcean
+ * SPDX-License-Identifier: MIT
+ * See LICENSE file for details.
+ * 
+ * Title:   LON Stack Application Layer Network Management
+ * Purpose: Implements handlers for LON application layer (Layer 7)
+ *          network management messages (HandleNM()) and LON network
+ *          diagnostic messages (HandleND()).
+ * Notes:   See lcs_netmgmt.c.
+ */
 
-/*******************************************************************************
-     Reference:        Section 10, ISO/IEC 14908-1
-
-       Purpose:        LON App Layer / Network Management
-
-          Note:        For more information, see netmgmt.c.
-*******************************************************************************/
 #ifndef _LCS_NETMGMT_H
 #define _LCS_NETMGMT_H
-
-/*------------------------------------------------------------------------------
-Section: Includes
-------------------------------------------------------------------------------*/
 
 #include <stdio.h>
 #include <string.h>
 #include "izot/IzotPlatform.h"
 #include "abstraction/IzotEndian.h"
-#include "common/err.h"
 #include "izot/IzotApi.h"
 #include "abstraction/IzotCal.h"
-#include "lcs/iup.h"
 #include "lcs/lcs_api.h"
 #include "lcs/lcs_app.h"
 #include "lcs/lcs_eia709_1.h"
+#include "lcs/lcs_iup.h"
 #include "lcs/lcs_timer.h"
 #include "lcs/lcs_node.h"
 #include "lcs/lcs_queue.h"
@@ -62,11 +41,7 @@ Section: Includes
 
 #pragma pack(push, 1)
 
-/*------------------------------------------------------------------------------
-Section: Constant Definitions
-------------------------------------------------------------------------------*/
-typedef enum
-{
+typedef enum {
     ND_MESSAGE,
     NM_MESSAGE
 } NtwkMgmtMsgType;
@@ -143,9 +118,6 @@ typedef enum
 // Foreign Codes 
 #define LT_APDU_ENHANCED_PROXY 0x4D
 
-/*------------------------------------------------------------------------------
-Section: Type Definitions
-------------------------------------------------------------------------------*/
 typedef enum {
     ABSOLUTE_MEM_ADDR  = 0,
     READ_ONLY_RELATIVE = 1,
@@ -157,29 +129,26 @@ typedef enum {
 	MFG_RELATIVE	   = 255,	// Used to access MFG specific extensions such as a flash info block.
 } ModeType;
 
-typedef enum
-{
+typedef enum {
     UNCONFIGURED   = 0,
     SELECTED       = 1,
     SELECTED_UNCFG = 2,   /* selected *AND* unconfigured */
 } Selector;
 
-typedef enum
-{
+typedef enum {
     NO_ACTION            = 0,
     BOTH_CS_RECALC       = 1,
     CNFG_CS_RECALC       = 4,
     ACTION_RESET         = 8,
 } Form;
 
-typedef struct
-{
+typedef struct {
     IzotByte   stats[10]; // First 5 statistics
     IzotByte   resetCause;
     IzotByte   nodeState;
     IzotByte   versionNumber;
     IzotByte   errorLog;
-    IzotByte   modelNumber;
+    IzotByte   architectureNumber;
 } NDQueryStat;
 
 typedef struct {
@@ -216,13 +185,11 @@ typedef struct {
 
 #define NMV_LSIP_ADDR_MAPPING_ANNOUNCEMENTS      0x04
 
-typedef enum 
-{
+typedef enum {
 	NDQB_ATTENUATE = 	0x01,
 } NDQueryBidirFlags;
 
-typedef struct
-{
+typedef struct {
     IzotByte   version;
     IzotByte   variant;
     IzotByte   rom_version;
@@ -233,10 +200,6 @@ typedef struct
 #pragma pack(pop)
 
 /*------------------------------------------------------------------------------
-Section: Globals
-------------------------------------------------------------------------------*/
-
-/*------------------------------------------------------------------------------
 Section: Function Prototypes
 ------------------------------------------------------------------------------*/
 void HandleNM(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr);
@@ -244,4 +207,3 @@ void HandleND(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr);
 void HandleProxyResponse(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr);
 
 #endif	// _LCS_NETMGMT_H
-
