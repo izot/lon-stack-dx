@@ -1,12 +1,44 @@
 {
-  "version": 3,
+  "version": 6,
   "configurePresets": [
     {
       "name": "arm64-cross",
       "description": "Build using 64-bit ARM cross toolchain",
       "hidden": false,
       "generator": "Ninja",
-      "toolchainFile": "${sourceDir}/aarch64-toolchain.cmake"
+      "toolchainFile": "${sourceDir}/aarch64-toolchain.cmake",
+      "binaryDir": "${sourceDir}/build/arm64",
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      }
+    },
+    {
+      "name": "default",
+      "description": "Default build using native compiler",
+      "hidden": false,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/default",
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      }
     }
-  ]  
+  ],
+  "buildPresets": [
+    {
+      "name": "arm64-cross",
+      "displayName": "ARM64 cross (build Example1)",
+      "configurePreset": "arm64-cross",
+      "targets": [
+        "lon_stack_example1"
+      ]
+    },
+    {
+      "name": "default",
+      "displayName": "Native (build Example1)",
+      "configurePreset": "default",
+      "targets": [
+        "lon_stack_example1"
+      ]
+    }
+  ]
 }
