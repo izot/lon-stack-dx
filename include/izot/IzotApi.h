@@ -259,17 +259,17 @@ IZOT_EXTERNAL_FN LonStatusCode IzotPropagateByIndex(signed index);
 
 
 /*
- * Function: IzotSendServicePin
- * Propagates a service pin message.
+ * Function: IzotSendServiceMessage
+ * Propagates a Service message.
  *
  * Returns:
  * <LonStatusCode>
  *
  * Remarks:
- * Use this function to propagate a service pin message to the network.
+ * Use this function to propagate a Service message to the network.
  * The function will fail if the device is not yet fully initialized.
  */
-IZOT_EXTERNAL_FN LonStatusCode IzotSendServicePin(void);
+IZOT_EXTERNAL_FN LonStatusCode IzotSendServiceMessage(void);
 
 /*
  * Function: IzotSendMsg

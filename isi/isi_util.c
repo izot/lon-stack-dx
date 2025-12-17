@@ -404,7 +404,7 @@ IzotByte* get_nv_value(const unsigned index)
 
 LonStatusCode service_pin_msg_send()
 {
-    return IzotSendServicePin();
+    return IzotSendServiceMessage();
 }
 
 void node_reset()

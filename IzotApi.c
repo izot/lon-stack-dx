@@ -323,7 +323,7 @@ IZOT_EXTERNAL_FN LonStatusCode IzotPropagateByIndex(signed index)
  *   Use this function to propagate a Service message to the network.
  *   The function will fail if the device is not yet fully initialized.
  */
-IZOT_EXTERNAL_FN LonStatusCode IzotSendServicePin(void)
+IZOT_EXTERNAL_FN LonStatusCode IzotSendServiceMessage(void)
 {
     LonStatusCode status;
     status = ManualServiceRequestMessage();

@@ -190,11 +190,17 @@ void Temp2InUpdateOccurred(const unsigned index, const IzotReceiveAddress* const
 #ifdef INCLUDE_EXAMPLE_MAIN
 void main() {
     LonStatusCode lastError = LonStatusNoError;
-    IzotBool success = TRUE;
+    bool success = true;
 
     // Set up Example1
-    SetUpExample1();
+    success = SetUpExample1();
 
+    // Send a Service message to indicate that the node has started
+    // This is not required, but is useful for testing purposes
+    if (success) {
+        IzotSendServiceMessage();
+    }
+    
     // Main loop
     while (success) {
         success = LON_SUCCESS(lastError = LoopExample1());
