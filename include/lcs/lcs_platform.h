@@ -1,56 +1,64 @@
-//
-// lcs_platform.h
-//
-// Copyright (C) 2022 EnOcean
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy of
-// this software and associated documentation files (the "Software"), to deal in 
-// the Software without restriction, including without limitation the rights to
-// use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-// of the Software, and to permit persons to whom the Software is furnished to do
-// so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-// SOFTWARE.
-
-/*********************************************************************
-  Purpose:        Platform-dependent definitions.
-*********************************************************************/
+/*
+ * lcs_platform.h
+ *
+ * Copyright (c) 2022-2025 EnOcean
+ * SPDX-License-Identifier: MIT
+ * See LICENSE file for details.
+ * 
+ * Title:   Platform-Dependent Definitions
+ * Purpose: Defines platform-dependent constants and macros.
+ * Notes:   This file can be customized for each target platform.
+ */
 
 #ifndef _PLATFORM_H
 #define _PLATFORM_H
 
 #include "izot/IzotPlatform.h"
-#include "common/echversion.h"
+#include "common/lon_stack_dx_version.h"
 
-// The base Neuron firmware version on which this implementation is based.
-#define BASE_FIRMWARE_VERSION   16
+// The base LON Stack version on which this implementation is based.
+// The base firmware version number is reported in the ND_QUERY_STATUS
+// response as an implementation-defined value.
+#define BASE_FIRMWARE_VERSION   LON_STACK_DX_VERSION_MAJOR
 
-// The version number of this firmware
-#define FIRMWARE_VERSION        VER_MAJOR
-#define FIRMWARE_MINOR_VERSION  VER_MINOR
-#define FIRMWARE_BUILD			    VER_BUILD
+// The version number of this LON Stack implementation
+#define FIRMWARE_VERSION        LON_STACK_DX_VERSION_MAJOR
+#define FIRMWARE_MINOR_VERSION  LON_STACK_DX_VERSION_MINOR
+#define FIRMWARE_BUILD			LON_STACK_DX_VERSION_PATCH
 
-// The model number of this platform
-#define MODEL_NUMBER            0x74
+// Available architecture numbers.  The architecture number is reported in the 
+// ND_QUERY_STATUS response as an implementation-defined value.
+#define LON_ARCH_UNSPECIFIED   0x00
 
+/* 32-bit */
+#define LON_ARCH_X86_32        0x20
+#define LON_ARCH_ARM32         0x21
 
-// Turn on packing so that structures are packed on byte boundaries.  This should be done globally via a compiler switch.  Otherwise, try using
-// a pragma such as #pragma pack
+/* 64-bit */
+#define LON_ARCH_X86_64        0x40
 
-// This macro takes a C enum type and turns it into a Byte type that will fit into C data structures that are sent on the network.
+/* Modern RISC */
+#define LON_ARCH_ARM64         0xA8  // ARMv8 / AArch64
+#define LON_ARCH_RISCV64       0xA9
+
+/* Virtual / reference */
+#define LON_ARCH_SIMULATOR     0xC0
+#define LON_ARCH_REFERENCE     0xC1
+
+// The architecture number of this platform
+#define ARCHITECTURE_NUMBER LON_ARCH_ARM64
+
+// Turn on packing so that structures are packed on byte boundaries.
+// This should be done globally via a compiler switch.  Otherwise,
+// try using a pragma such as #pragma pack
+
+// This macro takes a C enum type and turns it into a Byte type that will
+//fit into C data structures that are sent on the network.
 #define NetEnum(enumType) IzotByte
 
-// C stack defines bitfields MSB first.
+// LON Stack DX defines bitfields MSB first.
 #define BITF_DECLARED_BIG_ENDIAN
+
 // Target compiler expects bitfields LSB first.
 #define BITF_LITTLE_ENDIAN
 
