@@ -87,6 +87,9 @@ IzotBool QueueEmpty(Queue *queue_in);
 /* QueueDropHead removes an item (i.e advances head) from the queue. */
 void QueueDropHead(Queue *queue_in_out);
 
+/* Flushes all entries in the specified queue. */
+void QueueFlush(Queue *queue_in_out);
+
 /* Enqueue adds an item (i.e advances tail) to queue. */
 void QueueWrite(Queue *queue_in_out);
 

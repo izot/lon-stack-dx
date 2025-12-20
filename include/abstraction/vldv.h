@@ -15,13 +15,14 @@
 #define __VLDV_H
 
 // Local NI commands
+// TBD: merge these into LonNiCommand in lon_types.h, from lon_usb_link.h
 #define nicbRESPONSE		0x16
 #define nicbINCOMING_L2		0x1A
-#define nicbINCOMING_L2M1	0x1B		// Mode 1 frame
-#define nicbINCOMING_L2M2   0x1C		// Mode 2 frame
+#define nicbINCOMING_L2M1	0x1B	// Mode 1 frame
+#define nicbINCOMING_L2M2   0x1C	// Mode 2 frame
 #define nicbLOCALNM			0x22
 #define nicbERROR			0x30
-#define nicbPHASE			0x40		// Phase mode
+#define nicbPHASE			0x40	// Phase mode
 #define nicbRESET			0x50	
 #define nicbINITIATE 	 	0x51
 #define nicbCHALLENGE  		0x52

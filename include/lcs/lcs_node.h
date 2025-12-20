@@ -675,7 +675,7 @@ typedef struct
     IzotUbits16     lkInQCnt;    /* # of Buffers allocated. */
     IzotByte       *lkInQHeadPtr;
     IzotByte       *lkInQTailPtr;
-#endif // LINK_IS(MIP)
+#endif // LINK_IS(USB) || LINK_IS(MIP)
     /* Output Queue For Link Layer */
     Queue           lkOutQ;
     IzotUbits16     lkOutBufSize;

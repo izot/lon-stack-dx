@@ -497,42 +497,45 @@ typedef struct NM_query_domain_request {
  ****************************************************************************
  */
 
-/* Literals for the 'cmd.q.queue' nibble of NI_Hdr. */
+// Literals for the NI_Hdr 'q.q_cmd' nibble
+// TBD: merge these into LonNiCommand in lon_types.h, from lon_usb_link.h
 
 typedef enum {
-    niTQ          =  2,             /* Transaction queue                    */
-    niTQ_P        =  3,             /* Priority transaction queue           */
-    niNTQ         =  4,             /* Non-transaction queue                */
-    niNTQ_P       =  5,             /* Priority non-transaction queue       */
-    niRESPONSE    =  6,             /* Response msg & completion event queue*/
-    niINCOMING    =  8              /* Received message queue               */
+    niTQ          =  2,             // Transaction queue
+    niTQ_P        =  3,             // Priority transaction queue
+    niNTQ         =  4,             // Non-transaction queue
+    niNTQ_P       =  5,             // Priority non-transaction queue
+    niRESPONSE    =  6,             // Response msg & completion event queue
+    niINCOMING    =  8              // Received message queue
 } NI_Queue;
 
-/* Literals for the 'cmd.noq' Byte of NI_Hdr. */
-
+// Local NI command literals used for the NI_Hdr 'noq.cmd' byte
+// TBD: merge these into LonNiCommand in lon_types.h, from lon_usb_link.h
 typedef enum {
     niNULL           = 0x00,
-    niTIMEOUT        = 0x30,        /* Not used                             */
-    niCRC            = 0x40,        /* Not used                             */
+    niCOMM           = 0x10,
+    niNETMGMT        = 0x20,
+    niTIMEOUT        = 0x30,
+    niCRC            = 0x40,
     niRESET          = 0x50,
-    niFLUSH_COMPLETE = 0x60,        /* Uplink                               */
-    niFLUSH_CANCEL   = 0x60,        /* Downlink                             */
+    niFLUSH_COMPLETE = 0x60,        // Uplink
+    niFLUSH_CANCEL   = 0x60,        // Downlink
     niONLINE         = 0x70,
     niOFFLINE        = 0x80,
     niFLUSH          = 0x90,
     niFLUSH_IGN      = 0xA0,
     niSLEEP          = 0xB0,
     niACK            = 0xC0,
-    niNACK           = 0xC1,        /* SLTA only                            */
+    niNACK           = 0xC1,        // SLTA only
     niSSTATUS        = 0xE0,
     niPUPXOFF        = 0xE1,
     niPUPXON         = 0xE2,
-    niPTRHROTL       = 0xE4,        /* Not used                             */
+    niPTRHROTL       = 0xE4,
     niIRQENA         = 0xE5,
 //    niSERVICE        = 0xE6,
     niTXID           = 0xE8,
     niSLTAPLS        = 0xEA,
-    niDRV_CMD        = 0xF0         /* Not used                             */
+    niDRV_CMD        = 0xF0
 } NI_NoQueueCmd;
 
 #define niWAIT_TIME 3               // Timeout for network interface

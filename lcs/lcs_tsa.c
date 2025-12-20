@@ -1329,7 +1329,7 @@ void prepareNpdu(TSAReceiveParam *tsaReceiveParamPtr, TSPDUPtr pduPtr, IzotByte 
 		break;
 		case UNBOUND:
 		default:
-			/* TBD */
+            OsalPrintError(LonStatusBadAddressType, "prepareNpdu: Invalid address mode");
 		break;
 	}
 	memcpy(&pNpdu[j], tsaReceiveParamPtr->srcAddr.dmn.domainId, tsaReceiveParamPtr->srcAddr.dmn.domainLen);
@@ -1381,7 +1381,7 @@ static void SNReceiveResponse(void)
         if (processAesGcm(true, IzotServiceResponse, tsaReceiveParamPtr->priority, 
             &pduPtr->data[dataIndex] /* Encrypted APDU with AES-GCM header, it does not contain TPDU header */, 
             tsaReceiveParamPtr->pduSize - 1 - dataIndex, /* Length of original Encrypted APDU */
-            npdu, npduHdrLen + 1)) { // TBD we need to add 2 if enhanced mode
+            npdu, npduHdrLen + 1)) { // TBD add 2 if enhanced mode
             return;
         }
     }
@@ -1674,7 +1674,7 @@ static void ReceiveNewMsg(Layer layerIn)
             if (processAesGcm(true, serviceType, tsaReceiveParamPtr->priority, 
                 &pduPtr->data[dataIndex] /* Encrypted APDU with AES-GCM header, it does not contain TPDU header */, 
                 tsaReceiveParamPtr->pduSize - 1 - dataIndex, /* Length of original Encrypted APDU */
-                npdu, npduHdrLen + 1)) { // TBD we need to add 2 if enhanced mode
+                npdu, npduHdrLen + 1)) { // TBD add 2 if enhanced mode
                 return;
             }
         }

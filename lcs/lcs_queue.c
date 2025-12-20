@@ -153,6 +153,26 @@ void QueueDropHead(Queue *queue_in_out)
 }
 
 /*
+ * Flushes all entries in the specified queue.
+ * Parameters:
+ *   queue_in_out: Pointer to the queue.
+ * Returns:
+ *   None.
+ * Notes:
+ *   An error message is logged and nothing is done if no queue is provided.
+ */
+void QueueFlush(Queue *queue_in_out)
+{
+    if (!queue_in_out->data) {
+        OsalPrintError(LonStatusInvalidParameter, "QueueFlush: No queue provided");
+        return;
+    }
+    queue_in_out->head = queue_in_out->data;
+    queue_in_out->tail = queue_in_out->data;
+    queue_in_out->queueSize = 0;
+}
+
+/*
  *  Adds an entry to the specified queue.
  *  Parameters:
  *    queue_in_out: Pointer to the queue.
@@ -166,7 +186,7 @@ void QueueDropHead(Queue *queue_in_out)
  */
 void QueueWrite(Queue *queue_in_out)
 {
-    if (queue_in_out->queueSize == queue_in_out->queueCnt) {
+    if (queue_in_out->queueSize >= queue_in_out->queueCnt) {
     	OsalPrintError(LonStatusNoBufferAvailable, "QueueWrite: Queue is full");
         return;
     }
@@ -333,42 +353,4 @@ size_t RingBufferRead(RingBuffer *rb, uint8_t *dst, size_t len)
     rb->tail = (rb->tail + got) % rb->size;
     rb->count -= got;
     return got;
-}
-
-/*****************************************************************
- * Section: Simple queue helper implementations (shared utilities)
- *****************************************************************/
-/*
- * TBD: Replace use of these functions with generic queue functions above.
- * The following functions are only used in lon_usb_link.c and provide
- * simple queue operations for LonQueueEntry structures.
- */
-#include "lon_usb/lon_usb_link.h"
-
-LonQueueEntry* OsalCreateQueueEntry(LonQueueBuffer *data) {
-    LonQueueEntry *new_entry = (LonQueueEntry*)OsalAllocateMemory(sizeof(LonQueueEntry));
-    if (!new_entry) {
-        return NULL; // Allocation failed
-    }
-    new_entry->next = NULL;
-    if (data) {
-        memcpy(&new_entry->data, data, sizeof(struct LonQueueBuffer));
-    } else {
-        memset(&new_entry->data, 0, sizeof(struct LonQueueBuffer));
-    }
-    return new_entry;
-}
-
-struct LonQueueEntry* OsalPeekQueue(struct LonQueueEntry* head) {
-    return head;
-}
-
-size_t OsalGetQueueCount(struct LonQueueEntry* head) {
-    size_t count = 0;
-    struct LonQueueEntry *e = head;
-    while (e) {
-        count++;
-        e = e->next;
-    }
-    return count;
 }

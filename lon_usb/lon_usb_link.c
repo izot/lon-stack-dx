@@ -10,19 +10,19 @@
  * 			U60, or U70 LON USB network interface device.
  * Notes:   Concurrency model (per-interface):
  * 			- Each LonUsbLinkState has a mutex lock guarding two shared structures:
- * 			  (1) usb_rx_ring_buf (staging ring for raw bytes)
+ * 			  (1) lon_usb_uplink_ring_buffer (staging ring for raw bytes)
  * 			  (2) uplink_queue (singly-linked list of parsed messages)
  * 			- Producers:
  * 			  • LonUsbFeedRx() may run in an ISR/deferred thread to push bytes into
- * 			    usb_rx_ring_buf
+ * 			    lon_usb_uplink_ring_buffer
  * 			  • ProcessUplinkBytes() (invoked by ReadLonUsbMsg) produces messages
  * 			    into uplink_queue
  * 			- Consumers:
- * 			  • ReadLonUsbMsg() drains usb_rx_ring_buf and pops from uplink_queue
+ * 			  • ReadLonUsbMsg() drains lon_usb_uplink_ring_buffer and pops from uplink_queue
  * 			    to return a message to the caller
  * 			- Locking rules:
  * 			  • Always OsalLockMutex(&state->queue_lock) before reading/writing
- * 			    usb_rx_ring_buf or uplink_queue, including related stats updates
+ * 			    lon_usb_uplink_ring_buffer or uplink_queue, including related stats updates
  * 			  • Keep the critical section minimal; perform parsing and other CPU
  * 			    work outside the lock
  * 			  • For uplink_queue pop, copy the node’s payload inside the lock,
@@ -39,9 +39,6 @@
 
 #include "izot/IzotApi.h"
 #include "lon_usb/lon_usb_link.h"
-
-// TBD DELETE: #include "lon_usb_defs.h"
-// TBD DELETE: #include "lon_usb_driver.h"
 
 // LON frame sync byte value
 #define FRAME_SYNC					0x7E	// Start of frame indicator; escaped when in data
@@ -150,17 +147,17 @@ static LonUsbLinkState* GetIfaceState(int iface_index);
 static int CountFreeIfaceStates(void);
 
 // Downlink queue management
-static LonStatusCode PeekDownlinkBuffer(int iface_index, LonQueueBuffer *dst);
-static LonStatusCode ReadDownlinkBuffer(int iface_index, LonQueueBuffer *dst);
+static LonStatusCode PeekDownlinkBuffer(int iface_index, LonUsbQueueBuffer *dst);
+static LonStatusCode ReadDownlinkBuffer(int iface_index, LonUsbQueueBuffer *dst);
 static LonStatusCode FlushDownlinkQueue(int iface_index, MessagePriorityLevel priority);
-static LonStatusCode QueueDownlinkBuffer(int iface_index, LonQueueBuffer *src);
+static LonStatusCode QueueDownlinkBuffer(int iface_index, LonUsbQueueBuffer *src);
 static size_t GetDownlinkBufferCount(int iface_index);
 static bool IsDownlinkQueueEmpty(int iface_index);
 
 // Uplink queue management
-static LonStatusCode PeekUplinkBuffer(int iface_index, LonQueueBuffer *dst);
-static LonStatusCode ReadUplinkBuffer(int iface_index, LonQueueBuffer *dst);
-static LonStatusCode QueueUplinkBuffer(int iface_index, LonQueueBuffer *src);
+static LonStatusCode PeekUplinkBuffer(int iface_index, LonUsbQueueBuffer *dst);
+static LonStatusCode ReadUplinkBuffer(int iface_index, LonUsbQueueBuffer *dst);
+static LonStatusCode QueueUplinkBuffer(int iface_index, LonUsbQueueBuffer *src);
 static size_t GetUplinkBufferCount(int iface_index);
 static bool IsUplinkQueueEmpty(int iface_index);
 
@@ -264,7 +261,7 @@ LonStatusCode OpenLonUsbLink(char *lon_dev_name, char *usb_dev_name,
  * Returns:
  *   LonStatusNoError on success; LonStatusCode error code if unsuccessful
  * Notes:
- *   Called at end of OpenLonUsbLink() and TBD.
+ *   Called at end of OpenLonUsbLink() and ProcessDownlinkRequests().
  */
 static LonStatusCode StartLonUsbLink(int iface_index, LonUsbOpenMode iface_mode)
 {
@@ -866,7 +863,6 @@ static LonStatusCode WriteDownlinkCodePacket(int iface_index, LonUsbFrameCommand
 	frame_header.checksum = -ComputeChecksum((uint8_t *)&frame_header, sizeof(frame_header)-1);
 
 	// Send the code packet
-	// TBD: add the bytes written check
 	size_t bytes_written = 0;
 	code = HalWriteUsb(state->usb_fd, (uint8_t *)&frame_header, sizeof(frame_header), &bytes_written);
 	if (code != LonStatusNoError) {
@@ -1081,7 +1077,7 @@ LonStatusCode ReadLonUsbMsg(int iface_index, LdvMessage *out_msg)
 	// Lock ring to safely check available capacity; another thread may feed concurrently
 	// Protect queue head access; other threads may enqueue/dequeue concurrently
 	OsalLockMutex(&state->queue_lock);
-	rb_avail = RingBufferAvail(&state->usb_rx_ring_buf);
+	rb_avail = RingBufferAvail(&state->lon_usb_uplink_ring_buffer);
 	OsalUnlockMutex(&state->queue_lock); // Keep critical section minimal
 	if (fd >= 0 && rb_avail > MAX_BYTES_PER_USB_READ) {
 		uint8_t temp_read_buf[MAX_BYTES_PER_USB_READ];
@@ -1090,8 +1086,8 @@ LonStatusCode ReadLonUsbMsg(int iface_index, LdvMessage *out_msg)
 		if (code == LonStatusNoError && bytes_read > 0) {
 			// Lock ring while writing staged bytes and updating staging stats
 			OsalLockMutex(&state->queue_lock);
-			size_t written = RingBufferWrite(&state->usb_rx_ring_buf, temp_read_buf, (size_t)bytes_read);
-			size_t occ = RingBufferSize(&state->usb_rx_ring_buf);
+			size_t written = RingBufferWrite(&state->lon_usb_uplink_ring_buffer, temp_read_buf, (size_t)bytes_read);
+			size_t occ = RingBufferSize(&state->lon_usb_uplink_ring_buffer);
 			state->lon_stats.usb_rx.bytes_fed += written;
 			if (occ > state->lon_stats.usb_rx.max_occupancy) state->lon_stats.usb_rx.max_occupancy = occ;
 			if (written < (size_t)bytes_read) {
@@ -1114,7 +1110,7 @@ LonStatusCode ReadLonUsbMsg(int iface_index, LdvMessage *out_msg)
 	// lock ring to snapshot count--parser will process outside of lock;
 	// protect pop of head node to avoid races with concurrent writers/readers
 	OsalLockMutex(&state->queue_lock);
-	size_t ring_count = RingBufferSize(&state->usb_rx_ring_buf);
+	size_t ring_count = RingBufferSize(&state->lon_usb_uplink_ring_buffer);
 	OsalUnlockMutex(&state->queue_lock); // Free outside of lock to keep critical section small
 	if (ring_count > 0 && GetUplinkBufferCount(iface_index) < MAX_LON_UPLINK_BUFFERS) {
 		uint8_t parse_chunk[MAX_BYTES_PER_USB_PARSE_CHUNK];
@@ -1123,12 +1119,12 @@ LonStatusCode ReadLonUsbMsg(int iface_index, LdvMessage *out_msg)
 			// Lock ring for atomic read of a chunk--keep scope tight;
 			// protect tail walk and append under lock--single-linked O(n) by design
 			OsalLockMutex(&state->queue_lock);
-			size_t cur_count = RingBufferSize(&state->usb_rx_ring_buf);
+			size_t cur_count = RingBufferSize(&state->lon_usb_uplink_ring_buffer);
 			if (cur_count == 0) {
 				OsalUnlockMutex(&state->queue_lock);
 				break;
 			}
-			size_t chunk_size = RingBufferRead(&state->usb_rx_ring_buf, parse_chunk, sizeof(parse_chunk));
+			size_t chunk_size = RingBufferRead(&state->lon_usb_uplink_ring_buffer, parse_chunk, sizeof(parse_chunk));
 			OsalUnlockMutex(&state->queue_lock);
 			if (chunk_size == 0) break; // Should not happen
 			ProcessUplinkBytes(iface_index, parse_chunk, chunk_size);
@@ -1146,7 +1142,7 @@ LonStatusCode ReadLonUsbMsg(int iface_index, LdvMessage *out_msg)
 	}
 
 	// Stage 3: if a message is available, return it
-	static LonQueueBuffer buffer;
+	static LonUsbQueueBuffer buffer;
 	code = ReadUplinkBuffer(iface_index, &buffer);
 	if (code != LonStatusNoError && code != LonStatusNoBufferAvailable) {
 		return code;
@@ -1225,7 +1221,7 @@ LonStatusCode ReadLonUsbMsg(int iface_index, LdvMessage *out_msg)
  *   - Ignore nicbACK (0xC0) and nicbNACK (0xC1) commands
  *   - Use nicbERROR (0x30) to process runt packets
  * 
- * TBD: (copied to Evernote)
+ * TBD:
  *   - See smpCodePacketRxd() in U50Link.c; reviewed through line 900
  *   - Add new uplink_state values for U50_LINK.
  *   - Update ProcessUplinkBytes() and CheckUplinkCompleted() to handle
@@ -1388,7 +1384,6 @@ static LonStatusCode ProcessUplinkCodePacket(int iface_index)
 		// Short NI command received; process the command
 		OsalPrintTrace(code, "Received uplink short NI command 0x%02X", parameter);
 		state->downlink_ack_required = true;
-		// TBD: begin of added code
 		if (!state->uplink_duplicate) {
 			if (parameter == NI_ACK || parameter == NI_NACK) {
 				// Downlink ACK not required for these commands
@@ -1651,9 +1646,8 @@ static LonStatusCode QueueUplinkMessage(int iface_index, UsbNiMessage *msg)
     } else {
 		Increment32(state->lon_stats.uplink.packets_received);
 		Add32(state->lon_stats.uplink.bytes_received, copy_length);
-		// TBD: fix naming and move buffering
-        code = QueueUplinkBuffer(iface_index, (LonQueueBuffer *)msg);
-		OsalPrintTrace(code, "Queued uplink message with %d bytes", copy_length);
+        code = QueueUplinkBuffer(iface_index, (LonUsbQueueBuffer *)msg);
+		OsalPrintTrace(code, "QueueUplinkMessage: Queued uplink message with %d bytes", copy_length);
 		PrintMessage((uint8_t *)msg, copy_length);
     }
 	return code;
@@ -1707,8 +1701,8 @@ size_t LonUsbFeedRx(int iface_index, const uint8_t *data, size_t len)
 	// Feed thread may run concurrently: lock around ring write and stats
 	// Protect emptiness check; head pointer may be updated concurrently
 	OsalLockMutex(&state->queue_lock);
-	size_t written = RingBufferWrite(&state->usb_rx_ring_buf, data, len);
-	size_t occ = RingBufferSize(&state->usb_rx_ring_buf);
+	size_t written = RingBufferWrite(&state->lon_usb_uplink_ring_buffer, data, len);
+	size_t occ = RingBufferSize(&state->lon_usb_uplink_ring_buffer);
 	state->lon_stats.usb_rx.bytes_fed += written;
 	if (occ > state->lon_stats.usb_rx.max_occupancy) {
 		state->lon_stats.usb_rx.max_occupancy = occ;
@@ -1767,7 +1761,6 @@ static LonStatusCode InitIfaceStates(void)
 		state->iface_index = iface_index;
 		state->assigned = false;					// Not yet assigned; set to true in AssignIfaceState()
 		state->shutdown = true; 					// Not yet started; set to false in OpenLonUsbLink()
-		state->queues_to_clear = ALL_PRIORITIES;	// Clear all queues on startup
 		state->wait_for_uid = true;
 		state->have_uid = false;
 		state->lon_dev_name[0] = '\0';
@@ -1785,7 +1778,6 @@ static LonStatusCode InitIfaceStates(void)
 		// state->downlink_msg_length = 0;
 		state->downlink_ack_required = false;
 		state->downlink_seq_number = 0;
-		state->downlink_queue = NULL;
 		memset(&state->downlink_buffer, 0, sizeof(state->downlink_buffer));
 		memset(&state->downlink_cp_requested, 0, sizeof(state->downlink_cp_requested));
 		code = ResetDownlinkState(iface_index);
@@ -1802,7 +1794,6 @@ static LonStatusCode InitIfaceStates(void)
 		state->uplink_ack_timeouts = 0;
 		state->uplink_ack_timeout_phase = 0;
 		state->uplink_seq_number = ~FRAME_CODE_SEQ_NUM_MASK; // Force mismatch on first frame
-		state->uplink_queue = NULL;
 		code = ResetUplinkState(iface_index);
 		if (code != LonStatusNoError) {
 			OsalPrintError(code, "Failed to reset link state for index %d", iface_index);
@@ -1813,15 +1804,29 @@ static LonStatusCode InitIfaceStates(void)
 		// time for the LON interface to reset after the first startup command
 		state->uplink_ack_timeout = STARTUP_ACK_WAIT_TIME;
 
-		// Initialize link RX ring buffer (capacity set to full internal max)
-		code = RingBufferInit(&state->usb_rx_ring_buf, RING_BUFFER_MAX_CAPACITY);
-		if (code != LonStatusNoError) {
-			OsalPrintError(code, "Failed to init per-link RX ring buffer");
+	    // Allocate and initialize LON USB downlink queues
+		if (((code = QueueInit(&state->lon_usb_downlink_normal_queue, sizeof(LonUsbQueueBuffer), MAX_LON_DOWNLINK_BUFFERS)) != LonStatusNoError)
+				|| ((code = QueueInit(&state->lon_usb_downlink_priority_queue, sizeof(LonUsbQueueBuffer), MAX_LON_DOWNLINK_BUFFERS)) != LonStatusNoError)) {
+			OsalPrintError(LonStatusStackInitializationFailure, "InitIfaceStates: Failed to initialize LON USB downlink queue");
 			return code;
 		}
-		RingBufferClear(&state->usb_rx_ring_buf);
+
+	    // Allocate and initialize LON USB uplink queues
+		if (((code = QueueInit(&state->lon_usb_uplink_normal_queue, sizeof(LonUsbQueueBuffer), MAX_LON_UPLINK_BUFFERS)) != LonStatusNoError)
+				|| ((code = QueueInit(&state->lon_usb_uplink_priority_queue, sizeof(LonUsbQueueBuffer), MAX_LON_UPLINK_BUFFERS)) != LonStatusNoError)) {
+			OsalPrintError(LonStatusStackInitializationFailure, "InitIfaceStates: Failed to initialize LON USB uplink queue");
+			return code;
+		}
+		
+		// Initialize the LON USB uplink ring buffer (capacity set to full internal max)
+		code = RingBufferInit(&state->lon_usb_uplink_ring_buffer, RING_BUFFER_MAX_CAPACITY);
+		if (code != LonStatusNoError) {
+			OsalPrintError(code, "InitIfaceStates: Failed to initialize LON USB uplink ring buffer");
+			return code;
+		}
+		RingBufferClear(&state->lon_usb_uplink_ring_buffer);
 		state->lon_stats.usb_rx.capacity = RING_BUFFER_MAX_CAPACITY;
-		state->lon_stats.usb_rx.max_occupancy = RingBufferSize(&state->usb_rx_ring_buf);
+		state->lon_stats.usb_rx.max_occupancy = RingBufferSize(&state->lon_usb_uplink_ring_buffer);
 
 		// Initialize LON USB link statistics
 		memset(&state->lon_stats, 0, sizeof(state->lon_stats));
@@ -1895,57 +1900,23 @@ static int CountFreeIfaceStates(void) {
  * Downlink queue helpers (singly linked with head pointer)
  * ----------------------------------------------------------
  * Head:   LonUsbLinkState.downlink_queue points to first node, or NULL if empty.
- * Nodes:  Each node embeds a LonQueueBuffer in entry->data.
+ * Nodes:  Each node embeds a LonUsbQueueBuffer in entry->data.
  * Ops:
  *  - QueueDownlinkBuffer: copy src into a new node; if head NULL set head, else append.
- *  - PeekDownlinkBuffer: copy the buffer node's buffer into dst; do not remove.
  *  - ReadDownlinkBuffer: pop head (advance pointer), copy into dst, free node.
  *  - GetDownlinkBufferCount: O(n) walk via next pointers.
  */
 
 /*
- * Returns a copy of the front downlink buffer without removing it from the queue.
+ * Removes and returns the front buffer from a downlink queue.
  * Parameters:
  *   iface_index: interface index returned by OpenLonUsbLink()
- *   dst: pointer to LonQueueBuffer to receive the data
+ *   dst: pointer to LonUsbQueueBuffer to receive the data
  * Returns:
- *   LonStatusNoError on success; LonStatusCode error code if unsuccessful
- * Notes:
- *   Non-destructive peek: copies buffer payload only.  Priority buffers are
- *   checked first; if none are available, normal buffers are checked.
- */
-static LonStatusCode PeekDownlinkBuffer(int iface_index, LonQueueBuffer *dst) {
-    LonUsbLinkState *state = GetIfaceState(iface_index);
-	if (state == NULL) {
-		return LonStatusInvalidInterfaceId;
-	}
-    if (!dst) {
-        return LonStatusInvalidParameter;
-    }
-	OsalLockMutex(&state->queue_lock);
-	LonQueueEntry* entry = OsalPeekQueue(state->downlink_priority_queue);
-	if (!entry) {
-		LonQueueEntry* entry = OsalPeekQueue(state->downlink_queue);
-	}
-    if (!entry) {
-		OsalUnlockMutex(&state->queue_lock);
-		return LonStatusNoBufferAvailable;
-    }
-    // Non-destructive peek: copy buffer payload only
-	memcpy(dst, &entry->data, sizeof(LonQueueBuffer));
-	OsalUnlockMutex(&state->queue_lock);
-    return LonStatusNoError;
-}
-
-/*
- * Removes and returns the front downlink buffer from the queue.
- * Parameters:
- *   iface_index: interface index returned by OpenLonUsbLink()
- *   dst: pointer to LonQueueBuffer to receive the data
- * Returns:
+ *   LonUsbQueueBuffer in dst if available; NULL if no buffer is available
  *   LonStatusNoError on success; LonStatusCode error code if unsuccessful
  */
-static LonStatusCode ReadDownlinkBuffer(int iface_index, LonQueueBuffer *dst) {
+static LonStatusCode ReadDownlinkBuffer(int iface_index, LonUsbQueueBuffer *dst) {
     if (!dst) {
         return LonStatusInvalidParameter;
     }
@@ -1953,23 +1924,29 @@ static LonStatusCode ReadDownlinkBuffer(int iface_index, LonQueueBuffer *dst) {
 	if (state == NULL) {
 		return LonStatusInvalidInterfaceId;
 	}
+	LonStatusCode status = LonStatusNoError;
 	OsalLockMutex(&state->queue_lock);
-	LonQueueEntry* entry = OsalPeekQueue(state->downlink_queue);
-    if (!entry) {
-		OsalUnlockMutex(&state->queue_lock);
-		return LonStatusNoBufferAvailable;
-    }
-    // Pop: advance head past the first node
-    state->downlink_queue = entry->next;
-    // Copy out and free resources (embedded payload)
-    memcpy(dst, &entry->data, sizeof(LonQueueBuffer));
+	// Get source queue: priority if not empty, else normal
+	Queue *source_queue = &state->lon_usb_downlink_priority_queue;
+	if (QueueEmpty(source_queue)) {
+		source_queue = &state->lon_usb_downlink_normal_queue;
+	}
+	// Get head of source queue, if any
+	LonUsbQueueBuffer* buffer = QueuePeek(source_queue);
+    if (!buffer) {
+		status = LonStatusNoBufferAvailable;
+    } else {
+    	// Copy the queue entry to dst
+    	memcpy(dst, buffer, sizeof(LonUsbQueueBuffer));
+    	// Advance source queue head past the first entry
+		QueueDropHead(source_queue);
+	}
 	OsalUnlockMutex(&state->queue_lock);
-    OsalFreeMemory(entry);
-    return LonStatusNoError;
+    return status;
 }
 
 /*
- * Flushes (removes and frees) all downlink buffers from the specified queues.
+ * Flushes all downlink buffers from the specified queues.
  * Parameters:
  *   iface_index: interface index returned by OpenLonUsbLink()
  *   priority: MessagePriorityLevel specifying which queues to flush
@@ -1982,21 +1959,12 @@ static LonStatusCode FlushDownlinkQueue(int iface_index, MessagePriorityLevel pr
 	if (state == NULL) {
 		return LonStatusInvalidInterfaceId;
 	}
-	LonQueueEntry *entry;
 	OsalLockMutex(&state->queue_lock);
 	if ((priority == HIGH_PRIORITY) || (priority == ALL_PRIORITIES)) {
-		while (state->downlink_priority_queue != NULL) {
-			entry = state->downlink_priority_queue;
-			state->downlink_priority_queue = entry->next;
-			OsalFreeMemory(entry);
-		}
+		QueueFlush(&state->lon_usb_downlink_priority_queue);
 	}
 	if ((priority == NORMAL_PRIORITY) || (priority == ALL_PRIORITIES)) {
-		while (state->downlink_queue != NULL) {
-			entry = state->downlink_queue;
-			state->downlink_queue = entry->next;
-			OsalFreeMemory(entry);
-		}
+		QueueFlush(&state->lon_usb_downlink_normal_queue);
 	}
 	OsalUnlockMutex(&state->queue_lock);
 	return LonStatusNoError;
@@ -2006,37 +1974,40 @@ static LonStatusCode FlushDownlinkQueue(int iface_index, MessagePriorityLevel pr
  * Appends a copy of src to the end of the downlink queue.
  * Parameters:
  *   iface_index: interface index returned by OpenLonUsbLink()
- *   src: pointer to LonQueueBuffer containing the data to append
+ *   src: pointer to LonUsbQueueBuffer containing the data to append
  * Returns:
  *   LonStatusNoError on success; LonStatusCode error code if unsuccessful
  */
-static LonStatusCode QueueDownlinkBuffer(int iface_index, LonQueueBuffer *src) {
+static LonStatusCode QueueDownlinkBuffer(int iface_index, LonUsbQueueBuffer *src) {
     LonUsbLinkState *state = GetIfaceState(iface_index);
 	if (state == NULL) {
 		return LonStatusInvalidInterfaceId;
 	}
-    LonQueueEntry *node = OsalCreateQueueEntry(src);
-    if (!node) {
-        return LonStatusNoMemoryAvailable;
-    }
-	OsalLockMutex(&state->queue_lock);
-	LonQueueEntry **queue, *tail;
-	if (src->priority == HIGH_PRIORITY) {
-		queue = &state->downlink_priority_queue;
-	} else {
-		queue = &state->downlink_queue;
+	if (!src) {
+		OsalPrintError(LonStatusInvalidParameter, "QueueDownlinkBuffer: NULL src for interface %d", iface_index);
+		return LonStatusInvalidParameter;
 	}
-	tail = *queue;
-	if (tail == NULL) {
-		// Empty queue; set head to new node
-		*queue = node;
+	Queue *queue;
+	LonUsbQueueBuffer *tail;
+	LonStatusCode status = LonStatusNoError;
+	OsalLockMutex(&state->queue_lock);
+	if (src->priority == HIGH_PRIORITY) {
+		queue = &state->lon_usb_downlink_priority_queue;
 	} else {
-		// Walk to tail and append the new node
-		while (tail->next) tail = tail->next;
-		tail->next = node;
+		queue = &state->lon_usb_downlink_normal_queue;
+	}
+	tail = QueueTail(queue);
+	if (!tail) {
+		// Invalid queue
+		status = LonStatusInvalidParameter;
+		OsalPrintError(status, "QueueDownlinkBuffer: Invalid downlink queue for interface %d", iface_index);
+	} else {
+		// Append the new entry to the queue
+		memcpy(tail, src, sizeof(LonUsbQueueBuffer));
+		QueueWrite(queue);
 	}
 	OsalUnlockMutex(&state->queue_lock);
-	return LonStatusNoError;
+	return status;
 }
 
 /*
@@ -2052,8 +2023,8 @@ static size_t GetDownlinkBufferCount(int iface_index) {
         return 0;
 	}
 	OsalLockMutex(&state->queue_lock);
-	size_t cnt = OsalGetQueueCount(state->downlink_queue) + 
-				 OsalGetQueueCount(state->downlink_priority_queue);
+	size_t cnt = QueueSize(&state->lon_usb_downlink_priority_queue) + 
+				 QueueSize(&state->lon_usb_downlink_normal_queue);
 	OsalUnlockMutex(&state->queue_lock);
 	return cnt;
 }
@@ -2071,7 +2042,8 @@ static bool IsDownlinkQueueEmpty(int iface_index) {
         return true;
     }
 	OsalLockMutex(&state->queue_lock);
-	bool empty = (state->downlink_queue == NULL) && (state->downlink_priority_queue == NULL);
+	bool empty = QueueEmpty(&state->lon_usb_downlink_priority_queue)
+			&& QueueEmpty(&state->lon_usb_downlink_normal_queue);
 	OsalUnlockMutex(&state->queue_lock);
 	return empty;
 }
@@ -2084,57 +2056,22 @@ static bool IsDownlinkQueueEmpty(int iface_index) {
  * Uplink queue helpers (singly linked with head pointer)
  * -----------------------------------------------------
  * Head:   LonUsbLinkState.uplink_queue points to first node, or NULL if empty.
- * Nodes:  Each node embeds a LonQueueBuffer in entry->data.
+ * Nodes:  Each node embeds a LonUsbQueueBuffer in entry->data.
  * Ops:
  *  - QueueUplinkBuffer: copy src into a new node; if head NULL set head, else append.
- *  - PeekUplinkBuffer: copy the front node's buffer into dst; do not remove.
  *  - ReadUplinkBuffer: pop head (advance pointer), copy into dst, free node.
  *  - GetUplinkBufferCount: O(n) walk via next pointers.
  */
 
 /*
- * Returns a copy of the front uplink buffer without removing it from the queue.
+ * Removes and returns the front buffer from an uplink queue.
  * Parameters:
  *   iface_index: interface index returned by OpenLonUsbLink()
- *   dst: pointer to LonQueueBuffer to receive the data
- * Returns:
- *   LonStatusNoError on success; LonStatusCode error code if unsuccessful
- * Notes:
- *   Non-destructive peek: copies buffer payload only.  Priority buffers are
- *   checked first; if none are available, normal buffers are checked.
- */
-static LonStatusCode PeekUplinkBuffer(int iface_index, LonQueueBuffer *dst) {
-    LonUsbLinkState *state = GetIfaceState(iface_index);
-	if (state == NULL) {
-		return LonStatusInvalidInterfaceId;
-	}
-    if (!dst) {
-        return LonStatusInvalidParameter;
-    }
-	OsalLockMutex(&state->queue_lock);
-	LonQueueEntry* entry = OsalPeekQueue(state->uplink_priority_queue);
-	if (!entry) {
-		LonQueueEntry* entry = OsalPeekQueue(state->uplink_queue);
-	}
-    if (!entry) {
-		OsalUnlockMutex(&state->queue_lock);
-		return LonStatusNoBufferAvailable;
-    }
-    // Non-destructive peek: copy front payload only
-	memcpy(dst, &entry->data, sizeof(LonQueueBuffer));
-	OsalUnlockMutex(&state->queue_lock);
-    return LonStatusNoError;
-}
-
-/*
- * Removes and returns the front uplink buffer from the queue.
- * Parameters:
- *   iface_index: interface index returned by OpenLonUsbLink()
- *   dst: pointer to LonQueueBuffer to receive the data
+ *   dst: pointer to LonUsbQueueBuffer to receive the data
  * Returns:
  *   LonStatusNoError on success; LonStatusCode error code if unsuccessful
  */
-static LonStatusCode ReadUplinkBuffer(int iface_index, LonQueueBuffer *dst) 
+static LonStatusCode ReadUplinkBuffer(int iface_index, LonUsbQueueBuffer *dst) 
 {
     if (!dst) {
         return LonStatusInvalidParameter;
@@ -2143,23 +2080,29 @@ static LonStatusCode ReadUplinkBuffer(int iface_index, LonQueueBuffer *dst)
 	if (state == NULL) {
 		return LonStatusInvalidInterfaceId;
 	}
+	LonStatusCode status = LonStatusNoError;
 	OsalLockMutex(&state->queue_lock);
-	LonQueueEntry* entry = OsalPeekQueue(state->uplink_queue);
-    if (!entry) {
-		OsalUnlockMutex(&state->queue_lock);
-		return LonStatusNoBufferAvailable;
-    }
-    // Pop: advance head past the first node
-    state->uplink_queue = entry->next;
-    // Copy out and free resources (embedded payload)
-    memcpy(dst, &entry->data, sizeof(LonQueueBuffer));
+	// Get source queue: priority if not empty, else normal
+	Queue *source_queue = &state->lon_usb_uplink_priority_queue;
+	if (QueueEmpty(source_queue)) {
+		source_queue = &state->lon_usb_uplink_normal_queue;
+	}
+	// Get head of source queue, if any
+	LonUsbQueueBuffer* buffer = QueuePeek(source_queue);
+    if (!buffer) {
+		status = LonStatusNoBufferAvailable;
+    } else {
+		// Copy the queue entry to dst
+		memcpy(dst, buffer, sizeof(LonUsbQueueBuffer));
+		// Advance source queue head past the first entry
+		QueueDropHead(source_queue);
+	}
 	OsalUnlockMutex(&state->queue_lock);
-    OsalFreeMemory(entry);
-    return LonStatusNoError;
+    return status;
 }
 
 /*
- * Flushes (clears) all uplink buffers from the queue.
+ * Flushes all uplink buffers from the specified queue.
  * Parameters:
  *   iface_index: interface index returned by OpenLonUsbLink()
  *   priority: MessagePriorityLevel specifying which queues to flush
@@ -2172,21 +2115,12 @@ static LonStatusCode FlushUplinkQueue(int iface_index, MessagePriorityLevel prio
 	if (state == NULL) {
 		return LonStatusInvalidInterfaceId;
 	}
-	LonQueueEntry *entry;
 	OsalLockMutex(&state->queue_lock);
 	if ((priority == HIGH_PRIORITY) || (priority == ALL_PRIORITIES)) {
-		while (state->uplink_priority_queue != NULL) {
-			entry = state->uplink_priority_queue;
-			state->uplink_priority_queue = entry->next;
-			OsalFreeMemory(entry);
-		}
+		QueueFlush(&state->lon_usb_uplink_priority_queue);
 	}
 	if ((priority == NORMAL_PRIORITY) || (priority == ALL_PRIORITIES)) {
-		while (state->uplink_queue != NULL) {
-			entry = state->uplink_queue;
-			state->uplink_queue = entry->next;
-			OsalFreeMemory(entry);
-		}
+		QueueFlush(&state->lon_usb_uplink_normal_queue);
 	}
 	OsalUnlockMutex(&state->queue_lock);
 	return LonStatusNoError;
@@ -2196,37 +2130,40 @@ static LonStatusCode FlushUplinkQueue(int iface_index, MessagePriorityLevel prio
  * Appends a copy of src to the end of the uplink queue.
  * Parameters:
  *   iface_index: interface index returned by OpenLonUsbLink()
- *   src: pointer to LonQueueBuffer containing the data to append
+ *   src: pointer to LonUsbQueueBuffer containing the data to append
  * Returns:
  *   LonStatusNoError on success; LonStatusCode error code if unsuccessful
  */
-static LonStatusCode QueueUplinkBuffer(int iface_index, LonQueueBuffer *src) {
+static LonStatusCode QueueUplinkBuffer(int iface_index, LonUsbQueueBuffer *src) {
     LonUsbLinkState *state = GetIfaceState(iface_index);
 	if (state == NULL) {
 		return LonStatusInvalidInterfaceId;
 	}
-    LonQueueEntry *node = OsalCreateQueueEntry(src);
-    if (!node) {
-        return LonStatusNoMemoryAvailable;
-    }
-	OsalLockMutex(&state->queue_lock);
-	LonQueueEntry **queue, *tail;
-	if (src->priority == HIGH_PRIORITY) {
-		queue = &state->uplink_priority_queue;
-	} else {
-		queue = &state->uplink_queue;
+	if (!src) {
+		OsalPrintError(LonStatusInvalidParameter, "QueueDownlinkBuffer: NULL src for interface %d", iface_index);
+		return LonStatusInvalidParameter;
 	}
-	tail = *queue;
-	if (tail == NULL) {
-		// Empty queue; set head to new node
-		*queue = node;
+	Queue *queue;
+	LonUsbQueueBuffer *tail;
+	LonStatusCode status = LonStatusNoError;
+	OsalLockMutex(&state->queue_lock);
+	if (src->priority == HIGH_PRIORITY) {
+		queue = &state->lon_usb_uplink_priority_queue;
 	} else {
-		// Walk to tail and append the new node
-		while (tail->next) tail = tail->next;
-		tail->next = node;
+		queue = &state->lon_usb_uplink_normal_queue;
+	}
+	tail = QueueTail(queue);
+	if (!tail) {
+		// Invalid queue
+		status = LonStatusInvalidParameter;
+		OsalPrintError(status, "QueueDownlinkBuffer: Invalid downlink queue for interface %d", iface_index);
+	} else {
+		// Append the new entry to the queue
+		memcpy(tail, src, sizeof(LonUsbQueueBuffer));
+		QueueWrite(queue);
 	}
 	OsalUnlockMutex(&state->queue_lock);
-    return LonStatusNoError;
+    return status;
 }
 
 /*
@@ -2242,8 +2179,8 @@ static size_t GetUplinkBufferCount(int iface_index) {
         return 0;
 	}
 	OsalLockMutex(&state->queue_lock);
-	size_t cnt = OsalGetQueueCount(state->uplink_queue) + 
-				 OsalGetQueueCount(state->uplink_priority_queue);
+	size_t cnt = QueueSize(&state->lon_usb_uplink_priority_queue) + 
+				 QueueSize(&state->lon_usb_uplink_normal_queue);
 	OsalUnlockMutex(&state->queue_lock);
 	return cnt;
 }
@@ -2261,7 +2198,8 @@ static bool IsUplinkQueueEmpty(int iface_index) {
         return true;
     }
 	OsalLockMutex(&state->queue_lock);
-	bool empty = (state->uplink_queue == NULL) && (state->uplink_priority_queue == NULL);
+	bool empty = QueueEmpty(&state->lon_usb_uplink_priority_queue)
+			&& QueueEmpty(&state->lon_usb_uplink_normal_queue);
 	OsalUnlockMutex(&state->queue_lock);
 	return empty;
 }
@@ -2386,6 +2324,6 @@ static void IdentifyLonNi(int iface_index)
 {
 	// TBD: add an implementation-specific callback function to
 	// physically identify the LON network interface
-	OsalPrintDebug(LonStatusNoError, "LON network interface Identify (wink) command received");
+	OsalPrintDebug(LonStatusNoError, "IdentifyLonNi: LON network interface Identify (wink) command received");
 	// For now, just log the event
 }

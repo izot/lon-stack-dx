@@ -277,25 +277,12 @@ typedef struct LON_PACKED LonFrameHeader {
 } LonFrameHeader;
 
 // The full message element as stored in this driver for non-extended messages
-typedef struct LON_PACKED LonQueueBuffer {
+typedef struct LON_PACKED LonUsbQueueBuffer {
 	size_t buf_size;				// Buffer size in bytes, with variable size PDU
 	MessagePriorityLevel priority;	// Message priority level
 	LonFrameHeader frame_header;	// Two (frame sync and zero only) or four-byte (code packet) frame header
 	UsbNiMessage usb_ni_message;	// Underlying USB NI message
-//	BYTE ni_cmd;					// Network interface command
-//	BYTE buf_size;					// ni_cmd + pdu in bytes if < EXT_LENGTH; else EXT_LENGTH
-//	BYTE pdu[MAX_LON_MSG_EX_LEN];
-//	BYTE pad[3];					// Same pad as UsbNiMessage
-} LonQueueBuffer;
-
-// Singly-linked queue node. In head-pointer mode, the head points to the first node or NULL.
-// Each node embeds a LonQueueBuffer as its payload.
-typedef struct LonQueueEntry {
-	// Next node in the queue; NULL indicates end of queue
-	struct LonQueueEntry *next;
-	// Embedded payload for this entry
-	LonQueueBuffer data;
- } LonQueueEntry;
+} LonUsbQueueBuffer;
 
 // LON USB interface type enumeration
 typedef enum {
@@ -342,6 +329,7 @@ static LonUsbIfaceConfig lon_usb_iface_configs[] = {
 };
 
 // Local NI commands
+// TBD: merge these into LonNiCommand in lon_types.h, from lon_usb_link.h
 typedef enum {
 	NI_CLEAR 			= 0x00,		// Clear (no operation)
 	NI_START_TXN		= 0x02,		// Outgoing acceptable start
@@ -383,7 +371,6 @@ typedef struct LonUsbLinkState {
 	OsalLockType state_lock;			// Mutex or spinlock for this structure
 	OsalLockType queue_lock;			// Mutex or spinlock for queue operations
 	bool assigned;						// True if this entry is in use
-	MessagePriorityLevel queues_to_clear;	// Queues to clear on start or restart
 										// Set on start to ALL_PRIORITIES to clear all queues
 										// Set on restart to NORMAL_PRIORITY to clear normal queue only
 	bool wait_for_uid;					// True if waiting for UID response
@@ -399,7 +386,7 @@ typedef struct LonUsbLinkState {
 	LonUsbIfaceModel lon_usb_iface_model;
 
 	// LON settings and statistics
-	uint8_t uid[IZOT_UNIQUE_ID_LENGTH];		 		// LON NI unique ID (MAC ID or Neuron ID)
+	uint8_t uid[IZOT_UNIQUE_ID_LENGTH];	// LON NI unique ID (MAC ID or Neuron ID)
 	LonUsbOpenMode iface_mode;			// LON NI mode (Layer 2 or Layer 5)
 	LonStats lon_stats;					// Last copy of LON stats
 
@@ -416,7 +403,7 @@ typedef struct LonUsbLinkState {
 	// OsalTickCount uplink_ack_timer;	// Uplink wait for ack timeout timer
 	bool uplink_frame_error;			// True if last uplink had a frame error
 	bool uplink_duplicate;				// True if last uplink frame was a duplicate
-	LonQueueBuffer uplink_buffer;		// Current uplink buffer being built
+	LonUsbQueueBuffer uplink_buffer;		// Current uplink buffer being built
 	uint8_t uplink_msg[UPLINK_BUF_LEN];	// Uplink packets built here
 	int uplink_msg_index;				// Index into uplink_msg[]
 	int uplink_msg_length;				// Length or extended length
@@ -433,35 +420,22 @@ typedef struct LonUsbLinkState {
 	DownlinkState downlink_state;		// Current downlink state
 	OsalTickCount downlink_reject_timer;// Downlink reject timeout timer;
 										// Cleared when downlink message is acknowledged
-	LonQueueBuffer downlink_buffer;		// Current downlink buffer being built
-	UsbNiMessage downlink_msg;			// Downlink packets (with expanded escaped data? TBD delete)
+	LonUsbQueueBuffer downlink_buffer;		// Current downlink buffer being built
 	bool downlink_cp_requested[MSG_QUEUE_CMD_COUNT];  // True if downlink code packet requested indexed by LonUsbFrameCommand
-	// int downlink_msg_index;			// Index into downlink_msg[]
-	// int downlink_msg_length;			// Expanded packet size
 	int downlink_seq_number;			// Downlink sequence number
 	bool downlink_ack_required;			// True if an ack is required to be sent downlink
 
-	// Queues
-	// Buffer queues for parsed messages.
-	// Head-pointer singly linked list semantics:
-	//  - 'downlink_queue' and 'uplink_queue' point to the first node, or NULL if empty.
-	//  - Each node embeds a LonQueueBuffer in 'node->data'.
-	// Empty: downlink_queue or uplink_queue == NULL
-	// Push: append at tail (walk via 'next')
-	// Pop: remove head (downlink_queue or uplink_queue = head->next), free node->data then node
-	LonQueueEntry *downlink_queue;			// Downlink buffer queue
-	LonQueueEntry *downlink_priority_queue;	// Downlink priority buffer queue
-	LonQueueEntry *uplink_queue;			// Uplink buffer queue for parsed messages
-	LonQueueEntry *uplink_priority_queue;	// Uplink priority buffer queue
-	RingBuffer usb_rx_ring_buf;			// Uplink ring buffer for staging raw bytes
-} LonUsbLinkState;
+	// Buffer queues for parsed messages; each queue holds LonUsbQueueBuffer entries
+	// Implemented using the generic Queue type from lcs_queue.h
+	Queue lon_usb_downlink_normal_queue;		// Downlink normal priority buffer queue
+	Queue lon_usb_downlink_priority_queue;		// Downlink high priority buffer queue
+	Queue lon_usb_uplink_normal_queue;			// Uplink normal priority buffer queue
+	Queue lon_usb_uplink_priority_queue;		// Uplink high priority buffer queue
 
-// Allocates a new queue node and deep-copies the provided payload
-LonQueueEntry* OsalCreateQueueEntry(LonQueueBuffer *data);
-// Returns the head node; NULL if empty
-LonQueueEntry* OsalPeekQueue(LonQueueEntry* head);
-// Counts nodes in a singly-linked list
-size_t OsalGetQueueCount(LonQueueEntry* head);
+	// Uplink ring buffer for staging raw bytes received from the LON USB interface
+	// before parsing into messages
+	RingBuffer lon_usb_uplink_ring_buffer;
+} LonUsbLinkState;
 
 // UsbNiMessage: 1 (ni_cmd) + 1 (msg_size) + MAX_LON_MSG_EX_LEN bytes + 3 pad
 LON_STATIC_ASSERT(sizeof(UsbNiMessage) == (2 + MAX_LON_MSG_EX_LEN + 3), "UsbNiMessage size mismatch");

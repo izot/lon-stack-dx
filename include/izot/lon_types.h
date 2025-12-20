@@ -5,12 +5,12 @@
  * SPDX-License-Identifier: MIT
  * See LICENSE file for details.
  * 
- * Title:   LON Stack DX API Types
+ * Title:   LON Stack API Types
  * Purpose: Defines types for a LON stack.
  */
 
-#ifndef _IZOT_TYPES_H
-#define _IZOT_TYPES_H
+#ifndef _LON_TYPES_H
+#define _LON_TYPES_H
 
 #include "izot/IzotPlatform.h"
 #include "izot/iap_types.h"       // IAP type definitions
@@ -3723,16 +3723,14 @@ typedef struct {
 } Queue;
 
 // Structure: LonTimer
-typedef struct __attribute__ ((packed))
-{
+typedef struct __attribute__ ((packed)) {
 	IzotUbits32	expiration;		// Time to expire
 	IzotUbits32	repeatTimeout;  // Repeat timeout on expiration (0 means not repeating)
 } LonTimer;
 
 // Structure: LonWatch
-typedef struct
-{
+typedef struct {
 	IzotUbits32	start;			// Time watch started
 } LonWatch;
 
-#endif /* _IZOT_TYPES_H */
+#endif /* _LON_TYPES_H */

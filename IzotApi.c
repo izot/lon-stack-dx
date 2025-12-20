@@ -1685,6 +1685,7 @@ void IzotServicePinPressed(void)
 void IzotServicePinHeld(void)
 {
     // TBD: Application specific processing
+    OsalPrintDebug(LonStatusNoError, "IzotServicePinHeld: Service pin held event occurred");
 }
 
 /*
