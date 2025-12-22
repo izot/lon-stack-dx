@@ -363,10 +363,25 @@ Comments:
 ******************************************************************/
 void NodeReset(IzotByte firstReset)
 {
-
-    void APPReset(void), TCSReset(void), TSAReset(void), NWReset(void), LsUDPReset(void);
-    void (*resetFns[])(void) = {APPReset, TCSReset, TSAReset, NWReset,  LsUDPReset};
-
+#if LINK_IS(ETHERNET) || LINK_IS(WIFI)
+    void APPReset(void), TCSReset(void), TSAReset(void), NWReset(void),
+            LsUDPReset(void);
+    void (*resetFns[])(void) = {APPReset, TCSReset, TSAReset, NWReset,
+            LsUDPReset};
+#elif LINK_IS(USB)
+    void APPReset(void), TCSReset(void), TSAReset(void), NWReset(void),
+            LKReset(void);
+    void (*resetFns[])(void) = {APPReset, TCSReset, TSAReset, NWReset,
+            LKReset};
+#elif LINK_IS(MIP)
+    void APPReset(void), TCSReset(void), TSAReset(void), NWReset(void),
+            LKReset(void), PHYReset(void);
+    void (*resetFns[])(void) = {APPReset, TCSReset, TSAReset, NWReset,
+            LKReset, PHYReset};
+#else
+    OsalPrintError(LonStatusInitializationFailed, "NodeReset: Unsupported link type");
+    return;
+#endif // LINK_IS(ETHERNET) || LINK_IS(WIFI)
     IzotByte fnNum, fnsCnt;
 
     if (!firstReset) {

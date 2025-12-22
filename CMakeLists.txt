@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.21)
 
 project(lon_stack_dx
-    VERSION 3.1.0
+    VERSION 3.2.0
     DESCRIPTION "LON Stack DX for LON/IP and U10/U60 LON FT-compatible USB interfaces"
     LANGUAGES C
 )

@@ -10,6 +10,7 @@
  */
 
 #include "izot/IzotApi.h"
+#include "lon_udp/ipv4_to_lon_udp.h"
 
 #ifdef  __cplusplus
 extern "C" {
@@ -1093,7 +1094,7 @@ IZOT_EXTERNAL_FN int IzotPersistentSegGetMaxSize(IzotPersistentSegType persisten
 #if LINK_IS(WIFI)
 #define FLICKER_INTERVAL 200    // LED flicker interval in milliseconds
 
-static void UnlockDevice(void)
+static void UnlockWiFiDevice(void)
 {
 	uint8_t temp_y[8] = {0};
 	uint8_t digestKeyFlash[8] = {0};
@@ -1163,14 +1164,11 @@ IZOT_EXTERNAL_FN LonStatusCode IzotCreateStack(const IzotStackInterfaceData* con
     // Only a few of these fields are used by LON Stack.  The
     // stack implements partial support for a multi-stack model, but 
     // the stack is limited to a single stack model.  Only stack[0]
-    // is supported.
-    
+    // is supported.    
     SetAppSignature(pInterface->Signature);
     SetPeristenceGuardBand(pControlData->PersistentFlushGuardTimeout*1000);
-    
     nm[0].snvt.sb = (char *)pInterface->SiData;
-    SetSiDataLength(pInterface->SiDataLength);
-    
+    SetSiDataLength(pInterface->SiDataLength);    
     cp  = &customDataGbl[0];
     cp->twoDomains = pInterface->Domains-1;
     cp->addressCnt = pInterface->Addresses;
@@ -1182,40 +1180,46 @@ IZOT_EXTERNAL_FN LonStatusCode IzotCreateStack(const IzotStackInterfaceData* con
     cp->subnet[0] = rand()%255 + 1; // Avoid 0.
     cp->node[0] =   rand()%124 + 2; // Avoid 0 plus 1, 126, 127 (used by NIs)
     cp->clone[0] = 1;
-
     cp->len[1] = 1;
     IzotByte tempDmn[6] = {0x7A};
     memcpy(cp->domainId[1], &tempDmn[0], IZOT_DOMAIN_ID_MAX_LENGTH);
     cp->clone[1] = 0;
-    
     memset(cp->key[0], 0, IZOT_AUTHENTICATION_KEY_LENGTH);
     memset(cp->key[1], 0, IZOT_AUTHENTICATION_KEY_LENGTH);
-   
     DataPointCount = pInterface->StaticDatapoints;
     AliasTableCount = pInterface->Aliases;
     BindableMTagCount = pInterface->BindableMsgTags;
 
-    // Start the IP stack if enabled and initialize a UDP socket for communication
-    status = UdpInit();
+#if LINK_IS(WIFI)
+    // Initialize Wi-Fi interface
+    status = WiFiInit();
     if (status != LonStatusNoError) {
+        OsalPrintError(status, "IzotCreateStack: Wi-Fi initialization failed");
+        return status;
+    }
+#endif  // LINK_IS(WIFI)
+
+    // Initialize LON Stack
+    status = LCS_Init(IzotPowerUpReset);
+    if (status != LonStatusNoError) {
+        OsalPrintError(status, "IzotCreateStack: LON Stack initialization failed");
         return status;
     }
 
-#if LINK_IS(WIFI)
-    UnlockDevice();
-    if (InitEEPROM(pInterface->Signature) != LonStatusNoError || APPInit() != LonStatusNoError) {
-        err = LonStatusStackInitializationFailure;
+#if LINK_IS(ETHERNET) || LINK_IS(WIFI)
+    // Start the UDP interface
+    status = UdpStart();
+    if (status != LonStatusNoError) {
+        return status;
     }
+#endif  // LINK_IS(ETHERNET) || LINK_IS(WIFI)
 
-    psm_register_module(IZOT_MOD_NAME, "common_part", 1); // Set up psm module if it does not exist
-    psm_get_single(IZOT_MOD_NAME, "progId", oldProgId, 10); // get old program ID
-    psm_set_single(IZOT_MOD_NAME, "progId", cp->progId); // set new program ID
-    
-    if (strcmp(oldProgId, cp->progId) != 0) {
-        // set first run to true if program IDs are not equal
-        psm_set_single(IZOT_MOD_NAME, "first_run", "y");
-    } else {
-        psm_set_single(IZOT_MOD_NAME, "first_run", "n");
+#if LINK_IS(WIFI)
+    // Start the Wi-Fi interface
+    status = WiFiStart();
+    if (status != LonStatusNoError) {
+        OsalPrintError(status, "IzotCreateStack: Wi-Fi start failed");
+        return status;
     }
 #endif  // LINK_IS(WIFI)
 

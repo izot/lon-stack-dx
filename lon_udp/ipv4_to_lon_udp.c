@@ -888,29 +888,33 @@ IzotByte subnetId, IzotByte nodeId, IzotByte *pAddr
 void LsUDPReset(void)
 {
     IzotUbits16 queueItemSize;
+    LonStatusCode status = LonStatusNoError;
     
     // Allocate and initialize the output queue.
     gp->lkOutBufSize  = DecodeBufferSize(LK_OUT_BUF_SIZE); //1280
     gp->lkOutQCnt     = DecodeBufferCnt((IzotByte)IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NW_OUTBUF_CNT));
     queueItemSize    = gp->lkOutBufSize + sizeof(LKSendParam) + 21;
 
-    if (QueueInit(&gp->lkOutQ, queueItemSize, gp->lkOutQCnt) != LonStatusNoError) {
-        OsalPrintError(LonStatusInitializationFailed, "LsUDPReset: Unable to initialize the output queue");
+    status = QueueInit(&gp->lkOutQ, queueItemSize, gp->lkOutQCnt);
+    if (status != LonStatusNoError) {
+        OsalPrintError(status, "LsUDPReset: Unable to initialize the output queue");
         gp->resetOk = FALSE;
         return;
     }
-    
+
     // Allocate and initialize the priority output queue.
     gp->lkOutPriBufSize = gp->lkOutBufSize; //1280
     gp->lkOutPriQCnt    = DecodeBufferCnt((IzotByte)IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NW_OUT_PRICNT));
     queueItemSize       = gp->lkOutPriBufSize + sizeof(LKSendParam);
 
-    if (QueueInit(&gp->lkOutPriQ, queueItemSize, gp->lkOutPriQCnt) != LonStatusNoError) {
-        OsalPrintError(LonStatusInitializationFailed, "LsUDPReset: Unable to initialize the priority output queue");
+    status = QueueInit(&gp->lkOutPriQ, queueItemSize, gp->lkOutPriQCnt);
+    if (status != LonStatusNoError) {
+        OsalPrintError(status, "LsUDPReset: Unable to initialize the priority output queue");
         gp->resetOk = FALSE;
         return;
     }
 
+    // Initialize repeat timers
     SetLonRepeatTimer(&AnnouncementTimer, AnnounceTimer, AnnounceTimer);
     SetLonRepeatTimer(&AgingTimer, AddrMappingAgingTimer, AddrMappingAgingTimer);
 
@@ -1181,16 +1185,16 @@ void SetLsAddressFromIpAddr(void)
 }
 
 /* 
- *  Callback: UdpInit
- *  Initialize the Izot Framework with the relevant details
+ *  Callback: WiFiInit
+ *  Initialize the Wi-Fi interface
  *
  *  Returns:
  *  LonApiError on unsuccessful exit LonApiNoError otherwise.
  *
  */
-int UdpInit(void)
+LonStatusCode WiFiInit(void)
 {
-    int ret = LonStatusNoError;
+    LonStatusCode status = LonStatusNoError;
 
  #if LINK_IS(WIFI)   
      #if PROCESSOR_IS(MC200)
@@ -1199,35 +1203,60 @@ int UdpInit(void)
     
         // Init the wlan service
         int err = wm_wlan_init();
-        if (err != LonStatusNoError) {
-            return err;
+        if (!err) {
+            status = LonStatusInitializationFailed;
+            OsalPrintError(status, "WiFiInit: Failed to initialize WLAN with error %d", err);
+            return status;
         }
     #endif  // PROCESSOR_IS(MC200)
 #endif  // LINK_IS(WIFI)
+    return status;
+}
 
-    // Init the LON Stack
-    LCS_Init(IzotPowerUpReset);
+/*
+ * Starts the UDP link layer.
+ */
+LonStatusCode UdpStart(void)
+{
+    LonStatusCode status = LonStatusNoError;
 
-#if LINK_IS(WIFI) || LINK_IS(ETHERNET) || LINK_IS(USB)
+#if LINK_IS(ETHERNET) || LINK_IS(WIFI)
     // Start the link
-    ret = CalStart();
-    if (ret != LonStatusNoError) {
-        return ret;
+    status = CalStart();
+    if (status != LonStatusNoError) {
+        return status;
     }
-
     // Initialize the UDP socket for communication
-    ret = InitSocket(IPV4_LS_UDP_PORT); 
+    int ret = InitSocket(IPV4_LS_UDP_PORT); 
     if (ret < 0) {
-        OsalPrintError(LonStatusIpAddressNotDefined, "Socket initialization failure");
-        return LonStatusIpAddressNotDefined;
+        status = LonStatusIpAddressNotDefined;
+        OsalPrintError(status, "UdpStart: Socket initialization failure with error %d", ret);
+        return status;
     }
-    OsalPrintDebug(LonStatusNoError, "UdpInit: Sockets created");
-#endif  // LINK_IS(WIFI) || LINK_IS(ETHERNET) || LINK_IS(USB)
-  
-#if 0
-    // restore multicast membership
+    OsalPrintDebug(LonStatusNoError, "UdpStart: Sockets created");
+    // Restore multicast membership
     RestoreIpMembership();
-#endif
+#endif  // LINK_IS(ETHERNET) || LINK_IS(WIFI)
+    return status;
+}
 
-    return ret;
+/*
+ * Starts the Wi-Fi interface.
+ */
+LonStatusCode WiFiStart(void)
+{
+    LonStatusCode status = LonStatusNoError;
+#if LINK_IS(WIFI)
+    psm_register_module(IZOT_MOD_NAME, "common_part", 1); // Set up psm module if it does not exist
+    psm_get_single(IZOT_MOD_NAME, "progId", oldProgId, 10); // get old program ID
+    psm_set_single(IZOT_MOD_NAME, "progId", cp->progId); // set new program ID
+    
+    if (strcmp(oldProgId, cp->progId) != 0) {
+        // Set first run to true if program IDs are not equal
+        psm_set_single(IZOT_MOD_NAME, "first_run", "y");
+    } else {
+        psm_set_single(IZOT_MOD_NAME, "first_run", "n");
+    }
+#endif  // LINK_IS(WIFI)
+    return status;
 }

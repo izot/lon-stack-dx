@@ -587,15 +587,25 @@ IzotByte domainLen, IzotByte subnetId, IzotByte nodeId, IzotByte *pAddr
 extern void SendAnnouncement(void);
 
 /* 
- *  Callback: UdpInit
- *  Initialize the Izot Framework with the relevant details
+ *  Callback: WiFiInit
+ *  Initialize the Wi-Fi interface
  *
  *
  *  Returns:
- *  LonApiError on unsuccessful exit LonApiNoError otherwise.
+ *  LonStatusCode if no error, otherwise a <LonStatusCode> error code on failure.
  *
  */
-extern int UdpInit(void);
+extern LonStatusCode WiFiInit(void);
+
+ /*
+  * Starts the UDP link layer.
+  */
+extern LonStatusCode UdpStart(void);
+
+/*
+ * Starts the Wi-Fi interface.
+ */
+extern LonStatusCode WiFiStart(void);
 
 /* 
  *  Callback: SetLsAddressFromIpAddr

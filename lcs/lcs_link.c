@@ -25,17 +25,12 @@
 #include "lcs/lcs_node.h"
 #include "lcs/lcs_queue.h"
 #include "lcs/lcs_netmgmt.h"
+#include "lon_usb/lon_usb_link.h"
 
 // Unique ID fetch interval in milliseconds
 #define UNIQUE_ID_FETCH_INTERVAL 500
 // LON PL transceiver parameters fetch interval in milliseconds
 #define XCVR_PARAM_FETCH_INTERVAL 10000
-
-typedef struct {
-	IzotByte cmd;
-	IzotByte len;
-	IzotByte pdu[MAX_PDU_SIZE];
-} L2Frame;
 
 // 1-byte header definition of an LPDU in the queue
 typedef struct {
@@ -51,8 +46,11 @@ static LonTimer lonLinkXcvrPlFetchTimer;
 
 // LON network interface definition structure
 typedef struct {
-    char *name;
-    LonLinkHandle handle;
+    char *lon_dev_name;
+    char *usb_dev_name;
+    int iface_index;
+    LonUsbOpenMode iface_mode;
+    LonUsbIfaceModel lon_usb_iface_model;
     bool linkOpened;
 	bool isPowerLine;
     bool fetchXcvrParams;
@@ -63,19 +61,20 @@ typedef struct {
 // LON network interface definition array
 LonNiDef lonNi[NUM_LON_NI] = {
 #if !PRODUCT_IS(SLB)
-	{"LON1", -1, false, false, false, {0}, false}
-#elif NUM_LON_NI > 1
-   , {"LON2", -1, false, false, false, {0}, false}
-#elif NUM_LON_NI > 2
-   , {"LON3", -1, false, false, false, {0}, false}
-#elif NUM_LON_NI > 3
-   , {"LON4", -1, false, false, false, {0}, false}
+	 {"LON1", "/dev/ttyUSB0", -1, LON_USB_OPEN_LAYER2, U60_FT, false, false, false, {0}, false}
+  #if NUM_LON_NI > 1
+   , {"LON2", "/dev/ttyUSB1", -1, LON_USB_OPEN_LAYER2, U60_FT, false, false, false, {0}, false}
+  #elif NUM_LON_NI > 2
+   , {"LON3", "/dev/ttyUSB2", -1, LON_USB_OPEN_LAYER2, U60_FT, false, false, false, {0}, false}
+  #elif NUM_LON_NI > 3
+   , {"LON4", "/dev/ttyUSB3", -1, LON_USB_OPEN_LAYER2, U60_FT, false, false, false, {0}, false}
+  #endif
 #else   // PRODUCT_IS(SLB)
-    {"RF", -1, false, false, false, {0}, false},
-#if NUM_LON_NI == 2
-	{"PLC", -1, false, true, true, {0}, true}
-#endif  // NUM_LON_NI == 2	  
-#endif  // PRODUCT_IS(SLB)
+      {"RF", "/dev/ttyUSB0", -1, LON_USB_OPEN_LAYER2, RF_900, false, false, false, {0}, false}
+  #if NUM_LON_NI > 1
+   , {"PLC", "/dev/ttyUSB1", -1, LON_USB_OPEN_LAYER2, U70_PL, false, true, true, {0}, true}
+  #endif  // NUM_LON_NI > 1	  
+#endif  // PRODUCT_IS(SLB) || !PRODUCT_IS(SLB)
 };
 
 #define LNM_TAG 0x0F	// Tag reserved for local network management
@@ -116,7 +115,7 @@ void LKReset(void)
     IzotByte   *p;  // Used to initialize lkInQ
     IzotUbits16 i;
     bool anyPowerLineNi = false; // True if any LON NI is power line
-    LonStatusCode lonNiSts = LonStatusNoError;
+    LonStatusCode status = LonStatusNoError;
 
     // Allocate and initialize the input queue
     gp->lkInBufSize = DecodeBufferSize((IzotUbits16)gp->nwInBufSize) + 6;
@@ -140,9 +139,9 @@ void LKReset(void)
     gp->lkOutQCnt    = DecodeBufferCnt((IzotUbits16)gp->nwOutQCnt);
     queueItemSize    = gp->lkOutBufSize + sizeof(LKSendParam);
 
-    lonNiSts = QueueInit(&gp->lkOutQ, queueItemSize, gp->lkOutQCnt);
-    if (lonNiSts != LonStatusNoError) {
-        OsalPrintError(lonNiSts, "LKReset: Unable to initialize the output queue");
+    status = QueueInit(&gp->lkOutQ, queueItemSize, gp->lkOutQCnt);
+    if (status != LonStatusNoError) {
+        OsalPrintError(status, "LKReset: Unable to initialize the output queue");
         gp->resetOk = FALSE;
         return;
     }
@@ -152,21 +151,25 @@ void LKReset(void)
     gp->lkOutPriQCnt = DecodeBufferCnt((IzotUbits16)gp->nwOutPriQCnt);
     queueItemSize = gp->lkOutPriBufSize + sizeof(LKSendParam);
 
-    lonNiSts = QueueInit(&gp->lkOutPriQ, queueItemSize, gp->lkOutPriQCnt);
-    if (lonNiSts != LonStatusNoError) {
-        OsalPrintError(lonNiSts, "LKReset: Unable to initialize the priority output queue");
+    status = QueueInit(&gp->lkOutPriQ, queueItemSize, gp->lkOutPriQCnt);
+    if (status != LonStatusNoError) {
+        OsalPrintError(status, "LKReset: Unable to initialize the priority output queue");
         gp->resetOk = FALSE;
         return;
     }
 
 	for (int niIndex=0; niIndex<NUM_LON_NI; niIndex++) {
-		LonLinkHandle handle;
+		int iface_index;
 
-		lonNiSts = OpenLonLink(lonNi[niIndex].name, &handle);
-
-        if (lonNiSts != LonStatusNoError) {
-            OsalPrintDebug(lonNiSts, "LKReset: Unable to open LON link %s",
-                    lonNi[niIndex].name);
+		status = OpenLonUsbLink(lonNi[niIndex].lon_dev_name,
+                lonNi[niIndex].usb_dev_name,
+                &lonNi[niIndex].iface_index,
+                lonNi[niIndex].iface_mode,
+                lonNi[niIndex].lon_usb_iface_model 
+            );
+        if (status != LonStatusNoError) {
+            OsalPrintDebug(status, "LKReset: Unable to open LON link %s",
+                    lonNi[niIndex].lon_dev_name);
             lonNi[niIndex].linkOpened = false;
             continue;
 		}
@@ -188,10 +191,10 @@ void LKReset(void)
                         0x00, 0x00, UNIQUE_NODE_ID_LEN};
 				L2Frame sicbIn;
 				OsalSleep(UNIQUE_ID_FETCH_INTERVAL);
-				if (requestUid && WriteLonLinkMsg(handle, (void*)&nidRead, (short)(nidRead.len+2)) == LonStatusNoError) {
+				if (requestUid && WriteLonUsbMsg(lonNi[niIndex].iface_index, (void*)&nidRead) == LonStatusNoError) {
 					requestUid = false;
 				}
-				if (ReadLonLinkMsg(handle, &sicbIn, sizeof(sicbIn)) == LonStatusNoError
+				if (ReadLonUsbMsg(lonNi[niIndex].iface_index, &sicbIn) == LonStatusNoError
                         && sicbIn.cmd == nicbRESPONSE 
                         && (sicbIn.pdu[0]&0x0F) == LNM_TAG 
                         && sicbIn.pdu[14] == (NM_resp_success|NM_READ_MEMORY)) {
@@ -201,7 +204,6 @@ void LKReset(void)
 			}
             LKFetchXcvrPl(niIndex);
 		}
-  	    lonNi[niIndex].handle = handle;
 	}
 
     gp->resetOk = TRUE;
@@ -244,7 +246,7 @@ void LKSend(void)
         }
         if (lonNi[niIndex].isPowerLine && lonNi[niIndex].setPlPhase) {
             L2Frame mode = {nicbPHASE|2, 0};
-            lonNi[niIndex].setPlPhase = WriteLonLinkMsg(lonNi[niIndex].handle, &mode, 2) != LonStatusNoError;
+            lonNi[niIndex].setPlPhase = WriteLonUsbMsg(lonNi[niIndex].iface_index, &mode) != LonStatusNoError;
         }
     }
 
@@ -277,7 +279,7 @@ void LKSend(void)
 	
     // Send the LPDU to all LON network interfaces
 	for (niIndex=0; niIndex<NUM_LON_NI; niIndex++) {
-		WriteLonLinkMsg(lonNi[niIndex].handle, &sicb, (short)(sicb.len+2));
+		WriteLonUsbMsg(lonNi[niIndex].iface_index, &sicb);
 	}
 
 	QueueDropHead(lkSendQueuePtr);
@@ -314,7 +316,7 @@ void LKReceive(void)
 	int				niIndex;
 	
 	for (niIndex=0; niIndex<NUM_LON_NI; niIndex++) {
-		if (ReadLonLinkMsg(lonNi[niIndex].handle, &sicb, sizeof(sicb)) == LonStatusNoError) {
+		if (ReadLonUsbMsg(lonNi[niIndex].iface_index, &sicb) == LonStatusNoError) {
             // Packet found to process
 			break;
 		}
@@ -482,8 +484,8 @@ void LKFetchXcvrPl(int index)
 							 ND_opcode_base|ND_QUERY_XCVR};
     if (lonNi[index].isPowerLine) {
 	    // Send the fetch message; if send fails, set the fetch flag to try again next time
-	    lonNi[index].fetchXcvrParams = WriteLonLinkMsg(lonNi[index].handle,
-                (L2Frame*)&sicbOut, (short)(sicbOut.len+2)) != LonStatusNoError;
+	    lonNi[index].fetchXcvrParams = WriteLonUsbMsg(lonNi[index].iface_index,
+                (L2Frame*)&sicbOut) != LonStatusNoError;
     }
 }
 

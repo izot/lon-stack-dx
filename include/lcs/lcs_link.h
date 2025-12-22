@@ -23,6 +23,12 @@
 
 typedef short LonLinkHandle;
 
+typedef struct {
+	IzotByte cmd;
+	IzotByte len;
+	IzotByte pdu[MAX_PDU_SIZE];
+} L2Frame;
+
 /*****************************************************************
  * Section: Function Declarations
  *****************************************************************/

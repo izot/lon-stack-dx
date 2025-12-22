@@ -36,23 +36,4 @@
 #define SMP_MODE_L5		(nicbMODE_L5&0x0F)
 #define SMP_MODE_L2		(nicbMODE_L2&0x0F)
 
-// This is a non-standard form of LDV.  This is because we use
-// the LDV API to map to LON link calls.
-
-#define LDV_EXTERNAL_FN
-
-#ifdef  __cplusplus
-extern "C"
-{
-#endif  // __cplusplus
-	
-LonStatusCode LDV_EXTERNAL_FN OpenLonLink(const char *name, short *handle);
-LonStatusCode LDV_EXTERNAL_FN CloseLonLink(short handle);
-LonStatusCode LDV_EXTERNAL_FN ReadLonLinkMsg(short handle, void *msg, short len);
-LonStatusCode LDV_EXTERNAL_FN WriteLonLinkMsg(short handle, void *msg, short len);
-
-#ifdef __cplusplus
-}
-#endif  // __cplusplus
-
 #endif	// __VLDV_H

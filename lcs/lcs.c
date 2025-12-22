@@ -53,6 +53,10 @@ LonStatusCode LCS_Init(IzotResetCause cause)
 {
     IzotByte   stackNum;
 
+#if LINK_IS(WIFI)
+    UnlockWiFiDevice();
+#endif  // LINK_IS(WIFI)
+
     // First init EEPROM based on custom.h, custom.c and default
     // values for several variables
     for (stackNum = 0; stackNum < NUM_STACKS; stackNum++) {
@@ -61,7 +65,9 @@ LonStatusCode LCS_Init(IzotResetCause cause)
         gp = &protocolStackDataGbl[stackNum];
         snvt_capability_info = &capability_info;
         si_header_ext = &header_ext;
-	    InitEEPROM(IzotGetAppSignature());
+	    if (InitEEPROM(IzotGetAppSignature()) != LonStatusNoError) {
+            return LonStatusStackInitializationFailure;
+        }
     }
 
     // Reset the node at the start

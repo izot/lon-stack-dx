@@ -18,6 +18,7 @@
 #include "abstraction/IzotCal.h"
 #include "lcs/lcs.h"
 #include "lcs/lcs_eia709_1.h"
+#include "lcs/lcs_link.h"
 #include "lcs/lcs_queue.h"
 
 // Maximum time to wait for a LON interface unique ID (UID) response (milliseconds)
@@ -76,8 +77,10 @@
 #define MAX_IFACE_STATES 4
 #endif
 
-// Maximum LON message size (bytes) for non-expanded non-extended and extended messages,
-// and expanded extended messages with framesync byte-stuffing
+// Maximum LON MAC layer message size (bytes) for non-expanded non-extended
+// and extended messages,and expanded extended messages with framesync
+// byte-stuffing; the LON MAC layer can carry ISO/IEC 14908-1 payloads up
+// to 228 bytes, or UDP payloads up to 1280 bytes
 #define MAX_LON_MSG_NON_EX_LEN		240
 #define MAX_LON_MSG_EX_LEN			1280
 #define MAX_EXP_LON_MSG_EX_LEN		(2*MAX_LON_MSG_EX_LEN+4)
@@ -197,17 +200,10 @@ typedef enum {
 	ALL_PRIORITIES
 } MessagePriorityLevel;
 
-// LON driver API message structures
-typedef struct LON_PACKED LdvMessage {
-	uint8_t ni_cmd;					// Network interface command (use LonNiCommand value)
-	uint8_t msg_size;				// PDU size in bytes if < EXT_LENGTH, else EXT_LENGTH
-	uint8_t pdu[MAX_LON_MSG_EX_LEN];
-} LdvMessage;
-
 // LON extended message alternate structure
 #define EXT_LENGTH	0xFF			// Extended message length indicator
 typedef struct LON_PACKED LdvExtendedMessage {
-	uint8_t ni_cmd;					// Network interface command (use LonNiCommand value)
+	uint8_t cmd;					// Network interface command (use LonNiCommand value)
 	uint8_t ext_flag;				// Will be set to EXT_LENGTH
 	uint16_t ext_length;
 	uint8_t ext_pdu[MAX_LON_MSG_EX_LEN]; // Size is based on ext_length
@@ -217,15 +213,8 @@ typedef struct LON_PACKED LdvExtendedMessage {
 #define UPLINK_BUF_LEN  ((MAX_LON_MSG_EX_LEN+4)*2)    // Size of ul serial buffer (including expansions)
 #define DOWNLINK_BUF_LEN  ((MAX_LON_MSG_EX_LEN+4)*2)  // Size of dl serial buffer (including expansions)
 
-typedef struct LON_PACKED UsbNiMessage {
-	uint8_t ni_cmd;					// Network interface command (use LonNiCommand value)
-	uint8_t pdu_size;				// PDU size in bytes if < EXT_LENGTH, else EXT_LENGTH
-	uint8_t pdu[MAX_LON_MSG_EX_LEN];
-	uint8_t pad[3];					// Sizes to LdvExtendedMessage
-} UsbNiMessage;
-
 typedef struct LON_PACKED UsbNiExtendedMessage {
-	uint8_t ni_cmd;					// Network interface command (use LonNiCommand value)
+	uint8_t cmd;					// Network interface command (use LonNiCommand value)
 	uint8_t ext_flag;				// Will be set to EXT_LENGTH
 	uint8_t ext_length;				// PDU size in bytes
 	uint8_t ext_pdu[MAX_LON_MSG_EX_LEN];
@@ -281,7 +270,7 @@ typedef struct LON_PACKED LonUsbQueueBuffer {
 	size_t buf_size;				// Buffer size in bytes, with variable size PDU
 	MessagePriorityLevel priority;	// Message priority level
 	LonFrameHeader frame_header;	// Two (frame sync and zero only) or four-byte (code packet) frame header
-	UsbNiMessage usb_ni_message;	// Underlying USB NI message
+	L2Frame usb_ni_message;	// Underlying USB NI message
 } LonUsbQueueBuffer;
 
 // LON USB interface type enumeration
@@ -297,7 +286,8 @@ typedef enum {
 	U20_PL,
 	U60_FT,
 	U60_TP_1250,
-	U70_PL
+	U70_PL,
+	RF_900
 } LonUsbIfaceModel;
 
 #define MAX_IFACE_MODELS 6
@@ -437,10 +427,6 @@ typedef struct LonUsbLinkState {
 	RingBuffer lon_usb_uplink_ring_buffer;
 } LonUsbLinkState;
 
-// UsbNiMessage: 1 (ni_cmd) + 1 (msg_size) + MAX_LON_MSG_EX_LEN bytes + 3 pad
-LON_STATIC_ASSERT(sizeof(UsbNiMessage) == (2 + MAX_LON_MSG_EX_LEN + 3), "UsbNiMessage size mismatch");
-// LdvMessage: 1 (ni_cmd) + 1 (msg_size) + MAX_LON_MSG_EX_LEN
-LON_STATIC_ASSERT(sizeof(LdvMessage) == (2 + MAX_LON_MSG_EX_LEN), "LdvMessage size mismatch");
 // Verify packed layout for 4-byte LonUsbFrameHeaderType
 LON_STATIC_ASSERT(sizeof(LonUsbFrameHeaderType) == 4 * sizeof(uint8_t), "LonFrameHeader size mismatch");
 
@@ -490,17 +476,17 @@ LonStatusCode OpenLonUsbLink(char *lon_dev_name, char *usb_dev_name,
  * Writes a downlink message to the LON USB interface.
  * Parameters:
  *   iface_index: interface index returned by OpenLonUsbLink()
- *   in_msg: pointer to LdvMessage or LdvExtendedMessage structure
+ *   in_msg: pointer to xLdvMessage or LdvExtendedMessage structure
  * Returns:
  *   LonStatusNoError on success; LonStatusCode error code if unsuccessful
  */
-LonStatusCode WriteLonUsbMsg(int iface_index, const LdvMessage* in_msg);
+LonStatusCode WriteLonUsbMsg(int iface_index, const L2Frame* in_msg);
 
 /*
  * Reads an uplink message from the LON USB interface, if available.
  * Parameters:
  *   iface_index: interface index returned by OpenLonUsbLink()
- *   out_msg: pointer to LdvMessage or LdvExtendedMessage structure
+ *   out_msg: pointer to xLdvMessage or LdvExtendedMessage structure
  * Returns:
  *   LonStatusNoError if a message is successfully read;
  *   LonStatusNoMessageAvailable if no full message is available;
@@ -510,7 +496,7 @@ LonStatusCode WriteLonUsbMsg(int iface_index, const LdvMessage* in_msg);
  *   available. If no full message is available, tests for timeout waiting
  *   for the LON interface unique ID (UID) and retries the UID read request.
  */
-LonStatusCode ReadLonUsbMsg(int iface_index, LdvMessage *out_msg);
+LonStatusCode ReadLonUsbMsg(int iface_index, L2Frame *out_msg);
 
 /*
  * Feeds received bytes into the RX ring buffer for a LON USB interface.
