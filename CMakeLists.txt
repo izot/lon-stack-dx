@@ -71,7 +71,6 @@ set(LON_STACK_DX_HEADERS
     include/abstraction/IzotEndian.h
     include/abstraction/IzotHal.h
     include/abstraction/IzotOsal.h
-    include/abstraction/vldv.h
     include/common/bitfield.h
     include/common/modnvlen.h
     include/isi/isi_int.h

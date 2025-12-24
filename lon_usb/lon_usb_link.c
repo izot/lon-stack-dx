@@ -70,7 +70,7 @@ static const LonUsbConfig default_lon_usb_config = {
 
 // LON network diagnostic messages used by the driver
 // TBD: should this be in the format of the LONVXD_Buffer struct - length 1st; response will be CMD/QUE of 0x16
-static const L2Frame MsgReportStatus[] = {NI_LOCAL_NM_CMD,	// Network interface command
+static const L2Frame MsgReportStatus[] = {LonNiLocalNetMgmtCmd,	// Network interface command
 		MSG_CODE_OFFSET+(1),	// 15 PDU length (is +1 required?)
 		0x6F,					// 0 msg_type, 3 st (request), 0 auth, 15 tag (private)
 		0x08,					// 0 priority, 0 path, 0 2-bit cmpl_code, 1 addr_mode, 0 alt_path, 0 pool, 0 response
@@ -80,12 +80,12 @@ static const L2Frame MsgReportStatus[] = {NI_LOCAL_NM_CMD,	// Network interface 
 };
 
 // LON network management messages used by the driver
-static const L2Frame MsgClear[] = {NI_CLEAR, 0};
-static const L2Frame MsgIdentify[] = {NI_IDENTIFY_CMD, 0};
-static const L2Frame MsgModeL2[]	= {NI_LAYER_MODE_CMD, 1, 1};
-static const L2Frame MsgModeL5[]	= {NI_LAYER_MODE_CMD, 1, 0};
-static const L2Frame MsgStatus[] = {NI_S_STATUS, 0};
-static const L2Frame MsgUniqueId[] = {NI_LOCAL_NM_CMD,	// Network interface command
+static const L2Frame MsgClear[] 	= {LonNiClearCmd, 0};
+static const L2Frame MsgIdentify[]	= {LonNiIdentifyCmd, 0};
+static const L2Frame MsgModeL2[]	= {LonNiLayerModeCmd, 1, 1};
+static const L2Frame MsgModeL5[]	= {LonNiLayerModeCmd, 1, 0};
+static const L2Frame MsgStatus[]	= {LonNiStatusCmd, 0};
+static const L2Frame MsgUniqueId[]	= {LonNiLocalNetMgmtCmd,	// Network interface command
 		MSG_CODE_OFFSET+(5),	// 19 PDU length
 		0x70,					// 0 msg_type, 3 2-bit st (request), 1 auth, 0 4-bit tag
 		0x00,					// 0 priority, 0 path, 0 2-bit cmpl_code, 0 addr_mode, 0 alt_path, 0 pool, 0 response
@@ -454,12 +454,12 @@ LonStatusCode WriteLonUsbMsg(int iface_index, const L2Frame* in_msg)
 					code = LonStatusInvalidBufferLength;
 				}
 			} else {
-				LonNiCommand ni_command = in_msg->cmd;
+				LonNiCommand lonNiCommand = in_msg->cmd;
 				L2Frame *ni_msg = &state->downlink_buffer.usb_ni_message;				// Dest
 				// Test for network interface layer mode command from the client
-				if (ni_command == NI_LAYER_MODE_CMD && in_msg->len) {
+				if (lonNiCommand == LonNiLayerModeCmd && in_msg->len) {
 					ni_msg->len = 0;
-					ni_msg->cmd = (in_msg->pdu[0] == 0) ? NI_L5_MODE_CMD : NI_L2_MODE_CMD;
+					ni_msg->cmd = (in_msg->pdu[0] == 0) ? LonNiSetL5ModeCmd : LonNiSetL2ModeCmd;
 					// Set the interface mode used for this link after NI reset
 					state->iface_mode = (in_msg->pdu[0] == 0) ? LON_USB_OPEN_LAYER5 : LON_USB_OPEN_LAYER2;
 				} else {
@@ -676,7 +676,7 @@ LonStatusCode ProcessDownlinkRequests(int iface_index)
 		LonNiCommand cmd = state->downlink_buffer.usb_ni_message.cmd;
 		uint8_t *pdu = state->downlink_buffer.usb_ni_message.pdu;
 		if ((state->iface_mode == LON_USB_OPEN_LAYER2)
-				&& ((cmd == (NI_COMM|NI_START_TXN)) || (cmd == (NI_COMM|NI_PRIORITY_TXN)))
+				&& ((cmd == (LonNiCommandMask|LonNiNormalTxnQueue)) || (cmd == (LonNiCommandMask|LonNiPriorityTxnQueue)))
 				&& (((pdu[1]) & 0xC0) == 0x40)) {
 			// Drop LonTalk V1 packet except for ICMP ping (see AP-2549)
 			if (pdu[IPV4_TOS] == 0 && pdu[IPV4_PROTO] == 1) {					// ICMP
@@ -916,7 +916,7 @@ static LonStatusCode WriteDownlinkLocalNiCmd(int iface_index)
  * Parameters:
  *   cmd: NI command byte
  * Returns:
- *   Expected response NI command; NI_CLEAR if no response is expected
+ *   Expected response NI command; LonNiClearCmd if no response is expected
  * Notes:
  *   Some versions of the MIP firmware have the following behavior:
  *   1. The host sends a SHORT_NI_CMD_FRAME_CMD code packet that requires a response.
@@ -933,15 +933,15 @@ static LonStatusCode WriteDownlinkLocalNiCmd(int iface_index)
  */
 static LonNiCommand GetExpectedResponse(uint8_t cmd)
 {
-	LonNiCommand expected_response = NI_CLEAR;
+	LonNiCommand expected_response = LonNiClearCmd;
 	switch(cmd) {
-		case NI_S_STATUS:
-		case NI_L5_MODE_CMD:
-		case NI_L2_MODE_CMD:
+		case LonNiStatusCmd:
+		case LonNiSetL5ModeCmd:
+		case LonNiSetL2ModeCmd:
 			expected_response = cmd;
 			break;
-		case NI_INITIATE:
-			expected_response = NI_CHALLENGE;
+		case LonNiInitiateCmd:
+			expected_response = LonNiChallengeResponse;
 			break;
 	}
 	return expected_response;
@@ -1200,25 +1200,25 @@ LonStatusCode ReadLonUsbMsg(int iface_index, L2Frame *out_msg)
  *   - Byte 2: For MIP/U50 only: code packet parameter, for example:
  * 			   -- 0: for CpNull (0), CpNiResync (7) (see U50LinkStart)
  * 			   -- 1: for CpMsg (2)
- * 			   -- <command>: for CpNiCmdShort (6); nicbRESET (0x50) (see smpDlNiCmdLocal)
+ * 			   -- <command>: for CpNiCmdShort (6); LonNiResetDeviceCmd (0x50) (see smpDlNiCmdLocal)
  *   - Bytes 3: For MIP/U50 only: checksum byte (negated sum of all bytes modulo 256)
  *   - Bytes 4+: PDU data bytes (if any)
  * 
  *   For MIP/U50: 
- *   - Send CpNiCmdShort/nicbMODE_L2 (0xD1), CpNiCmdShort/nicbSSTATUS (0xE0),
+ *   - Send CpNiCmdShort/LonNiSetL2ModeCmd (0xD1), CpNiCmdShort/LonNiStatusCmd (0xE0),
  *     and CpNiCmdShort/0 commands to set layer 2 mode
- *   - Send nicbRESET (0x50) command to reset the NIC; create a ResetNi()
+ *   - Send LonNiResetDeviceCmd (0x50) command to reset the NIC; create a ResetNi()
  *     function to reset the network interface when the NI no longer accepts
  *     outgoing messages, for example after a timeout waiting for an ACK; process incoming
  *   - Send CpMsg (2) code packets for downlink messages
  *   - Send CpNiResync (7) followed by a 0 parameter to resync
- *   - Send CpNiCmdShort/nicbSSTATUS (0xE0) to get MIP version and layer mode
- *   - Respond to nicbSSTATUS (0xE0), nicbMODE_L5 (0xD0), and nicbMODE_L2 (0xD1)
+ *   - Send CpNiCmdShort/LonNiStatusCmd (0xE0) to get MIP version and layer mode
+ *   - Respond to LonNiStatusCmd (0xE0), LonNiSetL5ModeCmd (0xD0), and LonNiSetL2ModeCmd (0xD1)
  *     commands with the same command
  *   - Respond to nicbMODE_SSI (0x42) command with nicbMODE (0x40) command
- *   - Respond to nicbINITIATE (0x51) command with nicbCHALLENGE (0x52) command
+ *   - Respond to LonNiInitiateCmd (0x51) command with LonNiChallengeResponse (0x52) command
  *   - Ignore nicbACK (0xC0) and nicbNACK (0xC1) commands
- *   - Use nicbERROR (0x30) to process runt packets
+ *   - Use LonNiError (0x30) to process runt packets
  * 
  * TBD:
  *   - See smpCodePacketRxd() in U50Link.c; reviewed through line 900
@@ -1384,18 +1384,18 @@ static LonStatusCode ProcessUplinkCodePacket(int iface_index)
 		OsalPrintTrace(code, "Received uplink short NI command 0x%02X", parameter);
 		state->downlink_ack_required = true;
 		if (!state->uplink_duplicate) {
-			if (parameter == NI_ACK || parameter == NI_NACK) {
+			if (parameter == LonNiAckCmd || parameter == LonNiNackCmd) {
 				// Downlink ACK not required for these commands
 				break;
 			}
-			if(parameter == NI_RESET_DEV_CMD) {
+			if(parameter == LonNiResetDeviceCmd) {
 				// Reset transmit state and force a pending downlink flush
 				state->downlink_seq_number = 0;
 				state->downlink_state = DOWNLINK_START;
 			}
 			// Translate short NI command to a local NI command and queue it uplink
 			state->uplink_buffer.usb_ni_message.cmd = parameter;
-	        if((parameter & 0xF0) == NI_ERROR) {
+	        if((parameter & 0xF0) == LonNiError) {
 				state->uplink_buffer.usb_ni_message.len = 5;
 				// Zero payload fields for an error message
 				memset(state->uplink_buffer.usb_ni_message.pdu, 0, 4);
@@ -1425,7 +1425,7 @@ static LonStatusCode ProcessUplinkCodePacket(int iface_index)
 				// Downlink reject timer limit reached; reset the network interface
 				code = LonStatusLniWriteFailure;
 				OsalPrintError(code, "Downlink reject timer expired; resetting network interface %d", iface_index);
-				WriteDownlinkCodePacket(iface_index, SHORT_NI_CMD_FRAME_CMD, NI_RESET_DEV_CMD);
+				WriteDownlinkCodePacket(iface_index, SHORT_NI_CMD_FRAME_CMD, LonNiResetDeviceCmd);
 			}
 			// TBD: ensure sequence number is cycled for DOWNLINK_MSG_ACK_WAIT
 			// because the code packet was accepted
@@ -1484,7 +1484,7 @@ static LonStatusCode ClearUplinkTransaction(int iface_index)
 		return code;
 	}
 	code = IncrementDownlinkSequence(iface_index);
-	state->uplink_expected_rsp = NI_CLEAR;
+	state->uplink_expected_rsp = LonNiClearCmd;
 	state->uplink_ack_timeout_phase = 0;
 	return code;
 }
@@ -1544,11 +1544,11 @@ static LonStatusCode CheckUplinkCompleted(int iface_index, bool *completed)
 			state->uplink_msg[1] = (uint8_t)state->uplink_msg_length;
 			state->uplink_msg[0] = cmd;
 		}
-		// Filter any NI_DRIVER_CMD commands
-		if ((cmd & NI_CMD_MASK) == NI_DRIVER_CMD || cmd == NI_LAYER_MODE_CMD) {
+		// Filter any LonNiDriverCmdMask commands
+		if ((cmd & NI_CMD_MASK) == LonNiDriverCmdMask || cmd == LonNiLayerModeCmd) {
 			OsalPrintTrace(LonStatusNoError,
 					"Processed 0x%02X uplink network interface command", cmd);
-			if (cmd == NI_LAYER_MODE_CMD) {
+			if (cmd == LonNiLayerModeCmd) {
 				OsalPrintDebug(LonStatusNoError, "NI Layer Mode setting received: %d",
 						msg->pdu[0]);
 			}
@@ -1558,8 +1558,8 @@ static LonStatusCode CheckUplinkCompleted(int iface_index, bool *completed)
 					cmd, state->uplink_msg_length);
 			PrintMessage(state->uplink_msg, state->uplink_msg_length);
 
-			// Process and shrink any NI_RESET_DEV_CMD data
-			if (cmd == NI_RESET_DEV_CMD) {
+			// Process and shrink any LonNiResetDeviceCmd data
+			if (cmd == LonNiResetDeviceCmd) {
 				if (msg->len) {
 					state->lon_stats.tx_id = msg->pdu[1];
 					state->lon_stats.l2_l5_mode = msg->pdu[0];
@@ -1570,13 +1570,13 @@ static LonStatusCode CheckUplinkCompleted(int iface_index, bool *completed)
 					OsalPrintDebug(LonStatusNoError, "NI Reset received, no data");
 				}
 				msg->len = 0;
-			} else if (cmd == NI_CRC_ERROR) {
+			} else if (cmd == LonNiCrcError) {
 				Increment32(state->lon_stats.uplink.rx_crc_errors);
-            } else if (cmd == NI_INCOMING_CMD && (msg->len > (3+11)) && (msg->pdu[MSG_CODE_OFFSET] == IzotNmWink)) {
+            } else if (cmd == LonNiIncomingCmd && (msg->len > (3+11)) && (msg->pdu[MSG_CODE_OFFSET] == IzotNmWink)) {
                 // Process any uplink network Wink messages
 				IdentifyLonNi(state->iface_index);
 			}
-			if (cmd == NI_FLUSH_COMPLETE) {
+			if (cmd == LonNiFlushCompleteCmd) {
 				OsalPrintTrace(LonStatusNoError, "NI Flush Complete message received");
 			}
             // Trashed uplink data can result in 0xFF error value in the len field

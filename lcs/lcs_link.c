@@ -184,7 +184,7 @@ void LKReset(void)
             // and try again
 			while (1) {
 			    const int messageLength = 5;
-				const L2Frame nidRead = {nicbLOCALNM, 14+messageLength,
+				const L2Frame nidRead = {LonNiLocalNetMgmtCmd, 14+messageLength,
                         0x70|LNM_TAG, 0x00, messageLength, 0x00, 0x00, 0x00,
                         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                         NM_opcode_base|NM_READ_MEMORY, READ_ONLY_RELATIVE, 
@@ -195,7 +195,7 @@ void LKReset(void)
 					requestUid = false;
 				}
 				if (ReadLonUsbMsg(lonNi[niIndex].iface_index, &sicbIn) == LonStatusNoError
-                        && sicbIn.cmd == nicbRESPONSE 
+                        && sicbIn.cmd == LonNiResponseCmd 
                         && (sicbIn.pdu[0]&0x0F) == LNM_TAG 
                         && sicbIn.pdu[14] == (NM_resp_success|NM_READ_MEMORY)) {
 					memcpy(eep->readOnlyData.UniqueNodeId, &sicbIn.pdu[15], UNIQUE_NODE_ID_LEN);
@@ -245,7 +245,7 @@ void LKSend(void)
             LKFetchXcvrPl(niIndex);
         }
         if (lonNi[niIndex].isPowerLine && lonNi[niIndex].setPlPhase) {
-            L2Frame mode = {nicbPHASE|2, 0};
+            L2Frame mode = {LonNiPhaseModeCmd|2, 0};
             lonNi[niIndex].setPlPhase = WriteLonUsbMsg(lonNi[niIndex].iface_index, &mode) != LonStatusNoError;
         }
     }
@@ -327,7 +327,7 @@ void LKReceive(void)
 	  	return;
 	}
 
-	if (lonNi[niIndex].isPowerLine && sicb.cmd == nicbRESPONSE 
+	if (lonNi[niIndex].isPowerLine && sicb.cmd == LonNiResponseCmd 
             && (sicb.pdu[0]&0x0F) == LNM_TAG 
             && sicb.pdu[14] == (ND_resp_success|ND_QUERY_XCVR)) {
 	  	// This is the response to a PL xcvr register read (done in
@@ -343,13 +343,13 @@ void LKReceive(void)
 	// Throw away layer 2 mode 2 packets that are smaller than 8 bytes long;
     // layer 2 mode 2 network interfaces report CRC errors as a packet with
     // a short length
-	if (sicb.cmd == nicbINCOMING_L2M2 && lpduSize < 8 ||
-		(sicb.cmd&0xF0) == (nicbERROR&0xF0)) {
+	if (sicb.cmd == LonNiIncomingL2Mode2Cmd && lpduSize < 8 ||
+		(sicb.cmd&0xF0) == (LonNiError&0xF0)) {
 	  	INCR_STATS(LcsTxError);
 		return;
-	} else if (sicb.cmd != nicbINCOMING_L2M2) {
-	    if (lonNi[niIndex].isPowerLine && (sicb.cmd == nicbRESET
-                || sicb.cmd == nicbINCOMING_L2 || sicb.cmd == nicbINCOMING_L2M1)) {
+	} else if (sicb.cmd != LonNiIncomingL2Mode2Cmd) {
+	    if (lonNi[niIndex].isPowerLine && (sicb.cmd == LonNiResetDeviceCmd
+                || sicb.cmd == LonNiIncomingL2Cmd || sicb.cmd == LonNiIncomingL2Mode1Cmd)) {
 		  	// Phase setting was lost
 			lonNi[niIndex].setPlPhase = true;
 		}
@@ -368,7 +368,7 @@ void LKReceive(void)
     INCR_STATS(LcsL2Rx);
 
     // Check if the packet is for us
-    if (sicb.cmd != nicbINCOMING_L2M2 || sicb.pdu[0] != nicbLOCALNM) {
+    if (sicb.cmd != LonNiIncomingL2Mode2Cmd || sicb.pdu[0] != LonNiLocalNetMgmtCmd) {
         INCR_STATS(LcsMissed);
         return;
     }
@@ -479,7 +479,7 @@ void LKGetXcvrParams(int niIndex, XcvrParam *p)
 void LKFetchXcvrPl(int index)
 {
 	const int msgLen = 1;
-	const L2Frame sicbOut = {nicbLOCALNM, 14+msgLen, 0x70|LNM_TAG, 0x00, msgLen, 
+	const L2Frame sicbOut = {LonNiLocalNetMgmtCmd, 14+msgLen, 0x70|LNM_TAG, 0x00, msgLen, 
 							 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 							 ND_opcode_base|ND_QUERY_XCVR};
     if (lonNi[index].isPowerLine) {

@@ -1803,26 +1803,26 @@ typedef IZOT_STRUCT_BEGIN(IzotConfigData)
 typedef IZOT_STRUCT_BEGIN(IzotReadOnlyData)
 {
     IzotUniqueId  UniqueNodeId;      /* 48-bit unique ID of Neuron Chip or Smart Transceiver              */
-    IzotByte  ArchNum;              /* Model Number for Ref. Impl.                                       */
+    IzotByte  ArchNum;              /* Model Number for Ref. Impl.                                        */
     IzotByte  CheckSumMinorNum;      /* contains checksum for Unique Node ID and minorArchNum (0-128). Use IZOT_READONLY_* macros. */
-    IzotByte  DatapointFixed[2];            /* Location of nv fixed table.                                       */
-    IzotByte  ReadOnly_1;            /* Contains:  (Use IZOT_READONLY_* macros. )                            */
+    IzotByte  DatapointFixed[2];            /* Location of nv fixed table.                                */
+    IzotByte  ReadOnly_1;            /* Contains:  (Use IZOT_READONLY_* macros. )                         */
                                      /* readWriteProtect , 1,       read+write protect flag.              */
                                      /* runWhenUnconf    , 1,       1=> Application runs.                 */
                                      /* nvCount          , 6,       0 for reference implementation.       */
     IzotByte  SnvtStruct[2];         /* 0xFFFF for LON Stack.                              */
     IzotProgramId ProgramId;         /* Program ID string (array of 8 bytes)                              */
-    IzotByte  ReadOnly_2;            /* Contains:  (Use IZOT_READONLY_* macros. )                          */
+    IzotByte  ReadOnly_2;            /* Contains:  (Use IZOT_READONLY_* macros. )                         */
                                      /* dpProcessingOff  , 1,       Must be one for NodeUtil.             */
                                      /* twoDomains       , 1,       1 if node is in 2 domains.            */
-                                     /* r2               , 1,       explicitAddr not used in Ref. Impl.   */
+                                     /* r2               , 1,       explicitAddr not used                 */
                                      /* r3               , 1,       Unused.                               */
                                      /* msgProcess       , 1,       1 means explicit messages processed.  */
                                      /* nodeState        , 3,       Node State. See eia709_1.h            */
-    IzotByte ReadOnly_3;             /* Contains: (Use IZOT_READONLY_* macros. )                           */
+    IzotByte ReadOnly_3;             /* Contains: (Use IZOT_READONLY_* macros. )                          */
                                      /* # of entries in address table (AddressCn).                        */
                                      /* r5               , 4       Unused.                                */
-    IzotByte ReadOnly_4;             /* Contains:  (Use IZOT_READONLY_* macros. )                          */
+    IzotByte ReadOnly_4;             /* Contains:  (Use IZOT_READONLY_* macros. )                         */
                                      /* r6               , 4,       Unused.                               */
                                      /* receiveTransCnt  , 4        RR Cnt = this field + 1               */
     IzotByte AppBufSize;             /* appOutBufSize   , 4,        Special Size Encoding.                */
@@ -1880,6 +1880,62 @@ typedef IZOT_STRUCT_BEGIN(IzotStatus)
      */
     IzotWord                 LostEvents;
 } IZOT_STRUCT_END(IzotStatus);
+
+/*****************************************************************
+ * Section: LON Network Interface Commands
+ *****************************************************************/
+// Many of these commands are optional and not supported by all network interfaces
+typedef IZOT_ENUM_BEGIN(LonNiCommand) {
+	LonNiClearCmd 			= 0x00,		// Clear (no operation)--used by driver
+	LonNiNormalTxnQueue		= 0x02,		// Normal transaction queue--used by driver
+	LonNiPriorityTxnQueue	= 0x03,		// Priority transaction queue--used by driver
+	LonNiNormalNonTxnQueue	= 0x04,		// Normal non-transaction queue
+	LonNiPriNonTxnQueue	    = 0x05,		// Priority non-transaction queue
+    LonNiResponseQueue      = 0x06,     // Response message & completion event queue
+    LonNiIncomingQueue      = 0x08,     // Received message queue
+	LonNiCommandMask		= 0x10,     // LON network interface command bit--used by driver
+	LonNiResponseCmd		= 0x16,     // Used by stack L2
+	LonNiIncomingCmd		= 0x18,     // Incoming command--used by driver for Wink
+	LonNiIncomingL2Cmd		= 0x1A,     // Used by stack L2
+	LonNiIncomingL2Mode1Cmd	= 0x1B,		// Layer 2 Mode 1 frame--used by stack L2
+	LonNiIncomingL2Mode2Cmd	= 0x1C,		// Layer 2 Mode 2 frame--used by stack L2
+    LonNiNetMgmtCmd		    = 0x20,
+	LonNiLocalNetMgmtCmd	= 0x22,     // Local network management command--used by stack L2 and driver
+	LonNiError			    = 0x30,     // General network interface error-used by stack L2 and driver
+	LonNiCrcError		    = 0x31,     // LON network interface CRC error--used by driver
+	LonNiPhaseModeCmd	    = 0x40,		// PL phase setting, or with 1 or 2--used by stack L2
+	LonNiResetDeviceCmd	    = 0x50,     // Reset device--used by stack L2 and driver
+	LonNiInitiateCmd		= 0x51,     // Used by driver
+	LonNiChallengeResponse	= 0x52,     // Used by driver
+	LonNiReplyCmd			= 0x53,
+	LonNiFlushCompleteCmd	= 0x60,     // Uplink command--used by driver
+    LonNiFlushCancelCmd     = 0x60,     // Downlink command
+    LonNiOnlineCmd          = 0x70,
+    LonNiOfflineCmd         = 0x80,
+	LonNiFlushCmd			= 0x90,
+    LonNiFlushIgnoreCmd     = 0xA0,
+    LonNiSleepCmd           = 0xB0,
+	LonNiSetPhaseCmd		= 0xC0,		// IO_0 - IO_3 output low--PL only
+	LonNiAckCmd				= 0xC0,     // Used by driver
+	LonNiNackCmd			= 0xC1,     // Used by driver
+	LonNiDriverCmdMask		= 0xD0,     // Used by driver
+	LonNiSetL5ModeCmd		= 0xD0, 	// MIP/U50 only--used by driver
+	LonNiSetL2ModeCmd		= 0xD1, 	// MIP/U50 only--used by driver
+	LonNiIdentifyCmd		= 0xD4,     // Used by driver
+	LonNiFlowControlCmd	    = 0xD5,
+	LonNiResetDriverCmd	    = 0xD6,
+	LonNiCycleDriverCmd	    = 0xD7,
+	LonNiStatusCmd			= 0xE0,     // Used by driver
+    LonNiPupXoffCmd         = 0xE1,
+    LonNiPupXonCmd          = 0xE2,
+    LonNiPtrHRotlCmd        = 0xE4,
+	LonNiLayerModeCmd	    = 0xE5,		// Layer mode in payload--used by driver
+    LonNiRqEnableCmd        = 0xE5,
+    LonNiTxIdCmd            = 0xE8,
+    LonNiSltaPlsCmd         = 0xEA,     // SLTA only
+	LonNiNonLonCmd		    = 0xEF,
+    LonNiDriverCmd          = 0xF0
+} IZOT_ENUM_END(LonNiCommand);
 
 /*
  * ******************************************************************************

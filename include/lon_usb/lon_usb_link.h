@@ -318,44 +318,6 @@ static LonUsbIfaceConfig lon_usb_iface_configs[] = {
 	{LON_USB_INTERFACE_U61, 27, FRAME_SYNC_ONLY, false, false, false}
 };
 
-// Local NI commands
-// TBD: merge these into LonNiCommand in lon_types.h, from lon_usb_link.h
-typedef enum {
-	NI_CLEAR 			= 0x00,		// Clear (no operation)
-	NI_START_TXN		= 0x02,		// Outgoing acceptable start
-	NI_PRIORITY_TXN		= 0x03,		// Priority transaction queue
-	NI_END_TXN			= 0x05,		// Outgoing acceptable end
-	NI_COMM				= 0x10,
-	NI_RESPONSE			= 0x16,
-	NI_INCOMING_CMD		= 0x18,
-	NI_INCOMING_L2		= 0x1A,
-	NI_INCOMING_L2M1	= 0x1B,		// Layer 2 Mode 1 frame
-	NI_INCOMING_L2M2	= 0x1C,		// Layer 2 Mode 2 frame
-	NI_LOCAL_NM_CMD		= 0x22,
-	NI_ERROR			= 0x30,
-	NI_CRC_ERROR		= 0x31,
-	NI_PHASE_MODE_CMD	= 0x40,		// PL only
-	NI_RESET_DEV_CMD	= 0x50,
-	NI_INITIATE			= 0x51,
-	NI_CHALLENGE		= 0x52,
-	NI_REPLY			= 0x53,
-	NI_FLUSH_COMPLETE	= 0x60,
-	NI_FLUSH			= 0x90,
-	NI_PHASE_SET		= 0xC0,		// IO_0 - IO_3 output low
-	NI_ACK				= 0xC0,
-	NI_NACK				= 0xC1,
-	NI_DRIVER_CMD		= 0xD0,
-	NI_L5_MODE_CMD		= 0xD0, 	// MIP/U50 only
-	NI_L2_MODE_CMD		= 0xD1, 	// MIP/U50 only
-	NI_IDENTIFY_CMD		= 0xD4,
-	NI_FLOW_CTRL_CMD	= 0xD5,
-	NI_RESET_DVR_CMD	= 0xD6,
-	NI_CYCLE_DVR_CMD	= 0xD7,
-	NI_S_STATUS			= 0xE0,
-	NI_LAYER_MODE_CMD	= 0xE5,		// Layer mode follows
-	NI_NON_LON_ESC		= 0xEF
-} LonNiCommand;
-
 // LON USB link state structure
 typedef struct LonUsbLinkState {
 	OsalLockType state_lock;			// Mutex or spinlock for this structure
