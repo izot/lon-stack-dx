@@ -376,6 +376,7 @@ void APPReset(void)
         gp->resetOk = FALSE;
         return;
     }
+    OsalPrintDebug(LonStatusNoError, "APPReset: Application queues initialized");
 
     // Allocate and initialize priority output queue
     gp->appOutPriBufSize = gp->appOutBufSize;
@@ -412,7 +413,8 @@ void APPReset(void)
     gp->nvInTranStatus  = LonStatusNoError;             // See node.h for usage
     gp->nvInCanSchedule = TRUE;
     gp->nvInIndex       = 0;           // Not relevant initially
-
+    OsalPrintDebug(LonStatusNoError, "APPReset: NV scheduling queues initialized");
+    
     // Set flags to correct state
     gp->msgReceive      = FALSE;       // TRUE if data is in gp->msgIn
     gp->respReceive     = FALSE;       // TRUE if data is in gp->respIn

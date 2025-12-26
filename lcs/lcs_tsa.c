@@ -336,11 +336,11 @@ void TSAReset(void)
         }
         gp->recvRec[i].status = UNUSED_RR;
     
-    }
-    
+    }    
     /* Initialize the running count for request id assignment. */
     gp->reqId = 0;
     
+    OsalPrintDebug(LonStatusNoError, "TSAReset: Transport and session layers initialized");
     return;
 }
 

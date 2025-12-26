@@ -106,7 +106,7 @@ void NWReset(void)
         OsalPrintError(status, "NWReset: Unable to initialize the priority output queue");
         return;
     }
-
+    OsalPrintDebug(LonStatusNoError, "NWReset: Network layer queues initialized");
     return;
 }
 

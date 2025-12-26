@@ -918,6 +918,7 @@ void LsUDPReset(void)
     SetLonRepeatTimer(&AnnouncementTimer, AnnounceTimer, AnnounceTimer);
     SetLonRepeatTimer(&AgingTimer, AddrMappingAgingTimer, AddrMappingAgingTimer);
 
+    OsalPrintDebug(LonStatusNoError, "LsUDPReset: Link layer queues initialized");
     return;
 }
 

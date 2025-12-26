@@ -73,6 +73,7 @@ void TCSReset(void)
         gp->priTblSize       = 0;
         gp->nonpriTblSize    = 0;
     }
+    OsalPrintDebug(LonStatusNoError, "TCSReset: Transaction control sublayer initialized");
 }
 
 /*****************************************************************

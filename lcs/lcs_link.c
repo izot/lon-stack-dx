@@ -157,6 +157,7 @@ void LKReset(void)
         gp->resetOk = FALSE;
         return;
     }
+    OsalPrintDebug(LonStatusNoError, "LKReset: Link layer queues initialized");
 
 	for (int niIndex=0; niIndex<NUM_LON_NI; niIndex++) {
 		int iface_index;
@@ -174,7 +175,10 @@ void LKReset(void)
             continue;
 		}
 		lonNi[niIndex].linkOpened = true;
+        OsalPrintDebug(LonStatusNoError, "LKReset: LON link %s opened",
+                lonNi[niIndex].lon_dev_name);
 
+         // If this is a power line interface, get its Unique ID
 		if (lonNi[niIndex].isPowerLine) {
             anyPowerLineNi = true;
 			bool requestUid = true;
