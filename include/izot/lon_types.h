@@ -1952,14 +1952,14 @@ typedef IZOT_ENUM_BEGIN(LonNiCommand) {
  */
 typedef IZOT_ENUM_BEGIN(IzotNmMessageCode)
 {
-    /* codes for network diagnostic commands */
+    // Network diagnostic commands
     IzotNdQueryStatus                   = 0x51,
     IzotNdProxy                         = 0x52,
     IzotNdClearStatus                   = 0x53,
     IzotNdQueryXcvr                     = 0x54,
     IzotNdQueryStatusFlexDomain         = 0x56,
 
-    /* codes for network management commands */
+    // Network management commands
     IzotNmExpanded                      = 0x60,
     IzotNmQueryId                       = 0x61,
     IzotNmRespondToQuery                = 0x62,
@@ -3758,17 +3758,13 @@ typedef void (*IzotisiTickFunction)(void);
 #define MALLOC_SIZE     10050
 #endif
 
-/*------------------------------------------------------------------------------
- LON/IP constants.
- ------------------------------------------------------------------------------*/
+// LON/IP constants
 #define BROADCAST_PREFIX       0xEFC00000
 #define IP_ADDRESS_LEN         4
 #define MAX_NV_LEN_SUPPORTED   228
 #define IBOL_FINISH            0xFF
 
-/*-------------------------------------------------------------------
-    Queue entry structure.
-  -------------------------------------------------------------------*/
+  // Queue-entry structure
 typedef struct {
     IzotUbits16 queueCnt;   /* Max number of items in queue. i.e capacity */
     IzotUbits16 queueSize;  /* Number of items currently in queue         */
@@ -3778,7 +3774,7 @@ typedef struct {
     IzotByte *data;         /* Array of items -- Allocated during Init    */
 } Queue;
 
-// Structure: LonTimer
+// LON timer structure
 typedef struct __attribute__ ((packed)) {
 	IzotUbits32	expiration;		// Time to expire
 	IzotUbits32	repeatTimeout;  // Repeat timeout on expiration (0 means not repeating)

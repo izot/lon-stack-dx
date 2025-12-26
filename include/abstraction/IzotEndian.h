@@ -30,6 +30,8 @@
 #define BYTE_ORDER LITTLE_ENDIAN
 #endif
 
+// Macros for converting 16-bit and 32-bit values between host and
+// network byte order
 #if BYTE_ORDER == LITTLE_ENDIAN
 #define hton16(s) (((uint16_t)(s) << 8) + ((uint16_t)(s) >> 8))
 #define ntoh16(s)  hton16(s)

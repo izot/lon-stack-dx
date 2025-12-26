@@ -607,9 +607,14 @@ IZOT_EXTERNAL_FN LonStatusCode IzotSetNodeMode(const IzotNodeMode mode, const Iz
  */
 IZOT_EXTERNAL_FN LonStatusCode IzotQueryDomainConfig(unsigned index, IzotDomain* const pDomain)
 {
+    LonStatusCode status = LonStatusNoError;
     IzotDomain *p = (IzotDomain *)AccessDomain(index);
-    memcpy(pDomain, p, sizeof(IzotDomain));
-    return LonStatusNoError;
+    if (p) {
+        memcpy(pDomain, p, sizeof(IzotDomain));
+    } else {
+        status = LonStatusIndexInvalid;
+    }
+    return status;
 }
 
 /*
@@ -664,7 +669,7 @@ IZOT_EXTERNAL_FN LonStatusCode IzotUpdateDomain(unsigned index, unsigned length,
 	IzotDomain Domain;
     LonStatusCode status = LonStatusNoError;
 
-	memcpy(&Domain, access_domain(index), sizeof(Domain));
+	memcpy(&Domain, AccessDomain(index), sizeof(Domain));
 
     // Set the domain ID length, domain ID, subnet ID, and node ID, nonclone flag, and mark the domain valid
     IZOT_SET_ATTRIBUTE(Domain, IZOT_DOMAIN_ID_LENGTH, length);
@@ -680,7 +685,7 @@ IZOT_EXTERNAL_FN LonStatusCode IzotUpdateDomain(unsigned index, unsigned length,
 		IZOT_SET_ATTRIBUTE(Domain, IZOT_DHCP_FLAG, 1);
 	}
 	
-	if (memcmp(&Domain, access_domain(index), sizeof(Domain))) {
+	if (memcmp(&Domain, AccessDomain(index), sizeof(Domain))) {
         // Domain changed, update the domain table
         status = IzotUpdateDomainConfig(index, &Domain);
 
@@ -777,6 +782,7 @@ IZOT_EXTERNAL_FN LonStatusCode IzotQueryDpConfig(signed index, IzotDatapointConf
 IZOT_EXTERNAL_FN LonStatusCode IzotUpdateDpConfig(signed index, const IzotDatapointConfig* const pDatapointConfig)
 {
     memcpy(&eep->nvConfigTable[index], pDatapointConfig, sizeof(IzotDatapointConfig));
+    OsalPrintDebug(LonStatusNoError, "IzotUpdateDpConfig: NV index %d", index);
     RecomputeChecksum();
     LCS_WriteNvm();
     return LonStatusNoError;
@@ -880,8 +886,8 @@ IZOT_EXTERNAL_FN LonStatusCode IzotDatapointBind(int nvIndex, IzotByte address, 
     if (status != LonStatusNoError) {
         IZOT_SET_ATTRIBUTE_P(&DatapointConfig, IZOT_DATAPOINT_ADDRESS_HIGH, address >> 4);
         IZOT_SET_ATTRIBUTE_P(&DatapointConfig, IZOT_DATAPOINT_ADDRESS_LOW, address);
-        IZOT_SET_ATTRIBUTE_P(&DatapointConfig, IZOT_DATAPOINT_SELHIGH, high_byte(selector));
-        DatapointConfig.SelectorLow = low_byte(selector);
+        IZOT_SET_ATTRIBUTE_P(&DatapointConfig, IZOT_DATAPOINT_SELHIGH, (uint8_t)(selector >> 8));
+        DatapointConfig.SelectorLow = (uint8_t)(selector & 0x00FFu);
         IZOT_SET_ATTRIBUTE_P(&DatapointConfig, IZOT_DATAPOINT_TURNAROUND, turnAround);
         IZOT_SET_ATTRIBUTE_P(&DatapointConfig, IZOT_DATAPOINT_SERVICE, service);
         status = IzotUpdateDpConfig(nvIndex, &DatapointConfig);
@@ -904,8 +910,14 @@ IZOT_EXTERNAL_FN LonStatusCode IzotDatapointBind(int nvIndex, IzotByte address, 
  */
 IZOT_EXTERNAL_FN LonStatusCode IzotQueryAliasConfig(unsigned index, IzotAliasConfig* const pAlias)
 {
-    memcpy(pAlias, &eep->nvAliasTable[index], sizeof(IzotAliasConfig));
-    return LonStatusNoError;
+    LonStatusCode status = LonStatusNoError;
+    if (pAlias) {
+        memcpy(pAlias, &eep->nvAliasTable[index], sizeof(IzotAliasConfig));
+    } else {
+        status = LonStatusInvalidParameter;
+        OsalPrintError(status, "IzotQueryAliasConfig: NULL pointer for index %d alias configuration", index);
+    }
+    return status;
 }
 
 /*

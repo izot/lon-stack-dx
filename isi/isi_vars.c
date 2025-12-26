@@ -20,7 +20,7 @@ extern "C" {
 #include "isi/isi_int.h"
 #include <stddef.h>
 
-// eeprom 
+// Non-volatile ISI data structure 
 IsiPersist _isiPersist = {
 #ifdef	ISI_SUPPORT_TIMG
 	ISI_DEFAULT_DEVICECOUNT,	// Estimated device count

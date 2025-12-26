@@ -82,8 +82,16 @@ Comments:  If an invalid index is given, log error message.
 IzotDomain *AccessDomain(IzotByte indexIn)
 {
     if (indexIn <= IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_TWO_DOMAINS)) {
-        return(&eep->domainTable[indexIn]);
+        IzotDomain *domain_config = &eep->domainTable[indexIn];
+        OsalPrintDebug(LonStatusNoError, "AccessDomain: Domain ID %x %x %x %x %x %x, Subnet %d, NonClone %d, Node %d, Invalid %d, Length %d, Key %x\n", 
+                domain_config->Id[0],domain_config->Id[1],domain_config->Id[2],domain_config->Id[3],domain_config->Id[4],domain_config->Id[5],domain_config->Subnet, 
+                IZOT_GET_ATTRIBUTE_P(domain_config,IZOT_DOMAIN_NONCLONE),
+                IZOT_GET_ATTRIBUTE_P(domain_config,IZOT_DOMAIN_NODE),
+                IZOT_GET_ATTRIBUTE_P(domain_config,IZOT_DOMAIN_INVALID),
+                IZOT_GET_ATTRIBUTE_P(domain_config,IZOT_DOMAIN_ID_LENGTH), domain_config->Key[0]);
+        return(domain_config);
     }
+    OsalPrintError(LonStatusInvalidDomain, "AccessDomain: Invalid domain index");
     return(NULL);
 }
 
