@@ -19,7 +19,7 @@
 
 #if LINK_IS(MIP)
 
-#include "lcs/lcs_eia709_1.h" /* needed for NUM_COMM_PARAMS */
+#include "lcs/lcs_eia709_1.h" /* needed for IZOT_COMMUNICATIONS_PARAMETER_LENGTH */
 
 /* Length in bytes of Packet buffers for SPM ISR */
 #define PKT_BUF_LEN 255
@@ -136,7 +136,7 @@ typedef struct {
     uint16 resetCount; /* counter to time if should reset xcvr if
                          tx_on not cleared */
     uint16 collisionsThisPkt; /* number of collisions this packet */
-    uint8 configData[NUM_COMM_PARAMS];  /* config data for special
+    uint8 configData[IZOT_COMMUNICATIONS_PARAMETER_LENGTH];  /* config data for special
                                           purpose mode xcvr */
 
     Boolean writeAltPathBit;  /* flag to signal need to write alt

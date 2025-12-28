@@ -81,7 +81,7 @@ extern "C" {
 
 typedef struct __attribute__((__packed__))
 {
-    IzotByte  domainId[DOMAIN_ID_LEN];
+    IzotByte  domainId[IZOT_DOMAIN_ID_MAX_LENGTH];
     IzotByte  subnet;
     BITS2(cloneDomain , 1,
           node        , 7)
@@ -317,7 +317,7 @@ typedef struct
 /* For more information, see tcs.h or tcs.c */
 typedef struct
 {
-    IzotByte	domainId[DOMAIN_ID_LEN];
+    IzotByte	domainId[IZOT_DOMAIN_ID_MAX_LENGTH];
     IzotByte	len; /* domain length */
     AddrMode	addressMode;
     union
@@ -325,7 +325,7 @@ typedef struct
         IzotReceiveSubnetNode subnetNode;
         IzotReceiveGroup      group;   /* group number of multicast */
         IzotReceiveBroadcast  subnet;  /* 0 if domainwide broadcast */
-        IzotByte              uniqueNodeId[UNIQUE_NODE_ID_LEN];
+        IzotByte              uniqueNodeId[IZOT_UNIQUE_ID_LENGTH];
     } addr;
     LonTimer                  timer;
     TransNum                  tid;     /* Last TID used for this addr */
@@ -373,7 +373,7 @@ typedef enum
 typedef struct
 {
 	IzotByte           altKey;	// TRUE => use alternate authentication key
-	IzotByte           altKeyValue[2][DOMAIN_ID_LEN]; // Key used when altKey is true
+	IzotByte           altKeyValue[2][IZOT_DOMAIN_ID_MAX_LENGTH]; // Key used when altKey is true
 } AltKey;
 
 typedef struct

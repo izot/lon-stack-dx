@@ -213,7 +213,7 @@ LonStatusCode ProcessLTEP(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
 				i = 0;
 				while (domainIndex < 2) {
 					int j;
-                    for (j=0; j<DOMAIN_ID_LEN; j++) {
+                    for (j=0; j<IZOT_DOMAIN_ID_MAX_LENGTH; j++) {
                         altKey.altKeyValue[i][j] = eep->domainTable[domainIndex].Key[j] + *pKeyDelta;
                         pKeyDelta++;
                     }

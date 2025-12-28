@@ -88,7 +88,7 @@
 #include "lcs/lcs_app.h"
 
 #define MAX_NV_SELF_DOC_LENGTH 1023
-#define MAX_NV_LEN_SUPPORTED   228
+#define MAX_NV_LENGTH   228
 #define MAX_STOP_OFFSET        0xFFFF
 #define IBOL_FINISH            0xFF
                                
@@ -1481,7 +1481,7 @@ IzotBits16 AddNV(NVDefinition *dp)
         }
 
         /* nv fixed table */
-		if (dp->nvLength > MAX_NV_LEN_SUPPORTED) {
+		if (dp->nvLength > MAX_NV_LENGTH) {
 			OsalPrintError(LonStatusInvalidNvLength, "AddNV: Invalid NV length");
 			return(-1);
 		}
@@ -1819,7 +1819,7 @@ Comments:  None.
 *******************************************************************************/
 void IzotUpdateUnion(IzotByte *data, IzotByte offset, uint16_t len, signed index)
 {
-    IzotByte ndi[MAX_NV_LEN_SUPPORTED];
+    IzotByte ndi[MAX_NV_LENGTH];
     const IzotByte *ibol = NULL;
     
     if(index < 0) {
@@ -2122,7 +2122,7 @@ static void ProcessNVUpdate(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
         matchingDataLength   = NV_LENGTH(matchingPrimaryIndex);
         matchingNVStrPtr     = GetNVStructPtr(matchingPrimaryIndex);
 
-        IzotByte hdi[MAX_NV_LEN_SUPPORTED];
+        IzotByte hdi[MAX_NV_LENGTH];
         uint16_t dplength = dataLength;    // Length of Datapoint defined in IzotDev.h file.
                                            // Union datapoint have length differ than actually defined.
 
@@ -3442,7 +3442,7 @@ void GoUnconfigured(void)
     for (i = 0; i < numDomains; i++)
     {
 	    memset(&eep->domainTable[i], 0xFF, sizeof(eep->domainTable[0]));
-        memcpy(eep->domainTable[i].Id, "gmrdwf", DOMAIN_ID_LEN);
+        memcpy(eep->domainTable[i].Id, "gmrdwf", IZOT_DOMAIN_ID_MAX_LENGTH);
         eep->domainTable[i].Subnet = 0;
         IZOT_SET_ATTRIBUTE(eep->domainTable[i], IZOT_DOMAIN_NONCLONE, 0);
 		IZOT_SET_ATTRIBUTE(eep->domainTable[i], IZOT_DOMAIN_NODE, 0);

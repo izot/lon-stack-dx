@@ -192,7 +192,7 @@ void LKReset(void)
                         0x70|LNM_TAG, 0x00, messageLength, 0x00, 0x00, 0x00,
                         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                         NM_opcode_base|NM_READ_MEMORY, READ_ONLY_RELATIVE, 
-                        0x00, 0x00, UNIQUE_NODE_ID_LEN};
+                        0x00, 0x00, IZOT_UNIQUE_ID_LENGTH};
 				L2Frame sicbIn;
 				OsalSleep(UNIQUE_ID_FETCH_INTERVAL);
 				if (requestUid && WriteLonUsbMsg(lonNi[niIndex].iface_index, (void*)&nidRead) == LonStatusNoError) {
@@ -202,7 +202,7 @@ void LKReset(void)
                         && sicbIn.cmd == LonNiResponseCmd 
                         && (sicbIn.pdu[0]&0x0F) == LNM_TAG 
                         && sicbIn.pdu[14] == (NM_resp_success|NM_READ_MEMORY)) {
-					memcpy(eep->readOnlyData.UniqueNodeId, &sicbIn.pdu[15], UNIQUE_NODE_ID_LEN);
+					memcpy(eep->readOnlyData.UniqueNodeId, &sicbIn.pdu[15], IZOT_UNIQUE_ID_LENGTH);
 					break;
 				}
 			}

@@ -89,8 +89,8 @@ even if the node is unconfigured */
     timer value in all target nodes. */
 #define TS_RESET_DELAY_TIME 2000
 
-typedef IzotByte DomainId[DOMAIN_ID_LEN];
-typedef IzotByte AuthKey[AUTH_KEY_LEN];
+typedef IzotByte DomainId[IZOT_DOMAIN_ID_MAX_LENGTH];
+typedef IzotByte AuthKey[IZOT_AUTHENTICATION_KEY_LENGTH];
 
 /* Other values that can be initialized are in the following structure.
    The actual values are given in custom.c file. */
@@ -99,12 +99,12 @@ typedef struct {
     IzotUniqueId  UniqueNodeId;
     IzotByte twoDomains;
 	IzotByte addressCnt;
-    char progId[ID_STR_LEN];
+    char progId[IZOT_PROGRAM_ID_LENGTH];
 
 	char* szSelfDoc;
 	
     /* ConfigData Members */
-    char location[LOCATION_LEN];
+    char location[IZOT_LOCATION_LENGTH];
 
     /* Domain Table Members */
     DomainId domainId[MAX_DOMAINS];

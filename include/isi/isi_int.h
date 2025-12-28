@@ -119,10 +119,6 @@ extern "C" {
 #define NUM_ADDR_TBL_SIZE
 #define ISI_MESSAGE_TAG             0x0F
 
-#define DOMAIN_ID_LEN               6
-#define AUTH_KEY_LEN                6
-#define ID_STR_LEN                  8
-
 #ifndef WIN32
 #ifndef MIN
 #define MIN(x,y) (((x)<(y))?(x):(y))
@@ -191,7 +187,7 @@ extern unsigned gRepeatCount;
 extern unsigned char globalExtended;
 extern unsigned char gIsiDerivableAddr;  // Flag to indicate that the IP address is derivabled or not
 
-// Structure for volatile (RAM) data.
+// Volatile (RAM) data structure
 typedef enum {
     isiChannelTpFt    = 0x04,
     isiChannelPl20A   = 0x0F,
@@ -234,9 +230,8 @@ typedef struct {
 	unsigned	lastConnectionIdx;
 } _IsiPeriodic;
 
-// These enumerations are powers of 2 so that they can be checked using
-// bit operations.  If there are more than 8 non-zero states required, then 
-// additional state bytes must be defined.
+// ISI state enumeration.  These values are powers of two so they can be
+// checked using bit operations.
 typedef enum {
     isiStateNormal			= 0x00,	            // Must be zero
     // Enrollment states
@@ -300,142 +295,23 @@ extern IsiMessage isi_out;							// the global ISI message buffer
 #define PersistDevices
 #endif
 
-// TBD: Move the following typedefs to a more appropriate file
-						
-// Network management response structures (from netmgmt.h)
-typedef struct NM_query_domain_response {
-    IzotByte	    id[ DOMAIN_ID_LEN ];
-    IzotByte	    subnet;
-    IzotByte	    must_be_one    : 1;
-    IzotByte	    node	   : 7;
-    IzotByte	    len;
-    IzotByte	    key[ AUTH_KEY_LEN ];
-} NM_query_domain_response;
-
-typedef struct NM_update_domain_request {
-    IzotByte	    domain_index;
-    IzotByte	    id[ DOMAIN_ID_LEN ];
-    IzotByte	    subnet;
-    IzotByte	    must_be_one : 1;	// this bit must be set to 1
-    IzotByte	    node	: 7;
-    IzotByte	    len;
-    IzotByte	    key[ AUTH_KEY_LEN ];
-} NM_update_domain_request;
-
-typedef struct NM_service_pin_msg{
-    IzotByte	    neuron_id[ NEURON_ID_LEN ];
-    IzotByte	    id_string[ ID_STR_LEN ];
-} NM_service_pin_msg;
-
-/* NM_query_domain */
-typedef struct NM_query_domain_request {
-    IzotByte        code;
-    IzotByte        domain_index;
-} NM_query_domain_request;
-
 #ifdef MSC
 #pragma pack(1)
 #endif
 
-// TBD: Move the following comment
-/*
- ****************************************************************************
- * Application buffer structures for sending and receiving messages to and
- * from a network interface.  The 'ExpAppBuffer' and 'ImpAppBuffer'
- * structures define the application buffer structures with and without
- * explicit addressing.  These structures have up to four parts:
- *
- *   Network Interface Command (NI_Hdr)                        (2 Bytes)
- *   Message Header (MsgHdr)                                   (3 Bytes)
- *   Network Address (ExplicitAddr)                            (11 Bytes)
- *   Data (MsgData)                                            (varies)
- *
- * Network Interface Command (NI_Hdr):
- *
- *   The network interface command is always present.  It contains the
- *   network interface command and queue specifier.  This is the only
- *   field required for local network interface commands such as 
- *   LonNiResetDeviceCmd.
- *
- * Message Header (MsgHdr: union of NetVarHdr and ExpMsgHdr):
- *
- *   This field is present if the buffer is a data transfer or a completion
- *   event.  The message header describes the type of IZOT message
- *   contained in the data field.
- *
- *   NetVarHdr is used if the message is a network variable message and
- *   network interface selection is enabled.
- *
- *   ExpMsgHdr is used if the message is an explicit message, or a network
- *   variable message and host selection is enabled (this is the default
- *   for the SLTA).
- *
- * Network Address (ExplicitAddr:  SendAddrDtl, RcvAddrDtl, or RespAddrDtl)
- *
- *   This field is present if the message is a data transfer or completion
- *   event, and explicit addressing is enabled.  The network address
- *   specifies the destination address for downlink application buffers,
- *   or the source address for uplink application buffers.  Explicit
- *   addressing is the default for the SLTA.
- *
- *   SendAddrDtl is used for outgoing messages or NV updates.
- *
- *   RcvAddrDtl is used  for incoming messages or unsolicited NV updates.
- *   RespAddrDtl is used for incoming responses or NV updates solicited
- *   by a poll.
- *
- * Data (MsgData: union of UnprocessedNV, ProcessedNV, and ExplicitMsg)
- *
- *   This field is present if the message is a data transfer or completion
- *   event.
- *
- *   If the message is a completion event, then the first two Bytes of the
- *   data are included.  This provides the NV index, the NV selector, or the
- *   message code as appropriate.
- *
- *   UnprocessedNV is used if the message is a network variable update, and
- *   host selection is enabled. It consists of a two-Byte header followed by
- *   the NV data.
- *   ProcessedNV is used if the message is a network variable update, and
- *   network interface selection is enabled. It consists of a two-Byte header
- *   followed by the NV data.
- *
- *   ExplicitMsg is used if the message is an explicit message.  It consists
- *   of a one-Byte code field followed by the message data.
- *
- * Note - the fields defined here are for a little-endian (Intel-style)
- * host processor, such as the 80x86 processors used in PC compatibles.
- * Bit fields are allocated right-to-left within a Byte.
- * For a big-endian (Motorola-style) host, bit fields are typically
- * allocated left-to-right.  For this type of processor, reverse
- * the bit fields within each Byte.  Compare the NEURON C include files
- * ADDRDEFS.H and MSG_ADDR.H, which are defined for the big-endian NEURON
- * CHIP.
- */
-
-/*
- *  Typedef: IsiCid2
- *  Structure representing the rev 2 format of the unique connection ID.  
- *  See the IsiCid typedef in IsiTypes.h for the rev1 format of the unique 
- *  connection ID. 
- *  In this rev2, the uniqueID is constructed based on the 6-byte neuronID 
- *  (it's no longer in the compressed form) and leaving the Serial Number with 1-byte.
- *  It's currently used internally during the creation of the new unique CID.
- *
- */
-typedef IZOT_STRUCT_BEGIN(IsiCid2) 
-{
+// Structure representing the rev 2 format of the unique connection ID.  
+// See the IsiCid typedef in IsiTypes.h for the rev1 format of the ID. 
+// In this rev2, the uniqueID is constructed based on the 6-byte neuronID 
+// (it's no longer in the compressed form) and leaving the Serial Number 
+// with 1-byte.
+typedef IZOT_STRUCT_BEGIN(IsiCid2) {
     IzotUniqueId UniqueId;    // host's unique ID (copy from Neuron ID)
     IzotByte     SerialNumber;
 } IZOT_STRUCT_END(IsiCid2);
 
-/*
- *  Typedef: IsiUniqueCid
- *  Structure representing the union of the rev 1 and rev 2 format of the unique connection ID.
- *  It's currently used internally as a convenient access to the connection ID.   
- */
-typedef IZOT_UNION_BEGIN(IsiUniqueCid) 
-{        
+// Structure representing the union of the rev 1 and rev 2 format of the unique connection ID.
+// It's currently used internally as a convenient access to the connection ID.   
+typedef IZOT_UNION_BEGIN(IsiUniqueCid) {        
     IsiCid rev1Cid;
     IsiCid2 rev2Cid;
 } IZOT_UNION_END(IsiUniqueCid);
@@ -448,11 +324,7 @@ extern IzotAliasConfig alias_config;
 extern IzotDomain domainTable[MAX_DOMAINS];  // retrieve using IzotQueryDomainConfig(const unsigned index, IzotDomain* const pDomain);
 extern IzotAddress addrTable;    // [NUM_ADDR_TBL_ENTRIES];    // retrieve using IzotQueryAddressConfig(const unsigned index, IzotAddress* const pAddress);
 
-//
-// Used to check for valid data pointer.
-// Note it is sufficient to just check the high byte of the pointer since the first
-// page of Neuron memory is always constant system image.
-//
+// Checks for a valid data pointer
 #define VALID_DATA_PTR(p)	(p != NULL)      
 
 extern unsigned LonIsiNvCount(void);

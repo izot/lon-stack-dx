@@ -137,7 +137,7 @@ IzotUbits32 LonTimerRemaining(LonTimer *timerInOut)
 /*****************************************************************
 Function:  StartLonWatch
 Returns:   None.
-Purpose:   Start a stop watch.
+Purpose:   Start a stopwatch.
 ******************************************************************/
 void StartLonWatch(LonWatch *watch)
 {
@@ -147,7 +147,7 @@ void StartLonWatch(LonWatch *watch)
 /*****************************************************************
 Function:  StopLonWatch
 Returns:   None.
-Purpose:   Stop a stop watch.
+Purpose:   Stop a stopwatch.
 ******************************************************************/
 void StopLonWatch(LonWatch *watch)
 {

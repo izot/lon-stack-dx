@@ -14,8 +14,6 @@
 
 #include "izot/IzotPlatform.h"
 
-#define ID_STR_LEN 8            // LON program ID length
-
 // ISI messages codes (see isi_msg.h)
 typedef IZOT_ENUM_BEGIN(IsiMessageCode) {
     isiDrum    = 0x00,    	    //  Domain resource usage information

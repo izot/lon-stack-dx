@@ -503,7 +503,7 @@ LonStatusCode InitEEPROM(uint32_t signature)
             IZOT_SET_ATTRIBUTE(eep->configData, IZOT_CONFIG_PREEMPT, 0);
 
             /* Initialization based on custom.c */
-            memcpy(eep->configData.Location, cp->location, LOCATION_LEN);
+            memcpy(eep->configData.Location, cp->location, IZOT_LOCATION_LENGTH);
             for (i = 0; i <= cp->twoDomains; i++) {
                 IZOT_SET_ATTRIBUTE(eep->domainTable[i], IZOT_DOMAIN_ID_LENGTH, cp->len[i]);
                 memcpy(eep->domainTable[i].Id, cp->domainId[i], cp->len[i]);

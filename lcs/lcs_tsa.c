@@ -2798,7 +2798,7 @@ void ReplyOmaDestAddr(SourceAddress* pSrcAddr, AuthPDUPtr pPdu,
         IzotDomain *pDom = &eep->domainTable[pSrcAddr->dmn.domainIndex];
         pOmaAddr->logical.domainLen = 
                                 IZOT_GET_ATTRIBUTE_P(pDom, IZOT_DOMAIN_ID_LENGTH);
-        memcpy(pOmaAddr->logical.domainId, pDom->Id, DOMAIN_ID_LEN);
+        memcpy(pOmaAddr->logical.domainId, pDom->Id, IZOT_DOMAIN_ID_MAX_LENGTH);
     }
 }
 
@@ -2837,7 +2837,7 @@ void ChallengeOmaDestAddr(DestinationAddress* pAddr, OmaAddress* pOmaAddr)
         IzotDomain *pDom = &eep->domainTable[pAddr->dmn.domainIndex];
         pOmaAddr->logical.domainLen 
                                 = IZOT_GET_ATTRIBUTE_P(pDom, IZOT_DOMAIN_ID_LENGTH);
-        memcpy(pOmaAddr->logical.domainId, pDom->Id, DOMAIN_ID_LEN);
+        memcpy(pOmaAddr->logical.domainId, pDom->Id, IZOT_DOMAIN_ID_MAX_LENGTH);
     }
 }
 
@@ -3149,8 +3149,8 @@ OmaAddress* pOmaDest)
         memcpy(&omaBuffer[sizeof(OmaAddress)], apduBytes, apduSize);
         apduBytes = omaBuffer;
         apduSize += sizeof(OmaAddress);
-        keyLength = OMA_KEY_LEN;
-        keyIterations = OMA_KEY_LEN + OMA_KEY_LEN / 2;
+        keyLength = IZOT_OMA_AUTHENTICATION_KEY_LENGTH;
+        keyIterations = IZOT_OMA_AUTHENTICATION_KEY_LENGTH + IZOT_OMA_AUTHENTICATION_KEY_LENGTH / 2;
     } else {
         keyLength = IZOT_AUTHENTICATION_KEY_LENGTH;
         keyIterations = keyLength; // Once over the entire key.

@@ -59,7 +59,7 @@ LonStatusCode LonIsiUpdateDomainConfig(const IzotDomain* domainConfig, int domai
     if (domainIndex <= IZOT_GET_ATTRIBUTE(read_only_data, IZOT_READONLY_TWO_DOMAINS)) {
         temp = &domainTable[domainIndex];
         if (bUpdateID) {
-            for(i=0; i<DOMAIN_ID_LEN; i++) {
+            for(i=0; i<IZOT_DOMAIN_ID_MAX_LENGTH; i++) {
 		        temp->Id[i] = domainConfig->Id[i];
 	        };
         }

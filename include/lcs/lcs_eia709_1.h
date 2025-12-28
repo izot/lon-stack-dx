@@ -117,7 +117,7 @@ typedef struct __attribute__ ((packed)) {
 typedef struct __attribute__ ((packed)) {
    IzotByte domainIndex;  /* 0 or 1 or FLEX_DOMAIN (2) */
 	IzotByte domainLen;
-	IzotByte domainId[DOMAIN_ID_LEN];
+	IzotByte domainId[IZOT_DOMAIN_ID_MAX_LENGTH];
 } Domain;
 
 // LON LPDU offsets
@@ -172,10 +172,10 @@ typedef struct __attribute__ ((packed)) {
 
 typedef union {
 	struct {
-		IzotByte   uniqueId[UNIQUE_NODE_ID_LEN];
+		IzotByte   uniqueId[IZOT_UNIQUE_ID_LENGTH];
 	} physical;
 	struct {
-		IzotByte   domainId[DOMAIN_ID_LEN];
+		IzotByte   domainId[IZOT_DOMAIN_ID_MAX_LENGTH];
 		IzotByte   domainLen;
 		union {
 			IzotReceiveSubnetNode snode;	// selField must be 0
@@ -189,7 +189,7 @@ typedef union {
 // trend info, per packet info or some combination of these.
 //
 typedef struct {
-	IzotByte data[NUM_COMM_PARAMS];
+	IzotByte data[IZOT_COMMUNICATIONS_PARAMETER_LENGTH];
 } XcvrParam;
 
 #pragma pack(pop)

@@ -325,7 +325,7 @@ void HandleNMLeaveDomain(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
     /* Leave the domain */
     memset(&eep->domainTable[apduPtr->data[0]], 0xFF,
             sizeof(eep->domainTable[0]));
-    memcpy(eep->domainTable[apduPtr->data[0]].Id, "gmrdwf", DOMAIN_ID_LEN);
+    memcpy(eep->domainTable[apduPtr->data[0]].Id, "gmrdwf", IZOT_DOMAIN_ID_MAX_LENGTH);
     eep->domainTable[apduPtr->data[0]].Subnet = 0;
     IZOT_SET_ATTRIBUTE(eep->domainTable[apduPtr->data[0]], IZOT_DOMAIN_NODE, 0);
     
@@ -852,7 +852,7 @@ void HandleNmeReportKey(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
     IzotByte i;
     struct {
         IzotByte subcommand;
-        IzotByte key[OMA_KEY_LEN];
+        IzotByte key[IZOT_OMA_AUTHENTICATION_KEY_LENGTH];
     } reportKey;
 
     for (i = 0; i < 2; i++) {
@@ -877,7 +877,7 @@ void HandleNmeReportKey(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
  *******************************************************************************/
 void HandleNmeUpdateKey(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
     LonStatusCode sts = LonStatusInvalidOperation;
-    if (appReceiveParamPtr->pduSize >= 3 + OMA_KEY_LEN && AccessDomain(1)
+    if (appReceiveParamPtr->pduSize >= 3 + IZOT_OMA_AUTHENTICATION_KEY_LENGTH && AccessDomain(1)
             != NULL) {
         IzotByte i;
         IzotByte increment = apduPtr->data[1] == 1;
@@ -1221,7 +1221,7 @@ void HandleNmeUpdateNvByIndex(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr
     
     if(err == NM_resp_success) {
         IzotUbits16 dplength = dataLength;
-        IzotByte hdi[MAX_NV_LEN_SUPPORTED];
+        IzotByte hdi[MAX_NV_LENGTH];
         IzotByte arg1 = 0;
         IzotByte arg2 = 0;
 

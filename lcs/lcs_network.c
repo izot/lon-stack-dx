@@ -451,7 +451,7 @@ void   NWReceive(void)
     IzotByte             flexDomain; /* TRUE => NPDU in flexdomain.  */
     IzotByte             numDomains; /* # of domains of this node.   */
     IzotByte             domainLength;  /* Domain length             */
-    IzotByte             domainId[DOMAIN_ID_LEN]; /* Temp.           */
+    IzotByte             domainId[IZOT_DOMAIN_ID_MAX_LENGTH]; /* Temp.           */
     IzotByte             uniqueNodeId[IZOT_UNIQUE_ID_LENGTH]; /* Temp.  */
     IzotReceiveSubnetNode   destAddr;   /* Temp.                        */
     IzotByte                j;          /* Temp.                        */

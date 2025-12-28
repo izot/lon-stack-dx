@@ -265,95 +265,65 @@ typedef enum {
 #define IZOT_SET_ATTRIBUTE(var, n, value)    ((var).n##_FIELD = (((var).n##_FIELD) & ~n##_MASK) | ((((value) << n##_SHIFT)) & n##_MASK))
 #define IZOT_SET_ATTRIBUTE_P(var, n, value)  ((var)->n##_FIELD = (((var)->n##_FIELD) & ~n##_MASK) | ((((value) << n##_SHIFT)) & n##_MASK))
 
-/*
- *  Maximum length of the domain identifier, in bytes.
- *  The domain identifier can be zero, one, three, or
- *  IZOT_DOMAIN_ID_MAX_LENGTH (6) bytes long.  Space for the largest possible
- *  identifier is allocated in various structures and message types. See
- *  <IzotDomain> for the domain table structure.
- */
-#define IZOT_DOMAIN_ID_MAX_LENGTH    6
+// Maximum length of the domain identifier, in bytes.
+// The domain identifier can be zero, one, three, or
+// IZOT_DOMAIN_ID_MAX_LENGTH (6) bytes long.  Space for the largest possible
+// identifier is allocated in various structures and message types. See
+// <IzotDomain> for the domain table structure.
+ #define IZOT_DOMAIN_ID_MAX_LENGTH    6
 
-/*
- *  Length of the authentication key, stored in the domain table (<IzotDomain>).
- */
+// Length of the authentication key, stored in the domain table (<IzotDomain>)
 #define IZOT_AUTHENTICATION_KEY_LENGTH   6
 
-/*
- *  Length of the application's program identifier, in bytes.
- */
+// Length of the Open Media Authentication (OMA) key, in bytes
+#define IZOT_OMA_AUTHENTICATION_KEY_LENGTH   12
+
+// Length of the application's program identifier, in bytes
 #define IZOT_PROGRAM_ID_LENGTH   8
 
-/*
- *  Length of the location identifier, in bytes.
- */
+// Length of the location identifier, in bytes
 #define IZOT_LOCATION_LENGTH     6
 
-/*
- *  Length of the node's unique identifier, in bytes.
- *  The Unique ID is also known as the Neuron ID, referring to the
- *  Neuron Chip's or Smart Transceiver's unique ID.
- */
+// Length of the node's unique identifier, in bytes.
+// The Unique ID is also known as the Neuron ID or MAC ID,
 #define IZOT_UNIQUE_ID_LENGTH    6
 
-/*
- *  Number of communication control bytes.
- */
+// Number of communication control bytes.
 #define IZOT_COMMUNICATIONS_PARAMETER_LENGTH     7
 
-/*
- *  Parameters for single-ended and special-purpose mode transceivers.
- *  See <IzotDirectModeTransceiver> for direct-mode transceiver parameters.
-*/
+// Parameters for single-ended and special-purpose mode transceivers.
+// See <IzotDirectModeTransceiver> for direct-mode transceiver parameters.
 typedef IzotByte IzotTransceiverParameters[IZOT_COMMUNICATIONS_PARAMETER_LENGTH];
 
-/*
- *  Holds the unique ID.
- */
+// Holds the unique ID
 typedef IzotByte IzotUniqueId[IZOT_UNIQUE_ID_LENGTH];
 
-/*
- *  Holds the program ID.
- */
+// Holds the program ID
 typedef IzotByte IzotProgramId[IZOT_PROGRAM_ID_LENGTH];
 
-/*
- *  Holds a single domain identifier.
- */
+// Holds a single domain identifier
 typedef IzotByte IzotDomainId[IZOT_DOMAIN_ID_MAX_LENGTH];
 
-/*
- *  Holds a single authentication key.
- */
+// Holds a single authentication key
 typedef IzotByte IzotAuthenticationKey[IZOT_AUTHENTICATION_KEY_LENGTH];
 
-/*
- *  Holds a single location identifier.
- *  The location identifier is often referred to as the "location string".
- *  Note that this is misleading, because this data is not limited to ASCII
- *  characters or other similar requirements that could be inferred from the
- *  word "string".
- */
+// Holds a single location identifier
+// The location identifier is often referred to as the "location string".
+// Note that this is misleading, because this data is not limited to ASCII
+// characters or other similar requirements that could be inferred from the
+// word "string".
 typedef IzotByte IzotLocationId[IZOT_LOCATION_LENGTH];
 
-/*
- *  Holds a subnet identifier.
- */
+// Holds a subnet identifier
 typedef IzotByte IzotSubnetId;
 
-/*
- *  Holds a group identifier.
- */
+// Holds a group identifier
 typedef IzotByte IzotGroupId;
 
-/*
- *  Holds a node identifier.
- */
+// Holds a node identifier
 typedef IzotByte IzotNodeId;
 
-/*
- *  LON architecture types.
- */
+// LON architecture types
 typedef IZOT_ENUM_BEGIN(LonArchitecture) {
     /*  0 */ LonNeuron3150Arch     =  0,  /* 3150, FT 3150 */
     /*  1 */ LonNeuronPl3150Arch   =  1,  /* PL 3150 */
@@ -379,38 +349,28 @@ typedef IZOT_ENUM_BEGIN(LonArchitecture) {
     /*128 */ LonGenericArch        = 128  /* Generic model code */
 } IZOT_ENUM_END(LonArchitecture);
 
-/*
- *  Neuron Chip and Smart Transceiver state values.
- *  This enumeration contains the values of the Neuron Chip's or Smart
- *  Transceiver's state information.  To convert the state value returned by
- *  the Query Status command to one of these values, use the <IZOT_NODE_STATE>
- *  macro. To test for the offline flag, use the <IZOT_NODE_STATE_OFFLINE> macro.
- */
+// Neuron Chip and Smart Transceiver state values.
+// This enumeration contains the values of the Neuron Chip's or Smart
+// Transceiver's state information.  To convert the state value returned by
+// the Query Status command to one of these values, use the <IZOT_NODE_STATE>
+// macro. To test for the offline flag, use the <IZOT_NODE_STATE_OFFLINE> macro.
 #define IZOT_OFFLINE_BIT 0x08
 #define IZOT_NODE_STATE_MASK 0x07
 
-/*
- *  Obtain persistent Neuron state information.
- *  Use this macro to obtain the 3-bit Neuron state that is stored in EEPROM.
- */
+// Obtains persistent Neuron state information.
+// Use this macro to obtain the 3-bit Neuron state that is stored in EEPROM.
 #define IZOT_NEURON_STATE(state) ((state) & IZOT_NODE_STATE_MASK)
 
-/*
- *  Extracts state information from <IzotNeuronState>.
- *  Use this macro to decipher the status information encoded within the
- *  <IzotNeuronState> enumeration.
- */
+// Extracts state information from <IzotNeuronState>.
+// Use this macro to decipher the status information encoded within the
+// <IzotNeuronState> enumeration.
 #define IZOT_NODE_STATE(state)   ((IZOT_NEURON_STATE(state) == IzotConfigOnLine) ? (state) : IZOT_NEURON_STATE(state))
 
-/*
- *  Extracts offline details from <IzotNeuronState>.
- *  Use this macro to query the node's offline modes.
- */
+// Extracts offline details from <IzotNeuronState>.
+// Use this macro to query the node's offline modes.
 #define IZOT_NODE_STATE_OFFLINE(state)   (IZOT_NEURON_STATE(state) == IzotConfigOffLine || IZOT_NEURON_STATE(state) == IzotSoftOffLine)
 
-/*
- *  Decodes the node's state.
- */
+// Decodes the node's state
 typedef IZOT_ENUM_BEGIN(IzotNodeState) {
     /*  0 */ IzotStateInvalid          = 0,    /* invalid or Echelon use only          */
     /*  1 */ IzotStateInvalid_1        = 1,    /* equivalent to StateInvalid          */
@@ -424,9 +384,7 @@ typedef IZOT_ENUM_BEGIN(IzotNodeState) {
     /*0x8C*/ IzotConfigByPass          = 0x8C  /* configured, in bypass mode    */
 } IZOT_ENUM_END(IzotNodeState);
 
-/*
- * Control node mode with <IzotNmSetNodeModeRequest>.
-*/
+// Controls node mode with <IzotNmSetNodeModeRequest>
 typedef IZOT_ENUM_BEGIN(IzotNodeMode) {
     IzotApplicationOffLine  = 0,
     IzotApplicationOnLine   = 1,
@@ -435,9 +393,7 @@ typedef IZOT_ENUM_BEGIN(IzotNodeMode) {
     IzotPhysicalReset       = 6
 } IZOT_ENUM_END(IzotNodeMode);
 
-/*
- *  Decodes the last reset cause.
- */
+// Decodes the last reset cause
 typedef IZOT_ENUM_BEGIN(IzotResetCause) {
     /* 0x00 */ IzotResetCleared = 0x00,
     /* 0x01 */ IzotPowerUpReset = 0x01,
@@ -446,11 +402,9 @@ typedef IZOT_ENUM_BEGIN(IzotResetCause) {
     /* 0x14 */ IzotSoftwareReset = 0x14
 } IZOT_ENUM_END(IzotResetCause);
 
-/*
- *  Denotes destination address type.
- *  This enumeration holds the literals for the 'type' field of destination
- *  addresses for outgoing messages.
- */
+// Denotes destination address type
+// This enumeration holds the literals for the 'type' field of destination
+// addresses for outgoing messages.
 typedef IZOT_ENUM_BEGIN(IzotAddressType) {
     /*  0 */ IzotAddressUnassigned = 0,
     /*  1 */ IzotAddressSubnetNode,
@@ -459,10 +413,8 @@ typedef IZOT_ENUM_BEGIN(IzotAddressType) {
     /*127 */ IzotAddressLocal = 127
 } IZOT_ENUM_END(IzotAddressType);
 
-/*
- *  Encoded repeat timer values.
- *  This enumeration defines the encoded repeat timer values.
- */
+// Encoded repeat timer values
+// This enumeration defines the encoded repeat timer values.
 typedef IZOT_ENUM_BEGIN(IzotRepeatTimer) {
     /*  0 */ IzotRpt16,      /* 16 ms */
     /*  1 */ IzotRpt24,      /* 24 ms */
@@ -482,11 +434,9 @@ typedef IZOT_ENUM_BEGIN(IzotRepeatTimer) {
     /* 15 */ IzotRpt3072     /* 3072 ms */
 } IZOT_ENUM_END(IzotRepeatTimer);
 
-/*
- *  Encoded receive timer values.
- *  This enumeration defines the encoded receive timer values used with groups.
- *  For the non-group receive timer, see <IzotNonGroupReceiveTimer>.
- */
+// Encoded receive timer values.
+// This enumeration defines the encoded receive timer values used with groups.
+// For the non-group receive timer, see <IzotNonGroupReceiveTimer>.
 typedef IZOT_ENUM_BEGIN(IzotReceiveTimer) {
     /*  0 */ IzotRcv128,     /* 128 ms */
     /*  1 */ IzotRcv192,     /* 192 ms */
@@ -506,18 +456,14 @@ typedef IZOT_ENUM_BEGIN(IzotReceiveTimer) {
     /* 15 */ IzotRcv24576    /* 24576 ms */
 } IZOT_ENUM_END(IzotReceiveTimer);
 
-/*
- *  Encoded non-group receive timer values.
- *  This enumeration defines the encoded values for the receive timer used
- *  with any addressing modes other than groups. For the receive timer used
- *  with groups, use <IzotReceiveTimer>.
- */
+// Encoded non-group receive timer values.
+// This enumeration defines the encoded values for the receive timer used
+// with any addressing modes other than groups. For the receive timer used
+// with groups, use <IzotReceiveTimer>.
 typedef IzotReceiveTimer IzotNonGroupReceiveTimer;
 
-/*
- *  Encoded transmit timer values.
- *  This enumeration defines the encoded transmit timer values.
- */
+// Encoded transmit timer values.
+// This enumeration defines the encoded transmit timer values.
 typedef IZOT_ENUM_BEGIN(IzotTransmitTimer) {
     /*  0 */ IzotTx16,      /* 16 ms */
     /*  1 */ IzotTx24,      /* 24 ms */
@@ -538,11 +484,8 @@ typedef IZOT_ENUM_BEGIN(IzotTransmitTimer) {
 } IZOT_ENUM_END(IzotTransmitTimer);
 
 #ifndef _LTDRIVER_H
-/*
- * The service LED state
-*/
-typedef IZOT_ENUM_BEGIN(IzotServiceLedState)
-{
+// Service LED states
+typedef IZOT_ENUM_BEGIN(IzotServiceLedState) {
     SERVICE_OFF = 0,
     SERVICE_ON = 1,
     SERVICE_BLINKING = 2,
@@ -551,95 +494,150 @@ typedef IZOT_ENUM_BEGIN(IzotServiceLedState)
     SERVICE_FLICKER = -1
 } IZOT_ENUM_END(IzotServiceLedState);
 
-typedef IZOT_ENUM_BEGIN(IzotServiceLedPhysicalState)
-{
+typedef IZOT_ENUM_BEGIN(IzotServiceLedPhysicalState) {
     SERVICE_LED_OFF = 0,
     SERVICE_LED_ON = 1,
 } IZOT_ENUM_END(IzotServiceLedPhysicalState);
 #endif
 
+/*****************************************************************
+ * Section: LON Stack Constants
+ *****************************************************************/
+
+#define PROTOCOL_VERSION   0   /* Protocol version                      */
+#define MAX_DOMAINS        2   /* Maximum # of domains allowed          */
+
+/* Set the size of the array to log error messages from the LON Stack.
+   The error messages wrap around, if there are too many errors.
+   Errors seldom happen. So, there is no need for this to be too large. */
+#define ERROR_MSG_SIZE  1000   /* 20 messages each with 50 chars        */
+
+/* Flex domain indicates that the message was received in flex domain when
+   domain index is 2 */
+#define FLEX_DOMAIN        2   
+      
+/* When the application layer communicates with the transport or session layer,
+   the domain index for the outgoing message can be either set by the application 
+   layer or computed by the transport or session layer based on the destination 
+   address.  This value is used only in the TSASenParam structure.      */
+#define COMPUTE_DOMAIN_INDEX 3 
+
+#define MAX_GROUP_NUMBER 63    /* Maximum number of a node in a group   */
+
+/* Maximum number of array network variables allowed in
+    the application program. This constant is used to allocate
+    space that keeps track of all arrays and their dimension */
+#define MAX_NV_ARRAYS 10
+
+/* Maximum number of network output variables that can
+    be scheduled to be sent out at any point in time */
+#define MAX_NV_OUT     5
+
+/* To implement synchronous variables, the values of the
+    variables are to be stored along with index in the queue.
+    Define the maximum size (in bytes) of a network variable
+    in the application program. This is used for storage allocation. */
+#define MAX_NV_LENGTH 228
+
+/* Maximum number of network input variables that can
+    be scheduled to be polled at any point in time */
+#define MAX_NV_IN     50
+
+/* Maximum number of bytes in data array for msg_in, msg_out, resp_in etc.
+    This value is indepedent of application buffer sizes mentioned
+    earlier. Clearly it does not make sense for this value to be
+    larger than application buffer size (out or in). */
+#define MAX_DATA_SIZE 255
+
+// Maximum size of message on the wire (might be over sized a byte or two for safety)
+#define MAX_PDU_SIZE (MAX_DATA_SIZE+21)
+
+#define NUM_ADDR_TBL_ENTRIES   254     /* # of address table entries; maximum supported value is 255 */
+
+#define RECEIVE_TRANS_COUNT    16      /* Can be > 16 for Ref. Impl */
+
+#define NV_TABLE_SIZE          254     /* Check management tool for any restriction on maximum size */
+
+#define NV_ALIAS_TABLE_SIZE    254     /* Check management tool for any restriction on maximum size */
+
+/*******************************************************************************
+    For some targets, OsalAllocateMemory() uses an array to allocate storage
+    space dynamically.  The size of the array used for this allocation is 
+    determined by this constant. If it is too low, it may be impossible
+    to allocate necessary buffers or data structures.  If it is
+    too high, some memory is unused.  To determine an appropriate value,
+    set MALLOC_SIZE to some high value, run a test application, stop, and
+    check gp->mallocUsedSize to determine the current usage.
+    This array space is allocated during reset of all layers.
+    Tracing through the reset code of all layers will indicate
+    the approximate size of this array necessary.  The MALLOC_SIZE value
+    is not used if the target's OsalAllocateMemory() implementation
+    does not use such an array.  For example, if the OsalAllocateMemory()
+    implementation uses malloc(), this constant is not used.
+*******************************************************************************/
+#ifndef MALLOC_SIZE
+#define MALLOC_SIZE     10050
+#endif
+
+// LON/IP constants
+#define BROADCAST_PREFIX       0xEFC00000
+#define IP_ADDRESS_LEN         4
+#define IBOL_FINISH            0xFF
+
+/*****************************************************************
+ * Section: Addressing Type Globals
+ *****************************************************************/
 /*
- * ******************************************************************************
- * SECTION: ADDRESSING TYPES
- * ******************************************************************************
- *
  *  This section contains definitions used with source addresses, destination
  *  addresses, and the address table.
  */
 
 /*
- *  Typedef: IzotSendGroup
- *  Destination address type for group addressing.
- *
  *  Group address structure, used for multicast destination addresses with
- * <IzotSendAddress>.
+ *  <IzotSendAddress>.
  */
 
-/*
- * Use the IZOT_SENDGROUP_TYPE_* macros to access the Type field in IzotSendGroup.TypeSize
- */
+// Macros to access the Type field in IzotSendGroup.TypeSize
 #define IZOT_SENDGROUP_TYPE_MASK     0x80    /* One for group, zero for all other address types */
 #define IZOT_SENDGROUP_TYPE_SHIFT    7
 #define IZOT_SENDGROUP_TYPE_FIELD    TypeSize
 
-/*
- * Use the IZOT_SENDGROUP_SIZE_* macros to access the Size field in
- * IzotSendGroup.TypeSize
- */
+// Macros to access the Size field in IzotSendGroup.TypeSize
 #define IZOT_SENDGROUP_SIZE_MASK     0x7F    /* group size, or zero for unlimited group size */
 #define IZOT_SENDGROUP_SIZE_SHIFT    0
 #define IZOT_SENDGROUP_SIZE_FIELD    TypeSize
 
-/*
- * Use the IZOT_SENDGROUP_DOMAIN_* macros to access the Domain field in
- * IzotSendGroup.DomainMember
- */
+// Macros to access the Domain field in IzotSendGroup.DomainMember
 #define IZOT_SENDGROUP_DOMAIN_MASK   0x80    /* domain index for this group, zero or one */
 #define IZOT_SENDGROUP_DOMAIN_SHIFT  7
 #define IZOT_SENDGROUP_DOMAIN_FIELD  DomainMember
 
-/*
- * Use the IZOT_SENDGROUP_MEMBER_* macros to access the Member field in
- * IzotSendGroup.DomainMember
- */
+// Macros to access the Member field in IzotSendGroup.DomainMember
 #define IZOT_SENDGROUP_MEMBER_MASK   0x7F    /* member ID within the group (0-63). Use zero for unlimited groups. */
 #define IZOT_SENDGROUP_MEMBER_SHIFT  0
 #define IZOT_SENDGROUP_MEMBER_FIELD  DomainMember
 
-/*
- * Use the IZOT_SENDGROUP_REPEAT_TIMER_* macros to access the Repeat field in
- * IzotSendGroup.RepeatRetry
- */
+// Macros to access the Repeat field in IzotSendGroup.RepeatRetry
 #define IZOT_SENDGROUP_REPEAT_TIMER_MASK   0xF0  /* repeat timer. Use values from the <IzotRepeatTimer> enumeration. */
 #define IZOT_SENDGROUP_REPEAT_TIMER_SHIFT  4
 #define IZOT_SENDGROUP_REPEAT_TIMER_FIELD  RepeatRetry
 
-/*
- * Use the IZOT_SENDGROUP_RETRY_* macros to access the Retry field in
- * IzotSendGroup.RepeatRetry
- */
+// Macros to access the Retry field in IzotSendGroup.RepeatRetry
 #define IZOT_SENDGROUP_RETRY_MASK    0x0F    /* number of retries, or number of transmissions minus one for unacknowledged service */
 #define IZOT_SENDGROUP_RETRY_SHIFT   0
 #define IZOT_SENDGROUP_RETRY_FIELD   RepeatRetry
 
-/*
- * Use the IZOT_SENDGROUP_RECEIVE_TIMER_* macros to access the Receive Timer
- * field in IzotSendGroup.ReceiveTransmit
- */
+// Macros to access the Receive Timer field in IzotSendGroup.ReceiveTransmit
 #define IZOT_SENDGROUP_RECEIVE_TIMER_MASK  0xF0 /* receive timer. Use values from the <IzotReceiveTimer> enumeration. */
 #define IZOT_SENDGROUP_RECEIVE_TIMER_SHIFT 4
 #define IZOT_SENDGROUP_RECEIVE_TIMER_FIELD ReceiveTransmit
 
-/*
- * Use the IZOT_SENDGROUP_TRANSMIT_TIMER_* macros to access the TransmitTimer
- * field in IzotSendGroup.ReceiveTransmit
- */
+// Macros to access the Transmit Timer field in IzotSendGroup.ReceiveTransmit
 #define IZOT_SENDGROUP_TRANSMIT_TIMER_MASK  0x0F /* receive timer. Use values from the <IzotTransmitTimer> enumeration. */
 #define IZOT_SENDGROUP_TRANSMIT_TIMER_SHIFT 0
 #define IZOT_SENDGROUP_TRANSMIT_TIMER_FIELD ReceiveTransmit
 
-typedef IZOT_STRUCT_BEGIN(IzotSendGroup)
-{
+typedef IZOT_STRUCT_BEGIN(IzotSendGroup) {
     IzotByte  TypeSize;       /* contains type, size. See IZOT_SENDGROUP_TYPE_* and _SIZE_* macros. */
     IzotByte  DomainMember;   /* contains domain, member. See IZOT_SENDGROUP_DOMAIN_* and _MEMBER_* macros. */
     IzotByte  RepeatRetry;    /* contains repeat, retry. See IZOT_SENDGROUP_REPEAT_* and _RETRY_* macros. */
@@ -648,194 +646,128 @@ typedef IZOT_STRUCT_BEGIN(IzotSendGroup)
 } IZOT_STRUCT_END(IzotSendGroup);
 
 /*
- *  Typedef: IzotSendSubnetNode
- *  Destination address type for subnet/node addressing.
- *
  *  Subnet/Node address structure, used for unicast destination addresses with
  *  <IzotSendAddress>.
  */
 
-/*
- * Use the IZOT_SENDSN_DOMAIN_* macros to access the Domain field in
- * IzotSendSubnetNode.DomainNode
- */
+// Macros to access the Domain field in IzotSendSubnetNode.DomainNode
 #define IZOT_SENDSN_DOMAIN_MASK  0x80    /* domain index, zero or one */
 #define IZOT_SENDSN_DOMAIN_SHIFT 7
 #define IZOT_SENDSN_DOMAIN_FIELD DomainNode
 
-/*
- * Use the IZOT_SENDSN_NODE_* and IZOT_NODEID_* macros to access the Node field
- * in IzotSendSubnetNode.DomainNode
- */
+// Macros to access the Node field in IzotSendSubnetNode.DomainNode
 #define IZOT_SENDSN_NODE_MASK    0x7F    /* node ID 0-127 in this subnet, this domain */
 #define IZOT_SENDSN_NODE_SHIFT   0
 #define IZOT_SENDSN_NODE_FIELD   DomainNode
 
-/*
- * Use the IZOT_SENDSN_REPEAT_* macros to access the Repeat field in
- * IzotSendSubnetNode.RepeatRetry
- */
+// Macros to access the Repeat field in IzotSendSubnetNode.RepeatRetry
 #define IZOT_SENDSN_REPEAT_TIMER_MASK    0xF0    /* repeat timer. Use values from the <IzotRepeatTimer> enumeration. */
 #define IZOT_SENDSN_REPEAT_TIMER_SHIFT   4
 #define IZOT_SENDSN_REPEAT_TIMER_FIELD   RepeatRetry
 
-/*
- * Use the IZOT_SENDSN_RETRY_* macros to access the Retry field in
- * IzotSendSubnetNode.RepeatRetry
- */
+// Macros to access the Retry field in IzotSendSubnetNode.RepeatRetry
 #define IZOT_SENDSN_RETRY_MASK   0x0F    /* Retry count */
 #define IZOT_SENDSN_RETRY_SHIFT  0
 #define IZOT_SENDSN_RETRY_FIELD  RepeatRetry
 
-/*
- * Use the IZOT_SENDSN_RSVD0_* macros to access the rsvd0 field in
- * IzotSendSubnetNode.RsvdTransmit
- */
+// Macros to access the rsvd0 field in IzotSendSubnetNode.RsvdTransmit
 #define IZOT_SENDSN_RSVD0_MASK   0xF0
 #define IZOT_SENDSN_RSVD0_SHIFT  4
 #define IZOT_SENDSN_RSVD0_FIELD  RsvdTransmit
 
-/*
- * Use the IZOT_SENDSN_TRANSMIT_TIMER_* macros to access the transmit timer
- * field in IzotSendSubnetNode.RsvdTransmit
- */
+// Macros to access the transmit timer field in IzotSendSubnetNode.RsvdTransmit
 #define IZOT_SENDSN_TRANSMIT_TIMER_MASK   0x0F   /* Transmit timer. Use values from the <IzotTransmitTimer> enumeration. */
 #define IZOT_SENDSN_TRANSMIT_TIMER_SHIFT  0
 #define IZOT_SENDSN_TRANSMIT_TIMER_FIELD  RsvdTransmit
 
-typedef IZOT_STRUCT_BEGIN(IzotSendSubnetNode)
-{
-    IZOT_ENUM(IzotAddressType) Type;  /* should be IzotAddressSubnetNode for subnet/node addressing */
-    IzotByte  DomainNode;             /* contains domain, node. See IZOT_SENDSN_DOMAIN_* and _NODE_* macros. */
-    IzotByte  RepeatRetry;            /* contains repeat, retry. See IZOT_SENDSN_REPEAT_* and _RETRY_* macros. */
-    IzotByte  RsvdTransmit;           /* contains rsvd0, transmit. See IZOT_SENDSN_RSVD0_* and _TRANSMIT_TIMER_* macros. */
-    IzotSubnetId Subnet;              /* destination subnet number, 1..255    */
+typedef IZOT_STRUCT_BEGIN(IzotSendSubnetNode) {
+    IZOT_ENUM(IzotAddressType) Type;  /* Set to IzotAddressSubnetNode for subnet/node addressing */
+    IzotByte  DomainNode;             /* Contains domain, node. See IZOT_SENDSN_DOMAIN_* and _NODE_* macros. */
+    IzotByte  RepeatRetry;            /* Contains repeat, retry. See IZOT_SENDSN_REPEAT_* and _RETRY_* macros. */
+    IzotByte  RsvdTransmit;           /* Contains rsvd0, transmit. See IZOT_SENDSN_RSVD0_* and _TRANSMIT_TIMER_* macros. */
+    IzotSubnetId Subnet;              /* Destination subnet number, 1..255    */
 } IZOT_STRUCT_END(IzotSendSubnetNode);
 
 /*
- *  Typedef: IzotSendUniqueId
- *  Destination address type for Unique ID (Neuron ID) addressing.
- *
- *  Unique ID (Neuron ID) address structure, used for unicast destination
+ *  Unique ID (Neuron ID or MAC ID) address structure, used for unicast destination
  *  addresses with <IzotSendAddress>.
  */
 
-/*
- * Use the IZOT_SENDNID_DOMAIN_* macros to access the Domain field in
- * IzotSendUniqueId.DomainNode
- */
+// Macros to access the Domain field in IzotSendUniqueId.DomainNode
 #define IZOT_SENDNID_DOMAIN_MASK     0x80     /* domain index, zero or one */
 #define IZOT_SENDNID_DOMAIN_SHIFT    7
 #define IZOT_SENDNID_DOMAIN_FIELD    Domain
 
-/*
- * Use the IZOT_SENDNID_REPEAT_* macros to access the Repeat field in
- * IzotSendUniqueId.RepeatRetry
- */
+// Macros to access the Repeat field in IzotSendUniqueId.RepeatRetry
 #define IZOT_SENDNID_REPEAT_TIMER_MASK   0xF0 /* repeat timer. Use values from the <IzotRepeatTimer> enumeration. */
 #define IZOT_SENDNID_REPEAT_TIMER_SHIFT  4
 #define IZOT_SENDNID_REPEAT_TIMER_FIELD  RepeatRetry
 
-/*
- * Use the IZOT_SENDNID_RETRY_* macros to access the Retry field in
- * IzotSendUniqueId.RepeatRetry
- */
+// Macros to access the Retry field in IzotSendUniqueId.RepeatRetry
 #define IZOT_SENDNID_RETRY_MASK      0x0F    /* Retry count */
 #define IZOT_SENDNID_RETRY_SHIFT     0
 #define IZOT_SENDNID_RETRY_FIELD     RepeatRetry
 
-/*
- * Use the IZOT_SENDNID_RSVD0_* macros to access the rsvd0 field in
- * IzotSendUniqueId.RsvdTransmit
- */
+// Macros to access the rsvd0 field in IzotSendUniqueId.RsvdTransmit
 #define IZOT_SENDNID_RSVD0_MASK  0xF0
 #define IZOT_SENDNID_RSVD0_SHIFT 4
 #define IZOT_SENDNID_RSVD0_FIELD RsvdTransmit
 
-/*
- * Use the IZOT_SENDNID_TRANSMIT_TIMER_* macros to access the transmit timer
- * field in IzotSendUniqueId.RsvdTransmit
- */
+// Macros to access the transmit timer field in IzotSendUniqueId.RsvdTransmit
 #define IZOT_SENDNID_TRANSMIT_TIMER_MASK   0x0F /* Transmit timer. Use values from the <IzotTransmitTimer> enumeration. */
 #define IZOT_SENDNID_TRANSMIT_TIMER_SHIFT  0
 #define IZOT_SENDNID_TRANSMIT_TIMER_FIELD  RsvdTransmit
 
-typedef IZOT_STRUCT_BEGIN(IzotSendUniqueId)
-{
+typedef IZOT_STRUCT_BEGIN(IzotSendUniqueId) {
     IZOT_ENUM(IzotAddressType) Type;  /* Should be IzotAddressUniqueId */
     IzotByte  Domain;                 /* Contains the domain index. See IZOT_SENDNID_DOMAIN_* macro. The remaining 7 bits must be zero. */
     IzotByte  RepeatRetry;            /* Contains repeat, retry. See IZOT_SENDNID_REPEAT_* and _RETRY_* macros. */
-    IzotByte  RsvdTransmit;
+    IzotByte  RsvdTransmit;           /* Contains rsvd0, transmit. See IZOT_SENDNID_RSVD0_* and _TRANSMIT_TIMER_* macros. */
     IzotSubnetId Subnet;              /* Destination subnet number, 1..255, or zero to pass all routers */
     IzotUniqueId NeuronId;            /* 48-bit unique ID of Neuron Chip or Smart Transceiver */
 } IZOT_STRUCT_END(IzotSendUniqueId);
 
 /*
- *  Typedef: IzotSendBroadcast
- *  Destination address type for broadcast addressing.
- *
  *  Broadcast address structure, used for multicast destination addresses with
  *  <IzotSendAddress>.
  */
 
-/*
- * Use the IZOT_SENDBCAST_DOMAIN_* macros to access the Domain filed in
- * IzotSendBroadcast.DomainRsvdBacklog
- */
+// Macros to access the Domain field in IzotSendBroadcast.DomainRsvdBacklog
 #define IZOT_SENDBCAST_DOMAIN_MASK   0x80    /* Domain index, zero or one */
 #define IZOT_SENDBCAST_DOMAIN_SHIFT  7
 #define IZOT_SENDBCAST_DOMAIN_FIELD  DomainRsvdBacklog
 
-/*
- * Use the IZOT_SENDBCAST_RSVD0_* macros to access the rsvd0 field in
- * IzotSendBroadcast.DomainRsvdBacklog
- */
+// Macros to access the rsvd0 field in IzotSendBroadcast.DomainRsvdBacklog
 #define IZOT_SENDBCAST_RSVD0_MASK    0x40
 #define IZOT_SENDBCAST_RSVD0_SHIFT   6
 #define IZOT_SENDBCAST_RSVD0_FIELD   DomainRsvdBacklog
 
-/*
- * Use the IZOT_SENDBCAST_BACKLOG_* macros to access the Backlog field in
- * IzotSendBroadcast.DomainRsvdBacklog
- */
+// Macros to access the Backlog field in IzotSendBroadcast.DomainRsvdBacklog
 #define IZOT_SENDBCAST_BACKLOG_MASK  0x3F   /* Backlog (set to zero if unknown) */
 #define IZOT_SENDBCAST_BACKLOG_SHIFT 0
 #define IZOT_SENDBCAST_BACKLOG_FIELD DomainRsvdBacklog
 
-/*
- * Use the IZOT_SENDBCAST_REPEAT_* macros to access the Repeat field in
- * IzotSendBroadcast.RepeatRetry
- */
+// Macros to access the Repeat field in IzotSendBroadcast.RepeatRetry
 #define IZOT_SENDBCAST_REPEAT_TIMER_MASK     0xF0  /* Repeat timer. Use values from the <IzotRepeatTimer> enumeration. */
 #define IZOT_SENDBCAST_REPEAT_TIMER_SHIFT    4
 #define IZOT_SENDBCAST_REPEAT_TIMER_FIELD    RepeatRetry
 
-/*
- * Use the IZOT_SENDBCAST_RETRY_* macros to access the Retry field in
- * IzotSendBroadcast.RepeatRetry
- */
+// Macros to access the Retry field in IzotSendBroadcast.RepeatRetry
 #define IZOT_SENDBCAST_RETRY_MASK    0x0F       /* Retry count */
 #define IZOT_SENDBCAST_RETRY_SHIFT   0
 #define IZOT_SENDBCAST_RETRY_FIELD   RepeatRetry
 
-/*
- * Use the IZOT_SENDNID_RSVD1_* macros to access the rsvd1 field in
- * IzotSendBroadcast.RsvdTransmit
- */
+// Macros to access the rsvd1 field in IzotSendBroadcast.RsvdTransmit
 #define IZOT_SENDBCAST_RSVD1_MASK    0xF0		/* maxResponses */
 #define IZOT_SENDBCAST_RSVD1_SHIFT   4
 #define IZOT_SENDBCAST_RSVD1_FIELD   RsvdTransmit
 
-/*
- * Use the IZOT_SENDBCAST_TRANSMIT_TIMER_* macros to access the transmit timer
- * field in IzotSendBroadcast.RsvdTransmit
- */
+// Macros to access the transmit timer field in IzotSendBroadcast.RsvdTransmit
 #define IZOT_SENDBCAST_TRANSMIT_TIMER_MASK   0x0F /* Transmit timer. Use values from the <IzotTransmitTimer> enumeration. */
 #define IZOT_SENDBCAST_TRANSMIT_TIMER_SHIFT  0
 #define IZOT_SENDBCAST_TRANSMIT_TIMER_FIELD  RsvdTransmit
 
-typedef IZOT_STRUCT_BEGIN(IzotSendBroadcast)
-{
+typedef IZOT_STRUCT_BEGIN(IzotSendBroadcast) {
     IZOT_ENUM(IzotAddressType) Type;  /* Should be IzotAddressBroadcast */
     IzotByte  DomainRsvdBacklog;      /* Contains domain, rsvd0, backlog. See IZOT_SENDBCAST_DOMAIN_*, _RSVD0_* and _BACKLOG_* macros. */
     IzotByte  RepeatRetry;            /* Contains repeat, retry. See IZOT_SENDBCAST_REPEAT_* and _RETRY_* macros. */
@@ -844,32 +776,24 @@ typedef IZOT_STRUCT_BEGIN(IzotSendBroadcast)
 } IZOT_STRUCT_END(IzotSendBroadcast);
 
 /*
- *  Typedef: IzotSendUnassigned
  *  Address format to clear an address table entry.
- *
  *  Sets the first 2 bytes of the address table entry to 0.
  */
-typedef IZOT_STRUCT_BEGIN(IzotSendUnassigned)
-{
+typedef IZOT_STRUCT_BEGIN(IzotSendUnassigned) {
     IZOT_ENUM(IzotAddressType) Type;   /* Should be IzotAddressUnassigned */
 } IZOT_STRUCT_END(IzotSendUnassigned);
 
 /*
- *  Typedef: IzotSendLocal
  *  Destination address type to address the node locally with <IzotSendAddress>.
- *
  */
-typedef IZOT_STRUCT_BEGIN(IzotSendLocal)
-{
+typedef IZOT_STRUCT_BEGIN(IzotSendLocal) {
     IZOT_ENUM(IzotAddressType) Type;   /* Should be IzotAddressLocal */
 } IZOT_STRUCT_END(IzotSendLocal);
 
 /*
- * Typedef: IzotSendAddress
- * Union of all possible destination address formats.
+ * Union of all possible destination address formats
  */
-typedef IZOT_UNION_BEGIN(IzotSendAddress)
-{
+typedef IZOT_UNION_BEGIN(IzotSendAddress) {
     IzotSendUnassigned   Unassigned;
     IzotSendGroup        Group;
     IzotSendSubnetNode   SubnetNode;
@@ -879,16 +803,11 @@ typedef IZOT_UNION_BEGIN(IzotSendAddress)
 } IZOT_UNION_END(IzotSendAddress);
 
 /*
- *  Typedef: IzotReceiveSubnetNode
  *  Received subnet/node ID destination addresses, used with unicast messages.
- *
  *  Used with <IzotReceiveDestination> and <IzotReceiveAddress>.
  */
 
-/*
- * Use the IZOT_RECEIVESN_NODE_* macros to access the IzotReceiveSubnetNode.Node
- * field
- */
+// Macros to access the IzotReceiveSubnetNode.Node field
 #define IZOT_RECEIVESN_SELFIELD_MASK  0x80
 #define IZOT_RECEIVESN_SELFIELD_SHIFT 7
 #define IZOT_RECEIVESN_SELFIELD_FIELD Node 
@@ -897,68 +816,40 @@ typedef IZOT_UNION_BEGIN(IzotSendAddress)
 #define IZOT_RECEIVESN_NODE_SHIFT 0
 #define IZOT_RECEIVESN_NODE_FIELD Node
 
-typedef IZOT_STRUCT_BEGIN(IzotReceiveSubnetNode)
-{
+typedef IZOT_STRUCT_BEGIN(IzotReceiveSubnetNode) {
     IzotByte  Subnet;
     IzotByte  Node;       /* node identifier, use IZOT_RECEIVESN_NODE_* macros */
 } IZOT_STRUCT_END(IzotReceiveSubnetNode);
 
-/*
- *  Typedef: IzotReceiveUniqueId
- *  Received 48-bit unique ID (Neuron ID) destination address.
- *
- *  Used with <IzotReceiveDestination>.
- */
-typedef IZOT_STRUCT_BEGIN(IzotReceiveUniqueId)
-{
+// Received 48-bit unique ID (Neuron ID) destination address.
+// Used with IzotReceiveDestination.
+typedef IZOT_STRUCT_BEGIN(IzotReceiveUniqueId) {
     IzotSubnetId Subnet;
     IzotUniqueId UniqueId;
 } IZOT_STRUCT_END(IzotReceiveUniqueId);
 
-/*
- *  Typedef: IzotReceiveGroup
- *  Received a group destination address.
- *
- *  Used with <IzotReceiveDestination>.
- */
-typedef IZOT_STRUCT_BEGIN(IzotReceiveGroup)
-{
+// Received a group destination address.  Used with IzotReceiveDestination.
+typedef IZOT_STRUCT_BEGIN(IzotReceiveGroup) {
     IzotGroupId GroupId;             /* 0..255 */
 } IZOT_STRUCT_END(IzotReceiveGroup);
 
-/*
- *  Typedef: IzotReceiveBroadcast
- *  Received a broadcast destination address.
- *
- *  Used with <IzotReceiveDestination>.
- */
-typedef IZOT_STRUCT_BEGIN(IzotReceiveBroadcast)
-{
+// Received a broadcast destination address.  Used with IzotReceiveDestination.
+typedef IZOT_STRUCT_BEGIN(IzotReceiveBroadcast) {
     IzotSubnetId SubnetId;       /* 1..255 for subnet broadcast, zero for domain broadcast */
 } IZOT_STRUCT_END(IzotReceiveBroadcast);
 
-/*
- *  Typedef: IzotReceiveDestination
- *  Union of all possible address formats for receiving an incoming message.
- */
-typedef IZOT_UNION_BEGIN(IzotReceiveDestination)
-{
+// Union of all possible address formats for receiving an incoming message.
+typedef IZOT_UNION_BEGIN(IzotReceiveDestination) {
     IzotReceiveBroadcast     Broadcast;
     IzotReceiveGroup         Group;
     IzotReceiveSubnetNode    SubnetNode;
     IzotReceiveUniqueId      UniqueId;
 } IZOT_UNION_END(IzotReceiveDestination);
 
-/*
- *  Enumeration: IzotReceiveDestinationAddressFormat
- *  Encodes the format of the receive address.
- *
- *  This enumeration encodes the format of the receive address of an incoming
- *  message, allowing you to select the corresponding member in
- *  <IzotReceiveDestination>.
- */
-typedef IZOT_ENUM_BEGIN(IzotReceiveDestinationAddressFormat)
-{
+// Encodes the format of the receive address of an incoming
+// message, allowing you to select the corresponding member in
+// IzotReceiveDestination.
+typedef IZOT_ENUM_BEGIN(IzotReceiveDestinationAddressFormat) {
     /*  0 */ IzotReceiveDestinationAddressBroadcast = 0,
     /*  1 */ IzotReceiveDestinationAddressGroup,
     /*  2 */ IzotReceiveDestinationAddressSubnetNode,
@@ -966,14 +857,11 @@ typedef IZOT_ENUM_BEGIN(IzotReceiveDestinationAddressFormat)
     /*  4 */ IzotReceiveDestinationAddressTurnaround
 } IZOT_ENUM_END(IzotReceiveDestinationAddressFormat);
 
-/*
- *  Typedef: IzotReceiveAddress
- *  Receive destination and source address for incoming messages.
- *
- *  This structure holds the receive destination address of an incoming message
- *  (the address through which the message was received on this node) and the
- *  message's source address (where it came from).
- */
+// Receive destination and source address for incoming messages.
+//
+// This structure holds the receive destination address of an incoming message
+// (the address through which the message was received on this node) and the
+// message's source address (where it came from).
 #define IZOT_RECEIVEADDRESS_DOMAIN_MASK   0x80    /* Domain table index through which the message was received */
 #define IZOT_RECEIVEADDRESS_DOMAIN_SHIFT  7
 #define IZOT_RECEIVEADDRESS_DOMAIN_FIELD  DomainFormat
@@ -986,19 +874,13 @@ typedef IZOT_ENUM_BEGIN(IzotReceiveDestinationAddressFormat)
 #define IZOT_RECEIVEADDRESS_FORMAT_SHIFT  0
 #define IZOT_RECEIVEADDRESS_FORMAT_FIELD  DomainFormat
 
-typedef IZOT_STRUCT_BEGIN(IzotReceiveAddress)
-{
+typedef IZOT_STRUCT_BEGIN(IzotReceiveAddress) {
     IzotByte  DomainFormat;   /* Contains domain, flex domain, format. Use IZOT_RECEIVEADDRESS_* macros to access data. */
     IzotReceiveSubnetNode    Source;
     IzotReceiveDestination   Destination;
 } IZOT_STRUCT_END(IzotReceiveAddress);
 
-/*
- *  Typedef: IzotResponseSource
- *  Source address of a response message.
- *
- *  IzotResponseSource holds the source address of a response message.
- */
+// Source address of a response message
 #define IZOT_RESPONSESOURCE_IS_SUBNETNODE_MASK   0x80    /* 1: subnet/node response. 0: group response. */
 #define IZOT_RESPONSESOURCE_IS_SUBNETNODE_SHIFT  7
 #define IZOT_RESPONSESOURCE_IS_SUBNETNODE_FIELD  Node
@@ -1007,44 +889,30 @@ typedef IZOT_STRUCT_BEGIN(IzotReceiveAddress)
 #define IZOT_RESPONSESOURCE_NODE_SHIFT    0
 #define IZOT_RESPONSESOURCE_NODE_FIELD    Node
 
-typedef IZOT_STRUCT_BEGIN(IzotResponseSource)
-{
+typedef IZOT_STRUCT_BEGIN(IzotResponseSource) {
     IzotByte  Subnet;     /* subnet ID */
     IzotByte  Node;       /* contains node, isSubnetNode. Use IZOT_RESPONSESOURCE_NODE_* and IZOT_RESPONSESOURCE_IS_SUBNETNODE_* macros. */
 } IZOT_STRUCT_END(IzotResponseSource);
 
 /*
- *  Typedef: IzotResponseSubnetNode
- *  Destination of response to unicast request.
- *
- *  Used with <IzotResponseDestination>.
+ *  Destination of response to unicast request used with <IzotResponseDestination>.
  */
 
-/*
- * Use the IZOT_RESPONSESN_NODE_* macros to access the
- * IzotReceiveSubnetNode.Node field
- */
+// Macros to access the IzotReceiveSubnetNode.Node field
 #define IZOT_RESPONSESN_NODE_MASK  0x7F    /* node Id 0..127, MSB is reserved */
 #define IZOT_RESPONSESN_NODE_SHIFT 0
 #define IZOT_RESPONSESN_NODE_FIELD Node
 
-typedef IZOT_STRUCT_BEGIN(IzotResponseSubnetNode)
-{
+typedef IZOT_STRUCT_BEGIN(IzotResponseSubnetNode) {
     IzotSubnetId Subnet;         /* subnet ID */
     IzotByte     Node;           /* node ID, use IZOT_RESPONSESN_NODE_* macros */
 } IZOT_STRUCT_END(IzotResponseSubnetNode);
 
 /*
- *  Typedef: IzotResponseGroup
- *  Destination of response to multicast request.
- *
- *  Used with <IzotResponseDestination>.
+ *  Destination of response to multicast request used with <IzotResponseDestination>.
  */
 
-/*
- * Use the IZOT_RESPONSESN_NODE_* macros to access the
- * IzotReceiveSubnetNode.Node field
- */
+// Macros to access the IzotResponseGroup.Node field
 #define IZOT_RESPGROUP_NODE_MASK  0x7F    /* node Id 0..127, MSB is reserved */
 #define IZOT_RESPGROUP_NODE_SHIFT 0
 #define IZOT_RESPGROUP_NODE_FIELD Node
@@ -1053,28 +921,20 @@ typedef IZOT_STRUCT_BEGIN(IzotResponseSubnetNode)
 #define IZOT_RESPGROUP_MEMBER_SHIFT  0
 #define IZOT_RESPGROUP_MEMBER_FIELD  Member
 
-typedef IZOT_STRUCT_BEGIN(IzotResponseGroup)
-{
+typedef IZOT_STRUCT_BEGIN(IzotResponseGroup) {
     IzotSubnetId Subnet;         /* subnet ID */
     IzotByte     Node;
     IzotByte     Group;
     IzotByte     Member;         /* use IZOT_RESPGROUP_MEMBER_* macros for access */
 } IZOT_STRUCT_END(IzotResponseGroup);
 
-/*
- *  Typedef: IzotResponseDestination
- *  Destination of a response.
- */
-typedef IZOT_UNION_BEGIN(IzotResponseDestination)
-{
+// Destination of a response
+typedef IZOT_UNION_BEGIN(IzotResponseDestination) {
     IzotResponseSubnetNode   SubnetNode;
     IzotResponseGroup        Group;
 } IZOT_UNION_END(IzotResponseDestination);
 
-/*
- *  Typedef: IzotResponseAddress
- *  Address of incoming response.
- */
+// Address of incoming response message.
 #define IZOT_RESPONSEADDRESS_DOMAIN_MASK     0x80    /* domain index, zero or one */
 #define IZOT_RESPONSEADDRESS_DOMAIN_SHIFT    7
 #define IZOT_RESPONSEADDRESS_DOMAIN_FIELD    Domain
@@ -1083,34 +943,22 @@ typedef IZOT_UNION_BEGIN(IzotResponseDestination)
 #define IZOT_RESPONSEADDRESS_FLEX_SHIFT      6
 #define IZOT_RESPONSEADDRESS_FLEX_FIELD      Domain
 
-typedef IZOT_STRUCT_BEGIN(IzotResponseAddress)
-{
+typedef IZOT_STRUCT_BEGIN(IzotResponseAddress) {
     IzotByte                 Domain;         /* contains domain, flex domain. Use IZOT_RESPONSEADDRESS_* macros. */
     IzotResponseSource       Source;
     IzotResponseDestination  Destination;
 } IZOT_STRUCT_END(IzotResponseAddress);
 
-/*
- * Typedef: IzotExplicitAddress
- * Holds explicit addressing details, if enabled.
- *
- * IzotExplicitAddress holds the address details.
- */
-typedef IZOT_UNION_BEGIN(IzotExplicitAddress)
-{
+// Holds explicit addressing details, if enabled.
+typedef IZOT_UNION_BEGIN(IzotExplicitAddress) {
     IzotReceiveAddress   Receive;
     IzotSendAddress      Send;
     IzotResponseAddress  Response;
 } IZOT_UNION_END(IzotExplicitAddress);
 
-/*
- * Typedef: IzotAddressTableGroup
- * Holds group addressing information in the address table (<IzotAddress>).
- *
- * IzotAddressTableGroup holds group addressing data in the address table, used
- * for multicast addressing. This structure also defines which group the node
- * belongs to.
- */
+// Holds group addressing information in the address table (<IzotAddress>).
+// Used for multicast addressing. This structure also defines which group
+// the node belongs to.
 #define IZOT_ADDRESS_GROUP_TYPE_MASK     0x80    /* 1 -> group   */
 #define IZOT_ADDRESS_GROUP_TYPE_SHIFT    7
 #define IZOT_ADDRESS_GROUP_TYPE_FIELD    TypeSize
@@ -1143,8 +991,7 @@ typedef IZOT_UNION_BEGIN(IzotExplicitAddress)
 #define IZOT_ADDRESS_GROUP_TRANSMIT_TIMER_SHIFT  0
 #define IZOT_ADDRESS_GROUP_TRANSMIT_TIMER_FIELD  ReceiveTransmit
 
-typedef IZOT_STRUCT_BEGIN(IzotAddressTableGroup)
-{
+typedef IZOT_STRUCT_BEGIN(IzotAddressTableGroup) {
     IzotByte      TypeSize;               /* Contains type, size. Use the IZOT_ADDRESS_GROUP_* macros. */
     IzotByte      DomainMember;           /* Contains domain, member. Use the IZOT_ADDRESS_GROUP_* macros. */
     IzotByte      RepeatRetry;            /* Contains repeatTimer, retry. Use the IZOT_ADDRESS_GROUP_* macros. */
@@ -1152,31 +999,25 @@ typedef IZOT_STRUCT_BEGIN(IzotAddressTableGroup)
     IzotGroupId   Group;                  /* Group identifier */
 } IZOT_STRUCT_END(IzotAddressTableGroup);
 
-/*
- *  Typedef: IzotAddressTableSubnetNode
- *  Holds subnet/node addressing information in the address table (<IzotAddress>).
- *
- *  IzotAddressTableSubnetNode holds subnet/node address information in the
- *  address table (<IzotAddress>), used for unicast addressing.
- */
-#define IZOT_ADDRESS_SN_DOMAIN_MASK      0x80        /* domain index */
+// Holds subnet/node addressing information in the address table (<IzotAddress>).
+// Used for unicast addressing.
+#define IZOT_ADDRESS_SN_DOMAIN_MASK      0x80        /* Domain index */
 #define IZOT_ADDRESS_SN_DOMAIN_SHIFT     7
 #define IZOT_ADDRESS_SN_DOMAIN_FIELD     DomainNode
 
-#define IZOT_ADDRESS_SN_NODE_MASK        0x7F        /* node ID */
+#define IZOT_ADDRESS_SN_NODE_MASK        0x7F        /* Node ID */
 #define IZOT_ADDRESS_SN_NODE_SHIFT       0
 #define IZOT_ADDRESS_SN_NODE_FIELD       DomainNode
 
-#define IZOT_ADDRESS_SN_REPEAT_TIMER_MASK    0xF0    /* repeat timer, use IzotRepeatTimer */
+#define IZOT_ADDRESS_SN_REPEAT_TIMER_MASK    0xF0    /* Repeat timer, use IzotRepeatTimer */
 #define IZOT_ADDRESS_SN_REPEAT_TIMER_SHIFT   4
 #define IZOT_ADDRESS_SN_REPEAT_TIMER_FIELD   RepeatRetry
 
-#define IZOT_ADDRESS_SN_RETRY_MASK       0x0F        /* retry count */
+#define IZOT_ADDRESS_SN_RETRY_MASK       0x0F        /* Retry count */
 #define IZOT_ADDRESS_SN_RETRY_SHIFT      0
 #define IZOT_ADDRESS_SN_RETRY_FIELD      RepeatRetry
 
-typedef IZOT_STRUCT_BEGIN(IzotAddressTableSubnetNode)
-{
+typedef IZOT_STRUCT_BEGIN(IzotAddressTableSubnetNode) {
     IZOT_ENUM(IzotAddressType) Type;         /* Set to IzotAddressSubnetNode   */
     IzotByte                  DomainNode;    /* Domain, node. Use IZOT_ADDRESS_SN_* macros. */
     IzotByte                  RepeatRetry;   /* Repeat timer and retry. Use IZOT_ADDRESS_SN_* macros. */
@@ -1184,13 +1025,8 @@ typedef IZOT_STRUCT_BEGIN(IzotAddressTableSubnetNode)
     IzotSubnetId             Subnet;
 } IZOT_STRUCT_END(IzotAddressTableSubnetNode);
 
-/*
- *  Typedef: IzotAddressTableBroadcast
- *  Holds broadcast addressing information in the address table (<IzotAddress>).
- *
- * IzotAddressTableBroadcast holds broadcast addressing information in the
- *  address table (<IzotAddress>), used for multicast addressing.
- */
+// Holds broadcast addressing information in the address table (<IzotAddress>).
+// Used for multicast addressing.
 #define IZOT_ADDRESS_BROADCAST_DOMAIN_MASK   0x80        /* Domain index */
 #define IZOT_ADDRESS_BROADCAST_DOMAIN_SHIFT  7
 #define IZOT_ADDRESS_BROADCAST_DOMAIN_FIELD  DomainBacklog
@@ -1207,8 +1043,7 @@ typedef IZOT_STRUCT_BEGIN(IzotAddressTableSubnetNode)
 #define IZOT_ADDRESS_BROADCAST_RETRY_SHIFT   0
 #define IZOT_ADDRESS_BROADCAST_RETRY_FIELD   RepeatRetry
 
-typedef IZOT_STRUCT_BEGIN(IzotAddressTableBroadcast)
-{
+typedef IZOT_STRUCT_BEGIN(IzotAddressTableBroadcast) {
     IZOT_ENUM(IzotAddressType) Type;          /* Set to IzotAddressBroadcast */
     IzotByte                   DomainBacklog; /* Domain, backlog. Use IZOT_ADDRESS_BROADCAST_* macros. */
     IzotByte                   RepeatRetry;   /* Repeat timer and retry. Use IZOT_ADDRESS_BROADCAST_* macros instead. */
@@ -1216,10 +1051,7 @@ typedef IZOT_STRUCT_BEGIN(IzotAddressTableBroadcast)
     IzotSubnetId               Subnet;
 } IZOT_STRUCT_END(IzotAddressTableBroadcast);
 
-/*
- *  Typedef: IzotAddressTableTurnaround
- *  Holds turnaround address information in the address table (<IzotAddress>).
- */
+// Holds turnaround address information in the address table (<IzotAddress>).
 #define IZOT_ADDRESS_TURNAROUND_REPEAT_TIMER_MASK    0xF0    /* Use IzotRepeatTimer */
 #define IZOT_ADDRESS_TURNAROUND_REPEAT_TIMER_SHIFT   4
 #define IZOT_ADDRESS_TURNAROUND_REPEAT_TIMER_FIELD   RepeatRetry
@@ -1228,53 +1060,38 @@ typedef IZOT_STRUCT_BEGIN(IzotAddressTableBroadcast)
 #define IZOT_ADDRESS_TURNAROUND_RETRY_SHIFT          0
 #define IZOT_ADDRESS_TURNAROUND_RETRY_FIELD          RepeatRetry
 
-typedef IZOT_STRUCT_BEGIN(IzotAddressTableTurnaround)
-{
+typedef IZOT_STRUCT_BEGIN(IzotAddressTableTurnaround) {
     IZOT_ENUM(IzotAddressType) Type;          /* Set to IzotAddressUnassigned */
     IzotByte                   Turnaround;    /* 1: turnaround record. 0: not in use. */
     IzotByte                   RepeatRetry;   /* Contains repeat timer and retry. Use IZOT_ADDRESS_TURNAROUND_* macros. */
     IZOT_ENUM(IzotTransmitTimer) TransmitTimer;
 } IZOT_STRUCT_END(IzotAddressTableTurnaround);
 
+/*****************************************************************
+ * Section: LON Host System Globals
+ *****************************************************************/
 /*
- * ******************************************************************************
- * SECTION: SYSTEM STRUCTURES
- * ******************************************************************************
- *
  *  This section contains definitions of system resources and structures, such
  *  as the domain table or address table formats.
  */
 
-/*
- *  Typedef: IzotAddress
- *  Describes one record of the address table.
- */
-typedef IZOT_UNION_BEGIN(IzotAddress)
-{
+// Describes one record of the address table.
+typedef IZOT_UNION_BEGIN(IzotAddress) {
     IzotAddressTableGroup      Group;
     IzotAddressTableSubnetNode SubnetNode;
     IzotAddressTableBroadcast  Broadcast;
     IzotAddressTableTurnaround Turnaround;
 } IZOT_UNION_END(IzotAddress);
 
-/*
- *  Enumeration: IzotDomainLength
- *  Encodes the length of the domain.
- *
- *  This enumeration encodes the length of the domain.
- */
-typedef IZOT_ENUM_BEGIN(IzotDomainLength)
-{
+// Encodes the length of the domain.
+typedef IZOT_ENUM_BEGIN(IzotDomainLength) {
     /*  0 */ IzotDomainLength_0  = 0,
     /*  1 */ IzotDomainLength_1  = 1,
     /*  3 */ IzotDomainLength_3  = 3,
     /*  6 */ IzotDomainLength_6  = 6
 } IZOT_ENUM_END(IzotDomainLength);
 
-/*
- *  Typedef: IzotDomain
- *  Format for a single domain table record.
- */
+// Format for a single domain table record
 #define IZOT_DOMAIN_NONCLONE_MASK    0x80
 #define IZOT_DOMAIN_NONCLONE_SHIFT   7
 #define IZOT_DOMAIN_NONCLONE_FIELD   NodeClone
@@ -1303,8 +1120,7 @@ typedef IZOT_ENUM_BEGIN(IzotDomainLength)
 #define IZOT_DOMAIN_ID_LENGTH_SHIFT  0
 #define IZOT_DOMAIN_ID_LENGTH_FIELD  InvalidIdLength
 
-typedef IZOT_STRUCT_BEGIN(IzotDomain)
-{
+typedef IZOT_STRUCT_BEGIN(IzotDomain) {
     IzotDomainId      Id;
     IzotSubnetId      Subnet;
     IzotByte          NodeClone;  /* contains non-clone, node. Use IZOT_DOMAIN_* macros. */
@@ -1312,24 +1128,14 @@ typedef IZOT_STRUCT_BEGIN(IzotDomain)
     IzotAuthenticationKey Key;
 } IZOT_STRUCT_END(IzotDomain);
 
-/*
- *  Enumeration: IzotDatapointDirection
- *  Encodes the direction of a datapoint.
- *
- *  This enumeration encodes the direction of a datapoint.
- */
-typedef IZOT_ENUM_BEGIN(IzotDatapointDirection)
-{
+// Encodes the direction of a datapoint
+typedef IZOT_ENUM_BEGIN(IzotDatapointDirection) {
     /*  0 */ IzotDatapointDirectionIsInput  = 0,
     /*  1 */ IzotDatapointDirectionIsOutput = 1
 } IZOT_ENUM_END(IzotDatapointDirection);
 
-/*
- *  Typedef: IzotDatapointConfig
- *  The datapoint configuration structure used for registering
- *  datapoints with the IzoT Device Stack DX at initialization
- *  time.
- */
+// Defines the datapoint configuration structure used for registering
+// datapoints with LON Stack at initialization time
 #define IZOT_DATAPOINT_PRIORITY_MASK    0x80        /* use IzotBool */
 #define IZOT_DATAPOINT_PRIORITY_SHIFT   7
 #define IZOT_DATAPOINT_PRIORITY_FIELD   SelhiDirPrio
@@ -1366,35 +1172,22 @@ typedef IZOT_ENUM_BEGIN(IzotDatapointDirection)
 #define IZOT_DATAPOINT_AES_SHIFT 	        3
 #define IZOT_DATAPOINT_AES_FIELD 	        Attribute2
 
-typedef IZOT_STRUCT_BEGIN(IzotDatapointConfig)
-{
+typedef IZOT_STRUCT_BEGIN(IzotDatapointConfig) {
     IzotByte  SelhiDirPrio;   /* Contains selector-high, direction, priority. Use IZOT_DATAPOINT_* macros. */
-    IzotByte  SelectorLow;
+    IzotByte  SelectorLow;    /* Contains selector-low. Use IZOT_DATAPOINT_* macros. */
     IzotByte  Attribute1;     /* Contains turnaround, service, authentication, and address-low. Use IZOT_DATAPOINT_* macros. */
 	IzotByte  Attribute2;     /* Contains address-high and aes. Use IZOT_DATAPOINT_* macros. */
 } IZOT_STRUCT_END(IzotDatapointConfig);
 
-/*
- *  Enumeration: IzotSelectionType
- *  Literals for the ECS selection type.
- *
- */
-
-typedef IZOT_ENUM_BEGIN(IzotSelectionType)
-{
+// Literals for the ECS selection type
+typedef IZOT_ENUM_BEGIN(IzotSelectionType) {
     IzotSelectionSelectorOnly,      /* 0: normal:  select as long as selector matches */
     IzotSelectionSelectorAndSource, /* 1: select if both selector and source match */
-    IzotSelectionNoSelection,       /* 2: do not do Dp selection; reserved for poll-only inputs */
+    IzotSelectionNoSelection        /* 2: do not do Dp selection; reserved for poll-only inputs */
 } IZOT_ENUM_END(IzotSelectionType);
 
-/*
- *  Typedef: IzotDatapointEcsConfig
- *  The datapoint configuration structure for use with ECS devices.
- *
- *  IzotDatapointEcsConfig stores datapoint configuration in
- *  Extended Command Set (ECS) devices.
- */
-
+// Defines the datapoint configuration structure for use with Extended
+// Command Set (ECS) devices
 #define IZOT_DATAPOINT_ECS_PRIORITY_MASK  0x80     /* Use IzotBool */
 #define IZOT_DATAPOINT_ECS_PRIORITY_SHIFT 7
 #define IZOT_DATAPOINT_ECS_PRIORITY_FIELD EcsSelhiDirPrio
@@ -1451,8 +1244,7 @@ typedef IZOT_ENUM_BEGIN(IzotSelectionType)
 #define IZOT_DATAPOINT_ECS_SOURCE_SELECTION_SHIFT 0
 #define IZOT_DATAPOINT_ECS_SOURCE_SELECTION_FIELD Attributes2
 
-typedef IZOT_STRUCT_BEGIN(IzotDatapointEcsConfig)
-{
+typedef IZOT_STRUCT_BEGIN(IzotDatapointEcsConfig) {
     IzotByte  EcsSelhiDirPrio; /* selector-high, direction, priority. Use IZOT_DATAPOINT_ECS_* macros. */
     IzotByte  SelectorLow;
     IzotByte  Attributes1;     /* turnaround, authentication write-by-index, remote-nm-auth, response-selection. Use IZOT_DATAPOINT_* macros. */
@@ -1461,33 +1253,20 @@ typedef IZOT_STRUCT_BEGIN(IzotDatapointEcsConfig)
     IzotWord  DatapointIndex;  /* Index of remote datapoint */
 } IZOT_STRUCT_END(IzotDatapointEcsConfig);
 
-/*
- *  Typedef: IzotAliasConfig
- *  Defines a datapoint alias for legacy devices.
- *
- */
-typedef IZOT_STRUCT_BEGIN(IzotAliasConfig)
-{
+// Defines a datapoint alias for legacy devices
+typedef IZOT_STRUCT_BEGIN(IzotAliasConfig) {
     IzotDatapointConfig        Alias;
     IzotByte                   Primary;
 } IZOT_STRUCT_END(IzotAliasConfig);
 
-/*
- *  Typedef: IzotAliasEcsConfig
- *  Defines a datapoint alias in ECS devices.
- *
- *  Used for Extended Command Set (ECS) devices, such as an IzoT device.
- */
-typedef IZOT_STRUCT_BEGIN(IzotAliasEcsConfig)
-{
-    IzotDatapointEcsConfig               Alias;
+// Defines a datapoint alias in Extended Command Set (ECS) devices, including devices
+// based on LON Stack
+typedef IZOT_STRUCT_BEGIN(IzotAliasEcsConfig) {
+    IzotDatapointEcsConfig        Alias;
     IzotWord                      Primary;
 } IZOT_STRUCT_END(IzotAliasEcsConfig);
 
-/*
- *  Typedef: IzotDirectModeTransceiver
- *  Holds direct-mode transceiver parameters.
- */
+// Defines direct-mode transceiver parameters
 #define IZOT_DIRECT_XCVR_CD_MASK             0x80    /* Collision-detect */
 #define IZOT_DIRECT_XCVR_CD_SHIFT            7
 #define IZOT_DIRECT_XCVR_CD_FIELD            Parameter_1
@@ -1516,25 +1295,13 @@ typedef IZOT_STRUCT_BEGIN(IzotAliasEcsConfig)
 #define IZOT_DIRECT_XCVR_CDPREAMBLE_SHIFT    0
 #define IZOT_DIRECT_XCVR_CDPREAMBLE_FIELD    Parameter_2
 
-typedef IZOT_STRUCT_BEGIN(IzotDirectModeTransceiver)
-{
+typedef IZOT_STRUCT_BEGIN(IzotDirectModeTransceiver) {
     IzotByte      Parameter_1;    /* Collision-detect, bit-sync-threshold, filter, and hysteresis. Use IZOT_DIRECT_XCVR_* macros. */
     IzotByte      Parameter_2;    /* cd-to-end-packet, cd-tail, cd-preamble. Use IZOT_DIRECT_XCVR_* macros. */
 } IZOT_STRUCT_END(IzotDirectModeTransceiver);
 
-/*
- *  Typedef: IzotDatapointDefinition
- *  datapoint Definition.
- *
- * The IzotDatapointDefinition structure is used to define the attributes of a 
- * datapoint.  This is used to register static datapoints with the Izot protocol stack,
- * and is also used to retrieve information about static or dynamic datapoints.
- */
-
-/*
- * Use the IZOT_DATAPOINT_* macros to form a bitmask that defines the attributes of a
- * datapoint.  These macros are used by the <flags> field in <IzotDatapointDefinition>.
- */
+// Bitmask values that define the attributes of an NV for the <flags> field
+// in <IzotDatapointDefinition>
 #define IZOT_DATAPOINT_NONE             0x00000000 /* No flags specified. */
 #define IZOT_DATAPOINT_CONFIG_CLASS     0x00000001 /* Implements a property. */
 #define IZOT_DATAPOINT_AUTH_CONFIG      0x00000002 /* Authentication is configurable. */
@@ -1552,98 +1319,85 @@ typedef IZOT_STRUCT_BEGIN(IzotDirectModeTransceiver)
 #define IZOT_DATAPOINT_PERSISTENT       0x00004000 /* Default to persistent datapoints */
 #define IZOT_DATAPOINT_IS_OUTPUT        0x00008000 /* The datapoint is an output datapoint. */
 
-/*
- *  Macro: IZOT_DATAPOINT_RATE_UNKNOWN
- *  The max or mean datapoint rate is unknown or unspecified.
- *
- *  Use this value rather than an encoded rate for the MaxRate or MeanRate
- *  field of the <IzotDatapointDefinition> structure to indicate that the rate
- *  is unknown.
- */
+// Unspecified max or mean datapoint rate
 #define IZOT_DATAPOINT_RATE_UNKNOWN      0
 
-/*
- *  Macro: IZOT_DATAPOINT_DEFINITION_CURRENT_VERSION
- *  The current version of the IzotDatapointDefinition structure.
- *
- */
+// <IzotDatapointDefinition> structure version
 #define IZOT_DATAPOINT_DEFINITION_CURRENT_VERSION 2
 
+// Size type for datapoints
 typedef uint8_t IzotDatapointSize;
 
-typedef IZOT_STRUCT_BEGIN(IzotDatapointDefinition)
-{
-    uint8_t         Version;        /* If the Izot protocol stack does
-                                       not recognize the version, it will be
-                                       rejected.  The current version is
-                                       IZOT_DATAPOINT_DEFINITION_CURRENT_VERSION. */
-    volatile void const *PValue;    /* Pointer to the datapoint value. */
-    IzotDatapointSize DeclaredSize; /* The declared size of the Datapoint (1 to 228).
-                                       This is also the initial size and the
-                                       maximum size. */
-    uint16_t        SnvtId;         /* Specifies the type of Datapoint if it is a
-                                       SNVT (1-250). A non-standard datapoint
-                                       type will have SnvtId = 0. */
-    uint16_t        ArrayCount;     /* Array Count (0 to 4096).  A 0
-                                       indicates that the datapoint is
-                                       not an array. */
-    uint32_t        Flags;          /* Bit flags describing attributes of the
-                                       datapoint.  From a combination
-                                       of the IZOT_DATAPOINT_* flags. */
-    const char      *Name;          /* Datapoint name.  Limited to 16
-                                       bytes base name plus an array
-                                       designator of [dddd] where [dddd] is a
-                                       one to four digit decimal number from
-                                       0 to 4095. */
-    const char      *SdString;      /* Self Doc String.  Can be null.  String
-                                       length is 0 to 1023 characters. */
-    uint8_t         MaxRate;        /* Encoded maximum rate (0 to 127, or 255).
-                                       Set to IZOT_DATAPOINT_RATE_UKNOWN if not
-                                       specified. */
-    uint8_t         MeanRate;       /* Encoded rate(0 to 127, or 255).  Set
-                                       to IZOT_DATAPOINT_RATE_UKNOWN if not specified. */                    
+// Defines the attributes of an NV (datapoint); this is used to register
+// static NVs with LON Stack, and is also used to retrieve information about
+// static or dynamic NVs
+typedef IZOT_STRUCT_BEGIN(IzotDatapointDefinition) {
+    uint8_t         Version;        /* If LON Stack does not recognize this version,
+                                       the structure will be rejected.  The current
+                                       version is IZOT_DATAPOINT_DEFINITION_CURRENT_VERSION */
+    volatile void const *PValue;    /* Pointer to the datapoint value */
+    IzotDatapointSize DeclaredSize; /* The declared size of the NV (1 to 228);
+                                       this is also the initial size and the
+                                       maximum size */
+    uint16_t        SnvtId;         /* Specifies the NV type; set to 1 - 250
+                                       for standard types (SNVTs); set to 0
+                                       for non-standard (user) types */
+    uint16_t        ArrayCount;     /* Specifies the NV array size; set to
+                                       1 - 4096 for an NV array; set to 0 for
+                                       a scalar */
+    uint32_t        Flags;          /* Bit flags describing NV attributes based
+                                       on <IZOT_DATAPOINT_*> values */
+    const char      *Name;          /* NV name; limited to 16 bytes for the
+                                       base name plus an array designator
+                                       of [dddd] where [dddd] is a one to four
+                                       digit decimal number from 0 to 4095 */
+    const char      *SdString;      /* Self-documentation string with up to
+                                       1023 characters; set to null if none */
+    uint8_t         MaxRate;        /* Encoded maximum rate (0 to 127, or 255);
+                                       set to IZOT_DATAPOINT_RATE_UKNOWN if not
+                                       specified */
+    uint8_t         MeanRate;       /* Encoded rate(0 to 127, or 255); set to
+                                       IZOT_DATAPOINT_RATE_UNKNOWN if not specified */                    
     const uint8_t   *ibol;          /* Points to the IBOL sequence */
     uint16_t        NvIndex;        /* NV index -- added for version 2 */
 } IZOT_STRUCT_END(IzotDatapointDefinition);
 
 /*
- *  Typedef: IzotConfigData
- *  The configuration data structure.
+ *  LON device configuration data structure
  */
-#define IZOT_CONFIG_COMM_CLOCK_MASK      0xF8    /* communications clock rate */
+#define IZOT_CONFIG_COMM_CLOCK_MASK      0xF8    /* Communications clock rate */
 #define IZOT_CONFIG_COMM_CLOCK_SHIFT     3
 #define IZOT_CONFIG_COMM_CLOCK_FIELD     Clock
 
-#define IZOT_CONFIG_INPUT_CLOCK_MASK     0x07    /* input clock */
+#define IZOT_CONFIG_INPUT_CLOCK_MASK     0x07    /* Input clock rate */
 #define IZOT_CONFIG_INPUT_CLOCK_SHIFT    0
 #define IZOT_CONFIG_INPUT_CLOCK_FIELD    Clock
 
-#define IZOT_CONFIG_COMM_TYPE_MASK       0xE0    /* communications type */
+#define IZOT_CONFIG_COMM_TYPE_MASK       0xE0    /* Communications type */
 #define IZOT_CONFIG_COMM_TYPE_SHIFT      5
 #define IZOT_CONFIG_COMM_TYPE_FIELD      CommConfiguration
 
-#define IZOT_CONFIG_COMM_PINDIR_MASK     0x1F    /* pin direction */
+#define IZOT_CONFIG_COMM_PINDIR_MASK     0x1F    /* Pin direction */
 #define IZOT_CONFIG_COMM_PINDIR_SHIFT    0
 #define IZOT_CONFIG_COMM_PINDIR_FIELD    CommConfiguration
 
-#define IZOT_CONFIG_NONGRPRCV_MASK       0xF0    /* non-group receive timer, use <IzotNonGroupReceiveTimer> */
+#define IZOT_CONFIG_NONGRPRCV_MASK       0xF0    /* Non-group receive timer, use <IzotNonGroupReceiveTimer> */
 #define IZOT_CONFIG_NONGRPRCV_SHIFT      4
 #define IZOT_CONFIG_NONGRPRCV_FIELD      Config_1
 
-#define IZOT_CONFIG_NMAUTH_MASK          0x08    /* network management authentication */
+#define IZOT_CONFIG_NMAUTH_MASK          0x08    /* Network management authentication */
 #define IZOT_CONFIG_NMAUTH_SHIFT         3
 #define IZOT_CONFIG_NMAUTH_FIELD         Config_1
 
-#define IZOT_CONFIG_PREEMPT_MASK         0x07    /* pre-emption timeout */
+#define IZOT_CONFIG_PREEMPT_MASK         0x07    /* Pre-emption timeout */
 #define IZOT_CONFIG_PREEMPT_SHIFT        0
 #define IZOT_CONFIG_PREEMPT_FIELD        Config_1
 
-typedef IZOT_STRUCT_BEGIN(IzotConfigData)
-{
+typedef IZOT_STRUCT_BEGIN(IzotConfigData) {
     IzotWord         ChannelId;
     IzotLocationId   Location;
-    IzotByte         Clock;              /* contains input clock, communications clock. Use IZOT_CONFIG_* macros. */
-    IzotByte         CommConfiguration;  /* contains communications type, communications pin direction. Use IZOT_CONFIG_* macros. */
+    IzotByte         Clock;              /* Input  and communications clocks; use IZOT_CONFIG_* macros */
+    IzotByte         CommConfiguration;  /* Communications type and communications pin direction; use IZOT_CONFIG_* macros */
     IzotByte         PreambleLength;
     IzotByte         PacketCycle;
     IzotByte         Beta2Control;
@@ -1651,144 +1405,143 @@ typedef IZOT_STRUCT_BEGIN(IzotConfigData)
     IzotByte         ReceiveInterpacket;
     IzotByte         NodePriority;
     IzotByte         ChannelPriorities;
-    IZOT_UNION_BEGIN(CommunicationParameters)
-    {
+    IZOT_UNION_BEGIN(CommunicationParameters) {
         IzotTransceiverParameters    TransceiverParameters;
         IzotDirectModeTransceiver    DirectModeParameters;
     } IZOT_UNION_END(CommunicationParameters);
-    IzotByte          Config_1;           /* contains pre-emption timeout, network management authentication, non-group receive timer. Use IZOT_CONFIG_* macros. */
+    IzotByte          Config_1;           /* Pre-emption timeout, network management authentication, non-group receive timer; use IZOT_CONFIG_* macros */
 } IZOT_STRUCT_END(IzotConfigData);
 
 
-#define IZOT_READONLY_CHECKSUM_MASK         0xF0    /* contains checksum for Unique Node ID */
-#define IZOT_READONLY_CHECKSUM_SHIFT        4
-#define IZOT_READONLY_CHECKSUM_FIELD        CheckSumMinorNum
+#define IZOT_READONLY_CHECKSUM_MASK                  0xF0    /* Checksum for Unique Node ID */
+#define IZOT_READONLY_CHECKSUM_SHIFT                 4
+#define IZOT_READONLY_CHECKSUM_FIELD                 CheckSumMinorNum
 
-#define IZOT_READONLY_MINORNUM_MASK         0x0F    /* minorArchNum */
-#define IZOT_READONLY_MINORNUM_SHIFT        0
-#define IZOT_READONLY_MINORNUM_FIELD        CheckSumMinorNum
+#define IZOT_READONLY_MINORNUM_MASK                  0x0F    /* Minor architecture number */
+#define IZOT_READONLY_MINORNUM_SHIFT                 0
+#define IZOT_READONLY_MINORNUM_FIELD                 CheckSumMinorNum
 
-#define IZOT_READONLY_RW_PROTECT_MASK        0x80    /* read+write protect flag */
-#define IZOT_READONLY_RW_PROTECT_SHIFT       7
-#define IZOT_READONLY_RW_PROTECT_FIELD       ReadOnly_1
+#define IZOT_READONLY_RW_PROTECT_MASK                0x80    /* Read+write protect flag */
+#define IZOT_READONLY_RW_PROTECT_SHIFT               7
+#define IZOT_READONLY_RW_PROTECT_FIELD               ReadOnly_1
 
-#define IZOT_READONLY_RUN_UNCONFIG_MASK      0x40    /* runWhenUnconf */
-#define IZOT_READONLY_RUN_UNCONFIG_SHIFT     6
-#define IZOT_READONLY_RUN_UNCONFIG_FIELD     ReadOnly_1
+#define IZOT_READONLY_RUN_UNCONFIG_MASK              0x40    /* Run when unconfigured */
+#define IZOT_READONLY_RUN_UNCONFIG_SHIFT             6
+#define IZOT_READONLY_RUN_UNCONFIG_FIELD             ReadOnly_1
 
-#define IZOT_READONLY_DATAPOINT_COUNT_MASK           0x3F    /* dpCount */
+#define IZOT_READONLY_DATAPOINT_COUNT_MASK           0x3F    /* NV count */
 #define IZOT_READONLY_DATAPOINT_COUNT_SHIFT          0
 #define IZOT_READONLY_DATAPOINT_COUNT_FIELD          ReadOnly_1
 
-#define IZOT_READONLY_DATAPOINT_PROCESSINGOFF_MASK          0x80    /* nvProcessingOff */
-#define IZOT_READONLY_DATAPOINT_PROCESSINGOFF_SHIFT         7
-#define IZOT_READONLY_DATAPOINT_PROCESSINGOFF_FIELD         ReadOnly_2
+#define IZOT_READONLY_DATAPOINT_PROCESSINGOFF_MASK   0x80    /* NV processing off */
+#define IZOT_READONLY_DATAPOINT_PROCESSINGOFF_SHIFT  7
+#define IZOT_READONLY_DATAPOINT_PROCESSINGOFF_FIELD  ReadOnly_2
 
-#define IZOT_READONLY_TWO_DOMAINS_MASK               0x40    /* twoDomains */
+#define IZOT_READONLY_TWO_DOMAINS_MASK               0x40    /* Two domains */
 #define IZOT_READONLY_TWO_DOMAINS_SHIFT              6
 #define IZOT_READONLY_TWO_DOMAINS_FIELD              ReadOnly_2
 
-#define IZOT_READONLY_RESERVED2_MASK                 0x20    /* r2 */
+#define IZOT_READONLY_RESERVED2_MASK                 0x20    /* Reserved 2 */
 #define IZOT_READONLY_RESERVED2_SHIFT                5
 #define IZOT_READONLY_RESERVED2_FIELD                ReadOnly_2
 
-#define IZOT_READONLY_RESERVED3_MASK                 0x10    /* r3 */
+#define IZOT_READONLY_RESERVED3_MASK                 0x10    /* Reserved 3 */
 #define IZOT_READONLY_RESERVED3_SHIFT                4
 #define IZOT_READONLY_RESERVED3_FIELD                ReadOnly_2
 
-#define IZOT_READONLY_MSG_PROCESS_MASK               0x08    /* msgProcess */
+#define IZOT_READONLY_MSG_PROCESS_MASK               0x08    /* Message process */
 #define IZOT_READONLY_MSG_PROCESS_SHIFT              3
 #define IZOT_READONLY_MSG_PROCESS_FIELD              ReadOnly_2
 
-#define IZOT_READONLY_NODE_STATE_MASK                0x07    /* nodeState */
+#define IZOT_READONLY_NODE_STATE_MASK                0x07    /* Node state */
 #define IZOT_READONLY_NODE_STATE_SHIFT               0
 #define IZOT_READONLY_NODE_STATE_FIELD               ReadOnly_2
 
-#define IZOT_READONLY_ADDRESS_CNT_MASK               0xF0    /* # of entries in address table  */
+#define IZOT_READONLY_ADDRESS_CNT_MASK               0xF0    /* Address table size  */
 #define IZOT_READONLY_ADDRESS_CNT_SHIFT              4
 #define IZOT_READONLY_ADDRESS_CNT_FIELD              ReadOnly_3
 
-#define IZOT_READONLY_RESERVED5_MASK                 0x0F    /* r5 */
+#define IZOT_READONLY_RESERVED5_MASK                 0x0F    /* Reserved 5 */
 #define IZOT_READONLY_RESERVED5_SHIFT                0
 #define IZOT_READONLY_RESERVED5_FIELD                ReadOnly_3
 
-#define IZOT_READONLY_RESERVED6_MASK                 0xF0    /* r6  */
+#define IZOT_READONLY_RESERVED6_MASK                 0xF0    /* Reserved 6 */
 #define IZOT_READONLY_RESERVED6_SHIFT                4
 #define IZOT_READONLY_RESERVED6_FIELD                ReadOnly_4
 
-#define IZOT_READONLY_REC_TRANSCNT_MASK              0x0F    /* receiveTransCnt */
+#define IZOT_READONLY_REC_TRANSCNT_MASK              0x0F    /* Receive transaction count */
 #define IZOT_READONLY_REC_TRANSCNT_SHIFT             0
 #define IZOT_READONLY_REC_TRANSCNT_FIELD             ReadOnly_4
 
-#define IZOT_READONLY_OUTBUF_SIZE_MASK               0xF0    /* appOutBufSize */
+#define IZOT_READONLY_OUTBUF_SIZE_MASK               0xF0    /* Application output buffer size */
 #define IZOT_READONLY_OUTBUF_SIZE_SHIFT              4
 #define IZOT_READONLY_OUTBUF_SIZE_FIELD              AppBufSize
 
-#define IZOT_READONLY_INBUF_SIZE_MASK                0x0F    /* appInBufSize */
+#define IZOT_READONLY_INBUF_SIZE_MASK                0x0F    /* Application input buffer size */
 #define IZOT_READONLY_INBUF_SIZE_SHIFT               0
 #define IZOT_READONLY_INBUF_SIZE_FIELD               AppBufSize
 
-#define IZOT_READONLY_NW_OUTBUF_SIZE_MASK            0xF0    /* nwOutBufSize  */
+#define IZOT_READONLY_NW_OUTBUF_SIZE_MASK            0xF0    /* Network output buffer size */
 #define IZOT_READONLY_NW_OUTBUF_SIZE_SHIFT           4
 #define IZOT_READONLY_NW_OUTBUF_SIZE_FIELD           NwBufSize
 
-#define IZOT_READONLY_NW_INBUF_SIZE_MASK             0x0F    /* nwInBufSize */
+#define IZOT_READONLY_NW_INBUF_SIZE_MASK             0x0F    /* Network input buffer size */
 #define IZOT_READONLY_NW_INBUF_SIZE_SHIFT            0
 #define IZOT_READONLY_NW_INBUF_SIZE_FIELD            NwBufSize
 
-#define IZOT_READONLY_NW_OUT_PRICNT_MASK             0xF0    /* nwOutBufPriCnt  */
+#define IZOT_READONLY_NW_OUT_PRICNT_MASK             0xF0    /* Network output buffer priority count */
 #define IZOT_READONLY_NW_OUT_PRICNT_SHIFT            4
 #define IZOT_READONLY_NW_OUT_PRICNT_FIELD            PriCnt
 
-#define IZOT_READONLY_OUT_PRICNT_MASK                0x0F    /* appOutBufPriCnt */
+#define IZOT_READONLY_OUT_PRICNT_MASK                0x0F    /* Application output buffer priority count */
 #define IZOT_READONLY_OUT_PRICNT_SHIFT               0
 #define IZOT_READONLY_OUT_PRICNT_FIELD               PriCnt
 
-#define IZOT_READONLY_OUTBUF_CNT_MASK                0xF0    /* appOutBufCnt  */
+#define IZOT_READONLY_OUTBUF_CNT_MASK                0xF0    /* Application output buffer count */
 #define IZOT_READONLY_OUTBUF_CNT_SHIFT               4
 #define IZOT_READONLY_OUTBUF_CNT_FIELD               AppBufCnt
 
-#define IZOT_READONLY_INBUF_CNT_MASK                 0x0F    /* appInBufCnt */
+#define IZOT_READONLY_INBUF_CNT_MASK                 0x0F    /* Application input buffer count */
 #define IZOT_READONLY_INBUF_CNT_SHIFT                0
 #define IZOT_READONLY_INBUF_CNT_FIELD                AppBufCnt
 
-#define IZOT_READONLY_NW_OUTBUF_CNT_MASK             0xF0    /* nwOutBufCnt  */
+#define IZOT_READONLY_NW_OUTBUF_CNT_MASK             0xF0    /* Network output buffer count */
 #define IZOT_READONLY_NW_OUTBUF_CNT_SHIFT            4
 #define IZOT_READONLY_NW_OUTBUF_CNT_FIELD            NwBufCnt
 
-#define IZOT_READONLY_NW_INBUF_CNT_MASK              0x0F    /* nwInBufCnt */
+#define IZOT_READONLY_NW_INBUF_CNT_MASK              0x0F    /* Network input buffer count */
 #define IZOT_READONLY_NW_INBUF_CNT_SHIFT             0
 #define IZOT_READONLY_NW_INBUF_CNT_FIELD             NwBufCnt
 
-#define IZOT_READONLY_RESERVED7_MASK                 0xFC    /* R7  */
+#define IZOT_READONLY_RESERVED7_MASK                 0xFC    /* Reserved 7 */
 #define IZOT_READONLY_RESERVED7_SHIFT                4
 #define IZOT_READONLY_RESERVED7_FIELD                ReadOnly_5
 
-#define IZOT_READONLY_TX_BY_ADDRESS_MASK             0x02    /* txByAddress */
+#define IZOT_READONLY_TX_BY_ADDRESS_MASK             0x02    /* Transaction by address */
 #define IZOT_READONLY_TX_BY_ADDRESS_SHIFT            1
 #define IZOT_READONLY_TX_BY_ADDRESS_FIELD            ReadOnly_5
 
-#define IZOT_READONLY_RESERVED8_MASK                 0x01    /* r8 */
+#define IZOT_READONLY_RESERVED8_MASK                 0x01    /* Reserved 8 */
 #define IZOT_READONLY_RESERVED8_SHIFT                0
 #define IZOT_READONLY_RESERVED8_FIELD                ReadOnly_5
 
-#define IZOT_READONLY_RESERVED9_MASK                 0xC0    /* r9 */
+#define IZOT_READONLY_RESERVED9_MASK                 0xC0    /* Reserved 9 */
 #define IZOT_READONLY_RESERVED9_SHIFT                6
 #define IZOT_READONLY_RESERVED9_FIELD                ReadOnly_6
 
-#define IZOT_READONLY_ALIAS_CNT_MASK                 0x3F    /* aliasCnt */
+#define IZOT_READONLY_ALIAS_CNT_MASK                 0x3F    /* Alias count */
 #define IZOT_READONLY_ALIAS_CNT_SHIFT                0
 #define IZOT_READONLY_ALIAS_CNT_FIELD                ReadOnly_6
 
-#define IZOT_READONLY_MSG_TAG_CNT_MASK              0xF0    /* msgTagCnt */
+#define IZOT_READONLY_MSG_TAG_CNT_MASK              0xF0     /* Message tag count */
 #define IZOT_READONLY_MSG_TAG_CNT_SHIFT             4
 #define IZOT_READONLY_MSG_TAG_CNT_FIELD             ReadOnly_7
 
-#define IZOT_READONLY_RESERVED10_MASK               0x0F    /* r10 */
+#define IZOT_READONLY_RESERVED10_MASK               0x0F     /* Reserved 10 */
 #define IZOT_READONLY_RESERVED10_SHIFT              0
 #define IZOT_READONLY_RESERVED10_FIELD              ReadOnly_7
 
-#define IZOT_READONLY_DMF_MASK                       0x80    /* dmf */
+#define IZOT_READONLY_DMF_MASK                       0x80    /* Direct-memory file */
 #define IZOT_READONLY_DMF_SHIFT                      0
 #define IZOT_READONLY_DMF_FIELD                      ReadOnly_8
 
@@ -1796,95 +1549,154 @@ typedef IZOT_STRUCT_BEGIN(IzotConfigData)
 #define IZOT_READONLY_SEC_II_SHIFT                   6
 #define IZOT_READONLY_SEC_II_FIELD                   ReadOnly_8
 
-#define IZOT_READONLY_RESERVED11_MASK                0x7F    /* RESERVED11 */
+#define IZOT_READONLY_RESERVED11_MASK                0x7F    /* Reserved 11 */
 #define IZOT_READONLY_RESERVED11_SHIFT               0
 #define IZOT_READONLY_RESERVED11_FIELD               ReadOnly_8
 
-typedef IZOT_STRUCT_BEGIN(IzotReadOnlyData)
-{
-    IzotUniqueId  UniqueNodeId;      /* 48-bit unique ID of Neuron Chip or Smart Transceiver              */
-    IzotByte  ArchNum;              /* Model Number for Ref. Impl.                                        */
-    IzotByte  CheckSumMinorNum;      /* contains checksum for Unique Node ID and minorArchNum (0-128). Use IZOT_READONLY_* macros. */
-    IzotByte  DatapointFixed[2];            /* Location of nv fixed table.                                */
-    IzotByte  ReadOnly_1;            /* Contains:  (Use IZOT_READONLY_* macros. )                         */
-                                     /* readWriteProtect , 1,       read+write protect flag.              */
-                                     /* runWhenUnconf    , 1,       1=> Application runs.                 */
-                                     /* nvCount          , 6,       0 for reference implementation.       */
-    IzotByte  SnvtStruct[2];         /* 0xFFFF for LON Stack.                              */
+typedef IZOT_STRUCT_BEGIN(IzotReadOnlyData) {
+    IzotUniqueId  UniqueNodeId;      /* 48-bit unique ID for the device                                   */
+    IzotByte  ArchNum;               /* LON architecture; set to <LonArchitecture> value                  */
+    IzotByte  CheckSumMinorNum;      /* Checksum for Unique Node ID and minorArchNum (0-128); use IZOT_READONLY_* values */
+    IzotByte  DatapointFixed[2];     /* Location of NV fixed table                                        */
+    IzotByte  ReadOnly_1;            /* Contains:  (Use IZOT_READONLY_* values)                           */
+                                     /* readWriteProtect , 1,       Read+write protect flag               */
+                                     /* runWhenUnconf    , 1,       1 => Application runs when unconfigured */
+                                     /* nvCount          , 6,                                             */
+    IzotByte  SnvtStruct[2];         /* 0xFFFF for LON Stack                                              */
     IzotProgramId ProgramId;         /* Program ID string (array of 8 bytes)                              */
-    IzotByte  ReadOnly_2;            /* Contains:  (Use IZOT_READONLY_* macros. )                         */
-                                     /* dpProcessingOff  , 1,       Must be one for NodeUtil.             */
-                                     /* twoDomains       , 1,       1 if node is in 2 domains.            */
-                                     /* r2               , 1,       explicitAddr not used                 */
-                                     /* r3               , 1,       Unused.                               */
-                                     /* msgProcess       , 1,       1 means explicit messages processed.  */
+    IzotByte  ReadOnly_2;            /* Contains:  (Use IZOT_READONLY_* values)                           */
+                                     /* dpProcessingOff  , 1,       Must be one for NodeUtil              */
+                                     /* twoDomains       , 1,       1 if node is in 2 domains             */
+                                     /* Reserved 2       , 1,       Explicit addressing not used          */
+                                     /* Reserved 3       , 1,       Unused                                */
+                                     /* msgProcess       , 1,       1 means explicit messages processed   */
                                      /* nodeState        , 3,       Node State. See eia709_1.h            */
-    IzotByte ReadOnly_3;             /* Contains: (Use IZOT_READONLY_* macros. )                          */
-                                     /* # of entries in address table (AddressCn).                        */
-                                     /* r5               , 4       Unused.                                */
-    IzotByte ReadOnly_4;             /* Contains:  (Use IZOT_READONLY_* macros. )                         */
-                                     /* r6               , 4,       Unused.                               */
+    IzotByte ReadOnly_3;             /* Contains: (Use IZOT_READONLY_* values)                            */
+                                     /* # of entries in address table (AddressCn)                         */
+                                     /* Reserved 5       , 4        Unused                                */
+    IzotByte ReadOnly_4;             /* Contains:  (Use IZOT_READONLY_* values)                           */
+                                     /* Reserved 6       , 4,       Unused                                */
                                      /* receiveTransCnt  , 4        RR Cnt = this field + 1               */
-    IzotByte AppBufSize;             /* appOutBufSize   , 4,        Special Size Encoding.                */
-                                     /* appInBufSize     , 4        Special Size Encoding.                */
-    IzotByte NwBufSize;              /* nwOutBufSize, 4,            Special Size Encoding.                */
-                                     /* nwInBufSize      , 4        Special Size Encoding.                */
-    IzotByte PriCnt;                 /* nwOutBufPriCnt   , 4,       Special Count Enconding.              */
-                                     /* appOutBufPriCnt  , 4        Special Count Enconding.              */
-    IzotByte AppBufCnt;              /* appOutBufCnt, 4,            Special Count Enconding.              */
-                                     /* appInBufCnt      , 4        Special Count Enconding.              */
-    IzotByte NwBufCnt;               /* nwOutBufCnt, 4,             Special Count Enconding.              */
-                                     /* nwInBufCnt       , 4        Special Count Enconding.              */
+    IzotByte AppBufSize;             /* appOutBufSize    , 4,       Special size encoding                 */
+                                     /* appInBufSize     , 4        Special size encoding                 */
+    IzotByte NwBufSize;              /* nwOutBufSize     , 4,       Special size encoding                 */
+                                     /* nwInBufSize      , 4        Special size encoding                 */
+    IzotByte PriCnt;                 /* nwOutBufPriCnt   , 4,       Special count encoding                */
+                                     /* appOutBufPriCnt  , 4        Special count encoding                */
+    IzotByte AppBufCnt;              /* appOutBufCnt     , 4,       Special count encoding                */
+                                     /* appInBufCnt      , 4        Special count encoding                */
+    IzotByte NwBufCnt;               /* nwOutBufCnt      , 4,       Special count encoding                */
+                                     /* nwInBufCnt       , 4        Special count encoding                */
     IzotByte Reserved0;              /* Unused                                                            */
-    IzotByte Reserved1[2];           /* Unused.                                                           */
-    IzotByte Reserved2[3];           /* Unused.                                                           */
-    IzotByte ReadOnly_5;             /* Contains:  (Use IZOT_READONLY_* macros. )                          */
-                                     /* R7              , 6,       Unused.                                */
-                                     /* txByAddress      , 1,      0 in reference implementation.         */
-                                     /* r8               , 1)      Unused.                                */
-    IzotByte ReadOnly_6;             /* r9               , 2,      Unused.                                */
-                                     /* aliasCnt          , 6)     0 in reference implementation.         */
-    IzotByte ReadOnly_7;             /* msgTagCnt, 4,      0 in reference implementation.                 */
-                                     /* r10              , 4)       Unused.                               */
-    IzotByte Reserved3[3];           /* Unused.                                                           */
+    IzotByte Reserved1[2];           /* Unused                                                            */
+    IzotByte Reserved2[3];           /* Unused                                                            */
+    IzotByte ReadOnly_5;             /* Contains:  (Use IZOT_READONLY_* values)                           */
+                                     /* Reserved 7       , 6,       Unused                                */
+                                     /* txByAddress      , 1,       0 in LON Stack                        */
+                                     /* Reserved 8       , 1)       Unused                                */
+    IzotByte ReadOnly_6;             /* Reserved 9       , 2,       Unused                                */
+                                     /* aliasCnt         , 6)       0 in LON Stack                        */
+    IzotByte ReadOnly_7;             /* msgTagCnt        , 4,       0 in LON Stack                        */
+                                     /* Reserved 10      , 4)       Unused                                */
+    IzotByte Reserved3[3];           /* Unused                                                            */
     IzotByte DatapointCount;
     IzotByte AliasCount;
     IzotByte Snvt2Hi;
     IzotByte Snvt2Lo;
-    IzotByte ReadOnly_8;             /* dmf  , 1,                                                         */
+    IzotByte ReadOnly_8;             /* Direct memory file , 1,                                           */
                                      /* r11              , 7                                              */
-	IzotByte Extended;				/* Indicates the number of additional Address Table Entries
-									   Changed as per Extended Address table doc requirement              */
+	IzotByte Extended;				/* Number of additional address table entries
+									   for an Extended Address table  */
 } IZOT_STRUCT_END(IzotReadOnlyData);
 
-/*
- *  Typedef: IzotStatus
- *  Holds node status and statistics.
- */
-typedef IZOT_STRUCT_BEGIN(IzotStatus)
-{
-    IzotWord                 TransmitErrors;
-    IzotWord                 TransactionTimeouts;
-    IzotWord                 ReceiveTransactionsFull;
-    IzotWord                 LostMessages;
-    IzotWord                 MissedMessages;
+// Node status and statistics structure
+typedef IZOT_STRUCT_BEGIN(IzotStatus) {
+    IzotWord                  TransmitErrors;
+    IzotWord                  TransactionTimeouts;
+    IzotWord                  ReceiveTransactionsFull;
+    IzotWord                  LostMessages;
+    IzotWord                  MissedMessages;
     IZOT_ENUM(IzotResetCause) ResetCause;
     IZOT_ENUM(IzotNodeState)  NodeState;
-    IzotByte                 VersionNumber;
-    IZOT_ENUM(LonStatusCode) ErrorLog;
+    IzotByte                  VersionNumber;
+    IZOT_ENUM(LonStatusCode)  ErrorLog;
     IZOT_ENUM(LonArchitecture) ArchitectureNumber;
     /*
      * The following members are available through the local <IzotQueryStatus>
      * API only, but are not transmitted in response to a query status network
      * diagnostic request.
      */
-    IzotWord                 LostEvents;
+    IzotWord                  LostEvents;
 } IZOT_STRUCT_END(IzotStatus);
 
 /*****************************************************************
- * Section: LON Network Interface Commands
+ * Section: LON Network Interface Messages
  *****************************************************************/
-// Many of these commands are optional and not supported by all network interfaces
+/*
+ * Messages exchanged between LON Stack Layer 2 and the LON/IP or native
+ * LON network interface have up to four parts, as follows:
+ *
+ *   Network Interface Command (NiHdr)                         (2 Bytes)
+ *   Message Header (MsgHdr)                                   (3 Bytes)
+ *   Network Address (ExplicitAddr)                            (11 Bytes)
+ *   Data (MsgData)                                            (varies)
+ *
+ * Network Interface Command (NiHdr):
+ *
+ *   The network interface command is always present.  It contains the
+ *   network interface command and queue specifier.  This is the only
+ *   field required for local network interface commands such as 
+ *   LonNiResetDeviceCmd.
+ *
+ * Message Header (MsgHdr: union of NetVarHdr and ExpMsgHdr):
+ *
+ *   This field is present if the buffer is a data transfer or a completion
+ *   event.  The message header describes the type of LON message contained
+ *   in the data field.
+ *
+ *   NetVarHdr is used if the message is a network variable message and
+ *   network interface selection is enabled.
+ *
+ *   ExpMsgHdr is used if the message is an explicit message, or a network
+ *   variable message and host selection is enabled.
+ *
+ * Network Address (ExplicitAddr:  SendAddrDtl, RcvAddrDtl, or RespAddrDtl)
+ *
+ *   This field is present if the message is a data transfer or completion
+ *   event, and explicit addressing is enabled.  The network address
+ *   specifies the destination address for downlink application buffers,
+ *   or the source address for uplink application buffers.
+ *
+ *   SendAddrDtl is used for outgoing messages or NV updates.
+ *
+ *   RcvAddrDtl is used  for incoming messages or unsolicited NV updates.
+ * 
+ *   RespAddrDtl is used for incoming responses or NV updates solicited
+ *   by a poll.
+ *
+ * Data (MsgData: union of UnprocessedNV, ProcessedNV, and ExplicitMsg)
+ *
+ *   This field is present if the message is a data transfer or completion
+ *   event.
+ *
+ *   If the message is a completion event, then the first two bytes of the
+ *   data are included.  This provides the NV index, the NV selector, or the
+ *   message code as appropriate.
+ *
+ *   UnprocessedNV is used if the message is a network variable update, and
+ *   host selection is enabled. It consists of a two-byte header followed by
+ *   the NV data.
+ * 
+ *   ProcessedNV is used if the message is a network variable update, and
+ *   network interface selection is enabled. It consists of a two-byte header
+ *   followed by the NV data.
+ *
+ *   ExplicitMsg is used if the message is an explicit message.  It consists
+ *   of a one-byte code field followed by the message data.
+ */
+
+// Network interface command codes; many of these commands are optional and
+// are not supported by all network interfaces
 typedef IZOT_ENUM_BEGIN(LonNiCommand) {
 	LonNiClearCmd 			= 0x00,		// Clear (no operation)--used by driver
 	LonNiNormalTxnQueue		= 0x02,		// Normal transaction queue--used by driver
@@ -1937,21 +1749,17 @@ typedef IZOT_ENUM_BEGIN(LonNiCommand) {
     LonNiDriverCmd          = 0xF0
 } IZOT_ENUM_END(LonNiCommand);
 
+/*****************************************************************
+ * Section: LON Message Globals
+ *****************************************************************/
 /*
- * ******************************************************************************
- * SECTION: MESSAGE CODES
- * ******************************************************************************
- *
- *  This section defines message codes and utilities for dealing with message
- *  codes.
+ *  This section defines LON message formats, codes, and utilities for
+ *  dealing with LON messages.  It includes definitions for network
+ *  management and diagnostic messages.
  */
 
-/*
- *  Enumeration: IzotNmMessageCode
- *  Message codes for network management and diagnostic classes of messages.
- */
-typedef IZOT_ENUM_BEGIN(IzotNmMessageCode)
-{
+// Message codes for network management and diagnostic classes of messages
+typedef IZOT_ENUM_BEGIN(IzotNmMessageCode) {
     // Network diagnostic commands
     IzotNdQueryStatus                   = 0x51,
     IzotNdProxy                         = 0x52,
@@ -1989,83 +1797,52 @@ typedef IZOT_ENUM_BEGIN(IzotNmMessageCode)
 
 #define NI_CMD_MASK			0xF0
 
-/*
- *  Enumeration: IzotInstallCommand
- *  Extended installation commands for devices that use SI data version 2. SI
- *  data version 2 is required for any device that supports dynamic datapoints.
- *  Used by <IzotNmInstallRequest>.
- */
-typedef IZOT_ENUM_BEGIN(IzotInstallCommand)
-{
-    IzotInstallWink              = 0,    /* Basic application wink                     */
-    IzotInstallQueryDatapointInfo       = 4,    /* Query datapoint information         */
-    IzotInstallQueryNodeInfo     = 5,    /* Query node self-documentation information  */
+// Extended installation commands for devices that use SI data version 2; SI
+// data version 2 is required for any device that supports dynamic datapoints;
+// used by IzotNmInstallRequest()
+typedef IZOT_ENUM_BEGIN(IzotInstallCommand) {
+    IzotInstallWink               = 0,    /* Basic application wink                     */
+    IzotInstallQueryDatapointInfo = 4,    /* Query datapoint information         */
+    IzotInstallQueryNodeInfo      = 5     /* Query node self-documentation information  */
 } IZOT_ENUM_END(IzotInstallCommand);
 
-/*
- *  Enumeration: IzotDatapointInfoType
- *  Types of datapoint information that can be queried using
- *  *IzotInstallQueryDatapointInfo*. Used by <IzotNmInstallRequest> when *Command* is
- *  set to *IzotInstallQueryDatapointInfo*.
- */
-typedef IZOT_ENUM_BEGIN(IzotDatapointInfoType)
-{
+// Types of datapoint information that can be queried using
+// IzotInstallQueryDatapointInfo; used by IzotNmInstallRequest when Command is
+// set to IzotInstallQueryDatapointInfo
+typedef IZOT_ENUM_BEGIN(IzotDatapointInfoType) {
     IzotDatapointInfoDescriptor         = 0,    /* Query datapoint description (IzotNmInstallResponse.DatapointDescriptor) */
     IzotDatapointInfoRateEstimate       = 1,    /* Query datapoint rate estimates (IzotNmInstallResponse.DatapointRate) */
     IzotDatapointInfoName               = 2,    /* Query datapoint Name (IzotNmInstallResponse.DatapointName) */
     IzotDatapointInfoSdText             = 3,    /* Query datapoint self-documentation string (IzotNmInstallResponse.DatapointSd) */
-    IzotDatapointInfoSnvtIndex          = 4,    /* Query datapoint SNVT index (IzotNmInstallResponse.SnvtTypeIndex) */
+    IzotDatapointInfoSnvtIndex          = 4     /* Query datapoint SNVT index (IzotNmInstallResponse.SnvtTypeIndex) */
 } IZOT_ENUM_END(IzotDatapointInfoType);
 
-/*
- *  Enumeration: IzotNodeInfoType
- *  Types of node information that can be queried using *IzotInstallQueryNodeInfo*.
- *  Used by <IzotNmInstallRequest> when *Command* is set to
- *  *IzotInstallQueryNodeInfo*.
- */
-typedef IZOT_ENUM_BEGIN(IzotNodeInfoType)
-{
+// Types of node information that can be queried using IzotInstallQueryNodeInfo
+// Used by IzotNmInstallRequest when Command is set to IzotInstallQueryNodeInfo
+typedef IZOT_ENUM_BEGIN(IzotNodeInfoType) {
     IzotNodeInfoSdText             = 3,    /* Query node self-documentation string (IzotNmInstallResponse.NodeSd) */
 } IZOT_ENUM_END(IzotNodeInfoType);
 
-/*
- *  Enumeration: IzotDatapointOrigin
- *  Defines the origins of a datapoint.  Use the IZOT_DATAPOINT_DESC_ORIGIN_*
- *  macros with the <IzotNmInstallResponse> union.
- */
-typedef IZOT_ENUM_BEGIN(IzotDatapointOrigin)
-{
-    IzotDatapointOriginUndefined    = 0,    /* Not currently defined */
-    IzotDatapointOriginStatic       = 1,    /* Statically defined     */
-    IzotDatapointOriginDynamic      = 2,    /* Dynamically defined     */
+// Defines the origins of an NV; use the IZOT_DATAPOINT_DESC_ORIGIN_* values
+// with the <IzotNmInstallResponse> union
+typedef IZOT_ENUM_BEGIN(IzotDatapointOrigin) {
+    IzotDatapointOriginUndefined    = 0,    /* Not defined          */
+    IzotDatapointOriginStatic       = 1,    /* Statically defined   */
+    IzotDatapointOriginDynamic      = 2,    /* Dynamically defined  */
 } IZOT_ENUM_END(IzotDatapointOrigin);
 
-/*
- *  Macro: IZOT_NM_FAILURE
- *  Failure response codes for network management and diagnostic classes of
- *  messages.
- */
+// Failure response codes for network management and diagnostic classes of
+// messages
 #define IZOT_NM_FAILURE(c)            ((c) & 0x1F)
 
-/*
- *  Macro: IZOT_NM_SUCCESS
- *  Success response codes for network management and diagnostic classes of
- *  messages.
- */
+// Success response codes for network management and diagnostic classes of
+// messages
 #define IZOT_NM_SUCCESS(c)            (IZOT_NM_FAILURE(c) | 0x20)
 
-/*
- *  Macro: IZOT_DATAPOINT_NAME_LEN
- *  The maximum number of bytes in a datapoint name, not including the 0
- *  terminator.
- *
- */
+// Maximum number of bytes in a datapoint name, not including the 0 terminator
 #define IZOT_DATAPOINT_NAME_LEN 16
 
-/*
- *  The following IZOT_NM_* and IZOT_ND_* macros define offsets and masks for
- *  constructing request and response codes.
- */
+// Offsets and masks for constructing request and response codes
 #define IZOT_NM_OPCODE_BASE      0x60
 #define IZOT_NM_OPCODE_MASK      0x1F
 #define IZOT_NM_RESPONSE_MASK    0xE0
@@ -2078,53 +1855,29 @@ typedef IZOT_ENUM_BEGIN(IzotDatapointOrigin)
 #define IZOT_ND_RESPONSE_SUCCESS 0x30
 #define IZOT_ND_RESPONSE_FAILED  0x10
 
-/*
- *  Typedef: IzotCorrelator
- *  Data structure used for correlating requests and responses.
- *
- * IzotCorrelator is used to correlate request messages and their responses.
- */
+// Data structure used for correlating request messages and their responses
 typedef const void *IzotCorrelator;
 
-/*
- *  Typedef: IzotResetNotification
- *  Structure for uplink reset message.
- *
- *  This type is used in the Reset callback, to provide call compatibility with
- *  ShortStack.  However, IzoT does not provide extended reset information at
- *  this time.
- */
+// Structure for uplink reset message; used in the Reset callback
 typedef void IzotResetNotification;
 
-/*
- *  Typedef: IzotNmDatapointFetchRequest
- *  Message structure for a Dp fetch request.
- */
-typedef IZOT_STRUCT_BEGIN(IzotNmDatapointFetchRequest)
-{
+// Message structure for an NV fetch request
+typedef IZOT_STRUCT_BEGIN(IzotNmDatapointFetchRequest) {
     IzotByte  Index;
-    IzotWord  EscapeIndex;  /* exists iff index==0xFF    */
+    IzotWord  EscapeIndex;  /* Exists iff index==0xFF    */
 } IZOT_STRUCT_END(IzotNmDatapointFetchRequest);
 
-/*
- *  Typedef: IzotNmInstallRequest
- *  Message structure used with *IzotNmInstall* requests.
- *
- *  Each member of this union contains a *Command* field (<IzotInstallCommand>)
- *  that specifies the command type.  Even though this structure is defined as
- *  a union, the message size should include only the fields required for the
- *  particular command type.
- */
-
-typedef IZOT_UNION_BEGIN(IzotNmInstallRequest)
-{
-    IZOT_STRUCT_NESTED_BEGIN(Wink)
-    {
+// Message structure used with *IzotNmInstall* requests.  Each member
+// of this union contains a *Command* field (<IzotInstallCommand>)
+// that specifies the command type.  Even though this structure is defined as
+// a union, the message size should include only the fields required for the
+// particular command type.
+typedef IZOT_UNION_BEGIN(IzotNmInstallRequest) {
+    IZOT_STRUCT_NESTED_BEGIN(Wink) {
         IZOT_ENUM(IzotInstallCommand) Command; /* *IzotInstallWink* */
     } IZOT_STRUCT_NESTED_END(Wink);
 
-    IZOT_STRUCT_NESTED_BEGIN(QueryDatapointInfo)
-    {
+    IZOT_STRUCT_NESTED_BEGIN(QueryDatapointInfo) {
         IZOT_ENUM(IzotInstallCommand) Command; /* *IzotInstallQueryDatapointInfo* */
         IZOT_ENUM(IzotDatapointInfoType)     DatapointInfoType;  /* Requested datapoint information */
         IzotWord                     DatapointIndex; /* Datapoint index */
@@ -2133,10 +1886,8 @@ typedef IZOT_UNION_BEGIN(IzotNmInstallRequest)
          * *IzotDatapointInfoSdText*, and should be omitted when other types of Datapoint
          * information are being queried.
          */
-        IZOT_UNION_NESTED_BEGIN(AdditionalParameters)
-        {
-            IZOT_STRUCT_NESTED_BEGIN(SdText)
-            {
+        IZOT_UNION_NESTED_BEGIN(AdditionalParameters) {
+            IZOT_STRUCT_NESTED_BEGIN(SdText) {
                 /* Used when DatapointInfoType is *IzotDatapointInfoSdText* */
                 IzotWord Offset;         /* Byte offset from beginning of SD text */
                 IzotByte Length;         /* Maximum number of SD bytes to return  */
@@ -2144,178 +1895,120 @@ typedef IZOT_UNION_BEGIN(IzotNmInstallRequest)
         } IZOT_UNION_NESTED_END(AdditionalParameters);
     } IZOT_STRUCT_NESTED_END(QueryDatapointInfo);
 
-    IZOT_STRUCT_NESTED_BEGIN(QueryNodeInfo)
-    {
+    IZOT_STRUCT_NESTED_BEGIN(QueryNodeInfo) {
         IZOT_ENUM(IzotInstallCommand) Command;      /* *IzotInstallQueryNodeInfo*  */
         IZOT_ENUM(IzotNodeInfoType)   NodeInfoType; /* Requested node information */
-        IZOT_UNION_NESTED_BEGIN(AdditionalParameters)
-        {
-            IZOT_STRUCT_NESTED_BEGIN(SdText)
-            {
+        IZOT_UNION_NESTED_BEGIN(AdditionalParameters) {
+            IZOT_STRUCT_NESTED_BEGIN(SdText) {
                 /* Used when NodeInfoType is *IzotNodeInfoSdText* */
                 IzotWord Offset;        /* Byte offset from beginning of SD text */
                 IzotByte Length;        /* Maximum number of SD bytes to return  */
             } IZOT_STRUCT_NESTED_END(SdText);
         } IZOT_UNION_NESTED_END(AdditionalParameters);
     } IZOT_STRUCT_NESTED_END(QueryNodeInfo);
-
 } IZOT_UNION_END(IzotNmInstallRequest);
 
 /*
- *  Typedef: IzotNmInstallResponse
- *  Message structure used with *IzotNmInstall* responses.
- *
+ * Message structure used with *IzotNmInstall* responses.  Each member
+ * of this union contains a *Command* field (<IzotInstallCommand>) that
+ * specifies the command type.  Even though this structure is defined as
+ * a union, the message size should include only the fields required for the
+ * particular command type.
  */
 
-/*
- * Use the IZOT_DATAPOINT_DESC_LENGTH_* macros to access the length field in
- * IzotNmInstallResponse.DatapointDescriptor
- */
-#define IZOT_DATAPOINT_DESC_LENGTH_MASK   0xf8    /* Datapoint length */
+// Macros to access the length field in IzotNmInstallResponse.DatapointDescriptor
+#define IZOT_DATAPOINT_DESC_LENGTH_MASK   0xf8          /* Datapoint length */
 #define IZOT_DATAPOINT_DESC_LENGTH_SHIFT  3
 #define IZOT_DATAPOINT_DESC_LENGTH_FIELD  LengthAndOrigin
 
-/*
- * Use the IZOT_DATAPOINT_DESC_ORIGIN_* macros to access the origin field in
- * IzotNmInstallResponse.DatapointDescriptor
- */
-#define IZOT_DATAPOINT_DESC_ORIGIN_MASK   0x07    /* Origin.  Use IzotDatapointOrigin. */
+// Macros to access the origin field in IzotNmInstallResponse.DatapointDescriptor
+#define IZOT_DATAPOINT_DESC_ORIGIN_MASK   0x07          /* Origin; use IzotDatapointOrigin */
 #define IZOT_DATAPOINT_DESC_ORIGIN_SHIFT  0
 #define IZOT_DATAPOINT_DESC_ORIGIN_FIELD  LengthAndOrigin
 
-/*
- * Use the IZOT_DATAPOINT_DESC_IS_OUTPUT_* macros to access the direction field in
- * IzotNmInstallResponse.DatapointDescriptor
- */
-#define IZOT_DATAPOINT_DESC_IS_OUTPUT_MASK   0x10    /* 1: output, 0: input */
+// Macros to access the direction field in IzotNmInstallResponse.DatapointDescriptor
+#define IZOT_DATAPOINT_DESC_IS_OUTPUT_MASK   0x10       /* 1: output, 0: input */
 #define IZOT_DATAPOINT_DESC_IS_OUTPUT_SHIFT  4
 #define IZOT_DATAPOINT_DESC_IS_OUTPUT_FIELD  Defaults
 
-/*
- * Use the IZOT_DATAPOINT_DESC_DFLT_AUTH_* macros to access the default authentication
- * field in IzotNmInstallResponse.DatapointDescriptor
- */
-#define IZOT_DATAPOINT_DESC_DFLT_AUTH_MASK   0x08    /* 1: authenticated, 0: unauthenticated */
+// Macros to access the default authentication field in IzotNmInstallResponse.DatapointDescriptor
+#define IZOT_DATAPOINT_DESC_DFLT_AUTH_MASK   0x08       /* 1: authenticated, 0: unauthenticated */
 #define IZOT_DATAPOINT_DESC_DFLT_AUTH_SHIFT  3
 #define IZOT_DATAPOINT_DESC_DFLT_AUTH_FIELD  Defaults
 
-/*
- * Use the IZOT_DATAPOINT_DESC_DFLT_PRIORITY_* macros to access the default priority
- * field in IzotNmInstallResponse.DatapointDescriptor
- */
-#define IZOT_DATAPOINT_DESC_DFLT_PRIORITY_MASK   0x04    /* 1: priority, 0: non-priority */
+// Macros to access the default priority field in IzotNmInstallResponse.DatapointDescriptor
+#define IZOT_DATAPOINT_DESC_DFLT_PRIORITY_MASK   0x04   /* 1: priority, 0: non-priority */
 #define IZOT_DATAPOINT_DESC_DFLT_PRIORITY_SHIFT  2
 #define IZOT_DATAPOINT_DESC_DFLT_PRIORITY_FIELD  Defaults
 
-/*
- * Use the IZOT_DATAPOINT_DESC_DFLT_SERVICE_* macros to access the service field in
- * IzotNmInstallResponse.DatapointDescriptor
- */
-#define IZOT_DATAPOINT_DESC_DFLT_SERVICE_MASK   0x03    /* default service type.  Use IzotServiceType. */
+// Macros to access the default service field in IzotNmInstallResponse.DatapointDescriptor
+#define IZOT_DATAPOINT_DESC_DFLT_SERVICE_MASK   0x03    /* Default service type; use IzotServiceType. */
 #define IZOT_DATAPOINT_DESC_DFLT_SERVICE_SHIFT  0
 #define IZOT_DATAPOINT_DESC_DFLT_SERVICE_FIELD  Defaults
 
-/*
- * Use the IZOT_DATAPOINT_DESC_ATTR_SYNC_* macros to access the dp_sync field in
- * IzotNmInstallResponse.DatapointDescriptor
- */
-#define IZOT_DATAPOINT_DESC_ATTR_SYNC_MASK   0x40    /* 1: sync Datapoint, 0: non-sync Datapoint */
+// Macros to access the dp_sync field in IzotNmInstallResponse.DatapointDescriptor
+#define IZOT_DATAPOINT_DESC_ATTR_SYNC_MASK   0x40       /* 1: sync Datapoint, 0: non-sync Datapoint */
 #define IZOT_DATAPOINT_DESC_ATTR_SYNC_SHIFT  6
 #define IZOT_DATAPOINT_DESC_ATTR_SYNC_FIELD  BasicAttributes
 
-/*
- * Use the IZOT_DATAPOINT_DESC_ATTR_POLLED_* macros to access the dp_polled field in
- * IzotNmInstallResponse.DatapointDescriptor
- */
-#define IZOT_DATAPOINT_DESC_ATTR_POLLED_MASK   0x20    /* 1: polled or polling input, 0: not polled */
+// Macros to access the dp_polled field in IzotNmInstallResponse.DatapointDescriptor
+#define IZOT_DATAPOINT_DESC_ATTR_POLLED_MASK   0x20     /* 1: polled or polling input, 0: not polled */
 #define IZOT_DATAPOINT_DESC_ATTR_POLLED_SHIFT  5
 #define IZOT_DATAPOINT_DESC_ATTR_POLLED_FIELD  BasicAttributes
 
-/*
- * Use the IZOT_DATAPOINT_DESC_ATTR_OFFLINE_* macros to access the dp_offline field in
- * IzotNmInstallResponse.DatapointDescriptor
- */
+// Macros to access the dp_offline field in IzotNmInstallResponse.DatapointDescriptor
 #define IZOT_DATAPOINT_DESC_ATTR_OFFLINE_MASK   0x10    /* 1: take offline prior to updating */
 #define IZOT_DATAPOINT_DESC_ATTR_OFFLINE_SHIFT  4
 #define IZOT_DATAPOINT_DESC_ATTR_OFFLINE_FIELD  BasicAttributes
 
-/*
- * Use the IZOT_DATAPOINT_DESC_ATTR_SRVC_TYPE_CONFIG_* macros to access the
- * dp_service_type_config field in IzotNmInstallResponse.DatapointDescriptor
- */
+// Macros to access the dp_service_type_config field in IzotNmInstallResponse.DatapointDescriptor
 #define IZOT_DATAPOINT_DESC_ATTR_SRVC_TYPE_CONFIG_MASK   0x08    /* 1: service type is configurable */
 #define IZOT_DATAPOINT_DESC_ATTR_SRVC_TYPE_CONFIG_SHIFT  3
 #define IZOT_DATAPOINT_DESC_ATTR_SRVC_TYPE_CONFIG_FIELD  BasicAttributes
 
-/*
- * Use the IZOT_DATAPOINT_DESC_ATTR_PRIORITY_CONFIG_* macros to access the
- * dp_priority_config field in IzotNmInstallResponse.DatapointDescriptor
- */
+// Macros to access the dp_priority_config field in IzotNmInstallResponse.DatapointDescriptor
 #define IZOT_DATAPOINT_DESC_ATTR_PRIORITY_CONFIG_MASK   0x04    /* 1: priority flag is configurable */
 #define IZOT_DATAPOINT_DESC_ATTR_PRIORITY_CONFIG_SHIFT  2
 #define IZOT_DATAPOINT_DESC_ATTR_PRIORITY_CONFIG_FIELD  BasicAttributes
 
-/*
- * Use the IZOT_DATAPOINT_DESC_ATTR_AUTH_CONFIG_* macros to access the dp_auth_config
- * field in IzotNmInstallResponse.DatapointDescriptor
- */
+// Macros to access the dp_auth_config field in IzotNmInstallResponse.DatapointDescriptor
 #define IZOT_DATAPOINT_DESC_ATTR_AUTH_CONFIG_MASK   0x02    /* 1: authentication flag is configurable */
 #define IZOT_DATAPOINT_DESC_ATTR_AUTH_CONFIG_SHIFT  1
 #define IZOT_DATAPOINT_DESC_ATTR_AUTH_CONFIG_FIELD  BasicAttributes
 
-/*
- * Use the IZOT_DATAPOINT_DESC_ATTR_CONFIG_CLASS_* macros to access the
- * dp_config_class field in IzotNmInstallResponse.DatapointDescriptor
- */
+// Macros to access the dp_config_class field in IzotNmInstallResponse.DatapointDescriptor
 #define IZOT_DATAPOINT_DESC_ATTR_CONFIG_CLASS_MASK   0x01    /* 1: a config Datapoint, 0: non-config Datapoint */
 #define IZOT_DATAPOINT_DESC_ATTR_CONFIG_CLASS_SHIFT  0
 #define IZOT_DATAPOINT_DESC_ATTR_CONFIG_CLASS_FIELD  BasicAttributes
 
-/*
- * Use the IZOT_DATAPOINT_DESC_EXT_ATTR_MRE_AVAIL_* macros to access the max rate
- * estimate (mre) field in IzotNmInstallResponse.DatapointDescriptor
- */
+// Macros to access the max rate estimate (mre) field in IzotNmInstallResponse.DatapointDescriptor
 #define IZOT_DATAPOINT_DESC_EXT_ATTR_MRE_AVAIL_MASK   0x80    /* 1: Max rate estimate available using IzotInstallQueryDatapointInfo, IzotDatapointInfoRateEstimate */
 #define IZOT_DATAPOINT_DESC_EXT_ATTR_MRE_AVAIL_SHIFT  7
 #define IZOT_DATAPOINT_DESC_EXT_ATTR_MRE_AVAIL_FIELD  ExtendedAttributes
 
-/*
- * Use the IZOT_DATAPOINT_DESC_EXT_ATTR_RE_AVAIL_* macros to access the rate estimate
- * (re) field in IzotNmInstallResponse.DatapointDescriptor
- */
+// Macros to access the rate estimate (re) field in IzotNmInstallResponse.DatapointDescriptor
 #define IZOT_DATAPOINT_DESC_EXT_ATTR_RE_AVAIL_MASK   0x40    /* 1: Average rate estimate available using IzotInstallQueryDatapointInfo, IzotDatapointInfoRateEstimate */
 #define IZOT_DATAPOINT_DESC_EXT_ATTR_RE_AVAIL_SHIFT  6
 #define IZOT_DATAPOINT_DESC_EXT_ATTR_RE_AVAIL_FIELD  ExtendedAttributes
 
-/*
- * Use the IZOT_DATAPOINT_DESC_EXT_ATTR_NAME_AVAIL_* macros to access the dp_name
- * field in IzotNmInstallResponse.DatapointDescriptor
- */
+// Macros to access the dp_name field in IzotNmInstallResponse.DatapointDescriptor
 #define IZOT_DATAPOINT_DESC_EXT_ATTR_NAME_AVAIL_MASK   0x20    /* 1: Datapoint Name is available using IzotInstallQueryDatapointInfo, IzotDatapointInfoName. */
 #define IZOT_DATAPOINT_DESC_EXT_ATTR_NAME_AVAIL_SHIFT  5
 #define IZOT_DATAPOINT_DESC_EXT_ATTR_NAME_AVAIL_FIELD  ExtendedAttributes
 
-/*
- * Use the IZOT_DATAPOINT_DESC_EXT_ATTR_SD_AVAIL_* macros to access the sd field in
- * IzotNmInstallResponse.DatapointDescriptor
- */
+// Macros to access the sd field in IzotNmInstallResponse.DatapointDescriptor
 #define IZOT_DATAPOINT_DESC_EXT_ATTR_SD_AVAIL_MASK   0x10    /* 1: Datapoint SD text is available using IzotInstallQueryDatapointInfo, IzotDatapointInfoSdText  */
 #define IZOT_DATAPOINT_DESC_EXT_ATTR_SD_AVAIL_SHIFT  4
 #define IZOT_DATAPOINT_DESC_EXT_ATTR_SD_AVAIL_FIELD  ExtendedAttributes
 
-/*
- * Use the IZOT_DATAPOINT_DESC_EXT_ATTR_NAME_SUPPLIED_* macros to access the
- * name_supplied field in IzotNmInstallResponse.DatapointDescriptor
- */
+// Macros to access the name_supplied field in IzotNmInstallResponse.DatapointDescriptor
 #define IZOT_DATAPOINT_DESC_EXT_ATTR_NAME_SUPPLIED_MASK   0x08    /* 1: Name is supplied in IzotNmInstallResponse.DatapointDescriptor */
 #define IZOT_DATAPOINT_DESC_EXT_ATTR_NAME_SUPPLIED_SHIFT  3
 #define IZOT_DATAPOINT_DESC_EXT_ATTR_NAME_SUPPLIED_FIELD  ExtendedAttributes
 
-typedef IZOT_UNION_BEGIN(IzotNmInstallResponse)
-{
-    /* Response for requested info IzotInstallQueryDatapointInfo, IzotDatapointInfoDescriptor */
-    IZOT_STRUCT_NESTED_BEGIN(DatapointDescriptor)
-    {
+typedef IZOT_UNION_BEGIN(IzotNmInstallResponse) {
+    /* Response for IzotInstallQueryDatapointInfo, IzotDatapointInfoDescriptor */
+    IZOT_STRUCT_NESTED_BEGIN(DatapointDescriptor) {
         IzotByte LengthAndOrigin;    /* Use IZOT_DATAPOINT_DESC_LENGTH_* and IZOT_DATAPOINT_DESC_ORIGIN_* macros */
         IzotByte Defaults;           /* Use IZOT_DATAPOINT_DESC_IS_OUTPUT_* and IZOT_DATAPOINT_DESC_DFLT_* macros */
         IzotByte BasicAttributes;    /* Use IZOT_DATAPOINT_DESC_ATTR_* macros */
@@ -2327,65 +2020,50 @@ typedef IZOT_UNION_BEGIN(IzotNmInstallResponse)
                                         IZOT_DATAPOINT_DESC_EXT_ATTR_NAME_SUPPLIED flag is set. */
     } IZOT_STRUCT_NESTED_END(DatapointDescriptor);
 
-    /* Response for requested info IzotInstallQueryDatapointInfo, IzotDatapointInfoRateEstimate */
-    IZOT_STRUCT_NESTED_BEGIN(DatapointRate)
-    {
+    /* Response for IzotInstallQueryDatapointInfo, IzotDatapointInfoRateEstimate */
+    IZOT_STRUCT_NESTED_BEGIN(DatapointRate) {
         IzotByte    RateEstimate;       /* Encoded rate estimate. Only valid if 'IZOT_DATAPOINT_DESC_EXT_ATTR_RE_AVAIL' is set in DatapointDescriptor. */
-        IzotByte    MaxRateEstimate;    /* Encoded max rate estimate. Only valid if 'IZOT_DATAPOINT_DESC_EXT_ATTR_MRE_AVAIL' is set in DatapointDescriptor. */
+        IzotByte    MaxRateEstimate;    /* Encoded max rate estimate; only valid if 'IZOT_DATAPOINT_DESC_EXT_ATTR_MRE_AVAIL' is set in DatapointDescriptor. */
     } IZOT_STRUCT_NESTED_END(DatapointRate);
 
-    /* Response for requested info IzotInstallQueryDatapointInfo, IzotDatapointInfoName */
-    char    DatapointName[IZOT_DATAPOINT_NAME_LEN];   /* Datapoint name. Only valid if 'nm' set in Datapoint DatapointDescriptor. */
+    /* Response for IzotInstallQueryDatapointInfo, IzotDatapointInfoName */
+    char DatapointName[IZOT_DATAPOINT_NAME_LEN];   /* Datapoint name; only valid if 'nm' set in Datapoint DatapointDescriptor. */
 
-    /* Response for requested info IzotInstallQueryDatapointInfo, IzotDatapointInfoSdText */
-    IZOT_STRUCT_NESTED_BEGIN(DatapointSd)
-    {
+    /* Response for IzotInstallQueryDatapointInfo, IzotDatapointInfoSdText */
+    IZOT_STRUCT_NESTED_BEGIN(DatapointSd) {
         IzotByte    Length;      /* Number of bytes of SD text returned */
         IzotByte    Text[1];     /* SD text - actual length is Length above.
                                  * Might not be NULL terminated. */
     } IZOT_STRUCT_NESTED_END(DatapointSd);
 
-    /* Response for requested info IzotInstallQueryDatapointInfo, IzotDatapointInfoSnvtIndex */
+    /* Response for IzotInstallQueryDatapointInfo, IzotDatapointInfoSnvtIndex */
     IzotByte    SnvtTypeIndex;
 
-    /* Response for requested info IzotInstallQueryNodeInfo, IzotNodeInfoSdText */
-    IZOT_STRUCT_NESTED_BEGIN(NodeSd)
-    {
+    /* Response for IzotInstallQueryNodeInfo, IzotNodeInfoSdText */
+    IZOT_STRUCT_NESTED_BEGIN(NodeSd) {
         IzotByte    Length;      /* Number of bytes of SD text returned */
         IzotByte    Text[1];     /* SD text - actual length is Length above.
-                                 * Might not be NULL terminated. */
+                                  * Might not be NULL terminated. */
     } IZOT_STRUCT_NESTED_END(NodeSd);
 } IZOT_UNION_END(IzotNmInstallResponse) ;
 
-/*
- *  Typedef: IzotNmSetNodeModeRequest
- *  Message structure for standard network management command *IzotNmSetNodeMode*.
- */
-typedef IZOT_STRUCT_BEGIN(IzotNmSetNodeModeRequest)
-{
+// Message structure for standard network management command *IzotNmSetNodeMode*
+typedef IZOT_STRUCT_BEGIN(IzotNmSetNodeModeRequest) {
     IZOT_ENUM(IzotNodeMode)     Mode;
     IZOT_ENUM(IzotNodeState)    State;  /* iff mode == IzotChangeState */
 } IZOT_STRUCT_END(IzotNmSetNodeModeRequest);
 
-/*
- *  Enumeration: IzotMemoryReadWriteMode
- *  Defines addressing mode for memory read and write request.
- */
-typedef IZOT_ENUM_BEGIN(IzotMemoryReadWriteMode)
-{
-    IzotAbsoluteMemory           = 0,         /* Address is absolute Smart Transceiver memory address */
+// Defines addressing mode for memory read and write request
+typedef IZOT_ENUM_BEGIN(IzotMemoryReadWriteMode) {
+    IzotAbsoluteMemory           = 0,         /* Address is absolute memory address */
     IzotReadOnlyRelative         = 1,         /* Address is offset into read-only memory structures */
     IzotConfigStructRelative     = 2,         /* Address is offset into configuration data structures */
     IzotStatisticStructRelative  = 3,         /* Address is offset into statistics data structures */
-    IzotMemoryModeReserved_A     = 4          /* Reserved for Echelon internal use only */
+    IzotMemoryModeReserved_A     = 4          /* Reserved */
 } IZOT_ENUM_END(IzotMemoryReadWriteMode);
 
-/*
- *  Enumeration: IzotMemoryWriteForm
- *  Defines actions that follow a memory write request.
- */
-typedef IZOT_ENUM_BEGIN(IzotMemoryWriteForm)
-{
+// Defines actions that follow a memory write request
+typedef IZOT_ENUM_BEGIN(IzotMemoryWriteForm) {
     IzotNoAction                   = 0,
     IzotBothCsRecalculation        = 1,
     IzotDeltaCsRecalculation       = 3,
@@ -2395,27 +2073,18 @@ typedef IZOT_ENUM_BEGIN(IzotMemoryWriteForm)
     IzotConfigCsRecalculationReset = 12
 } IZOT_ENUM_END(IzotMemoryWriteForm);
 
-/*
- *  Typedef: IzotNmReadMemoryRequest
- *  Message structure used with the *IzotNmReadMemory* request.
- */
-typedef IZOT_STRUCT_BEGIN(IzotNmReadMemoryRequest)
-{
+// Message structure used with the *IzotNmReadMemory* request
+typedef IZOT_STRUCT_BEGIN(IzotNmReadMemoryRequest) {
     IZOT_ENUM(IzotMemoryReadWriteMode)     Mode;
     IzotWord     Address;
     IzotByte     Count;
 } IZOT_STRUCT_END(IzotNmReadMemoryRequest);
 
-/*
- *  Typedef: IzotNmWriteMemoryRequest
- *  Message structure used with the *IzotNmWriteMemory* request.
- *
- *  Note that this structure shows only the message header. The message header
- *  is followed by the data to write, which must be *count* bytes following
- *  the field *Form*.
- */
-typedef IZOT_STRUCT_BEGIN(IzotNmWriteMemoryRequest)
-{
+// Message structure used with the *IzotNmWriteMemory* request. This
+// structure shows only the message header. The message header is
+// followed by the data to write, which must be *count* bytes following
+// the *Form* field.
+typedef IZOT_STRUCT_BEGIN(IzotNmWriteMemoryRequest) {
     IZOT_ENUM(IzotMemoryReadWriteMode)    Mode;
     IzotWord     Address;
     IzotByte     Count;
@@ -2423,18 +2092,13 @@ typedef IZOT_STRUCT_BEGIN(IzotNmWriteMemoryRequest)
     /* <count> bytes of data following... */
 } IZOT_STRUCT_END(IzotNmWriteMemoryRequest);
 
-/*
- *  Enumeration: IzotApplicationMessageCode
- *  Message codes used with application messages.
- *
- *  Application message codes are in the [IzotApplicationMsg, IzotForeignMsg]
- *  range, but selected values are frequently used and should be avoided:
- * IzotApplicationIsi is used by the Interoperable Self-Installation (ISI)
- *  protocol, and IzotApplicationFtp is used for the interoperable file
- *  transfer protocol (FTP).
- */
-typedef IZOT_ENUM_BEGIN(IzotApplicationMessageCode)
-{
+// Message codes used with application messages. Application message
+// codes are in the [IzotApplicationMsg, IzotForeignMsg] range, but
+// these values are frequently used and should be avoided:
+// IzotApplicationIsi is used by the Interoperable Self-Installation (ISI)
+// protocol, and IzotApplicationFtp is used for the interoperable file
+// transfer protocol (FTP).
+typedef IZOT_ENUM_BEGIN(IzotApplicationMessageCode) {
     IzotApplicationMsg        = 0x00,
     IzotApplicationIsi        = 0x3D,
     IzotApplicationFtp        = 0x3E,
@@ -2444,136 +2108,99 @@ typedef IZOT_ENUM_BEGIN(IzotApplicationMessageCode)
     IzotLastMessageCode       = 0x4F
 } IZOT_ENUM_END(IzotApplicationMessageCode);
 
-/*
- *  Typedef: IzotNmQueryDomainRequest
- *  Message structure used with *IzotNmQueryDomain*.
- */
-typedef IZOT_STRUCT_BEGIN(IzotNmQueryDomainRequest)
-{
+// Message structure used with *IzotNmQueryDomain*
+typedef IZOT_STRUCT_BEGIN(IzotNmQueryDomainRequest) {
     IzotByte Index;             /* Domain index                 */
 } IZOT_STRUCT_END(IzotNmQueryDomainRequest);
 
-/*
- *  Typedef: IzotNmQueryDatapointAliasRequest
- *  Message structure used with *IzotNmQueryDatapointConfig*.
- *
- */
-typedef IZOT_STRUCT_BEGIN(IzotNmQueryDatapointAliasRequest)
-{
+// Message structure used with *IzotNmQueryDatapointConfig*
+typedef IZOT_STRUCT_BEGIN(IzotNmQueryDatapointAliasRequest) {
     IzotWord  Index;             /* Datapoint config table index                 */
 } IZOT_STRUCT_END(IzotNmQueryDatapointAliasRequest);
 
-/*
- *  Typedef: IzotNmQueryAddressRequest
- *  Message structure used with *IzotNmQueryAddr*.
- */
-typedef IZOT_STRUCT_BEGIN(IzotNmQueryAddressRequest)
-{
-    IzotByte Index;             /* address table index                 */
+// Message structure used with *IzotNmQueryAddr*
+typedef IZOT_STRUCT_BEGIN(IzotNmQueryAddressRequest) {
+    IzotByte Index;             /* Address table index                 */
 } IZOT_STRUCT_END(IzotNmQueryAddressRequest);
 
-/*
- *  Typedef: IzotNdQueryStatusResponse
- *  Message structure used with responses to *IzotNdQueryStatus*.
- */
-typedef IZOT_STRUCT_BEGIN(IzotNdQueryStatusResponse)
-{
+// Message structure used with responses to *IzotNdQueryStatus*
+typedef IZOT_STRUCT_BEGIN(IzotNdQueryStatusResponse) {
     IzotStatus    Status;
 } IZOT_STRUCT_END(IzotNdQueryStatusResponse);
 
-/*
- *  Typedef: IzotNdQueryXcvrResponse
- *  Message structure used with responses to *IzotNdQueryXcvr*.
- */
-typedef IZOT_STRUCT_BEGIN(IzotNdQueryXcvrResponse)
-{
+// Message structure used with responses to *IzotNdQueryXcvr*
+typedef IZOT_STRUCT_BEGIN(IzotNdQueryXcvrResponse) {
     IzotTransceiverParameters    Status;
 } IZOT_STRUCT_END(IzotNdQueryXcvrResponse);
 
-/*
- *  Typedef: IzotNmUpdateAddressRequest
- *  Message structure used with *IzotNmUpdateAddr* requests.
- */
-typedef IZOT_STRUCT_BEGIN(IzotNmUpdateAddressRequest)
-{
+// Message structure used with *IzotNmUpdateAddr* requests
+typedef IZOT_STRUCT_BEGIN(IzotNmUpdateAddressRequest) {
     IzotByte      Index;
     IzotAddress   Address;
 } IZOT_STRUCT_END(IzotNmUpdateAddressRequest);
 
-/*
- *  Typedef: IzotNmUpdateDatapointRequest
- *  Message structure used with *IzotNmUpdateDatapointConfig* requests.
- *
- *  This structure is used to update the datapoint configuration table.
- *  The structure exists in two forms. If the 'ShortIndex' field is in the
- *  range 0..254, use the ShortForm union member. If the short index equals
- *  255, use the LongForm union member and obtain the true index from the
- * LongIndex field. Note that the data structure shown is an abstraction; the
- *  actual message frame used is the smallest possible.
- */
-typedef IZOT_STRUCT_BEGIN(IzotNmUpdateDatapointRequest)
-{
+// Message structure used with *IzotNmUpdateDatapointConfig* requests.
+// This structure is used to update the datapoint configuration table.
+// The structure exists in two forms. If the ShortIndex field is in the
+// range 0..254, use the ShortForm union member. If the short index equals
+// 255, use the LongForm union member and obtain the true index from the
+// LongIndex field. Note that the data structure shown is an abstraction;
+// the actual message frame used is the smallest possible.
+typedef IZOT_STRUCT_BEGIN(IzotNmUpdateDatapointRequest) {
     IzotByte      ShortIndex;
 
-    IZOT_UNION_NESTED_BEGIN(Request)
-    {
-        IZOT_STRUCT_NESTED_BEGIN(ShortForm)
-        {
+    IZOT_UNION_NESTED_BEGIN(Request) {
+        IZOT_STRUCT_NESTED_BEGIN(ShortForm) {
             IzotDatapointConfig     DatapointConfig;
         } IZOT_STRUCT_NESTED_END(ShortForm);
-        IZOT_STRUCT_NESTED_BEGIN(LongForm)
-        {
+        IZOT_STRUCT_NESTED_BEGIN(LongForm) {
             IzotWord LongIndex;
             IzotDatapointConfig     DatapointConfig;
         } IZOT_STRUCT_NESTED_END(LongForm);
     } IZOT_UNION_NESTED_END(Request);
 } IZOT_STRUCT_END(IzotNmUpdateDatapointRequest);
 
-/*
- *  Typedef: IzotNmUpdateAliasRequest
- *  Message structure used with *IzotNmUpdateDatapointConfig* requests.
- *
- *  This structure is used to update the alias configuration table. The
- *  structure exists in two forms. If the 'ShortIndex' field is in the range
- *  0..254, use the ShortForm union member. If the short index equals 255, use
- *  the LongForm union member and obtain the true index from the LongIndex
- *  field. The index should be that of the alias plus the datapoint
- *  count; the alias table follows the datapoint config table and the
- *  index continues from that table.  Note that the data structure shown is an
- *  abstraction; the actual message frame used is the smallest possible.
- */
-typedef IZOT_STRUCT_BEGIN(IzotNmUpdateAliasRequest)
-{
- IzotByte      ShortIndex;
+// Message structure used with *IzotNmUpdateDatapointConfig* requests.
+// This structure is used to update the alias configuration table. The
+// structure exists in two forms. If the 'ShortIndex' field is in the range
+// 0..254, use the ShortForm union member. If the short index equals 255, use
+// the LongForm union member and obtain the true index from the LongIndex
+// field. The index should be that of the alias plus the datapoint count;
+// the alias table follows the datapoint config table and the index
+// continues from that table.  Note that the data structure shown is an
+// abstraction; the actual message frame used is the smallest possible.
+typedef IZOT_STRUCT_BEGIN(IzotNmUpdateAliasRequest) {
+    IzotByte ShortIndex;
 
-    IZOT_UNION_NESTED_BEGIN(Request)
-    {
-        IZOT_STRUCT_NESTED_BEGIN(ShortForm)
-        {
+    IZOT_UNION_NESTED_BEGIN(Request) {
+        IZOT_STRUCT_NESTED_BEGIN(ShortForm) {
             IzotAliasConfig  AliasConfig;
         } IZOT_STRUCT_NESTED_END(ShortForm);
-        IZOT_STRUCT_NESTED_BEGIN(LongForm)
-        {
+        IZOT_STRUCT_NESTED_BEGIN(LongForm) {
             IzotWord LongIndex;
             IzotAliasConfig  AliasConfig;
         } IZOT_STRUCT_NESTED_END(LongForm);
     } IZOT_UNION_NESTED_END(Request);
 } IZOT_STRUCT_END(IzotNmUpdateAliasRequest);
 
-/*
- *  Typedef: IzotNmUpdateDomainRequest
- *  Message structure used with the *IzotNmUpdateDomain* request.
- */
-typedef IZOT_STRUCT_BEGIN(IzotNmUpdateDomainRequest)
-{
+// Message structure used with the *IzotNmUpdateDomain* request
+typedef IZOT_STRUCT_BEGIN(IzotNmUpdateDomainRequest) {
     IzotByte     Index;
     IzotDomain   Domain;
 } IZOT_STRUCT_END(IzotNmUpdateDomainRequest);
 
-/*
-*  Enumeration: IzotServiceType
-*  Literals for the service type.
-*/
+// Message structure used for an *IzotNmUpdateDomain* response
+typedef IZOT_STRUCT_BEGIN(IzotNmUpdateDomainResponse) {
+    IzotDomain   Domain;
+} IZOT_STRUCT_END(IzotNmUpdateDomainResponse);
+
+// LON Service message structure
+typedef IZOT_STRUCT_BEGIN(IzotServiceMsg) {
+    IzotByte	    neuron_id[IZOT_UNIQUE_ID_LENGTH];
+    IzotByte	    id_string[IZOT_PROGRAM_ID_LENGTH];
+} IZOT_STRUCT_END(IzotServiceMsg);
+
+// LON message service types
 typedef IZOT_ENUM_BEGIN(IzotServiceType)
 {
     IzotServiceAcknowledged       = 0,    /* ACKD         */
@@ -2583,24 +2210,18 @@ typedef IZOT_ENUM_BEGIN(IzotServiceType)
 	IzotServiceResponse           = 4     /* RESPONSE     */ /* Session Layer */
 } IZOT_ENUM_END(IzotServiceType);
 
+/*****************************************************************
+ * Section: Non-Volatile Data Globals
+ *****************************************************************/
 /*
- * *****************************************************************************
- * SECTION: NON-VOLATILE DATA
- * *****************************************************************************
- *
  * This section contains the enumerations and data types used for non-volatile
  * data (NVD) support.
  */
 
-/*
- * Enumeration: IzotPersistentSegType
- * Persistent data segment type. Configuration data is stored persistently
- * in persistent data segments, identified using this enumeration.  Used
- * by the non-volatile callback functions IzotPersistentxxx.
- *
- */
-typedef IZOT_ENUM_BEGIN(IzotPersistentSegType)
-{
+// Persistent data segment type. Configuration data is stored persistently
+// in persistent data segments, identified using this enumeration.  Used
+// by the non-volatile callback functions IzotPersistentxxx.
+typedef IZOT_ENUM_BEGIN(IzotPersistentSegType) {
 	IzotPersistentSegNetworkImage,      /* Basic network configuration, such as the
                                            domain table, address tables, and 
                                            datapoint configuration.
@@ -2623,89 +2244,54 @@ typedef IZOT_ENUM_BEGIN(IzotPersistentSegType)
     IzotPersistentSegUnassigned = 0xFF, /* Unassigned segment type */
 } IZOT_ENUM_END(IzotPersistentSegType);
 
-/*
- *  Macro: IZOT_STACK_INTERFACE_CURRENT_VERSION
- *  The current version of the <IzotStackInterfaceData> structure.
- *
- */
+// <IzotStackInterfaceData> structure version
 #define IZOT_STACK_INTERFACE_CURRENT_VERSION 0
 
-/*
- *  Macro: IZOT_CONTROL_DATA_CURRENT_VERSION
- *  The current version of the <IzotControlData> structure.
- *
- */
+// <IzotControlData> structure version
 #define IZOT_CONTROL_DATA_CURRENT_VERSION 0
 
-/*
- *  Macro: IzoT_NUM_COMM_BYTES
- *  The number of bytes of communication parameter data.
- *
- */
+// Number of bytes of communication parameter data
 #define IzoT_NUM_COMM_BYTES 16
 
-/*
- *  Enumeration: IzotTransceiverType
- *  IzoT Transceiver type.
- *
- *  This enumeration lists all transceivers supported by IzoT.
- */
-typedef IZOT_ENUM_BEGIN(IzotTransceiverType)
-{
-    IzotTransceiverTypeDefault,
-    IzotTransceiverType5MHz,
-    IzotTransceiverType10MHz,
-    IzotTransceiverType20MHz,
-    IzotTransceiverType40MHz,
-    IzotTransceiverTypeCustom,
+// LON transceiver types
+typedef IZOT_ENUM_BEGIN(IzotTransceiverType) {
+    IzotTransceiverTypeDefault,     /* Leave transceiver comm parameters unchanged */
+    IzotTransceiverType5MHz,        /* Use hard-coded 5MHz comm parameters */
+    IzotTransceiverType10MHz,       /* Use hard-coded 10MHz comm parameters */
+    IzotTransceiverType20MHz,       /* Use hard-coded 20MHz comm parameters */
+    IzotTransceiverType40MHz,       /* Use hard-coded 40MHz comm parameters */
+    IzotTransceiverTypeCustom,      /* Use custom comm parameters in CommParms field */
 } IZOT_ENUM_END(IzotTransceiverType);
 
-/*
- *  Typedef: IzotStackInterfaceData
- *  IzoT programmatic interface.
- *
- *  The <IzotStackInterfaceData> defines the static attributes of the program.
- */
-
-typedef IZOT_STRUCT_BEGIN(IzotStackInterfaceData)
-{
+// Static LON application attributes
+typedef IZOT_STRUCT_BEGIN(IzotStackInterfaceData) {
     uint8_t Version;                /* Format version number for future
-                                       extensions.  If the Izot
-                                       protocol stack does not recognize the
-                                       version, it will be rejected.  The
-                                       current version is
+                                       extensions.  If LON Stack does not
+                                       recognize the version, the structure
+                                       will be rejected.  The current version is
                                        IZOT_STACK_INTERFACE_CURRENT_VERSION. */
     uint32_t Signature;             /* 32-bit unique numerical application
                                        identifier. */
     IzotProgramId ProgramId;        /* Program ID string (array of 8 bytes) */
-    uint16_t StaticDatapoints;      /* Number of static datapoints */
-    uint16_t MaxDatapoints;         /* Maximum number of datapoints
-                                       (0..4096).  This is the maximum total
-                                       number of static and dynamic datapoints. */
+    uint16_t StaticDatapoints;      /* Number of static NVs */
+    uint16_t MaxDatapoints;         /* Maximum number of NVs (0..4096).  This 
+                                       is the maximum total number of static 
+                                       and dynamic NVs */
     uint8_t Domains;                /* Number of domain in the node (1 or 2) */
     uint16_t Addresses;             /* Maximum number of address table entries
                                        (0..4096) */
     uint16_t Aliases;               /* Maximum number of alias tables (0..8192) */
     uint16_t BindableMsgTags;       /* Number of bindable message tags (0.. 4096) */
-    const char *NodeSdString;       /* Node self documentation string. */
+    const char *NodeSdString;       /* Node self documentation string */
     uint8_t AvgDynDatapointSdLength;  /* Average number of bytes to reserve for
-                                       dynamic datapoint self-documentation data. */
+                                       dynamic datapoint self-documentation data */
     /* The following fields are added in version 1 of this structure: */
-    uint8_t *SiData;    /* Pointer to self-identification data, NULL for EX */
+    uint8_t *SiData;                /* Pointer to self-identification data, NULL for EX */
     uint32_t SiDataLength;          /* Size of self-identification data, in bytes (0 for EX) */
-
 } IZOT_STRUCT_END(IzotStackInterfaceData);
 
-/*
- *  Typedef: IzotControlData
- *  IzoT control data.
- *
- *  The IzotControlData structure contains data used to control the runtime
- *  aspects of the Izot protocol stack.
- */
-
-typedef IZOT_STRUCT_BEGIN(IzotControlData)
-{
+// Data structure used to control the runtime aspects of LON Stack
+typedef IZOT_STRUCT_BEGIN(IzotControlData) {
     uint8_t Version;                /* Format version number for future
                                        extensions.  Unknown versions will be
                                        rejected.  The current version is
@@ -2719,12 +2305,10 @@ typedef IZOT_STRUCT_BEGIN(IzotControlData)
                                        each new update comes in.  Valid range
                                        is 1 to 60 seconds. */
 
-        /* Defines the communication parameters used by the Izot
-           protocol stack. */
-    IZOT_STRUCT_BEGIN(CommParmeters)
-    {
+        /* Defines the communication parameters used by LON Stack */
+    IZOT_STRUCT_BEGIN(CommParmeters) {
             /* Transceiver type. If the value is IzoTTransceiverTypeDefault,
-               the comm. parameters in the IzoT Transceiver are left unchanged.
+               the comm. parameters in the LON transceiver are left unchanged.
                If the value is IzoTTransceiverTypeCustom, the comm. parameters
                are set based on the CommParms field.  Otherwise the comm.
                parameters are modified based on hard-coded comm. parameters
@@ -2733,25 +2317,21 @@ typedef IZOT_STRUCT_BEGIN(IzotControlData)
 
             /* An array of 16 bytes representing the comm. parameters.  If
                TransceiverType is IzoTTransceiverTypeCustom, these values are
-               written out to the IzoT Transceiver.  Otherwise they are
+               written out to the LON transceiver.  Otherwise they are
                ignored. */
         unsigned char CommParms[IzoT_NUM_COMM_BYTES];
     } IZOT_STRUCT_END(CommParmeters);
 
-        /* The number of and size of various buffers used by the Izot
-           protocol stack.
+        /* The number of and size of various buffers used by LON Stack.
            The buffer counts and sizes are considered a minimum recommendation.
-           Implementations of the IzoT Device Stack can chose to implement more
+           LON Stack implementations can chose to implement more
            or larger buffers provided that the minimum specifications provided
            here are met.
-           Note that some implementations of the IzoT Device Stack only implement
+           Some implementations of LON Stack only implement
            some of the buffer types defined here. */
-    IZOT_STRUCT_BEGIN(Buffers)
-    {
-        /* There are three categories of buffers used by the Izot
-           protocol stack */
-        IZOT_STRUCT_BEGIN(ApplicationBuffers)
-        {
+    IZOT_STRUCT_BEGIN(Buffers) {
+        /* There are three categories of buffers used by LON Stack */
+        IZOT_STRUCT_BEGIN(ApplicationBuffers) {
             uint8_t PriorityMsgOutCount;        /* Number of priority output
                                                    message buffers (1 to 100).
                                                    These are allocated on the
@@ -2769,30 +2349,28 @@ typedef IZOT_STRUCT_BEGIN(IzotControlData)
         } IZOT_STRUCT_END(ApplicationBuffers);
 
         /* These buffers are also allocated on the host and are used directly
-           by the link-layer driver that communicates with the IzoT
-           Transceiver.  At most, one such buffer is needed for output at any
+           by the link-layer driver that communicates with the LON network
+           interface.  At most, one such buffer is needed for output at any
            given time, but multiple input buffers might be required.  These
            buffers are shared for both input and output.  The size of the
-           buffers is determined by the transceiver�s network buffer size.   */
-        IZOT_STRUCT_BEGIN(LinkLayerBuffers)
-        {
+           buffers is determined by the transceiver network buffer size.   */
+        IZOT_STRUCT_BEGIN(LinkLayerBuffers) {
             uint8_t LinkLayerBufferCount;   /* Number of driver buffers (1 to
                                                100).  Recommended default = 2. */
         } IZOT_STRUCT_END(LinkLayerBuffers);
 
-        /* These are the buffers defined on the IzoT Transceiver.  The
-           application buffers on the transceiver are used only for local
-           network management, and therefore the Izot protocol stack
-           does not support modifying the application buffers.  The network
-           buffers can be configured.  Because these are defined on the IzoT
-           Transceiver, the counts and sizes must conform to those defined by
-           tables B.1 and B.2 in the EIA/CEA-709.1-B standard, and the total
-           memory requirement specified by the buffers must not exceed the
-           capacity of the transceiver's firmware.  The IzoT Transceiver has
-           hard-coded knowledge of the maximum buffer configuration, and
-           prevents accidentally exceeding these constraints. */
-        IZOT_STRUCT_BEGIN(TransceiverBuffers)
-        {
+        /* These are the buffers defined on the LON network interface.  The
+           application buffers on the network interface  are used only for
+           local network management, and therefore the LON Stack does not 
+           support modifying the application buffers.  The network buffers
+           can be configured.  Because these are defined on the LON network
+           interface, the counts and sizes must conform to those defined by
+           the ISO/IEC 14908-1 standard, and the total memory requirement
+           specified by the buffers must not exceed the capacity of the
+           transceiver's firmware. The LON network interface has
+           knowledge of the maximum buffer configuration, and prevents
+           accidentally exceeding these constraints. */
+        IZOT_STRUCT_BEGIN(TransceiverBuffers) {
             uint16_t NetworkBufferInputSize;      /* Must be at least 66 bytes.
                                                      Recommended default = 114. */
             uint16_t NetworkBufferOutputSize;     /* Must be at least 66 bytes.
@@ -2904,18 +2482,17 @@ typedef IZOT_STRUCT_BEGIN(IzotControlData)
     uint32_t TransmitTransIdLifetime;
 } IZOT_STRUCT_END(IzotControlData);
 
+/*****************************************************************
+ * Section: Synchronous Event Globals
+ *****************************************************************/
 /*
- * ******************************************************************************
- * SECTION: SYNCHRONOUS EVENTS
- * ******************************************************************************
- *
  *  This section defines the prototypes for the IzoT Device Stack API callback
  *  functions.
  *
  *  Remarks:
- *  Callback functions are called by the IzoT  protocol stack
- *  immediately, as needed, and may be called from any IzoT task or thread.  The
- *  application *must not* call into the IzoT Device Stack API from within a
+ *  Callback functions are called by the LON Stack
+ *  immediately, as needed, and may be called from any LON task or thread.  The
+ *  application *must not* call into the LON Stack API from within a
  *  synchronous event handler.
  */
 
@@ -2935,11 +2512,11 @@ typedef IZOT_STRUCT_BEGIN(IzotControlData)
  *  (unsigned)-1. If the datapoint size is changeable, the
  *  current size should be returned.
  *
- *  The IzoT  protocol stack will not propagate a datapoint with
+ *  LON Stack will not propagate a datapoint with
  *  size 0, nor will it generate an update event if a datapoint update
  *  is received from the network when the current datapoint size is 0.
  *
- *  Note that even though this is a callback function, it *is* legal for the
+ *  Even though this is a callback function, it *is* legal for the
  *  application to call <IzotGetDeclaredDatapointSize> from this callback.
  *
  *  Use <IzotGetCurrentDatapointSizeRegistrar> to register a handler for
@@ -2954,7 +2531,7 @@ typedef unsigned (*IzotGetCurrentDatapointSizeFunction)(const signed index);
 
 /*
  *  Callback: IzotMemoryRead
- *  Read memory in the IzoT device's memory space.
+ *  Read memory in the LON device's memory space.
  *
  *  Parameters:
  *  address - virtual address of the memory to be read
@@ -2962,10 +2539,10 @@ typedef unsigned (*IzotGetCurrentDatapointSizeFunction)(const signed index);
  *  pData - pointer to a buffer to store the requested data
  *
  *  Remarks:
- *  The IzoT protocol stack calls <IzotMemoryRead> whenever it receives
+ *  The LON Stack calls <IzotMemoryRead> whenever it receives
  *  a network management memory read request that fits into the registered
  *  file access window. This callback function is used to read data starting
- *  at the specified virtual memory address, but located within the IzoT
+ *  at the specified virtual memory address, but located within the LON
  *  application. This event is generally used to provide access to property
  *  template and value files through standard memory read protocol messages.
  *
@@ -2982,7 +2559,7 @@ typedef LonStatusCode (*IzotMemoryReadFunction)(const unsigned address,
 
 /*
  *  Callback: IzotMemoryWrite
- *  Update memory in the IzoT device's memory space.
+ *  Update memory in the LON device's memory space.
  *
  *  Parameters:
  *  address - virtual address of the memory to be written
@@ -2990,14 +2567,14 @@ typedef LonStatusCode (*IzotMemoryReadFunction)(const unsigned address,
  *  pData - pointer to the data to write
  *
  *  Remarks:
- *  The IzoT  protocol stack calls <IzotMemoryWrite> whenever it
+ *  LON Stack calls <IzotMemoryWrite> whenever it
  *  receives a network management memory write request that fits into the
  *  registered file access window. This callback function is used to write
- *  data at the specified virtual memory address, but located within the IzoT
+ *  data at the specified virtual memory address, but located within the LON
  *  application. This event is generally used to provide access to property
  *  value files through standard memory write protocol messages.
  *
- *  The IzoT protocol stack automatically calls the
+ *   LON Stack automatically calls the
  *  <IzotPersistentAppSegmentHasBeenUpdated> function to schedule an update
  *  whenever this callback returns <LonStatusCode>.
  *
@@ -3016,8 +2593,8 @@ typedef LonStatusCode (*IzotMemoryWriteFunction)(const unsigned address,
  *  Persistent data support events
  *
  *  Persistent data is variable data which must be kept safe across a device
- *  reset or a power cycle. The IzoT Device Stack EX provides transparent
- *  persistent data management functions, but the DX stack, which generally
+ *  reset or a power cycle. LON Stack EX provides transparent
+ *  persistent data management functions, but LON Stack DX, which generally
  *  supports resource-limited platforms, uses the events defined in this
  *  section. Applications implement these events to supply the low-level
  *  functionality, for example by storing the persistent data segments in
@@ -3029,7 +2606,7 @@ typedef LonStatusCode (*IzotMemoryWriteFunction)(const unsigned address,
  *  Open a persistent data segment for reading.
  *
  *  Parameters:
- *  persistentSegType -  type of persistent data to be opened
+ *  persistentSegType - type of persistent data to be opened
  *
  *  Returns:
  *  <IzotPersistentSegType>.
@@ -3064,9 +2641,9 @@ typedef IzotPersistentSegType (*IzotPersistentSegOpenForReadFunction)(const Izot
  *  <IzotPersistentSegType>.
  *
  *  Remarks:
- *  This function is called by the LON stack after changes have been made
+ *  This function is called by LON Stack after changes have been made
  *  to data that is backed by persistent storage. Multiple updates may
- *  have been made.  This function is called only after the LON stack
+ *  have been made.  This function is called only after LON Stack
  *  determines that all updates have been completed, based on a flush
  *  timeout.
  *
@@ -3143,7 +2720,7 @@ typedef void (*IzotPersistentSegDeleteFunction)(
  *  pBuffer - pointer to buffer to store the data
  *
  *  Remarks:
- *  This function is called by the LON stack during initialization to
+ *  This function is called by LON Stack during initialization to
  *  read data from persistent storage. An error value is returned if the
  *  specified persistent segment type does not exist.
  *
@@ -3170,9 +2747,9 @@ typedef LonStatusCode (*IzotPersistentSegReadFunction)(const IzotPersistentSegTy
  *  pData - pointer to the data to write into the segment
  *
  *  Remarks:
- *  This function is called by the LON stack after changes have been
+ *  This function is called by LON Stack after changes have been
  *  made to data that is backed by persistent storage. Multiple updates
- *  may have been made.  This function is called only after the LON stack
+ *  may have been made.  This function is called only after LON Stack
  *  determines that all updates have been completed.
  *
  *  The offset will always be 0 on the first call after opening
@@ -3215,7 +2792,7 @@ typedef IzotBool (*IzotPersistentSegIsInTransactionFunction)(const IzotPersisten
  *  persistentSegType - persistent segment type
  *
  *  Remarks:
- *  This function is called by the LON stack when the first request
+ *  This function is called by LON Stack when the first request
  *  arrives to update data stored in the specified segment. The event handler
  *  updates the persistent data control structures to indicate that a
  *  transaction is in progress. The stack schedules writes to update the
@@ -3240,7 +2817,7 @@ typedef LonStatusCode (*IzotPersistentSegEnterTransactionFunction)(const IzotPer
  *  persistentSegType - persistent segment type
  *
  *  Remarks:
- *  This function is called by the LON stack after <IzotFlashSegWrite>
+ *  This function is called by LON Stack after <IzotFlashSegWrite>
  *  has returned success and there are no further updates required.
  *  See <IzotPersistentSegEnterTransactionFunction> for the complementary event.
  *
@@ -3303,19 +2880,18 @@ typedef LonStatusCode (*IzotPersistentSegDeserializeFunction) (
  */
 typedef LonStatusCode (*IzotPersistentSegSerializeFunction)(void * const pData, const size_t size);
 
+/*****************************************************************
+ * Section: Asynchronous Event Globals
+ *****************************************************************/
 /*
- * ******************************************************************************
- * SECTION: ASYNCHRONOUS EVENTS
- * ******************************************************************************
- *
- *  This section defines the prototypes for the IzoT Device Stack API event handler
+ *  This section defines the prototypes for the LON Stack API event handler
  *  functions.
  *
  *  Remarks:
- *  Like callback functions, event handlers are called from the IzoT Device Stack.
+ *  Like callback functions, event handlers are called from LON Stack.
  *  However, unlike callback functions, event handlers are only called in the
  *  context of the application task, and only when the application calls the
- *  <IzotEventPump> function. Also, the application may make IzoT Device Stack
+ *  <IzotEventPump> function. Also, the application may make LON Stack
  *  function calls from within handlers to synchronous events.
  */
 
@@ -3327,11 +2903,11 @@ typedef LonStatusCode (*IzotPersistentSegSerializeFunction)(void * const pData, 
  *  None
  *
  *  Remarks:
- *  Whenever the IzoT device has been reset, the mode of the device is changed
+ *  Whenever the LON device has been reset, the mode of the device is changed
  *  to *online*, but no IzotOnline() event is generated.
  *
- *  Note that resetting the IzoT device only affects the IzoT  protocol
- *  stack and does not cause a processor or application software reset.
+ *  Note that resetting the LON device only affects LON Stack and does not
+ *  cause a processor or application software reset.
  *
  *  Use <IzotResetRegistrar> to register a handler for this event.
  *  Without an application-specific reset event handler, this event does nothing.
@@ -3340,13 +2916,13 @@ typedef void (*IzotResetFunction)(void);
 
 /*
  *  Event: IzotWink
- *  Occurs when the IzoT device receives a WINK command.
+ *  Occurs when the LON device receives a Wink command.
  *
  *  Remarks:
- *  This event is not triggered when wink sub-commands (extended install
+ *  This event is not triggered when Wink sub-commands (extended install
  *  commands) are received.
- *  Applications are generally required to produce a non-harmful audible or
- *  visual response to a wink event. For example, a device might flash a
+ *  LON device applications can produce a non-harmful audible or
+ *  visual response to a Wink event. For example, a device might flash a
  *  dedicated LED for 20s. Wink events are used to identify individual devices
  *  in a larger installation.
  *
@@ -3360,7 +2936,7 @@ typedef void (*IzotWinkFunction)(void);
  *  Occurs when the IzoT device has entered the offline state.
  *
  *  Remarks:
- *  While the device is offline, the IzoT  protocol stack will not
+ *  While the device is offline, LON Stack will not
  *  generate datapoint updates, and will return an error when
  *  <IzotPropagate> is called.
  *
@@ -3527,13 +3103,13 @@ typedef void (*IzotResponseArrivedFunction)(
  *  Remarks:
  *  For unacknowledged or repeated messages, the transaction is complete when
  *  the message has been sent with the configured number of retries. For
- *  acknowledged messages, the IzoT  protocol stack calls
+ *  acknowledged messages, LON Stack calls
  *  <IzotMsgCompleted> with *success* set to TRUE after receiving
  *  acknowledgments from all of the destination devices, and calls
  *  <IzotMsgCompleted> with *success* set to FALSE if the transaction timeout
  *  period expires before receiving acknowledgements  from all destinations.
  *  Likewise, for request messages, the transaction is considered successful
- *  when the IzoT  protocol stack receives a response from each of the
+ *  when LON Stack receives a response from each of the
  *  destination devices, and unsuccessful if the transaction timeout expires
  *  before responses have been received from all destination devices.
  *
@@ -3553,18 +3129,17 @@ typedef void (*IzotMsgCompletedFunction)(
  *          defined in the IzotServiceLedState enumeration.
  *
  *  Remarks:
- *  Applications are generally required to provide a "service LED," even
- *  though the implementation may not use a physical LED. Other visual
- *  indicators, such as a designated area on a LCD display, may also be
- *  used to implement the "service LED" functionality.
+ *  Applications can provide a Service LED or other method of providing
+ *  visual feedback. For example, a designated area on an LCD display may
+ *  be used to implement the "service LED" functionality.
  *
- *  The service LED must be able to signal the configured state (LED off),
+ *  The Service LED can signal the configured state (LED off),
  *  unconfigured state (LED flashing at 0.5 Hz) or application-less state
- *  (LED solid on). Many applications override these states with additional
- *  information, for example when implementing the ISI connect LED
+ *  (LED solid on). Applications may override these states with additional
+ *  information, for example when implementing the ISI Connect LED
  *  functionality with the same physical hardware.
  *
- *  Use <IzotServiceLedStatusRegistrat> to register a handler for this event.
+ *  Use <IzotServiceLedStatusRegistrar> to register a handler for this event.
  *  Without an application-specific handler, this event does nothing.
  */
 typedef void (*IzotServiceLedStatusFunction)(
@@ -3573,7 +3148,7 @@ typedef void (*IzotServiceLedStatusFunction)(
 /*
  *  Event: IzotFilterMsgArrived
  *  Occurs when an application message arrives.
- *  This API is available with Izot Device Stack EX.
+ *  This API is available with LON Stack EX.
  *
  *  Parameters:
  *  pAddress - source and destination address (see <IzotReceiveAddress>)
@@ -3609,7 +3184,7 @@ typedef IzotBool (*IzotFilterMsgArrivedFunction)(
 /*
  *  Event: IzotFilterResponseArrived
  *  Occurs when a response arrives.
- *  This API is available with Izot Device Stack EX.
+ *  This API is available with LON Stack EX.
  *
  *  pAddress - source and destination address used for response (see
  *             <IzotResponseAddress>)
@@ -3640,7 +3215,7 @@ typedef IzotBool(*IzotFilterResponseArrivedFunction)(
 /*
  *  Event: IzotFilterMsgCompleted
  *  Occurs when a message transaction has completed.  See <IzotSendMsg>.
- *  This API is available with Izot Device Stack EX.
+ *  This API is available with LON Stack EX.
  *
  *  Parameters:
  *  tag - used to correlate the event with the message sent
@@ -3666,105 +3241,11 @@ typedef IzotBool(*IzotFilterMsgCompletedFunction)(const unsigned tag, const Izot
 
 typedef void (*IzotisiTickFunction)(void);
 
-/*
- * *****************************************************************************
- * SECTION: LON PROTOCOL CONSTANT DEFINITIONS
- * *****************************************************************************
- */
+/*****************************************************************
+ * Section: LON Stack Shared Data Structures
+ *****************************************************************/
 
-#define UNIQUE_NODE_ID_LEN 6   /* Length of the unique node ID          */
-#define ID_STR_LEN         8   /* Length of the program id string       */
-#define AUTH_KEY_LEN       6   /* Length of the authentication key      */
-#define OMA_KEY_LEN       12   /* Length of the OMA authentication key  */
-#define DOMAIN_ID_LEN      6   /* Maximum length for a domain id        */
-#define LOCATION_LEN       6   /* Maximum length for location string    */
-#define NUM_COMM_PARAMS    7   /* Max # of parameters for a transceiver */
-#define PROTOCOL_VERSION   0   /* Protocol version                      */
-#define MAX_DOMAINS        2   /* Maximum # of domains allowed          */
-
-/* Set the size of the array to log error messages from the LON Stack.
-   The error messages wrap around, if there are too many errors.
-   Errors seldom happen. So, there is no need for this to be too large. */
-#define ERROR_MSG_SIZE  1000   /* 20 messages each with 50 chars        */
-
-/* Flex domain indicates that the message was received in flex domain when
-   domain index is 2 */
-#define FLEX_DOMAIN        2   
-      
-/* When the application layer communicates with the transport or session layer,
-   the domain index for the outgoing message can be either set by the application 
-   layer or computed by the transport or session layer based on the destination 
-   address.  This value is used only in the TSASenParam structure.      */
-#define COMPUTE_DOMAIN_INDEX 3 
-
-#define MAX_GROUP_NUMBER 63    /* Maximum number of a node in a group   */
-
-/* Maximum number of array network variables allowed in
-    the application program. This constant is used to allocate
-    space that keeps track of all arrays and their dimension */
-#define MAX_NV_ARRAYS 10
-
-/* Maximum number of network output variables that can
-    be scheduled to be sent out at any point in time */
-#define MAX_NV_OUT     5
-
-/* To implement synchronous variables, the values of the
-    variables are to be stored along with index in the queue.
-    Define the maximum size (in bytes) of a network variable
-    in the application program. This is used for storage allocation. */
-#define MAX_NV_LENGTH 50
-
-/* Maximum number of network input variables that can
-    be scheduled to be polled at any point in time */
-#define MAX_NV_IN     50
-
-/* Maximum number of bytes in data array for msg_in, msg_out, resp_in etc.
-    This value is indepedent of application buffer sizes mentioned
-    earlier. Clearly it does not make sense for this value to be
-    larger than application buffer size (out or in). */
-#define MAX_DATA_SIZE 255
-
-/* Maximum size of message on the wire (approximate, might be over sized a byte or two for safety.) */
-#define MAX_PDU_SIZE (MAX_DATA_SIZE+21)
-
-/*********************************************************************
-   NUM_ADDR_TBL_ENTRIES:
-   The maximum supported value is 255.
-**********************************************************************/
-#define NUM_ADDR_TBL_ENTRIES   254     /* # of address table entries  */
-
-#define RECEIVE_TRANS_COUNT    16      /* Can be > 16 for Ref. Impl */
-
-#define NV_TABLE_SIZE          254     /* Check management tool for any restriction on maximum size */
-
-#define NV_ALIAS_TABLE_SIZE    254     /* Check management tool for any restriction on maximum size */
-
-/*******************************************************************************
-    For some targets, OsalAllocateMemory() uses an array to allocate storage
-    space dynamically.  The size of the array used for this allocation is 
-    determined by this constant. If it is too low, it may be impossible
-    to allocate necessary buffers or data structures.  If it is
-    too high, some memory is unused.  To determine an appropriate value,
-    set MALLOC_SIZE to some high value, run a test application, stop, and
-    check gp->mallocUsedSize to determine the current usage.
-    This array space is allocated during reset of all layers.
-    Tracing through the reset code of all layers will indicate
-    the approximate size of this array necessary.  The MALLOC_SIZE value
-    is not used if the target's OsalAllocateMemory() implementation
-    does not use such an array.  For example, if the OsalAllocateMemory()
-    implementation uses malloc(), this constant is not used.
-*******************************************************************************/
-#ifndef MALLOC_SIZE
-#define MALLOC_SIZE     10050
-#endif
-
-// LON/IP constants
-#define BROADCAST_PREFIX       0xEFC00000
-#define IP_ADDRESS_LEN         4
-#define MAX_NV_LEN_SUPPORTED   228
-#define IBOL_FINISH            0xFF
-
-  // Queue-entry structure
+// Queue-entry structure
 typedef struct {
     IzotUbits16 queueCnt;   /* Max number of items in queue. i.e capacity */
     IzotUbits16 queueSize;  /* Number of items currently in queue         */
@@ -3780,9 +3261,9 @@ typedef struct __attribute__ ((packed)) {
 	IzotUbits32	repeatTimeout;  // Repeat timeout on expiration (0 means not repeating)
 } LonTimer;
 
-// Structure: LonWatch
+// Stopwatch structure
 typedef struct {
-	IzotUbits32	start;			// Time watch started
+	IzotUbits32	start;			// Time stopwatch started
 } LonWatch;
 
 #endif /* _LON_TYPES_H */
