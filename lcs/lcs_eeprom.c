@@ -57,7 +57,12 @@ LonStatusCode LCS_ReadNvm(void)
 {
 	LonStatusCode status;
 	status = IzotPersistentSegRestore(IzotPersistentSegNetworkImage);
-	return ((status == 0) ? LonStatusNoError : LonStatusNotFound);
+	if (status == LonStatusNoError) {
+		OsalPrintDebug(LonStatusNoError, "LCS_ReadNvm: Restored network image from non-volatile memory");
+	} else {
+		OsalPrintDebug(status, "LCS_ReadNvm: Failed to restore network image from non-volatile memory--may be first boot");
+	}
+	return (status);
 }
 
 /*******************************************************************************

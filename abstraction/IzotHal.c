@@ -105,10 +105,19 @@ LonStatusCode persistentMemError = LonStatusNoError; // Last persistent memory e
 IzotBool persistentMemInitialized = FALSE; // Flag to indicate if flash is initialized
 
 #if OS_IS(LINUX)
-const char *configFilePath = "/var/lib/lon-device-stack/lon-app-config";
+static const char *configFilePathDefault = "/var/lib/lon-device-stack/lon-app-config";
                             // LON application configuration file path
 int flashFd = -1;           // File descriptor for the flash file
 const char *iface = "eth0"; // Hardware dependent IP interface name
+
+static const char *HalGetConfigFilePath(void)
+{
+    const char *overridePath = getenv("LON_STACK_DX_CONFIG_FILE");
+    if (overridePath && *overridePath) {
+        return overridePath;
+    }
+    return configFilePathDefault;
+}
 #endif // OS_IS(LINUX)
 
 #if PROCESSOR_IS(MC200)
@@ -194,14 +203,14 @@ LonStatusCode HalCreateConfigDirectory(const char *path, mode_t mode) {
 
 /*
  * Initializes the hardware-specific driver for interfacing with
- * persistent memory.
+ * persistent storage.
  * Parameters:
  *   None
  * Returns:
  *   LonStatusNoError (0) on success, or an <LonStatusCode> error code
  *   on failure.
  */
-LonStatusCode HalFlashDrvInit(void)
+LonStatusCode HalInitStorage(void)
 {
     if (!LON_SUCCESS(persistentMemError)) {   
         return persistentMemError;
@@ -213,7 +222,7 @@ LonStatusCode HalFlashDrvInit(void)
 #if OS_IS(LINUX)
     // Get directory portion of configuration file path
     char filedir[512];
-    snprintf(filedir, sizeof(filedir), "%s", configFilePath);
+    snprintf(filedir, sizeof(filedir), "%s", HalGetConfigFilePath());
     dirname(filedir); // modifies in place
 
     // Ensure configuration file path exists
@@ -227,7 +236,7 @@ LonStatusCode HalFlashDrvInit(void)
 }
 
 /*
- * Returns information about the flash region used for persistent data.
+ * Returns information about the storage used for persistent data.
  * Parameters:
  *   offset: pointer to offset of region in memory
  *   region_size: pointer to size of region in bytes
@@ -238,15 +247,16 @@ LonStatusCode HalFlashDrvInit(void)
  *   LonStatusNoError (0) on success, or an <LonStatusCode> error code
  *   on failure.
  * Notes:
- *   The flash region may be a directly mapped flash memory region,
- *   or it may be a file on a file system.  An offset to the flash
+ *   The storage region may be a directly mapped storage memory region,
+ *   or it may be a file on a file system.  An offset to the storage
  *   memory region is returned.  The offset is zero for a file on
  *   a file system, but is typically non-zero for a directly mapped
- *   memory flash memory region.  The flash region is used
+ *   storage memory region.  The storage region is used
  *   for persistent data storage.
  */
-LonStatusCode HalGetFlashInfo(size_t *offset, size_t *region_size,
-        int *number_of_blocks, size_t *block_size, int *number_of_regions)
+LonStatusCode HalStorageInfo(size_t *offset, size_t *region_size,
+        int *number_of_blocks, size_t *block_size, int *number_of_regions,
+        bool *erase_required, uint8_t *erase_value)
 {
     if (!LON_SUCCESS(persistentMemError)) {   
         return persistentMemError;
@@ -254,8 +264,12 @@ LonStatusCode HalGetFlashInfo(size_t *offset, size_t *region_size,
 
 #if OS_IS(LINUX)
     *offset             = LINUX_FLASH_OFFSET;
+    *erase_required     = false;
+    *erase_value        = 0;
 #elif PROCESSOR_IS(MC200)
     *offset             = FREERTOS_FLASH_OFFSET;
+    *erase_required     = true;
+    *erase_value        = 0xFF;
 #endif 
 
 #if OS_IS(LINUX) || PROCESSOR_IS(MC200)
@@ -269,6 +283,8 @@ LonStatusCode HalGetFlashInfo(size_t *offset, size_t *region_size,
     *number_of_blocks   = 0;
     *block_size         = 0;
     *number_of_regions  = 0;
+    *erase_required     = false;
+    *erase_value        = 0;
     persistentMemError  = LonStatusPersistentDataFailure
 #endif
 
@@ -277,14 +293,14 @@ LonStatusCode HalGetFlashInfo(size_t *offset, size_t *region_size,
 
 /*
  * Opens the hardware-specific driver for interfacing with 
- * persistent memory.
+ * persistent storage.
  * Parameters:
  *   None
  * Returns:
  *   LonStatusNoError (0) on success, or an <LonStatusCode> error code
  *   on failure.
  */
-LonStatusCode HalFlashDrvOpen(void)
+LonStatusCode HalOpenStorage(void)
 {
     if (!LON_SUCCESS(persistentMemError)) {   
         return persistentMemError;
@@ -295,10 +311,26 @@ LonStatusCode HalFlashDrvOpen(void)
         // Already open
         return persistentMemError = LonStatusNoError;
     }
-    flashFd = open(configFilePath, O_RDWR | O_CREAT, 0644);
+    flashFd = open(HalGetConfigFilePath(), O_RDWR | O_CREAT, 0644);
     if (flashFd == -1) {
         // Configuration file open error
         return persistentMemError = LonStatusPersistentDataAccessError;
+    }
+
+    // Ensure the configuration file is the expected fixed size.
+    // This allows random-access reads/writes up to FLASH_REGION_SIZE.
+    struct stat st;
+    if (fstat(flashFd, &st) != 0) {
+        close(flashFd);
+        flashFd = -1;
+        return persistentMemError = LonStatusPersistentDataAccessError;
+    }
+    if ((size_t)st.st_size != (size_t)FLASH_REGION_SIZE) {
+        if (ftruncate(flashFd, (off_t)FLASH_REGION_SIZE) != 0) {
+            close(flashFd);
+            flashFd = -1;
+            return persistentMemError = LonStatusPersistentDataAccessError;
+        }
     }
 #elif PROCESSOR_IS(MC200)
     // Open the flash device
@@ -316,13 +348,13 @@ LonStatusCode HalFlashDrvOpen(void)
 
 /*
  * Closes the hardware-specific driver for interfacing with
- * persistent memory.
+ * persistent storage.
  * Parameters:
  *   None
  * Returns:
  *   None
  */
-LonStatusCode HalFlashDrvClose(void)
+LonStatusCode HalCloseStorage(void)
 {
     if (!LON_SUCCESS(persistentMemError)) {   
         return persistentMemError;
@@ -342,16 +374,16 @@ LonStatusCode HalFlashDrvClose(void)
 }
 
 /*
- * Erases the persistent data from the specified starting offset
- * by the specified size in bytes.
+ * Prepare storage for writing persistent data from the specified starting
+ * offset by the specified size in bytes.
  * Parameters:
- *   start: offset in bytes from the start of the flash region
- *   size: number of bytes to erase
+ *   start: offset in bytes from the start of the storage region
+ *   size: number of bytes to prepare
  * Returns:
  *   LonStatusNoError (0) on success, or an <LonStatusCode> error code
  *   on failure.
  */
-LonStatusCode HalFlashDrvErase(size_t start, size_t size)
+LonStatusCode HalPrepareStorage(size_t start, size_t size)
 {
     if (!LON_SUCCESS(persistentMemError)) {   
         return persistentMemError;
@@ -410,10 +442,10 @@ LonStatusCode HalFlashDrvErase(size_t start, size_t size)
 }
 
 /*
- * Writes the contents of buffer `buf` to an open file descriptor
+ * Writes the contents of buffer `buf` to an open storage descriptor
  * `flashFd`, starting at offset `start` for `size` bytes.
  * Parameters:
- *   start: offset in bytes from the start of the flash region
+ *   start: offset in bytes from the start of the storage region
  *   size: number of bytes to write
  * Returns:
  *   LonStatusNoError (0) on success, or an <LonStatusCode> error code
@@ -422,7 +454,7 @@ LonStatusCode HalFlashDrvErase(size_t start, size_t size)
  *   The file is extended if the file size is less than the starting
  *   offset.
  */
-LonStatusCode HalFlashDrvWrite(IzotByte *buf, size_t start, size_t size)
+LonStatusCode HalWriteStorage(IzotByte *buf, size_t start, size_t size)
 {
     if (!LON_SUCCESS(persistentMemError)) {   
         return persistentMemError;
@@ -473,7 +505,7 @@ LonStatusCode HalFlashDrvWrite(IzotByte *buf, size_t start, size_t size)
  * Reads `size` bytes from the file descriptor `flashFd` into buffer
  * `buf`, starting at offset `start`.
  * Parameters:
- *   start: offset in bytes from the start of the flash region
+ *   start: offset in bytes from the start of the storage region
  *   size: number of bytes to read
  * Returns:
  *   LonStatusNoError (0) on success, or an <LonStatusCode> error code
@@ -481,7 +513,7 @@ LonStatusCode HalFlashDrvWrite(IzotByte *buf, size_t start, size_t size)
  * Notes:
  *    An error is returned if the file size is less than `start + size` bytes.
  */
-LonStatusCode HalFlashDrvRead(IzotByte *buf, size_t start, size_t size)
+LonStatusCode HalReadStorage(IzotByte *buf, size_t start, size_t size)
 {
     if (!LON_SUCCESS(persistentMemError)) {   
         return persistentMemError;

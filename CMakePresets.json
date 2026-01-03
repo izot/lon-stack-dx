@@ -9,6 +9,8 @@
       "toolchainFile": "${sourceDir}/aarch64-toolchain.cmake",
       "binaryDir": "${sourceDir}/build/arm64",
       "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_INSTALL_DO_STRIP": "OFF",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
       }
     },

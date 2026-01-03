@@ -371,6 +371,7 @@ Comments:
 ******************************************************************/
 void NodeReset(IzotByte firstReset)
 {
+    OsalPrintDebug(LonStatusNoError, "NodeReset: Start LON application reset with firstReset=%d", firstReset);
 #if LINK_IS(ETHERNET) || LINK_IS(WIFI)
     void APPReset(void), TCSReset(void), TSAReset(void), NWReset(void),
             LsUDPReset(void);
@@ -440,6 +441,7 @@ void NodeReset(IzotByte firstReset)
     gp->resetNode        = FALSE;
     
     IzotReset(NULL);
+    OsalPrintDebug(LonStatusNoError, "NodeReset: Completed LON application reset");
 }
 
 /*****************************************************************
@@ -457,11 +459,12 @@ LonStatusCode InitEEPROM(uint32_t signature)
     LonStatusCode status = LonStatusNoError;
     int i;
 
-    // We first get the persistent data from NVM.
+    
     if (!gp->initialized) {
         // Init all of NVM
         memset(eep, 0, sizeof(*eep));
 
+        // Get the persistent data from persistent data storage if available
         status = LCS_ReadNvm();
         if (status == LonStatusInvalidParameter) {
             // This can occur if the NVM image has grown too large for the max PAL size
@@ -470,13 +473,18 @@ LonStatusCode InitEEPROM(uint32_t signature)
         } else if (status != LonStatusNoError || 
                 memcmp(&eep->dimensions, &dimensions, sizeof(dimensions)) || 
                 eep->signature != signature) {
-            // Re-init all of NVM
+            // This is a first boot, corrupted non-volatile data segment, changed 
+            // segment structure, or changed signature--reset status to no error 
+            // and re-initialize persistent data storage
+            status = LonStatusNoError;
+
+            // Re-initialize all of NVM
             memset(eep, 0, sizeof(*eep));
 
             IZOT_SET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NODE_STATE, 
             IzotApplicationUnconfig);
 
-            /* Initialize configData */
+            // Initialize configuration data
             IZOT_SET_UNSIGNED_WORD(eep->configData.ChannelId, 0);
             IZOT_SET_ATTRIBUTE(eep->configData, IZOT_CONFIG_COMM_CLOCK, 3);
             IZOT_SET_ATTRIBUTE(eep->configData, IZOT_CONFIG_COMM_TYPE, 
@@ -496,13 +504,13 @@ LonStatusCode InitEEPROM(uint32_t signature)
             eep->configData.CommunicationParameters.TransceiverParameters[4] = 0;
             eep->configData.CommunicationParameters.TransceiverParameters[5] = 0;
             eep->configData.CommunicationParameters.TransceiverParameters[6] = 0;
-            /* dirParams only used for direct mode not special purpose mode */
-            /* eep->configData.param.dirParams.bitSyncThreshHold = 1; */
+            // dirParams are only used for direct mode not special purpose mode
+            // eep->configData.param.dirParams.bitSyncThreshHold = 1;
             IZOT_SET_ATTRIBUTE(eep->configData, IZOT_CONFIG_NONGRPRCV, NON_GROUP_TIMER);
             IZOT_SET_ATTRIBUTE(eep->configData, IZOT_CONFIG_NMAUTH, NmAuth);
             IZOT_SET_ATTRIBUTE(eep->configData, IZOT_CONFIG_PREEMPT, 0);
 
-            /* Initialization based on custom.c */
+            // Initialization based on custom.c
             memcpy(eep->configData.Location, cp->location, IZOT_LOCATION_LENGTH);
             for (i = 0; i <= cp->twoDomains; i++) {
                 IZOT_SET_ATTRIBUTE(eep->domainTable[i], IZOT_DOMAIN_ID_LENGTH, cp->len[i]);

@@ -341,7 +341,8 @@ LonStatusCode APPInit(void)
     nmp->snvt.aliasPtr->hostAlias  = hton16(AliasTableCount);
     nmp->nvTableSize  = 0;
 	gp->initialized = true;
-    return AppInit();
+    OsalPrintDebug(LonStatusNoError, "APPInit: Application layer initialized");
+    return LonStatusNoError;
 }
 
 /*

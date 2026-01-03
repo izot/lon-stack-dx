@@ -29,7 +29,7 @@ extern "C" {
 #include "lcs/lcs_node.h"
 #include "lcs/lcs_timer.h"
 #include "lon_udp/ipv4_to_lon_udp.h"
-#include "persistence/flash_persistence.h"
+#include "persistence/storage_persistence.h"
 #include "persistence/lon_persistence.h"
 
 #define IZOT_EXTERNAL_FN extern
@@ -921,7 +921,7 @@ IZOT_EXTERNAL_FN LonStatusCode IzotPersistentFlushData(void);
  * Gets the number of bytes required to store persistent data.
  *
  * Parameters:
- * persistentSegType - The segment type, see <IzotPersistentSegType>
+ * persistent_seg_type - The segment type, see <IzotPersistentSegType>
  *
  * Returns:
  * The number of bytes required to store persistent data for the specified
@@ -932,7 +932,7 @@ IZOT_EXTERNAL_FN LonStatusCode IzotPersistentFlushData(void);
  * but may be used by persistent data event handlers (implemented by the
  * application) to reserve space for persistent data segments.
  */
-IZOT_EXTERNAL_FN int IzotPersistentSegGetMaxSize(IzotPersistentSegType persistentSegType);
+IZOT_EXTERNAL_FN int IzotPersistentSegGetMaxSize(IzotPersistentSegType persistent_seg_type);
 
 /*
  * *****************************************************************************
@@ -1240,56 +1240,56 @@ IZOT_EXTERNAL_FN LonStatusCode IzotServiceLedStatusRegistrar(IzotServiceLedStatu
 
 /*
  * Event: IzotFlashSegOpenForReadRegistrar
- * This registrar registers <IzotFlashSegOpenForRead>.
+ * This registrar registers <IzotStorageOpenSegForRead>.
  */
 
 IZOT_EXTERNAL_FN LonStatusCode IzotFlashSegOpenForReadRegistrar(IzotPersistentSegOpenForReadFunction handler);
 
 /*
  * Event: IzotFlashSegOpenForWriteRegistrar
- * This registrar registers <IzotFlashSegOpenForWrite>.
+ * This registrar registers <IzotStorageOpenSegForWrite>.
  */
 IZOT_EXTERNAL_FN LonStatusCode IzotFlashSegOpenForWriteRegistrar(IzotPersistentSegOpenForWriteFunction handler);
 
 /*
  * Event: IzotFlashSegCloseRegistrar
- * This registrar registers <IzotFlashSegClose>.
+ * This registrar registers <IzotStorageCloseSeg>.
  */
 IZOT_EXTERNAL_FN LonStatusCode IzotFlashSegCloseRegistrar(IzotPersistentSegCloseFunction handler);
 
 /*
  * Event: IzotFlashSegDeleteRegistrar
- * This registrar registers <IzotFlashSegDelete>.
+ * This registrar registers <IzotStorageDeleteSeg>.
  */
 IZOT_EXTERNAL_FN LonStatusCode IzotFlashSegDeleteRegistrar(IzotPersistentSegDeleteFunction handler);
 
 /*
  * Event: IzotFlashSegReadRegistrar
- * This registrar registers <IzotFlashSegRead>.
+ * This registrar registers <IzotStorageReadSeg>.
  */
 IZOT_EXTERNAL_FN LonStatusCode IzotFlashSegReadRegistrar(IzotPersistentSegReadFunction handler);
 
 /*
  * Event: IzotFlashSegWriteRegistrar
- * This registrar registers <IzotFlashSegWrite>.
+ * This registrar registers <IzotStorageWriteSeg>.
  */
 IZOT_EXTERNAL_FN LonStatusCode IzotFlashSegWriteRegistrar(IzotPersistentSegWriteFunction handler);
 
 /*
  * Event: IzotFlashSegIsInTransactionRegistrar
- * This registrar registers <IzotFlashSegIsInTransaction>.
+ * This registrar registers <IzotStorageSegIsInvalid>.
  */
 IZOT_EXTERNAL_FN LonStatusCode IzotFlashSegIsInTransactionRegistrar(IzotPersistentSegIsInTransactionFunction handler);
 
 /*
  * Event: IzotFlashSegEnterTransactionRegistrar
- * This registrar registers <IzotFlashSegEnterTransaction>.
+ * This registrar registers <IzotStorageStartSegUpdate>.
  */
 IZOT_EXTERNAL_FN LonStatusCode IzotFlashSegEnterTransactionRegistrar(IzotPersistentSegEnterTransactionFunction handler);
 
 /*
  * Event: IzotFlashSegExitTransactionRegistrar
- * This registrar registers <IzotFlashSegExitTransaction>.
+ * This registrar registers <IzotStorageFinishSegUpdate>.
  */
 IZOT_EXTERNAL_FN LonStatusCode IzotFlashSegExitTransactionRegistrar(IzotPersistentSegExitTransactionFunction handler);
 

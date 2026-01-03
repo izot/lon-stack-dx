@@ -390,25 +390,26 @@ void OsalFreeMemory(void *buf)
   * Formats a debug or error message.
   * Parameters:
   *   buffer: Pointer to buffer to receive formatted message.
-  *   bufferLen: Length of the buffer in bytes
-  *   errorCode: Error code to include in message, or LonStatusNoError for none
-  *   errorString: printf-style format string for message
+  *   buffer_len: Length of the buffer in bytes
+  *   status_code: Error code to include in message, or LonStatusNoError for none
+  *   status_string: printf-style format string for message
   *   args: Variable argument list for format string
   * Returns:
   *   None
   * Notes:
   *  This is a helper function used by OsalPrintError(), OsalPrintSysError(),
-  *  and OsalPrintDebug().  If errorCode is >= 0, the message is prefixed with
-  *  "Error <errorCode>: ".
+  *  and OsalPrintDebug().  If status_code is >= 0, the message is prefixed with
+  *  "Error <status_code>: ".
   */
- static void OsalFormatErrorString(char *buffer, size_t bufferLen, LonStatusCode errorCode, const char *errorString, va_list args)
+ static void OsalFormatErrorString(char *buffer, size_t buffer_len, LonStatusCode status_code, const char *status_string, va_list args)
 {
-    if (errorCode == LonStatusNoError) {
-        vsnprintf(buffer, bufferLen, errorString, args);
+    uint32_t time = OsalGetTickCount()*1000/OsalGetTicksPerSecond();
+    if (status_code == LonStatusNoError) {
+        snprintf(buffer, buffer_len, "%d.%.3d Info: ", time/1000, time % 1000);
     } else {
-        snprintf(buffer, bufferLen, "Error %d: ", errorCode);
-        vsnprintf(buffer + strlen(buffer), bufferLen - strlen(buffer), errorString, args);
+        snprintf(buffer, buffer_len, "%d.%.3d Error %d: ", time/1000, time % 1000, status_code);
     }
+    vsnprintf(buffer + strlen(buffer), buffer_len - strlen(buffer), status_string, args);
 }
 
 /*
@@ -439,25 +440,25 @@ LogLevel OsalGetLogLevel(void)
 /*
  * Prints a system call error message with optional message code and text.
  * Parameters:
- *   errorCode: Error code to include in message, or LonStatusNoError for none
- *   errorString: printf-style format string for message
+ *   status_code: Error code to include in message, or LonStatusNoError for none
+ *   status_string: printf-style format string for message
  *   ...: Variable arguments for format string
  * Returns:
  *   None
  * Notes:
- *   If errorCode is >= 0, the message is prefixed with "Error <errorCode>: ".
+ *   If status_code is >= 0, the message is prefixed with "Error <status_code>: ".
  *   If errno is set, the string from strerror(errno) is appended to the 
  *   message.  This function is intended for reporting system call errors.
  */
-void OsalPrintSysError(LonStatusCode errorCode, char *errorString, ...)
+void OsalPrintSysError(LonStatusCode status_code, char *status_string, ...)
 {
-    if (logLevel <= LOG_NONE)
+    if (logLevel < LOG_ERROR)
         return;
 
     char formatted[OSAL_ERROR_STRING_MAXLEN];
     va_list args;
-    va_start(args, errorString);
-    OsalFormatErrorString(formatted, sizeof(formatted), errorCode, errorString, args);
+    va_start(args, status_string);
+    OsalFormatErrorString(formatted, sizeof(formatted), status_code, status_string, args);
     va_end(args);
 
 #if OS_IS(LINUX)
@@ -473,8 +474,8 @@ void OsalPrintSysError(LonStatusCode errorCode, char *errorString, ...)
 /*
  * Logs an error code and prints an error message with optional message code and text.
  * Parameters:
- *   errorCode: Error code to log and include in message, or LonStatusNoError for none
- *   errorString: printf-style format string for message
+ *   status_code: Error code to log and include in message, or LonStatusNoError for none
+ *   status_string: printf-style format string for message
  *   ...: Variable arguments for format string
  * Returns:
  *   None
@@ -482,22 +483,22 @@ void OsalPrintSysError(LonStatusCode errorCode, char *errorString, ...)
  *  This function only prints messages if the current log level is LOG_ERROR
  *  or LOG_DEBUG.
  */
-void OsalPrintError(LonStatusCode errorCode, char *errorString, ...)
+void OsalPrintError(LonStatusCode status_code, char *status_string, ...)
 {
     // Log to non-volatile memory if the error code has changed to avoid wearing
     // out flash memory with redundant values
-    if (errorCode != LonStatusNoError && eep->errorLog != errorCode){
-        eep->errorLog = errorCode;
+    if (status_code != LonStatusNoError && eep->errorLog != status_code){
+        eep->errorLog = status_code;
         LCS_WriteNvm();
     }
 
-    if (logLevel <= LOG_NONE)
+    if (logLevel < LOG_ERROR)
         return;
 
     char formatted[OSAL_ERROR_STRING_MAXLEN];
     va_list args;
-    va_start(args, errorString);
-    OsalFormatErrorString(formatted, sizeof(formatted), errorCode, errorString, args);
+    va_start(args, status_string);
+    OsalFormatErrorString(formatted, sizeof(formatted), status_code, status_string, args);
     va_end(args);
 
 #if OS_IS(LINUX)
@@ -513,23 +514,23 @@ void OsalPrintError(LonStatusCode errorCode, char *errorString, ...)
 /*
  * Prints a debug message with optional message code and text.
  * Parameters:
- *   errorCode: Error code to include in message, or -1 for none
- *   errorString: printf-style format string for message
+ *   status_code: Error code to include in message, or -1 for none
+ *   status_string: printf-style format string for message
  *   ...: Variable arguments for format string
  * Returns:
  *   None
  * Notes:
  *  This function only prints messages if the current log level is LOG_DEBUG.
  */
-void OsalPrintDebug(LonStatusCode errorCode, char *errorString, ...)
+void OsalPrintDebug(LonStatusCode status_code, char *status_string, ...)
 {
-    if (logLevel <= LOG_ERROR)
+    if (logLevel < LOG_DEBUG)
         return;
 
     char formatted[OSAL_ERROR_STRING_MAXLEN];
     va_list args;
-    va_start(args, errorString);
-    OsalFormatErrorString(formatted, sizeof(formatted), errorCode, errorString, args);
+    va_start(args, status_string);
+    OsalFormatErrorString(formatted, sizeof(formatted), status_code, status_string, args);
     va_end(args);
 
 #if OS_IS(LINUX)
@@ -545,23 +546,23 @@ void OsalPrintDebug(LonStatusCode errorCode, char *errorString, ...)
 /*
  * Prints a trace message with optional message code and text.
  * Parameters:
- *   errorCode: Error code to include in message, or -1 for none
- *   errorString: printf-style format string for message
+ *   status_code: Error code to include in message, or -1 for none
+ *   status_string: printf-style format string for message
  *   ...: Variable arguments for format string
  * Returns:
  *   None
  * Notes:
  *   This function only prints messages if the current log level is LOG_TRACE.
  */
-void OsalPrintTrace(LonStatusCode errorCode, char *errorString, ...)
+void OsalPrintTrace(LonStatusCode status_code, char *status_string, ...)
 {
-    if (logLevel <= LOG_DEBUG)
+    if (logLevel < LOG_TRACE)
         return;
 
     char formatted[OSAL_ERROR_STRING_MAXLEN];
     va_list args;
-    va_start(args, errorString);
-    OsalFormatErrorString(formatted, sizeof(formatted), errorCode, errorString, args);
+    va_start(args, status_string);
+    OsalFormatErrorString(formatted, sizeof(formatted), status_code, status_string, args);
     va_end(args);
 
 #if OS_IS(LINUX)

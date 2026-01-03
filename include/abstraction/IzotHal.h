@@ -21,6 +21,8 @@ extern "C"
 {
 #endif  // __cplusplus
 
+#include <stdbool.h>
+
 #include "izot/IzotPlatform.h"
 #include "abstraction/IzotOsal.h"
 
@@ -45,7 +47,7 @@ extern "C"
  *   LonStatusNoError (0) on success, or an <LonStatusCode> error code
  *   on failure.
  */
-extern LonStatusCode HalFlashDrvInit(void);
+extern LonStatusCode HalInitStorage(void);
 
 /*
  * Returns information about the flash region used for persistent data.
@@ -66,8 +68,9 @@ extern LonStatusCode HalFlashDrvInit(void);
  *   memory flash memory region.  The flash region is used
  *   for persistent data storage.
  */
-extern LonStatusCode HalGetFlashInfo(size_t *offset, size_t *region_size,
-        int *number_of_blocks, size_t *block_size, int *number_of_regions
+extern LonStatusCode HalStorageInfo(size_t *offset, size_t *region_size,
+        int *number_of_blocks, size_t *block_size, int *number_of_regions,
+        bool *erase_required, uint8_t *erase_value
 );
 
 /*
@@ -79,7 +82,7 @@ extern LonStatusCode HalGetFlashInfo(size_t *offset, size_t *region_size,
  *   LonStatusNoError (0) on success, or an <LonStatusCode> error code
  *   on failure.
  */
-extern LonStatusCode HalFlashDrvOpen(void);
+extern LonStatusCode HalOpenStorage(void);
 
 /*
  * Closes the hardware-specific driver for interfacing with
@@ -89,7 +92,7 @@ extern LonStatusCode HalFlashDrvOpen(void);
  * Returns:
  *   None
  */
-extern LonStatusCode HalFlashDrvClose(void);
+extern LonStatusCode HalCloseStorage(void);
 
 /*
  * Erases the persistent data from the specified starting offset
@@ -101,7 +104,7 @@ extern LonStatusCode HalFlashDrvClose(void);
  *   LonStatusNoError (0) on success, or an <LonStatusCode> error code
  *   on failure.
  */
-extern LonStatusCode HalFlashDrvErase(size_t start, size_t size);
+extern LonStatusCode HalPrepareStorage(size_t start, size_t size);
 
 /*
  * Writes the contents of buffer `buf` to an open file descriptor
@@ -116,7 +119,7 @@ extern LonStatusCode HalFlashDrvErase(size_t start, size_t size);
  *   The file is extended if the file size is less than the starting
  *   offset.
  */
-extern LonStatusCode HalFlashDrvWrite(IzotByte *buf, size_t start, size_t size);
+extern LonStatusCode HalWriteStorage(IzotByte *buf, size_t start, size_t size);
 
 /*
  * Reads `size` bytes from the file descriptor `flashFd` into buffer
@@ -130,7 +133,7 @@ extern LonStatusCode HalFlashDrvWrite(IzotByte *buf, size_t start, size_t size);
  * Notes:
  *    An error is returned if the file size is less than `start + size` bytes.
  */
-extern LonStatusCode HalFlashDrvRead(IzotByte *buf, size_t start, size_t size);
+extern LonStatusCode HalReadStorage(IzotByte *buf, size_t start, size_t size);
 
 /*****************************************************************
  * Section: LON USB Interface Abstraction Function Declarations

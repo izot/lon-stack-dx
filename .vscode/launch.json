@@ -2,10 +2,11 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Debug Example1 on Raspberry Pi (gdbserver)",
+      "name": "Debug Example1 on home-control (gdbserver)",
       "type": "cppdbg",
       "request": "launch",
       "MIMode": "gdb",
+      "targetArchitecture": "arm64",
       "miDebuggerPath": "/opt/homebrew/bin/aarch64-linux-gnu-gdb",
       "program": "${workspaceFolder}/build/arm64/lon_stack_example1",
       "args": [],
@@ -13,8 +14,8 @@
       "cwd": "${workspaceFolder}",
       "environment": [],
       "externalConsole": false,
-      "preLaunchTask": "Start gdbserver on Raspberry Pi (Example1)",
-      "miDebuggerServerAddress": "${input:piHost}:2345",
+      "preLaunchTask": "Start gdbserver on home-control (Example1)",
+      "miDebuggerServerAddress": "localhost:2345",
       "setupCommands": [
         {
           "description": "Enable pretty-printing",
@@ -22,14 +23,29 @@
           "ignoreFailures": true
         }
       ]
-    }
-  ],
-  "inputs": [
+    },
     {
-      "id": "piHost",
-      "type": "promptString",
-      "description": "Raspberry Pi host (hostname or IP)",
-      "default": "raspberrypi.local"
+      "name": "Debug Example1 on home-lab (gdbserver)",
+      "type": "cppdbg",
+      "request": "launch",
+      "MIMode": "gdb",
+      "targetArchitecture": "arm64",
+      "miDebuggerPath": "/opt/homebrew/bin/aarch64-linux-gnu-gdb",
+      "program": "${workspaceFolder}/build/arm64/lon_stack_example1",
+      "args": [],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}",
+      "environment": [],
+      "externalConsole": false,
+      "preLaunchTask": "Start gdbserver on home-lab (Example1)",
+      "miDebuggerServerAddress": "localhost:2346",
+      "setupCommands": [
+        {
+          "description": "Enable pretty-printing",
+          "text": "-enable-pretty-printing",
+          "ignoreFailures": true
+        }
+      ]
     }
   ]
 }

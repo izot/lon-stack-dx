@@ -1,74 +1,166 @@
 {
   "version": "2.0.0",
-  "inputs": [
-    {
-      "id": "piHost",
-      "type": "promptString",
-      "description": "Raspberry Pi host (hostname or IP)",
-      "default": "raspberrypi.local"
-    },
-    {
-      "id": "piUser",
-      "type": "promptString",
-      "description": "Raspberry Pi username",
-      "default": "pi"
-    },
-    {
-      "id": "piDestDir",
-      "type": "promptString",
-      "description": "Destination directory on Raspberry Pi",
-      "default": "~/lon-stack-dx"
-    },
-    {
-      "id": "piPort",
-      "type": "promptString",
-      "description": "SSH port",
-      "default": "22"
-    }
-  ],
   "tasks": [
     {
       "label": "Build Example1 (arm64-cross)",
       "type": "shell",
-      "command": "cmake --build --preset arm64-cross -j",
+      "command": "cmake --preset arm64-cross && cmake --build --preset arm64-cross -j",
       "group": "build",
-      "problemMatcher": ["$gcc"]
+      "problemMatcher": [
+        "$gcc"
+      ]
     },
     {
-      "label": "Deploy Example1 to Raspberry Pi",
+      "label": "Deploy Example1 to home-control",
       "type": "shell",
-      "command": "mkdir -p \"${workspaceFolder}/build/arm64\" && scp -P ${input:piPort} \"${workspaceFolder}/build/arm64/lon_stack_example1\" \"${input:piUser}@${input:piHost}:${input:piDestDir}/lon_stack_example1\" && ssh -p ${input:piPort} \"${input:piUser}@${input:piHost}\" \"chmod +x ${input:piDestDir}/lon_stack_example1\"",
-      "dependsOn": ["Build Example1 (arm64-cross)"],
+      "command": "mkdir -p \"${workspaceFolder}/build/arm64\" && scp \"${workspaceFolder}/build/arm64/lon_stack_example1\" \"home-control:~/lon-stack-dx/lon_stack_example1.new\" && ssh \"home-control\" \"set -e; chmod +x ~/lon-stack-dx/lon_stack_example1.new; mv -f ~/lon-stack-dx/lon_stack_example1.new ~/lon-stack-dx/lon_stack_example1\"",
+      "dependsOn": [
+        "Build Example1 (arm64-cross)"
+      ],
       "dependsOrder": "sequence",
       "problemMatcher": []
     },
     {
-      "label": "Run Example1 on Raspberry Pi",
+      "label": "Run Example1 on home-control",
       "type": "shell",
-      "command": "ssh -p ${input:piPort} \"${input:piUser}@${input:piHost}\" \"cd ${input:piDestDir} && ./lon_stack_example1\"",
-      "dependsOn": ["Deploy Example1 to Raspberry Pi"],
+      "command": "ssh \"home-control\" \"cd ~/lon-stack-dx && env LON_STACK_DX_CONFIG_FILE=~/lon-stack-dx/lon-app-config ./lon_stack_example1\"",
+      "dependsOn": [
+        "Deploy Example1 to home-control"
+      ],
       "dependsOrder": "sequence",
       "problemMatcher": []
     },
     {
-      "label": "Start gdbserver on Raspberry Pi (Example1)",
+      "label": "Start gdbserver on home-control (Example1)",
       "type": "shell",
       "isBackground": true,
-      "command": "ssh -p ${input:piPort} \"${input:piUser}@${input:piHost}\" \"cd ${input:piDestDir} && chmod +x ./lon_stack_example1 && gdbserver :2345 ./lon_stack_example1\"",
-      "dependsOn": ["Deploy Example1 to Raspberry Pi"],
+      "command": "echo 'Starting gdbserver...' && ssh \"home-control\" \"cd ~/lon-stack-dx && (pkill -f '[g]dbserver' || true) && (pkill -f '[l]on_stack_example1' || true)\" && ssh \"home-control\" \"set -e; cd ~/lon-stack-dx; chmod +x ./lon_stack_example1; nohup env LON_STACK_DX_CONFIG_FILE=~/lon-stack-dx/lon-app-config gdbserver 127.0.0.1:2345 ./lon_stack_example1 >> example1.gdbserver.log 2>&1 </dev/null &\" && echo 'Tunnel ready' && ssh -o ExitOnForwardFailure=yes -N -L 2345:127.0.0.1:2345 \"home-control\"",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": false
+      },
+      "dependsOn": [
+        "Deploy Example1 to home-control"
+      ],
       "dependsOrder": "sequence",
       "problemMatcher": {
+        "owner": "gdbserver",
+        "fileLocation": [
+          "absolute"
+        ],
         "pattern": [
           {
-            "regexp": "^$"
+            "kind": "file",
+            "regexp": "^(a^)$",
+            "file": 1,
+            "message": 1
           }
         ],
         "background": {
           "activeOnStart": true,
-          "beginsPattern": "gdbserver",
-          "endsPattern": "Listening on port 2345"
+          "beginsPattern": "Starting gdbserver\\.\\.\\.",
+          "endsPattern": "Tunnel ready"
         }
       }
+    },
+    {
+      "label": "Tail Example1 stderr on home-control",
+      "type": "shell",
+      "command": "ssh \"home-control\" \"tail -n 200 -f ~/lon-stack-dx/example1.gdbserver.log\"",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": false
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Deploy Example1 to home-lab",
+      "type": "shell",
+      "command": "mkdir -p \"${workspaceFolder}/build/arm64\" && scp \"${workspaceFolder}/build/arm64/lon_stack_example1\" \"home-lab:~/lon-stack-dx/lon_stack_example1.new\" && ssh \"home-lab\" \"set -e; chmod +x ~/lon-stack-dx/lon_stack_example1.new; mv -f ~/lon-stack-dx/lon_stack_example1.new ~/lon-stack-dx/lon_stack_example1\"",
+      "dependsOn": [
+        "Build Example1 (arm64-cross)"
+      ],
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    },
+    {
+      "label": "Run Example1 on home-lab",
+      "type": "shell",
+      "command": "ssh \"home-lab\" \"cd ~/lon-stack-dx && env LON_STACK_DX_CONFIG_FILE=~/lon-stack-dx/lon-app-config ./lon_stack_example1\"",
+      "dependsOn": [
+        "Deploy Example1 to home-lab"
+      ],
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    },
+    {
+      "label": "Start gdbserver on home-lab (Example1)",
+      "type": "shell",
+      "isBackground": true,
+      "command": "echo 'Starting gdbserver...' && ssh \"home-lab\" \"cd ~/lon-stack-dx && (pkill -f '[g]dbserver' || true) && (pkill -f '[l]on_stack_example1' || true)\" && ssh \"home-lab\" \"set -e; cd ~/lon-stack-dx; chmod +x ./lon_stack_example1; nohup env LON_STACK_DX_CONFIG_FILE=~/lon-stack-dx/lon-app-config gdbserver 127.0.0.1:2345 ./lon_stack_example1 >> example1.gdbserver.log 2>&1 </dev/null &\" && echo 'Tunnel ready' && ssh -o ExitOnForwardFailure=yes -N -L 2346:127.0.0.1:2345 \"home-lab\"",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": false
+      },
+      "dependsOn": [
+        "Deploy Example1 to home-lab"
+      ],
+      "dependsOrder": "sequence",
+      "problemMatcher": {
+        "owner": "gdbserver",
+        "fileLocation": [
+          "absolute"
+        ],
+        "pattern": [
+          {
+            "kind": "file",
+            "regexp": "^(a^)$",
+            "file": 1,
+            "message": 1
+          }
+        ],
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "Starting gdbserver\\.\\.\\.",
+          "endsPattern": "Tunnel ready"
+        }
+      }
+    },
+    {
+      "label": "Tail Example1 stderr on home-lab",
+      "type": "shell",
+      "command": "ssh \"home-lab\" \"tail -n 200 -f ~/lon-stack-dx/example1.gdbserver.log\"",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": false
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Stop gdbserver on home-control (Example1)",
+      "type": "shell",
+      "command": "pkill -f \"ssh.*-N.*-L 2345:127\\.0\\.0\\.1:2345.*home-control\" || true; ssh \"home-control\" \"pkill -f '[g]dbserver' || true; pkill -f '[l]on_stack_example1' || true\"",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": false
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Stop gdbserver on home-lab (Example1)",
+      "type": "shell",
+      "command": "pkill -f \"ssh.*-N.*-L 2346:127\\.0\\.0\\.1:2345.*home-lab\" || true; ssh \"home-lab\" \"pkill -f '[g]dbserver' || true; pkill -f '[l]on_stack_example1' || true\"",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": false
+      },
+      "problemMatcher": []
     }
   ]
 }

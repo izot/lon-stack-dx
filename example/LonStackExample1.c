@@ -22,7 +22,7 @@ static uint8_t siDataBuffer[300];
 
 static const IzotStackInterfaceData LonStackInterface = {
    STACK_INTERFACEDATA_VERSION, // Format version number
-   0x5a7abe7f,                  // 32-bit unique application identifier
+   0xABCD2552,                  // 32-bit unique application identifier
    {0x9F, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x01},    // Program ID
    9,                           // Number of static NVs
    9,                           // Max number of static + dynamic NVs
@@ -190,22 +190,20 @@ void Temp2InUpdateOccurred(const unsigned index, const IzotReceiveAddress* const
 #ifdef INCLUDE_EXAMPLE_MAIN
 void main() {
     LonStatusCode lastError = LonStatusNoError;
-    bool success = true;
 
     // Set up Example1
-    success = SetUpExample1();
+    lastError = SetUpExample1();
 
     // Send a Service message to indicate that the node has started
     // This is not required, but is useful for testing purposes
-    if (success) {
+    if (lastError == LonStatusNoError) {
         IzotSendServiceMessage();
     }
     
     // Main loop
-    while (success) {
-        success = LON_SUCCESS(lastError = LoopExample1());
-        // LON Stack event pump
-        LoopExample1();
+    while (lastError == LonStatusNoError) {
+        // Execute one pass of the LON Stack event pump
+        lastError = LoopExample1();
     }
 }
 #endif

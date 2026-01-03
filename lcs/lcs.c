@@ -66,6 +66,7 @@ LonStatusCode LCS_Init(IzotResetCause cause)
         snvt_capability_info = &capability_info;
         si_header_ext = &header_ext;
 	    if (InitEEPROM(IzotGetAppSignature()) != LonStatusNoError) {
+			OsalPrintError(LonStatusStackInitializationFailure, "LCS_Init: Non-volatile data initialization failed for stack %d", stackNum);
             return LonStatusStackInitializationFailure;
         }
     }
@@ -78,6 +79,7 @@ LonStatusCode LCS_Init(IzotResetCause cause)
         snvt_capability_info = &capability_info;
         si_header_ext = &header_ext;
         if (APPInit() != LonStatusNoError) {
+			OsalPrintError(LonStatusStackInitializationFailure, "LCS_Init: Application initialization failed for stack %d", stackNum);
 			return LonStatusStackInitializationFailure;
 		}
         // Compute the configCheckSum for the first time. NodeReset
@@ -88,6 +90,7 @@ LonStatusCode LCS_Init(IzotResetCause cause)
 	    SetLonTimer(&gp->ledTimer, LED_TIMER_VALUE);
 		SetLonTimer(&gp->checksumTimer, CHECKSUM_TIMER_VALUE); // Initial value
     }
+	OsalPrintDebug(LonStatusNoError, "LCS_Init: LON Stack initialization completed successfully");
 	return LonStatusNoError;
 }
 
@@ -106,6 +109,7 @@ void LCS_Service()
 			gp->resetOk = TRUE;
 			NodeReset(FALSE);
 			if (!gp->resetOk) {
+				OsalPrintError(LonStatusNoError, "LCS_Service: LON application reset failed for stack %d", stackNum);
 				return;
 			}
 			continue; // Easy way to do scheduler reset,

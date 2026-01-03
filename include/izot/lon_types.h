@@ -2602,11 +2602,11 @@ typedef LonStatusCode (*IzotMemoryWriteFunction)(const unsigned address,
  */
 
 /*
- *  Callback: IzotFlashSegOpenForRead
+ *  Callback: IzotStorageOpenSegForRead
  *  Open a persistent data segment for reading.
  *
  *  Parameters:
- *  persistentSegType - type of persistent data to be opened
+ *  persistent_seg_type - type of persistent data to be opened
  *
  *  Returns:
  *  <IzotPersistentSegType>.
@@ -2617,24 +2617,24 @@ typedef LonStatusCode (*IzotMemoryWriteFunction)(const unsigned address,
  *  non-zero handle. Otherwise it returns 0.
  *
  *  The handle returned by this function will be used as the first parameter
- *  when calling <IzotFlashSegRead>.
+ *  when calling <IzotStorageReadSeg>.
  *
  *  The application must maintain the handle used for each segment. The
- *  application can invalidate a handle when <IzotFlashSegClose> is called
+ *  application can invalidate a handle when <IzotStorageCloseSeg> is called
  *  for that handle.
  *
  *  Use <IzotFlashSegOpenForReadRegistrar> to register a handler for this
  *  event. Without an application-specific handler, this event always fails
  *  (the handle is always zero).
  */
-typedef IzotPersistentSegType (*IzotPersistentSegOpenForReadFunction)(const IzotPersistentSegType persistentSegType);
+typedef IzotPersistentSegType (*IzotPersistentSegOpenForReadFunction)(const IzotPersistentSegType persistent_seg_type);
 
 /*
- *  Callback: IzotFlashSegOpenForWrite
+ *  Callback: IzotStorageOpenSegForWrite
  *  Open a persistent data segment for writing.
  *
  *  Parameters:
- *  persistentSegType - type of persistent data to be opened
+ *  persistent_seg_type - type of persistent data to be opened
  *  size - size of the data to be stored
  *
  *  Returns:
@@ -2653,26 +2653,26 @@ typedef IzotPersistentSegType (*IzotPersistentSegOpenForReadFunction)(const Izot
  *  IzotPersistentSegUnassigned.
  *
  *  The persistent segment type returned by this function will be used as the
- *  first parameter when calling <IzotFlashSegWrite>.
+ *  first parameter when calling <IzotStorageWriteSeg>.
  *
  *  The application must maintain the persistent segment type used for each
  *  segment. The application can invalidate a segment type when 
- *  <IzotFlashSegClose> is called for that handle.
+ *  <IzotStorageCloseSeg> is called for that handle.
  *
  *  Use <IzotFlashSegOpenForWriteRegistrar> to register a handler for this
  *  event. Without an application-specific handler, this event always fails
  *  (the segment type is always IzotPersistentSegUnassigned).
  */
 typedef IzotPersistentSegType (*IzotPersistentSegOpenForWriteFunction)(
-        const IzotPersistentSegType persistentSegType, const size_t size);
+        const IzotPersistentSegType persistent_seg_type, const size_t size);
 
 /*
- *  Callback: IzotFlashSegClose
+ *  Callback: IzotStorageCloseSeg
  *  Close a persistent data segment.
  *
  *  Parameters:
- *  persistentSegType - persistent segment type returned by <IzotFlashSegOpenForRead>
- *           or <IzotFlashSegOpenForWrite>
+ *  persistent_seg_type - persistent segment type returned by <IzotStorageOpenSegForRead>
+ *           or <IzotStorageOpenSegForWrite>
  *
  *  Remarks:
  *  This function closes the persistent memory segment associated with this
@@ -2682,14 +2682,14 @@ typedef IzotPersistentSegType (*IzotPersistentSegOpenForWriteFunction)(
  *  event. Without an application-specific handler, this event does nothing.
  */
 typedef void (*IzotPersistentSegCloseFunction)(
-    const IzotPersistentSegType persistentSegType);
+    const IzotPersistentSegType persistent_seg_type);
 
 /*
- *  Callback: IzotFlashSegDelete
+ *  Callback: IzotStorageDeleteSeg
  *  Delete a persistent data segment.
  *
  *  Parameters:
- *  persistentSegType - type of persistent segment to be deleted
+ *  persistent_seg_type - type of persistent segment to be deleted
  *
  *  Remarks:
  *  This function is used to delete the persistent memory segment referenced
@@ -2707,14 +2707,14 @@ typedef void (*IzotPersistentSegCloseFunction)(
  *  Without an application-specific handler, this event does nothing.
  */
 typedef void (*IzotPersistentSegDeleteFunction)(
-    const IzotPersistentSegType persistentSegType);
+    const IzotPersistentSegType persistent_seg_type);
 
 /*
- *  Callback: IzotFlashSegRead
+ *  Callback: IzotStorageReadSeg
  *  Read a section of a persistent data segment.
  *
  *  Parameters:
- *  persistentSegType - persistent segment type (See <IzotFlashSegOpenForRead>)
+ *  persistent_seg_type - persistent segment type (See <IzotStorageOpenSegForRead>)
  *  offset - offset within the segment
  *  size - size of the data to be read
  *  pBuffer - pointer to buffer to store the data
@@ -2732,16 +2732,16 @@ typedef void (*IzotPersistentSegDeleteFunction)(
  *  Without an application-specific handler, this event always fails (no
  *  data available to read).
  */
-typedef LonStatusCode (*IzotPersistentSegReadFunction)(const IzotPersistentSegType persistentSegType,
+typedef LonStatusCode (*IzotPersistentSegReadFunction)(const IzotPersistentSegType persistent_seg_type,
     const size_t offset, const size_t size, IzotByte* const pBuffer);
 
 
 /*
- *  Callback: IzotFlashSegWrite
+ *  Callback: IzotStorageWriteSeg
  *  Write a section of a persistent data segment.
  *
  *  Parameters:
- *  persistentSegType - persistent segment type (See <IzotFlashSegOpenForWrite>)
+ *  persistent_seg_type - persistent segment type (See <IzotStorageOpenSegForWrite>)
  *  offset - offset within the segment
  *  size - size of the data to be read
  *  pData - pointer to the data to write into the segment
@@ -2759,16 +2759,16 @@ typedef LonStatusCode (*IzotPersistentSegReadFunction)(const IzotPersistentSegTy
  *  Use <IzotFlashSegWriteRegistrar> to register a handler for this event.
  *  Without an application-specific handler, this event always fails.
  */
-typedef LonStatusCode (*IzotPersistentSegWriteFunction) (const IzotPersistentSegType persistentSegType,
+typedef LonStatusCode (*IzotPersistentSegWriteFunction) (const IzotPersistentSegType persistent_seg_type,
     const size_t offset, const size_t size, const IzotByte* const pData);
 
 /*
- *  Callback: IzotFlashSegIsInTransaction
+ *  Callback: IzotStorageSegIsInvalid
  *  Returns TRUE if a persistent data transaction was in progress last time
  *  the device shut down.
  *
  *  Parameters:
- *  persistentSegType - persistent segment type
+ *  persistent_seg_type - persistent segment type
  *
  *  Remarks:
  *  This function is called by the LON stack during initialization
@@ -2782,14 +2782,14 @@ typedef LonStatusCode (*IzotPersistentSegWriteFunction) (const IzotPersistentSeg
  *  this event. Without an application-specific handler, this event always
  *  returns TRUE.
  */
-typedef IzotBool (*IzotPersistentSegIsInTransactionFunction)(const IzotPersistentSegType persistentSegType);
+typedef IzotBool (*IzotPersistentSegIsInTransactionFunction)(const IzotPersistentSegType persistent_seg_type);
 
 /*
- *  Callback: IzotFlashSegEnterTransaction
+ *  Callback: IzotStorageStartSegUpdate
  *  Initiate a persistent transaction.
  *
  *  Parameters:
- *  persistentSegType - persistent segment type
+ *  persistent_seg_type - persistent segment type
  *
  *  Remarks:
  *  This function is called by LON Stack when the first request
@@ -2797,7 +2797,7 @@ typedef IzotBool (*IzotPersistentSegIsInTransactionFunction)(const IzotPersisten
  *  updates the persistent data control structures to indicate that a
  *  transaction is in progress. The stack schedules writes to update the
  *  persistent storage at a later time, then invokes the
- *  <IzotFlashSegExitTransaction> event.
+ *  <IzotStorageFinishSegUpdate> event.
  * 
  *  When a fatal error occurs during a persistent data storage transaction,
  *  such as a power outage, the transaction control data is used to prevent
@@ -2807,24 +2807,24 @@ typedef IzotBool (*IzotPersistentSegIsInTransactionFunction)(const IzotPersisten
  *  this event. Without an application-specific handler, this event always
  *  fails.
  */
-typedef LonStatusCode (*IzotPersistentSegEnterTransactionFunction)(const IzotPersistentSegType persistentSegType);
+typedef LonStatusCode (*IzotPersistentSegEnterTransactionFunction)(const IzotPersistentSegType persistent_seg_type);
 
 /*
- *  Callback: IzotFlashSegExitTransaction
+ *  Callback: IzotStorageFinishSegUpdate
  *  Complete a persistent transaction.
  *
  *  Parameters:
- *  persistentSegType - persistent segment type
+ *  persistent_seg_type - persistent segment type
  *
  *  Remarks:
- *  This function is called by LON Stack after <IzotFlashSegWrite>
+ *  This function is called by LON Stack after <IzotStorageWriteSeg>
  *  has returned success and there are no further updates required.
  *  See <IzotPersistentSegEnterTransactionFunction> for the complementary event.
  *
  *  Use <IzotFlashSegExitTransactionRegistrar> to register a handler for this
  *  event. Without an application-specific handler, this event always fails.
  */
-typedef LonStatusCode (*IzotPersistentSegExitTransactionFunction)(const IzotPersistentSegType persistentSegType);
+typedef LonStatusCode (*IzotPersistentSegExitTransactionFunction)(const IzotPersistentSegType persistent_seg_type);
 
 /*
  *  Callback: IzotPersistentGetApplicationSegmentSize

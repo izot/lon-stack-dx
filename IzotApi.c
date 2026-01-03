@@ -37,15 +37,15 @@ IzotMemoryReadFunction izot_memory_read_handler = NULL;
 IzotMemoryWriteFunction izot_memory_write_handler = NULL;
 IzotServiceLedStatusFunction izot_service_led_handler = NULL;
 
-IzotPersistentSegOpenForReadFunction izot_open_for_read_handler = IzotFlashSegOpenForRead;
-IzotPersistentSegOpenForWriteFunction izot_open_for_write_handler = IzotFlashSegOpenForWrite;
-IzotPersistentSegCloseFunction izot_close_handler = IzotFlashSegClose;
+IzotPersistentSegOpenForReadFunction izot_open_for_read_handler = IzotStorageOpenSegForRead;
+IzotPersistentSegOpenForWriteFunction izot_open_for_write_handler = IzotStorageOpenSegForWrite;
+IzotPersistentSegCloseFunction izot_close_handler = IzotStorageCloseSeg;
 IzotPersistentSegDeleteFunction izot_delete_handler = NULL;
-IzotPersistentSegReadFunction izot_read_handler = IzotFlashSegRead;
-IzotPersistentSegWriteFunction izot_write_handler = IzotFlashSegWrite;
-IzotPersistentSegIsInTransactionFunction izot_is_in_tx_handler = IzotFlashSegIsInTransaction;
-IzotPersistentSegEnterTransactionFunction izot_enter_tx_handler = IzotFlashSegEnterTransaction;
-IzotPersistentSegExitTransactionFunction izot_exit_tx_handler = IzotFlashSegExitTransaction;
+IzotPersistentSegReadFunction izot_read_handler = IzotStorageReadSeg;
+IzotPersistentSegWriteFunction izot_write_handler = IzotStorageWriteSeg;
+IzotPersistentSegIsInTransactionFunction izot_is_in_tx_handler = IzotStorageSegIsInvalid;
+IzotPersistentSegEnterTransactionFunction izot_enter_tx_handler = IzotStorageStartSegUpdate;
+IzotPersistentSegExitTransactionFunction izot_exit_tx_handler = IzotStorageFinishSegUpdate;
 
 IzotPersistentSegGetAppSizeFunction izot_get_app_seg_size_handler = NULL;
 IzotPersistentSegDeserializeFunction izot_deserialize_handler = NULL;
@@ -1064,7 +1064,7 @@ size_t IzotGetAppSegmentSize(void)
 /*
  * Gets the number of bytes required to store persistent data.
  * Parameters:
- *   persistentSegType: The segment type, see <IzotPersistentSegType>
+ *   persistent_seg_type: The segment type, see <IzotPersistentSegType>
  * Returns:
  *   The number of bytes required to store persistent data for the specified
  *   segment.
@@ -1073,10 +1073,10 @@ size_t IzotGetAppSegmentSize(void)
  *   but may be used by persistent data event handlers (implemented by the
  *   application) to reserve space for persistent data segments.
  */
-IZOT_EXTERNAL_FN int IzotPersistentSegGetMaxSize(IzotPersistentSegType persistentSegType)
+IZOT_EXTERNAL_FN int IzotPersistentSegGetMaxSize(IzotPersistentSegType persistent_seg_type)
 {
 	int length = 0;
-    switch(persistentSegType) {
+    switch(persistent_seg_type) {
     case IzotPersistentSegNetworkImage:
         length = (sizeof(*eep)-sizeof(eep->readOnlyData));
         break;
@@ -1172,6 +1172,7 @@ IZOT_EXTERNAL_FN LonStatusCode IzotCreateStack(const IzotStackInterfaceData* con
 #if LINK_IS(WIFI)
     char oldProgId[8];
 #endif 
+    OsalPrintDebug(LonStatusNoError, "IzotCreateStack: Starting LON Stack initialization");
 
     // Only a few of these fields are used by LON Stack.  The
     // stack implements partial support for a multi-stack model, but 
@@ -1201,7 +1202,8 @@ IZOT_EXTERNAL_FN LonStatusCode IzotCreateStack(const IzotStackInterfaceData* con
     DataPointCount = pInterface->StaticDatapoints;
     AliasTableCount = pInterface->Aliases;
     BindableMTagCount = pInterface->BindableMsgTags;
-
+    OsalPrintDebug(LonStatusNoError, "IzotCreateStack: LON Stack global data initialized with %d static datapoints, %d aliases, and %d bindable message tags",
+            DataPointCount, AliasTableCount, BindableMTagCount);
 #if LINK_IS(WIFI)
     // Initialize Wi-Fi interface
     status = WiFiInit();
@@ -2122,16 +2124,16 @@ LonStatusCode IzotMemoryWrite(const unsigned address, const unsigned size, const
 /*
  * Handles the IzotPersistentSegOpenForRead event.
  * Parameters:
- *   persistentSegType: The type of persistent segment to open for read
+ *   persistent_seg_type: The type of persistent segment to open for read
  * Returns:
  *   The persistent segment type if successful, otherwise IzotPersistentSegUnassigned.
  * Notes:
- *   Calls the registered callback for IzotFlashSegOpenForRead().
+ *   Calls the registered callback for IzotStorageOpenSegForRead().
  */
-IzotPersistentSegType IzotPersistentSegOpenForRead(const IzotPersistentSegType persistentSegType)
+IzotPersistentSegType IzotPersistentSegOpenForRead(const IzotPersistentSegType persistent_seg_type)
 {
     if (izot_open_for_read_handler) {
-        return izot_open_for_read_handler(persistentSegType);
+        return izot_open_for_read_handler(persistent_seg_type);
     } else {
         return IzotPersistentSegUnassigned;
     }
@@ -2140,17 +2142,17 @@ IzotPersistentSegType IzotPersistentSegOpenForRead(const IzotPersistentSegType p
 /*
  * Handles the IzotPersistentSegOpenForWrite event.
  * Parameters:
- *   persistentSegType: The type of persistent segment to open for write
+ *   persistent_seg_type: The type of persistent segment to open for write
  *   size: The size of the persistent segment to open for write
  * Returns:
  *   The persistent segment type if successful, otherwise IzotPersistentSegUnassigned.
  * Notes:
- *   Calls the registered callback for IzotFlashSegOpenForWrite().
+ *   Calls the registered callback for IzotStorageOpenSegForWrite().
  */
-IzotPersistentSegType IzotPersistentSegOpenForWrite(const IzotPersistentSegType persistentSegType, const size_t size)
+IzotPersistentSegType IzotPersistentSegOpenForWrite(const IzotPersistentSegType persistent_seg_type, const size_t size)
 {
     if (izot_open_for_write_handler) {
-        return izot_open_for_write_handler(persistentSegType, size);
+        return izot_open_for_write_handler(persistent_seg_type, size);
     } else {
         return IzotPersistentSegUnassigned;
     }
@@ -2159,36 +2161,36 @@ IzotPersistentSegType IzotPersistentSegOpenForWrite(const IzotPersistentSegType 
 /*
  * Handles the IzotPersistentSegClose event.
  * Parameters:
- *   persistentSegType: The type of persistent segment to close
+ *   persistent_seg_type: The type of persistent segment to close
  * Returns:
  *   None
  * Notes:
- *   Calls the registered callback for IzotFlashSegClose().
+ *   Calls the registered callback for IzotStorageCloseSeg().
  */
-void IzotPersistentSegClose(const IzotPersistentSegType persistentSegType)
+void IzotPersistentSegClose(const IzotPersistentSegType persistent_seg_type)
 {
     if (izot_close_handler) {
-        izot_close_handler(persistentSegType);
+        izot_close_handler(persistent_seg_type);
     }
 }
 
 /*
  * Handles the IzotPersistentSegRead event.
  * Parameters:
- *   persistentSegType: The type of persistent segment to read
+ *   persistent_seg_type: The type of persistent segment to read
  *   offset: The offset within the persistent segment to read from
  *   size: The number of bytes to read
  *   pBuffer: Pointer to the buffer to store the read data
  * Returns:
  *   LonStatusNoError if no error occurs, otherwise a <LonStatusCode> error code.
  * Notes:
- *   Calls the registered callback for IzotFlashSegRead().
+ *   Calls the registered callback for IzotStorageReadSeg().
  */
-LonStatusCode IzotPersistentSegRead(const IzotPersistentSegType persistentSegType, const size_t offset, const size_t size, 
+LonStatusCode IzotPersistentSegRead(const IzotPersistentSegType persistent_seg_type, const size_t offset, const size_t size, 
 void * const pBuffer) 
 {
     if (izot_read_handler) {
-        return izot_read_handler(persistentSegType, offset, size, pBuffer);
+        return izot_read_handler(persistent_seg_type, offset, size, pBuffer);
     } else {
         return LonStatusStackNotInitialized;
     }
@@ -2197,20 +2199,20 @@ void * const pBuffer)
 /*
  * Handles the IzotPersistentSegWrite event.
  * Parameters:
- *   persistentSegType: The type of persistent segment to write
+ *   persistent_seg_type: The type of persistent segment to write
  *   offset: The offset within the persistent segment to write to
  *   size: The number of bytes to write
  *   pData: Pointer to the data to write
  * Returns:
  *   LonStatusNoError if no error occurs, otherwise a <LonStatusCode> error code.
  * Notes:
- *   Calls the registered callback for IzotFlashSegWrite().
+ *   Calls the registered callback for IzotStorageWriteSeg().
  */
-LonStatusCode IzotPersistentSegWrite(const IzotPersistentSegType persistentSegType, const size_t offset, const size_t size, 
+LonStatusCode IzotPersistentSegWrite(const IzotPersistentSegType persistent_seg_type, const size_t offset, const size_t size, 
         const void* const pData)
 {
     if (izot_write_handler) {
-        return izot_write_handler(persistentSegType, offset, size, pData);
+        return izot_write_handler(persistent_seg_type, offset, size, pData);
     } else {
         return LonStatusStackNotInitialized;
     }
@@ -2219,16 +2221,16 @@ LonStatusCode IzotPersistentSegWrite(const IzotPersistentSegType persistentSegTy
 /*
  * Handles the IzotPersistentSegIsInTransaction event.
  * Parameters:
- *   persistentSegType: The type of persistent segment to check if in transaction
+ *   persistent_seg_type: The type of persistent segment to check if in transaction
  * Returns:
  *   IzotBool indicating if the persistent segment is in a transaction
  * Notes:
- *   Calls the registered callback for IzotFlashSegIsInTransaction().
+ *   Calls the registered callback for IzotStorageSegIsInvalid().
  */
-IzotBool IzotPersistentSegIsInTransaction(const IzotPersistentSegType persistentSegType)
+IzotBool IzotPersistentSegIsInTransaction(const IzotPersistentSegType persistent_seg_type)
 {
     if (izot_is_in_tx_handler) {
-        return izot_is_in_tx_handler(persistentSegType);
+        return izot_is_in_tx_handler(persistent_seg_type);
     } else {
         return LonStatusStackNotInitialized;
     }
@@ -2237,16 +2239,16 @@ IzotBool IzotPersistentSegIsInTransaction(const IzotPersistentSegType persistent
 /*
  * Handles the IzotPersistentSegEnterTransaction event.
  * Parameters:
- *   persistentSegType: The type of persistent segment to enter transaction
+ *   persistent_seg_type: The type of persistent segment to enter transaction
  * Returns:
  *   LonStatusNoError if no error occurs, otherwise a <LonStatusCode> error code.
  * Notes:
- *   Calls the registered callback for IzotFlashSegEnterTransaction().
+ *   Calls the registered callback for IzotStorageStartSegUpdate().
  */
-LonStatusCode IzotPersistentSegEnterTransaction(const IzotPersistentSegType persistentSegType)
+LonStatusCode IzotPersistentSegEnterTransaction(const IzotPersistentSegType persistent_seg_type)
 {
     if (izot_enter_tx_handler) {
-        return izot_enter_tx_handler(persistentSegType);
+        return izot_enter_tx_handler(persistent_seg_type);
     } else {
         return LonStatusStackNotInitialized;
     }
@@ -2255,16 +2257,16 @@ LonStatusCode IzotPersistentSegEnterTransaction(const IzotPersistentSegType pers
 /*
  * Handles the IzotPersistentSegExitTransaction event.
  * Parameters:
- *   persistentSegType: The type of persistent segment to exit transaction
+ *   persistent_seg_type: The type of persistent segment to exit transaction
  * Returns:
  *   LonStatusNoError if no error occurs, otherwise a <LonStatusCode> error code.
  * Notes:
- *   Calls the registered callback for IzotFlashSegExitTransaction().
+ *   Calls the registered callback for IzotStorageFinishSegUpdate().
  */
-LonStatusCode IzotPersistentSegExitTransaction(const IzotPersistentSegType persistentSegType)
+LonStatusCode IzotPersistentSegExitTransaction(const IzotPersistentSegType persistent_seg_type)
 {
     if (izot_exit_tx_handler) {
-        return izot_exit_tx_handler(persistentSegType);
+        return izot_exit_tx_handler(persistent_seg_type);
     } else {
         return LonStatusStackNotInitialized;
     }
@@ -2528,7 +2530,7 @@ IZOT_EXTERNAL_FN LonStatusCode IzotServiceLedStatusRegistrar(IzotServiceLedStatu
 }
 
 /*
- * Registers an IzotFlashSegOpenForRead() event handler.
+ * Registers an IzotStorageOpenSegForRead() event handler.
  * Parameters:
  *   handler: Pointer to the IzotPersistentSegOpenForReadFunction to register
  * Returns:
@@ -2545,7 +2547,7 @@ IZOT_EXTERNAL_FN LonStatusCode IzotFlashSegOpenForReadRegistrar(IzotPersistentSe
 }
 
 /*
- * Registers an IzotFlashSegOpenForWrite() event handler.
+ * Registers an IzotStorageOpenSegForWrite() event handler.
  * Parameters:
  *   handler: Pointer to the IzotPersistentSegOpenForWriteFunction to register
  * Returns:
@@ -2562,7 +2564,7 @@ IZOT_EXTERNAL_FN LonStatusCode IzotFlashSegOpenForWriteRegistrar(IzotPersistentS
 }
 
 /*
- * Registers an IzotFlashSegClose() event handler.
+ * Registers an IzotStorageCloseSeg() event handler.
  * Parameters:
  *   handler: Pointer to the IzotPersistentSegCloseFunction to register
  * Returns:
@@ -2579,7 +2581,7 @@ IZOT_EXTERNAL_FN LonStatusCode IzotFlashSegCloseRegistrar(IzotPersistentSegClose
 }
 
 /*
- * Registers an IzotFlashSegDelete() event handler.
+ * Registers an IzotStorageDeleteSeg() event handler.
  * Parameters:
  *   handler: Pointer to the IzotPersistentSegDeleteFunction to register
  * Returns:
@@ -2596,7 +2598,7 @@ IZOT_EXTERNAL_FN LonStatusCode IzotFlashSegDeleteRegistrar(IzotPersistentSegDele
 }
 
 /*
- * Registers an IzotFlashSegRead() event handler.
+ * Registers an IzotStorageReadSeg() event handler.
  * Parameters:
  *   handler: Pointer to the IzotPersistentSegReadFunction to register
  * Returns:
@@ -2613,7 +2615,7 @@ IZOT_EXTERNAL_FN LonStatusCode IzotFlashSegReadRegistrar(IzotPersistentSegReadFu
 }
 
 /*
- * Registers an IzotFlashSegWrite() event handler.
+ * Registers an IzotStorageWriteSeg() event handler.
  * Parameters:
  *   handler: Pointer to the IzotPersistentSegWriteFunction to register
  * Returns:
@@ -2630,7 +2632,7 @@ IZOT_EXTERNAL_FN LonStatusCode IzotFlashSegWriteRegistrar(IzotPersistentSegWrite
 }
 
 /*
- * Registers an IzotFlashSegIsInTransaction() event handler.
+ * Registers an IzotStorageSegIsInvalid() event handler.
  * Parameters:
  *   handler: Pointer to the IzotPersistentSegIsInTransactionFunction to register
  * Returns:
@@ -2647,7 +2649,7 @@ IZOT_EXTERNAL_FN LonStatusCode IzotFlashSegIsInTransactionRegistrar(IzotPersiste
 }
 
 /*
- * Registers an IzotFlashSegEnterTransaction() event handler.
+ * Registers an IzotStorageStartSegUpdate() event handler.
  * Parameters:
  *   handler: Pointer to the IzotPersistentSegEnterTransactionFunction to register
  * Returns:
@@ -2664,7 +2666,7 @@ IZOT_EXTERNAL_FN LonStatusCode IzotFlashSegEnterTransactionRegistrar(IzotPersist
 }
 
 /*
- * Registers an IzotFlashSegExitTransaction() event handler.
+ * Registers an IzotStorageFinishSegUpdate() event handler.
  * Parameters:
  *   handler: Pointer to the IzotPersistentSegExitTransactionFunction to register
  * Returns:

@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.21)
 
 project(lon_stack_dx
-    VERSION 3.4.2
+    VERSION 3.4.3
     DESCRIPTION "LON Stack DX for LON/IP and U10/U60 LON FT-compatible USB interfaces"
     LANGUAGES C
 )
@@ -61,7 +61,7 @@ set(LON_STACK_DX_SOURCES
     lon_udp/ipv4_to_lon_udp.c
     lon_udp/lon_udp_mapping_util.c
     lon_usb/lon_usb_link.c
-    persistence/flash_persistence.c
+    persistence/storage_persistence.c
     persistence/lon_persistence.c
 )
 
@@ -98,7 +98,7 @@ set(LON_STACK_DX_HEADERS
     include/lcs/lcs.h
     include/lon_udp/ipv4_to_lon_udp.h
     include/lon_usb/lon_usb_link.h
-    include/persistence/flash_persistence.h
+    include/persistence/storage_persistence.h
     include/persistence/lon_persistence.h
 )
 
@@ -124,6 +124,7 @@ target_compile_definitions(lon_stack_dx
     LINK_ID=LINK_ID_USB
     PROTOCOL_ID=PROTOCOL_ID_LON_NATIVE
     ISI_ID=ISI_ID_NO_ISI
+    INITIAL_LOG_LEVEL=LOG_TRACE
 )
 
 # LON Stack DX is a C-only library, so comment out C++ features

@@ -75,7 +75,7 @@ extern void SetPeristenceGuardBand(int nTime);
  * Function: IzotPersistentSegSetCommitFlag
  * This function flags a persistent segment to be committed.
  */
-extern void IzotPersistentSegSetCommitFlag(IzotPersistentSegType persistentSegType);
+extern void IzotPersistentSegSetCommitFlag(IzotPersistentSegType persistent_seg_type);
 
 /*
  * Function: IzotPersistentMemStartCommitTimer
@@ -109,56 +109,56 @@ extern void IzotPersistentMemSetCommitFlag(void);
  * Function: IzotPersistentSegRestore
  * This function restores the specified memory segment contents to RAM.
  */
-extern LonStatusCode IzotPersistentSegRestore(IzotPersistentSegType persistentSegType);
+extern LonStatusCode IzotPersistentSegRestore(IzotPersistentSegType persistent_seg_type);
 
 /*
  *  Event: IzotPersistentSegEnterTransaction
- *  Calls the registered callback of <IzotFlashSegEnterTransaction>.
+ *  Calls the registered callback of <IzotStorageStartSegUpdate>.
  */
-extern LonStatusCode IzotPersistentSegEnterTransaction(const IzotPersistentSegType persistentSegType);
+extern LonStatusCode IzotPersistentSegEnterTransaction(const IzotPersistentSegType persistent_seg_type);
 
 /*
  *  Event: IzotPersistentSegOpenForWrite
- *  Calls the registered callback of <IzotFlashSegOpenForWrite>.
+ *  Calls the registered callback of <IzotStorageOpenSegForWrite>.
  */
-extern IzotPersistentSegType IzotPersistentSegOpenForWrite(const IzotPersistentSegType persistentSegType, const size_t size);
+extern IzotPersistentSegType IzotPersistentSegOpenForWrite(const IzotPersistentSegType persistent_seg_type, const size_t size);
 
 /*
  *  Event: IzotPersistentSegWrite
- *  Calls the registered callback of <IzotFlashSegWrite>.
+ *  Calls the registered callback of <IzotStorageWriteSeg>.
  */
-extern LonStatusCode IzotPersistentSegWrite(const IzotPersistentSegType persistentSegType, const size_t offset, 
+extern LonStatusCode IzotPersistentSegWrite(const IzotPersistentSegType persistent_seg_type, const size_t offset, 
 		const size_t size, const void* const pData);
 
 /*
  *  Event: IzotPersistentSegClose
- *  Calls the registered callback of <IzotFlashSegClose>.
+ *  Calls the registered callback of <IzotStorageCloseSeg>.
  */
-extern void IzotPersistentSegClose(const IzotPersistentSegType persistentSegType);
+extern void IzotPersistentSegClose(const IzotPersistentSegType persistent_seg_type);
 
 /*
  *  Event: IzotPersistentSegExitTransaction
- *  Calls the registered callback of <IzotFlashSegExitTransaction>.
+ *  Calls the registered callback of <IzotStorageFinishSegUpdate>.
  */
-extern LonStatusCode IzotPersistentSegExitTransaction(const IzotPersistentSegType persistentSegType);
+extern LonStatusCode IzotPersistentSegExitTransaction(const IzotPersistentSegType persistent_seg_type);
 
 /*
  *  Event: IzotPersistentSegIsInTransaction
- *  Calls the registered callback of <IzotFlashSegIsInTransaction>.
+ *  Calls the registered callback of <IzotStorageSegIsInvalid>.
  */
-extern IzotBool IzotPersistentSegIsInTransaction(const IzotPersistentSegType persistentSegType);
+extern IzotBool IzotPersistentSegIsInTransaction(const IzotPersistentSegType persistent_seg_type);
 
 /*
  *  Event: IzotPersistentSegOpenForRead
- *  Calls the registered callback of <IzotFlashSegOpenForRead>.
+ *  Calls the registered callback of <IzotStorageOpenSegForRead>.
  */
-extern IzotPersistentSegType IzotPersistentSegOpenForRead(const IzotPersistentSegType persistentSegType);
+extern IzotPersistentSegType IzotPersistentSegOpenForRead(const IzotPersistentSegType persistent_seg_type);
 
 /*
  *  Event: IzotPersistentSegRead
- *  Calls the registered callback of <IzotFlashSegRead>.
+ *  Calls the registered callback of <IzotStorageReadSeg>.
  */
-extern LonStatusCode IzotPersistentSegRead(const IzotPersistentSegType persistentSegType, const size_t offset, 
+extern LonStatusCode IzotPersistentSegRead(const IzotPersistentSegType persistent_seg_type, const size_t offset, 
 		const size_t size, void * const pBuffer);
 
 /*
@@ -166,7 +166,7 @@ extern LonStatusCode IzotPersistentSegRead(const IzotPersistentSegType persisten
  *  Gets the number of bytes required to store persistent data.
  *
  *  Parameters:
- *  persistentSegType - The segment type, see <IzotPersistentSegType>
+ *  persistent_seg_type - The segment type, see <IzotPersistentSegType>
  *
  *  Returns:
  *  The number of bytes required to store persistent data for the specified
@@ -177,7 +177,7 @@ extern LonStatusCode IzotPersistentSegRead(const IzotPersistentSegType persisten
  *  but may be used by persistent data event handlers (implemented by the
  *  application) to reserve space for persistent data segments.
  */
-extern int IzotPersistentSegGetMaxSize(IzotPersistentSegType persistentSegType);
+extern int IzotPersistentSegGetMaxSize(IzotPersistentSegType persistent_seg_type);
 
 /*
  * Function: IzotPersistentSegCommitScheduled
