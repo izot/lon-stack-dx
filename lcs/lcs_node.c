@@ -219,7 +219,7 @@ IzotUbits16  DecodeBufferSize(IzotByte bufSizeIn)
     if (bufSizeIn <= 15) {
         return(bufSizeCodeLGbl[bufSizeIn]);
     }
-    OsalPrintError(LonStatusInvalidBufferSize, "DecodeBufferSize: Invalid buffer size code");
+    OsalPrintError(LonStatusInvalidBufferSize, "DecodeBufferSize: Invalid buffer size code %d", bufSizeIn);
     return(0);
 }
 

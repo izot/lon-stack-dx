@@ -314,12 +314,14 @@ LonStatusCode HalStorageInfo(size_t *offset, size_t *region_size,
  * Parameters:
  *   persistent_seg_type: Persistent data storage segment to be opened
  *   persistent_seg_name: Name of the persistent data storage segment to be opened
+ *   max_data_size: Maximum size of the persistent data segment in bytes
  * Returns:
  *   LonStatusNoError (0) on success, or an <LonStatusCode> error code
  *   on failure.
  */
 LonStatusCode HalOpenStorageSegment(
-        const IzotPersistentSegType persistent_seg_type, char *persistent_seg_name)
+        const IzotPersistentSegType persistent_seg_type, char *persistent_seg_name,
+        size_t max_data_size)
 {
     if (!LON_SUCCESS(persistentMemError)) {   
         return persistentMemError;
@@ -341,7 +343,7 @@ LonStatusCode HalOpenStorageSegment(
     }
 
     // Ensure the configuration file is the expected fixed size.
-    // This allows random-access reads/writes up to FLASH_REGION_SIZE.
+    // This allows random-access reads/writes up to the specified size.
     struct stat st;
     if (fstat(storageFd[persistent_seg_type], &st) != 0) {
         close(storageFd[persistent_seg_type]);
@@ -349,15 +351,15 @@ LonStatusCode HalOpenStorageSegment(
         OsalPrintError(errno, "HalOpenStorageSegment: Cannot read attributes for %s", config_file_path);
         return persistentMemError = LonStatusPersistentDataAccessError;
     }
-    if ((size_t)st.st_size != (size_t)FLASH_REGION_SIZE) {
-        if (ftruncate(storageFd[persistent_seg_type], (off_t)FLASH_REGION_SIZE) != 0) {
+    if ((size_t)st.st_size != max_data_size) {
+        if (ftruncate(storageFd[persistent_seg_type], (off_t)max_data_size) != 0) {
             close(storageFd[persistent_seg_type]);
             storageFd[persistent_seg_type] = -1;
-            OsalPrintError(errno, "HalOpenStorageSegment: Cannot set size of %d for %s", FLASH_REGION_SIZE, config_file_path);
+            OsalPrintError(errno, "HalOpenStorageSegment: Cannot set size of %d for %s", max_data_size, config_file_path);
             return persistentMemError = LonStatusPersistentDataAccessError;
         }
     }
-    OsalPrintDebug(persistentMemError, "HalOpenStorageSegment: Opened storage segment %s", persistent_seg_name);
+    OsalPrintDebug(persistentMemError, "HalOpenStorageSegment: Opened %d byte storage segment %s", max_data_size, persistent_seg_name);
 #elif PROCESSOR_IS(MC200)
     // Open the flash device
     if (flashFd != NULL) {
@@ -465,7 +467,7 @@ LonStatusCode HalPrepareStorageSegment(
     }
     persistentMemError = LonStatusNoError;
     OsalPrintDebug(persistentMemError, "HalPrepareStorageSegment: Prepared storage segment %d from offset %zu for %zu bytes",
-            persistent_seg_type, start, size);
+            persistent_seg_type, seg_start - start, size);
     return persistentMemError;
 #elif PROCESSOR_IS(MC200)
     if (flashFd == NULL) {
@@ -507,7 +509,7 @@ LonStatusCode HalWriteStorageSegment(
         OsalPrintError(LonStatusPersistentDataAccessError, "HalWriteStorageSegment: Persistent file not open or stat failed");
         return persistentMemError = LonStatusPersistentDataAccessError;
     }
-    size_t file_start = seg_start - start;
+    size_t file_start = start - seg_start;
     off_t file_size = st.st_size;
     if (file_size < file_start) {
         // Extend file to the desired offset
@@ -541,7 +543,7 @@ LonStatusCode HalWriteStorageSegment(
         written += w;
     }
     OsalPrintDebug(persistentMemError, "HalWriteStorageSegment: Wrote %zu bytes to storage segment %d at offset %zu",
-            size, persistent_seg_type, start);
+            size, persistent_seg_type, start - seg_start);
     return persistentMemError = LonStatusNoError;
 #elif PROCESSOR_IS(MC200)
     return persistentMemError = (iflash_drv_write(flashFd, buf, len, addr) 
@@ -577,18 +579,18 @@ LonStatusCode HalReadStorageSegment(
         return persistentMemError = LonStatusPersistentDataAccessError;
     }
     // Check that the file is large enough
-    size_t file_start = seg_start - start;
+    size_t file_start = start - seg_start;
     off_t file_size = st.st_size;
     if (file_size < (off_t)(file_start + size)) {
         // Attempt to read beyond end of file
         errno = EINVAL;
-        OsalPrintError(LonStatusPersistentDataAccessError, "HalReadStorageSegment: Attempt to read beyond end of file");
+        OsalPrintError(LonStatusPersistentDataAccessError, "HalReadStorageSegment: Attempt to read beyond end of file for segment %d", persistent_seg_type);
         return persistentMemError = LonStatusPersistentDataAccessError;
     }
     // Seek to the start offset
     if (lseek(storageFd[persistent_seg_type], file_start, SEEK_SET) == (off_t)-1) {
         // Seek to start failed
-        OsalPrintError(LonStatusPersistentDataAccessError, "HalReadStorageSegment: Seek to start failed");
+        OsalPrintError(LonStatusPersistentDataAccessError, "HalReadStorageSegment: Seek to %zu failed for segment %d", file_start, persistent_seg_type);
         return persistentMemError = LonStatusPersistentDataAccessError;
     }
     // Read the data
@@ -597,13 +599,13 @@ LonStatusCode HalReadStorageSegment(
         ssize_t r = read(storageFd[persistent_seg_type], (char*)buf + read_bytes, size - read_bytes);
         if (r < 0) {
             // Persistent data read failure
-            OsalPrintError(LonStatusPersistentDataAccessError, "HalReadStorageSegment: Persistent data read failure");
+            OsalPrintError(LonStatusPersistentDataAccessError, "HalReadStorageSegment: Persistent data read failure for segment %d", persistent_seg_type);
             return persistentMemError = LonStatusPersistentDataAccessError;
         } else if (r == 0) {
             // End of file reached before reading enough bytes
             if (read_bytes < size) {
                 errno = EINVAL;
-                OsalPrintError(LonStatusPersistentDataAccessError, "HalReadStorageSegment: EOF before reading enough bytes");
+                OsalPrintError(LonStatusPersistentDataAccessError, "HalReadStorageSegment: EOF before reading enough bytes for segment %d", persistent_seg_type);
                 return persistentMemError = LonStatusPersistentDataAccessError;
             }
             break; // Successfully read all requested bytes
@@ -611,7 +613,7 @@ LonStatusCode HalReadStorageSegment(
         read_bytes += r;
     }
     OsalPrintDebug(persistentMemError, "HalReadStorageSegment: Read %zu bytes from storage segment %d at offset %zu",
-            size, persistent_seg_type, start);
+            size, persistent_seg_type, start - seg_start);
     return persistentMemError = LonStatusNoError;
 #elif PROCESSOR_IS(MC200)
     return persistentMemError = (iflash_drv_read(flashFd, buf, size, start) 

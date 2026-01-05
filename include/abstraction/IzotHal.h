@@ -79,11 +79,12 @@ extern LonStatusCode HalStorageInfo(size_t *offset, size_t *region_size,
  * Parameters:
  *   persistent_seg_type: Persistent data storage segment to be opened
  *   persistent_seg_name: Name of the persistent data storage segment to be opened
+ *   max_data_size: Maximum size of the persistent data segment in bytes
  * Returns:
- *   LonStatusNoError (0) on success, or an <LonStatusCode> error code
- *   on failure.
+ *   LonStatusNoError on success, or a LonStatusCode error code on failure.
  */
-extern LonStatusCode HalOpenStorageSegment(const IzotPersistentSegType persistent_seg_type, char *persistent_seg_name);
+extern LonStatusCode HalOpenStorageSegment(const IzotPersistentSegType persistent_seg_type,
+    char *persistent_seg_name, size_t max_data_size);
 
 /*
  * Closes the hardware-specific driver for interfacing with
