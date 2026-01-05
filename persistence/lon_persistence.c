@@ -1,7 +1,7 @@
 /*
  * Persistent.c
  *
- * Copyright (c) 2023-2025 EnOcean
+ * Copyright (c) 2023-2026 EnOcean
  * SPDX-License-Identifier: MIT
  * See LICENSE file for details.
  * 
@@ -24,12 +24,12 @@
 extern IzotPersistentSegDeserializeFunction izot_deserialize_handler;
 extern IzotPersistentSegSerializeFunction izot_serialize_handler;
  
-static unsigned      m_appSignature;
-static unsigned long m_guardBandDuration = 1000;
-static unsigned long lastUpdate = 0;
-static IzotBool      commitFlag = FALSE;
+static unsigned      app_signature;
+static unsigned long guard_band_duration = 1000;
+static unsigned long last_update = 0;
+static IzotBool      commit_flag = FALSE;
 static IzotBool      scheduled = FALSE;
-static IzotBool      PersitenceList[IzotPersistentSegNumSegmentTypes];
+static IzotBool      persistence_list[IzotPersistentSegNumSegmentTypes];
 
 /*****************************************************************
  * Section: Function Definitions
@@ -40,10 +40,10 @@ static IzotBool      PersitenceList[IzotPersistentSegNumSegmentTypes];
  */
 static uint32_t IzotPersistentMemGuardBandRemaining(void)
 {
-    uint32_t timeElapsed = OsalGetTickCount() - lastUpdate;
+    uint32_t timeElapsed = OsalGetTickCount() - last_update;
     uint32_t timeRemaining;
-    if (timeElapsed <= m_guardBandDuration) {
-        timeRemaining = m_guardBandDuration - timeElapsed;
+    if (timeElapsed <= guard_band_duration) {
+        timeRemaining = guard_band_duration - timeElapsed;
     } else {
         timeRemaining = 0;  /* already expired. */
     }
@@ -142,7 +142,7 @@ static LonStatusCode IzotPersistentSegStore(IzotPersistentSegType persistent_seg
     hdr.length = 0;
     hdr.signature = ISI_IMAGE_SIGNATURE0;
     hdr.checksum = 0;
-    hdr.appSignature = m_appSignature;
+    hdr.appSignature = app_signature;
     
     if (persistent_seg_type == IzotPersistentSegNetworkImage) {
         reason = IzotPersistentSegSerializeNetworkImage(&pImage, &imageLen);
@@ -192,10 +192,10 @@ static void IzotPersistentMemCommit(void)
     unsigned int i;
 
     for (i = 0; i < IzotPersistentSegNumSegmentTypes; i++) {
-        if (PersitenceList[i] != FALSE) {
+        if (persistence_list[i] != FALSE) {
             if (IzotPersistentSegStore(i) == LonStatusNoError) {
-                PersitenceList[i] = FALSE;
-                commitFlag = FALSE;
+                persistence_list[i] = FALSE;
+                commit_flag = FALSE;
                 OsalSleep(20);
             }
         }
@@ -235,7 +235,7 @@ bool ValidatePersistenceChecksum(IzotPersistenceHeader *pHdr, uint8_t *pImage)
 {
     bool result = true;
     // Can't checksum signature 0 checksum.
-    if (pHdr->signature != m_appSignature) {
+    if (pHdr->signature != app_signature) {
         if (ComputePersistenceChecksum(pImage, pHdr->length) != pHdr->checksum) {
             result = false;
         }
@@ -249,7 +249,7 @@ bool ValidatePersistenceChecksum(IzotPersistenceHeader *pHdr, uint8_t *pImage)
  */
 void SetAppSignature(unsigned appSignature)
 {
-    m_appSignature = appSignature;
+    app_signature = appSignature;
 }
 
 /*
@@ -258,7 +258,7 @@ void SetAppSignature(unsigned appSignature)
  */
 unsigned GetAppSignature(void)
 {
-    return m_appSignature;
+    return app_signature;
 }
 
 /*
@@ -275,7 +275,7 @@ void SetPeristenceGuardBand(int nTime)
         ticks = 1;
     }
     
-    m_guardBandDuration = ticks;
+    guard_band_duration = ticks;
 }
 
 /*
@@ -284,7 +284,7 @@ void SetPeristenceGuardBand(int nTime)
  */
 void IzotPersistentSegSetCommitFlag(IzotPersistentSegType persistent_seg_type)
 {
-    PersitenceList[persistent_seg_type] = TRUE;
+    persistence_list[persistent_seg_type] = TRUE;
 } 
 
 /*
@@ -296,7 +296,7 @@ void IzotPersistentSegSetCommitFlag(IzotPersistentSegType persistent_seg_type)
 void IzotPersistentMemStartCommitTimer(void)
 {
     if (!scheduled) {
-        lastUpdate = OsalGetTickCount();
+        last_update = OsalGetTickCount();
     }
 
     scheduled = TRUE;
@@ -322,7 +322,7 @@ void IzotPersistentMemCommitCheck(void)
     unsigned long guardTimeLeft = IzotPersistentMemGuardBandRemaining();  
 
     if (scheduled) {
-        if (guardTimeLeft == 0 || commitFlag) {
+        if (guardTimeLeft == 0 || commit_flag) {
             IzotPersistentMemCommit();
         }
     }
@@ -335,7 +335,7 @@ void IzotPersistentMemCommitCheck(void)
  */
 void IzotPersistentMemSetCommitFlag(void)
 {
-    commitFlag = TRUE;
+    commit_flag = TRUE;
 }
 
 /*
@@ -359,7 +359,7 @@ LonStatusCode IzotPersistentSegRestore(IzotPersistentSegType persistent_seg_type
                 status = LonStatusPersistentDataFailure;
             } else if (hdr.signature != ISI_IMAGE_SIGNATURE0) {
                 status = LonStatusPersistentDataFailure;
-            } else if (hdr.appSignature != m_appSignature) {
+            } else if (hdr.appSignature != app_signature) {
                 status = LonStatusPersistentDataFailure;
             } else if (hdr.version > CURRENT_VERSION) {
                 status = LonStatusPersistentDataFailure;
@@ -430,7 +430,7 @@ IzotBool IzotPersistentSegCommitScheduled(void)
     IzotBool isScheduled = FALSE;
 
     for (i = 0; i < IzotPersistentSegNumSegmentTypes; i++) {
-        if (PersitenceList[i]) {
+        if (persistence_list[i]) {
             isScheduled = TRUE;
             // If scheduled then do immediate commit of that data.
             IzotPersistentMemSetCommitFlag();

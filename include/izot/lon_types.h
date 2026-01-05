@@ -2575,7 +2575,7 @@ typedef LonStatusCode (*IzotMemoryReadFunction)(const unsigned address,
  *  value files through standard memory write protocol messages.
  *
  *   LON Stack automatically calls the
- *  <IzotPersistentAppSegmentHasBeenUpdated> function to schedule an update
+ *  <IzotPersistentDataHasBeenUpdated> function to schedule an update
  *  whenever this callback returns <LonStatusCode>.
  *
  *  Use <IzotRegisterMemoryWindow> to configure this service.

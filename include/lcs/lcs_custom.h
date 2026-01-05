@@ -1,7 +1,7 @@
 /*
  * lcs_custom.h
  *
- * Copyright (c) 2022-2025 EnOcean
+ * Copyright (c) 2022-2026 EnOcean
  * SPDX-License-Identifier: MIT
  * See LICENSE file for details.
  * 
@@ -28,18 +28,17 @@
 #include "izot/IzotPlatform.h"
 #include "izot/lon_types.h"
 
-/* ReadOnlyData. Reference: Tech Device Data Book. Revision 3. p.9-6 */
+/* Read only data */
 #define ARCHITECTURE_NUM      ARCHITECTURE_NUMBER
 #define MINOR_ARCH_NUM        0
 #define READ_WRITE_PROTECT    0
-#define RUN_WHEN_UNCONF       0 /* Set to 1 if applicaiton needs to run
-even if the node is unconfigured */
+#define RUN_WHEN_UNCONF       0 /* Set to 1 to run the application when the device is unconfigured */
 
 /*********************************************************************
     Warning!!! The following constants are encoded. So, don't use the
     actual values
 *********************************************************************/
-#define LCS_BUF_SIZE		 12		// This is the encoded byte count
+#define LCS_BUF_SIZE		 12		// Encoded byte count
 #define APP_OUT_BUF_SIZE     0
 #define APP_IN_BUF_SIZE      0
 #define RECV_REC_APDU_SIZE   LCS_BUF_SIZE
@@ -55,7 +54,6 @@ even if the node is unconfigured */
 #define TSA_RESP_BUF_SIZE    0
 #define LCS_MAX_BUF_SIZE     0
 
-
 #define APP_OUT_Q_CNT         3
 #define APP_OUT_PRI_Q_CNT     2    /* 3 ==> 2  8 ==> 15             */
 #define APP_IN_Q_CNT          3
@@ -68,7 +66,7 @@ even if the node is unconfigured */
 
 #define NON_GROUP_TIMER 8
 
-/* If the node is a member of group A(say), then typical 709.1 applications
+/* If the node is a member of group A(say), then typical LON applications
     set group size to 1 more than actual group size if node is not
     a member of group A. This is done so that the number of
     acknowledgements to be expected is always (groupsize - 1).

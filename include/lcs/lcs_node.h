@@ -1,7 +1,7 @@
 /*
  * lcs_node.h
  *
- * Copyright (c) 2022-2025 EnOcean
+ * Copyright (c) 2022-2026 EnOcean
  * SPDX-License-Identifier: MIT
  * See LICENSE file for details.
  * 
@@ -841,7 +841,7 @@ typedef struct
     /* Checksum for config structure */
     IzotByte            configCheckSum; /* Exclusive or of successive bytes in
                              config structure */
-    LonStatusCode     errorLog;
+    LonStatusCode       errorLog;
 	Dimensions          dimensions;
 	IzotByte            nvInitCount;
 	IzotByte            nodeState;
@@ -936,10 +936,10 @@ IzotBool IsPhysicalResetRequested(void);
 void     PhysicalResetRequested(void);
 
 // APIs that follow the AREA_<Name> convention:
-void	 LCS_WriteNvm(void);
-LonStatusCode LCS_ReadNvm(void);
-void     LCS_WriteNvs(void);
-LonStatusCode LCS_ReadNvs(void);
+void	 LCS_WritePersistentNetworkImage(void);
+LonStatusCode LCS_ReadPersistentNetworkImage(void);
+void     LCS_WritePersistentAppData(void);
+LonStatusCode LCS_ReadPersistentAppData(void);
 void	 LCS_InitAddress(void);
 void 	 LCS_InitAlias(void);
 IzotByte izot_get_device_state(void);

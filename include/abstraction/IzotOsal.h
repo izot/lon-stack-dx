@@ -1,7 +1,7 @@
 /*
  * IzotOsal.h
  *
- * Copyright (c) 2021-2025 EnOcean
+ * Copyright (c) 2021-2026 EnOcean
  * SPDX-License-Identifier: MIT
  * See LICENSE file for details.
  * 
@@ -207,6 +207,16 @@ LonStatusCode OsalSetEvent(OsalHandle eventHandle);
  * Section: Timing, Tasking, and Memory Allocation
  *          Function Definitions
  *****************************************************************/
+/*
+ * Returns a string representing the current date and time.
+ * Parameters:
+ *   None.
+ * Returns:
+ *   Pointer to a static string containing the current date and time
+ *   in "YYYY-MM-DD HH:MM:SS" format.
+ */
+char* OsalGetDateTimeString(void);
+
 /*
  * Returns the current system tick count.
  * Parameters:

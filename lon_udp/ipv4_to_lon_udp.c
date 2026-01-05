@@ -1181,7 +1181,7 @@ void SetLsAddressFromIpAddr(void)
 
     UpdateDomain(&domain, 0, 0);
     RecomputeChecksum();
-    LCS_WriteNvm();
+    LCS_WritePersistentNetworkImage();
 #endif
 }
 

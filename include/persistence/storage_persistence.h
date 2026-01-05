@@ -42,7 +42,7 @@
  *   application can invalidate a segment type by calling 
  *   IzotStorageCloseSeg() for that segment type.
  */
-extern IzotPersistentSegType IzotStorageOpenSegForRead(const IzotPersistentSegType persistent_seg_type); 
+extern IzotPersistentSegType IzotStorageOpenSegForRead(IzotPersistentSegType persistent_seg_type); 
 
 /* 
  * Opens a non-volatile storage data segment for writing.
@@ -168,7 +168,7 @@ extern LonStatusCode IzotStorageFinishSegUpdate(const IzotPersistentSegType pers
  * Returns:
  *   LonStatusNoError on success, or a LonStatusCode error code on failure.   
  */
-extern LonStatusCode ErasePersistenceData(void);
+extern LonStatusCode ErasePersistentAppData(void);
 
 /* 
  * Erases the persistent network image from storage.
@@ -177,7 +177,7 @@ extern LonStatusCode ErasePersistenceData(void);
  * Returns:
  *   LonStatusNoError on success, or a LonStatusCode error code on failure.   
  */
-extern LonStatusCode ErasePersistenceConfig(void);
+extern LonStatusCode ErasePersistentNetworkConfig(void);
 
 #endif  /* defined(DEFINED_PERSISTENT_STORAGE_H) */
  

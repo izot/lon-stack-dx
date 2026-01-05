@@ -1,7 +1,7 @@
 /*
  * IzotHal.h
  *
- * Copyright (c) 2022-2025 EnOcean
+ * Copyright (c) 2022-2026 EnOcean
  * SPDX-License-Identifier: MIT
  * See LICENSE file for details.
  * 
@@ -77,63 +77,70 @@ extern LonStatusCode HalStorageInfo(size_t *offset, size_t *region_size,
  * Opens the hardware-specific driver for interfacing with 
  * persistent memory.
  * Parameters:
- *   None
+ *   persistent_seg_type: Persistent data storage segment to be opened
+ *   persistent_seg_name: Name of the persistent data storage segment to be opened
  * Returns:
  *   LonStatusNoError (0) on success, or an <LonStatusCode> error code
  *   on failure.
  */
-extern LonStatusCode HalOpenStorage(void);
+extern LonStatusCode HalOpenStorageSegment(const IzotPersistentSegType persistent_seg_type, char *persistent_seg_name);
 
 /*
  * Closes the hardware-specific driver for interfacing with
  * persistent memory.
  * Parameters:
- *   None
+ *   persistent_seg_type: Persistent data storage segment to be closed
  * Returns:
  *   None
  */
-extern LonStatusCode HalCloseStorage(void);
+extern LonStatusCode HalCloseStorageSegment(const IzotPersistentSegType persistent_seg_type);
 
 /*
  * Erases the persistent data from the specified starting offset
  * by the specified size in bytes.
  * Parameters:
- *   start: offset in bytes from the start of the flash region
+ *   persistent_seg_type: Persistent data storage segment to be prepared
+ *   seg_start: virtual offset in bytes of the segment from the start of storage region
+ *   start: virtual offset in bytes from the start of the storage region
  *   size: number of bytes to erase
+ *   erase_value: value to use for erasing
  * Returns:
- *   LonStatusNoError (0) on success, or an <LonStatusCode> error code
- *   on failure.
+ *   LonStatusNoError on success, or a LonStatusCode error code on failure.
  */
-extern LonStatusCode HalPrepareStorage(size_t start, size_t size);
+extern LonStatusCode HalPrepareStorageSegment(
+        const IzotPersistentSegType persistent_seg_type,
+        size_t seg_start, size_t start, size_t size, uint8_t erase_value);
 
 /*
- * Writes the contents of buffer `buf` to an open file descriptor
- * `flashFd`, starting at offset `start` for `size` bytes.
+ * Writes a buffer to a persistent data storage segment.
  * Parameters:
- *   start: offset in bytes from the start of the flash region
+ *   persistent_seg_type: Persistent data storage segment to write
+ *   seg_start: virtual offset in bytes of the segment from the start of storage region
+ *   start: virtual offset in bytes from the start of the storage region
  *   size: number of bytes to write
  * Returns:
- *   LonStatusNoError (0) on success, or an <LonStatusCode> error code
- *   on failure.
+ *   LonStatusNoError on success, or a LonStatusCode error code on failure.
  * Notes:
  *   The file is extended if the file size is less than the starting
  *   offset.
  */
-extern LonStatusCode HalWriteStorage(IzotByte *buf, size_t start, size_t size);
+extern LonStatusCode HalWriteStorageSegment(
+        const IzotPersistentSegType persistent_seg_type, IzotByte *buf, size_t seg_start, size_t start, size_t size);
 
 /*
- * Reads `size` bytes from the file descriptor `flashFd` into buffer
- * `buf`, starting at offset `start`.
+ * Reads a buffer from a persistent data storage segment.
  * Parameters:
- *   start: offset in bytes from the start of the flash region
+ *   persistent_seg_type: Persistent data storage segment to read
+ *   seg_start: virtual offset in bytes of the segment from the start of storage region
+ *   start: virtual offset in bytes from the start of the storage region
  *   size: number of bytes to read
  * Returns:
- *   LonStatusNoError (0) on success, or an <LonStatusCode> error code
- *   on failure.
+ *   LonStatusNoError on success, or a LonStatusCode error code on failure.
  * Notes:
  *    An error is returned if the file size is less than `start + size` bytes.
  */
-extern LonStatusCode HalReadStorage(IzotByte *buf, size_t start, size_t size);
+extern LonStatusCode HalReadStorageSegment(
+        const IzotPersistentSegType persistent_seg_type, IzotByte *buf, size_t seg_start, size_t start, size_t size);
 
 /*****************************************************************
  * Section: LON USB Interface Abstraction Function Declarations

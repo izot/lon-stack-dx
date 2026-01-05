@@ -1,12 +1,12 @@
 /*
  * IzotApi.c
  *
- * Copyright (c) 2023-2025 EnOcean
+ * Copyright (c) 2023-2026 EnOcean
  * SPDX-License-Identifier: MIT
  * See LICENSE file for details.
  * 
  * Title:   LON Stack API
- * Purpose: Provides high-level API functions for the LON Stack.
+ * Purpose: Provides high-level API functions for LON Stack.
  */
 
 #include "izot/IzotApi.h"
@@ -22,6 +22,8 @@ extern "C" {
 IzotByte DataPointCount;
 IzotByte AliasTableCount;
 uint16_t BindableMTagCount;
+LonTimer isi_tick_timer;
+static uint32_t SiDataLength;
 
 IzotGetCurrentDatapointSizeFunction izot_get_dp_size_handler = NULL;
 IzotResetFunction izot_reset_handler = NULL;
@@ -36,7 +38,6 @@ IzotResponseArrivedFunction izot_response_arrived_handler = NULL;
 IzotMemoryReadFunction izot_memory_read_handler = NULL;
 IzotMemoryWriteFunction izot_memory_write_handler = NULL;
 IzotServiceLedStatusFunction izot_service_led_handler = NULL;
-
 IzotPersistentSegOpenForReadFunction izot_open_for_read_handler = IzotStorageOpenSegForRead;
 IzotPersistentSegOpenForWriteFunction izot_open_for_write_handler = IzotStorageOpenSegForWrite;
 IzotPersistentSegCloseFunction izot_close_handler = IzotStorageCloseSeg;
@@ -46,7 +47,6 @@ IzotPersistentSegWriteFunction izot_write_handler = IzotStorageWriteSeg;
 IzotPersistentSegIsInTransactionFunction izot_is_in_tx_handler = IzotStorageSegIsInvalid;
 IzotPersistentSegEnterTransactionFunction izot_enter_tx_handler = IzotStorageStartSegUpdate;
 IzotPersistentSegExitTransactionFunction izot_exit_tx_handler = IzotStorageFinishSegUpdate;
-
 IzotPersistentSegGetAppSizeFunction izot_get_app_seg_size_handler = NULL;
 IzotPersistentSegDeserializeFunction izot_deserialize_handler = NULL;
 IzotPersistentSegSerializeFunction izot_serialize_handler = NULL;
@@ -54,9 +54,6 @@ IzotFilterMsgArrivedFunction izot_filter_msg_arrived = NULL;
 IzotFilterResponseArrivedFunction izot_filter_response_arrived = NULL;
 IzotFilterMsgCompletedFunction izot_filter_msg_completed = NULL;
 IzotisiTickFunction izot_isi_tick_handler = NULL;
-LonTimer isi_tick_timer;
-
-static uint32_t SiDataLength;
 
 /*****************************************************************
  * Section: Function Declarations
@@ -65,65 +62,9 @@ extern void Encrypt(IzotByte randIn[], APDU *apduIn, IzotUbits16 apduSizeIn, Izo
         IzotByte encryptValueOut[], IzotByte isOma, OmaAddress* pOmaDest);
 
 /*****************************************************************
- * Section: Core LON Stack API Function Definitions
+ * Section: LON Stack Core API Function Definitions
  *****************************************************************/
  /*
-  * Sets the Length of SI data from III generated Length
-  * Parameters:
-  *   len: length of the SI data
-  * Returns:
-  *   None
-  */
-static void SetSiDataLength(uint32_t len)
-{
-    SiDataLength = len;
-}
-
- /*
-  * Gets the Length of SI data from III generated Length
-  * Parameters:
-  *   None
-  * Returns:
-  *   Length of the SI data
- */
-uint32_t GetSiDataLength(void)
-{
-    return SiDataLength;
-}
-
-/*
- * Sleeps for a specified number of ticks.
- * Parameters:
- *   ticks: The number of ticks to sleep 
- * Returns:
- *   None
- * Notes:
- *   Suspend the task for the specified number of clock ticks.
- */
-IZOT_EXTERNAL_FN void IzotSleep(unsigned int ticks)
-{
-    OsalSleep(ticks);
-}
-
-/*
- * Handles the IzotServiceLedStatus event.
- * Parameters:
- *   state: The current service LED state
- *   physicalState: The current physical state of the service LED
- * Returns:
- *   None
- * Notes:
- *   The IzotServiceLedStatus event occurs when the service pin state
- *   changes.
- */
-void IzotServiceLedStatus(IzotServiceLedState state, IzotServiceLedPhysicalState physicalState)
-{
-    if(izot_service_led_handler) {
-        izot_service_led_handler(state, physicalState);
-    }
-}
-
-/*
  * Processes asynchronous LON Stack events.
  * Parameters:
  *   None
@@ -184,6 +125,44 @@ IZOT_EXTERNAL_FN LonStatusCode IzotEventPump(void)
 }
 
 /*
+  * Sets the length of SI data.
+  * Parameters:
+  *   len: length of the SI data
+  * Returns:
+  *   None
+  */
+IZOT_EXTERNAL_FN void SetSiDataLength(uint32_t len)
+{
+    SiDataLength = len;
+}
+
+/*
+ * Gets the length of SI data.
+ * Parameters:
+ *   None
+ * Returns:
+ *   Length of the SI data
+ */
+IZOT_EXTERNAL_FN uint32_t GetSiDataLength(void)
+{
+    return SiDataLength;
+}
+
+/*
+ * Sleeps for a specified number of ticks.
+ * Parameters:
+ *   ticks: The number of ticks to sleep 
+ * Returns:
+ *   None
+ * Notes:
+ *   Suspend the task for the specified number of clock ticks.
+ */
+IZOT_EXTERNAL_FN void IzotSleep(unsigned int ticks)
+{
+    OsalSleep(ticks);
+}
+
+/*
  * Gets the registered device unique ID (Neuron or MAC ID).
  * Parameters:
  *   uId: Pointer to the the unique ID
@@ -215,7 +194,7 @@ IZOT_EXTERNAL_FN LonStatusCode IzotGetUniqueId(IzotUniqueId* const uId)
  * Returns:
  *   LonStatusNoError on success, or <LonStatusCode> error code on failure.
  * Notes:
- *   This function provides the version of the LON Stack.  This function
+ *   This function provides the LON Stack version.  This function
  *   can be called at any time.
  */
 IZOT_EXTERNAL_FN LonStatusCode IzotGetVersion(unsigned* const pMajorVersion, unsigned* const pMinorVersion,
@@ -431,7 +410,7 @@ IZOT_EXTERNAL_FN LonStatusCode IzotReleaseCorrelator(const IzotCorrelator correl
 }
 
 /*****************************************************************
- * Section: Extended LON Stack API Function Definitions
+ * Section: LON Stack Extended API Function Definitions
  *****************************************************************/
 /*
  * This section details extended LON Stack API functions consisting of
@@ -487,7 +466,7 @@ IZOT_EXTERNAL_FN LonStatusCode IzotClearStatus(void)
     memset(&nmp->stats, 0, sizeof(nmp->stats));
     nmp->resetCause = IzotResetCleared;
     eep->errorLog = LonStatusNoError;
-    LCS_WriteNvm();
+    LCS_WritePersistentNetworkImage();
 
     return LonStatusNoError;
 }
@@ -522,7 +501,7 @@ IZOT_EXTERNAL_FN LonStatusCode IzotUpdateConfigData(const IzotConfigData* const 
 {
     memcpy(&eep->configData, pConfig, sizeof(IzotConfigData));
     RecomputeChecksum();
-    LCS_WriteNvm();
+    LCS_WritePersistentNetworkImage();
     return LonStatusNoError;
 }
 
@@ -577,7 +556,7 @@ IZOT_EXTERNAL_FN LonStatusCode IzotSetNodeMode(const IzotNodeMode mode, const Iz
             gp->appPgmMode = NOT_RUNNING;
         }
         RecomputeChecksum();
-        LCS_WriteNvm();
+        LCS_WritePersistentNetworkImage();
         break;
 
 	case IzotPhysicalReset: 
@@ -648,7 +627,7 @@ IZOT_EXTERNAL_FN LonStatusCode IzotUpdateDomainConfig(unsigned index, const Izot
     }
     
     RecomputeChecksum();
-    LCS_WriteNvm();
+    LCS_WritePersistentNetworkImage();
 
     return LonStatusNoError;
 }
@@ -664,7 +643,8 @@ IZOT_EXTERNAL_FN LonStatusCode IzotUpdateDomainConfig(unsigned index, const Izot
  * Returns:
  *   LonStatusNoError if no error occurred, otherwise a <LonStatusCode> error code.
  */
-IZOT_EXTERNAL_FN LonStatusCode IzotUpdateDomain(unsigned index, unsigned length, const IzotByte* domainId, unsigned subnet, unsigned node)
+IZOT_EXTERNAL_FN LonStatusCode IzotUpdateDomain(unsigned index, unsigned length,
+        const IzotByte* domainId, unsigned subnet, unsigned node)
 {
 	IzotDomain Domain;
     LonStatusCode status = LonStatusNoError;
@@ -706,7 +686,7 @@ IZOT_EXTERNAL_FN LonStatusCode IzotUpdateDomain(unsigned index, unsigned length,
  *   pAddress: Pointer to a <IzotAddress> structure
  * Returns:
  *   LonStatusNoError if no error occurred, otherwise a <LonStatusCode> error code.
- * Noteks:
+ * Notes:
  *   Call this function to request a copy of the address table configuration 
  *   data. The configuration is stored in the provided <IzotAddress> structure.
  */
@@ -741,7 +721,7 @@ IZOT_EXTERNAL_FN LonStatusCode IzotUpdateAddressConfig(unsigned index, const Izo
         AddIpMembership(newaddr);
     }
     RecomputeChecksum();
-    LCS_WriteNvm();
+    LCS_WritePersistentNetworkImage();
     return LonStatusNoError;
 }
 
@@ -784,7 +764,7 @@ IZOT_EXTERNAL_FN LonStatusCode IzotUpdateDpConfig(signed index, const IzotDatapo
     memcpy(&eep->nvConfigTable[index], pDatapointConfig, sizeof(IzotDatapointConfig));
     OsalPrintDebug(LonStatusNoError, "IzotUpdateDpConfig: NV index %d", index);
     RecomputeChecksum();
-    LCS_WriteNvm();
+    LCS_WritePersistentNetworkImage();
     return LonStatusNoError;
 }
 
@@ -934,7 +914,7 @@ IZOT_EXTERNAL_FN LonStatusCode IzotUpdateAliasConfig(unsigned index, const IzotA
 {
     memcpy(&eep->nvAliasTable[index], pAlias, sizeof(IzotAliasConfig));
     RecomputeChecksum();
-    LCS_WriteNvm();
+    LCS_WritePersistentNetworkImage();
     return LonStatusNoError;
 }
 
@@ -990,39 +970,35 @@ IZOT_EXTERNAL_FN LonStatusCode IzotMtIsBound(const unsigned tag, IzotBool* const
 }
 
 /*****************************************************************
- * Section: Persistent Data API Function Definitions
+ * Section: LON Stack Persistent Data API Function Definitions
  *****************************************************************/
 /*
  * This section details the API functions that support persistent data (non-
- * volatile data).
- *
- * Notes:
- *   Persistent data is stored in data segments, identified by
- *   <IzotPersistentDataSegmentType>, and are used to store IzoT persistent
- *   configuration data.
+ * volatile data).  Persistent data is data that must be retained when the
+ * device is powered off.  It is stored in data segments, identified by
+ * <IzotPersistentDataSegmentType>.
  */
 
 /*
- * Informs the LON Stack that the application data segment has been updated.
+ * Informs LON Stack that persistent data storage has been updated.
  * Returns:
- *   LonStatusNoError if no error, else a <LonStatusCode> error code.
+ *   LonStatusNoError if no error, else a LonStatusCode error code.
  * Notes:
- *   Use this function to inform the LON Stack that some application
- *   data has been updated that should be written out to the
- *   <IzotPersistentSegApplicationData> persistent data segment.  The LON
- *   Stack will schedule a write to the <IzotPersistentSegApplicationData>
- *   segment after the flush timeout has expired.
+ *   Use this function to inform the LON Stack persistent data storage
+ *   has been updated.  LON Stack flushes the persistent data cache to
+ *   persistent storage after a timeout period (the flush timeout).
  *
- *   It is generally not necessary to call this function when application data
- *   has been updated by a network management write command or a datapoint 
- *   update, because the LON Stack automatically calls this function 
- *   whenever the <IzotMemoryWrite> event handler returns <LonStatusCode>, and 
- *   whenever a datapoint update is received for a datapoint with the
- *   *IZOT_DATAPOINT_CONFIG_CLASS* or *IZOT_DATAPOINT_PERSISTENT* attribute.
- *   However, the application must call this function whenever it updates
- *   application-specific persistent data directly.
+ *   It is generally not necessary to call this function when persistent
+ *   data has been updated by a network management write command or a
+ *   datapoint update, because LON Stack automatically calls this function 
+ *   from the IzotMemoryWrite() event handler and whenever a datapoint
+ *   update is received for a datapoint with the *IZOT_DATAPOINT_CONFIG_CLASS*
+ *   or *IZOT_DATAPOINT_PERSISTENT* attribute.
+ * 
+ *   A LON application must call this function whenever it updates any
+ *   persistent data directly.
  */
-IZOT_EXTERNAL_FN LonStatusCode IzotPersistentAppSegmentHasBeenUpdated(void)
+IZOT_EXTERNAL_FN LonStatusCode IzotPersistentDataHasBeenUpdated(void)
 {
     IzotPersistentMemStartCommitTimer();
     return LonStatusNoError;
@@ -1140,6 +1116,7 @@ static void UnlockWiFiDevice(void)
 /*****************************************************************
  * Section: LON Stack Lifetime Management Function Definitions
  *****************************************************************/ 
+
 /*
  * Initializes the LON Stack.
  * Parameters:
@@ -1172,6 +1149,7 @@ IZOT_EXTERNAL_FN LonStatusCode IzotCreateStack(const IzotStackInterfaceData* con
 #if LINK_IS(WIFI)
     char oldProgId[8];
 #endif 
+    OsalPrintDebug(LonStatusNoError, "\n************************************************");
     OsalPrintDebug(LonStatusNoError, "IzotCreateStack: Starting LON Stack initialization");
 
     // Only a few of these fields are used by LON Stack.  The
@@ -1363,12 +1341,12 @@ IZOT_EXTERNAL_FN LonStatusCode IzotStartStack(void)
 {
     // Load persistent NVs from NVM
     if (IzotGetAppSegmentSize() != 0) {
-        if (LCS_ReadNvs() != LonStatusNoError) {
+        if (LCS_ReadPersistentAppData() != LonStatusNoError) {
             OsalPrintDebug(LonStatusNoError, "IzotStartStack: No application data found--put the device into unconfigured mode");
-            ErasePersistenceData();
-            ErasePersistenceConfig();
+            ErasePersistentAppData();
+            ErasePersistentNetworkConfig();
             IzotPersistentSegSetCommitFlag(IzotPersistentSegApplicationData);
-            IzotPersistentAppSegmentHasBeenUpdated();
+            IzotPersistentDataHasBeenUpdated();
             IzotSetNodeMode(IzotChangeState, IzotApplicationUnconfig);
         }
     }
@@ -1385,6 +1363,8 @@ IZOT_EXTERNAL_FN LonStatusCode IzotStartStack(void)
  *   Waits for persistent writes to complete, stops the stack, and frees all
  *   temporary memory created during execution of the stack.  The Service LED is
  *   lit to indicate that the device is applicationless.
+ * 
+ *   This function is not currently implemented.
  */
 IZOT_EXTERNAL_FN void IzotDestroyStack(void)
 {
@@ -1473,8 +1453,8 @@ IZOT_EXTERNAL_FN unsigned IzotGetStaticDatapointCount(void)
  * Notes:
  *   Get the domain ID from a local IP address for LON/IP only.
  */
-IZOT_EXTERNAL_FN LonStatusCode IzotGetDidFromLocalAddress(IzotByte* pDid, IzotByte* pDidLen, IzotByte* pSub, 
-IzotByte* pNode)
+IZOT_EXTERNAL_FN LonStatusCode IzotGetDidFromLocalAddress(IzotByte* pDid,
+        IzotByte* pDidLen, IzotByte* pSub, IzotByte* pNode)
 {
 #if LINK_IS(ETHERNET) || LINK_IS(WIFI)
     const IzotByte* pDomainId = (IzotByte *)ownIpAddress;
@@ -1571,7 +1551,7 @@ unsigned IzotGetCurrentDatapointSize(const unsigned index)
 }
 
 /*****************************************************************
- * Section: Event Handler Function Prototype Definitions
+ * Section: LON Stack Event Handler Function Definitions
  *****************************************************************/
 /*
  *  This section defines the prototypes for the LON Stack event 
@@ -1675,35 +1655,37 @@ void IzotOnline(void)
 }
 
 /*
- * Handles the IzotServicePinPressed event.
+ * Handles the IzotServiceLedStatus event.
  * Parameters:
- *   None
+ *   state: The current service LED state
+ *   physicalState: The current physical state of the service LED
  * Returns:
  *   None
  * Notes:
- *   The IzotServicePinPressed event occurs when the Service button has
- *   been activated.  The LON Stack sends a Service message automatically
- *   any time the Service button has been activated.
+ *   The IzotServiceLedStatus event occurs when the service pin state
+ *   changes.
  */
-void IzotServicePinPressed(void)
+void IzotServiceLedStatus(IzotServiceLedState state, IzotServiceLedPhysicalState physicalState)
 {
-    ManualServiceRequestMessage();
+    if(izot_service_led_handler) {
+        izot_service_led_handler(state, physicalState);
+    }
 }
 
 /*
- * Handles the IzotServicePinHeld event.
+ * Handles the IzotServiceButtonPressed event.
  * Parameters:
  *   None
  * Returns:
  *   None
  * Notes:
- *   The IzotServicePinHeld event occurs when the Service button has been
- *   continuously activated for a configurable time.
+ *   The IzotServiceButtonPressed event occurs when the Service button has
+ *   been activated.  The LON Stack sends a Service message automatically
+ *   any time the Service button has been activated.
  */
-void IzotServicePinHeld(void)
+void IzotServiceButtonPressed(void)
 {
-    // TBD: Application specific processing
-    OsalPrintDebug(LonStatusNoError, "IzotServicePinHeld: Service pin held event occurred");
+    ManualServiceRequestMessage();
 }
 
 /*
@@ -1758,67 +1740,6 @@ void IzotDatapointUpdateCompleted(const unsigned index, const IzotBool success)
 	if (izot_dp_update_completed_handler) {
 		izot_dp_update_completed_handler(index, success);
     }
-}
-
-/*
- * Handles the IzotDatapointAdded event.
- * Parameters:
- *   index: The index of the dynamic NV that has been added
- *   pDpDef: Pointer to the NV definition
- * Returns:
- *   None
- * Notes:
- *   The IzotDatapointAdded event signals that a dynamic datapoint has been
- *   added.  During device startup, LON Stack calls this function for each
- *   dynamic datapoint that had been previously defined.  The pDpDef pointer,
- *   along with all of its contents, is invalid when the function returns.  If
- *   the application needs to maintain this information, it must copy the data,
- *   taking care to avoid copying the pointers contained within the 
- *   <IzotDatapointDefinition> structure.
- *
- *   When a datapoint is first added, the name and the self-documentation
- *   string may be blank.  A network manager may update the name or the
- *   self-documentation string in a subsequent message, and LON Stack
- *   will call the <IzotDatapointTypeChanged> event handler.
- */
-void IzotDatapointAdded(const unsigned index, const IzotDatapointDefinition* const pDpDef)
-{
-    // This event is not supported in LON Stack DX
-}
-
-/*
- * Handles the IzotDatapointTypeChanged event.
- * Parameters:
- *   index: The index of the dynamic NV that has been changed
- *   pDpDef: Pointer to the NV definition
- *
- * Notes:
- *   The IzotDatapointTypeChanged event signals that one or more attributes
- *   of a dynamic NV have been changed.  LON Stack calls this function when
- *   a dynamic NV definition has been changed.  The pDpDef pointer, along
- *   with all of its contents, is invalid when the function returns.  If 
- *   the application needs to maintain this information, it must copy the
- *   data, taking care to avoid copying the pointers contained within the
- *   <IzotDatapointDefinition> structure.
- */
-void IzotDatapointTypeChanged(const unsigned index, const IzotDatapointDefinition* const pDpDef)
-{
-    // This event is not supported in LON Stack DX
-}
-
-/*
- * Handles the IzotDatapointDeleted event.
- * Parameters:
- *   index: The index of the dynamic NV that has been deleted
- * Returns:
- *   None
- * Notes:
- *   The IzotDatapointDeleted event signals that a dynamic datapoint has been deleted.
- *   LON Stack calls this function when a dynamic NV is deleted.
- */
-void IzotDatapointDeleted(const unsigned index)
-{
-    //This event is not supported in LON Stack DX
 }
 
 /*
@@ -2038,9 +1959,8 @@ IzotBool IzotFilterMsgCompleted(const unsigned tag, const IzotBool success)
  *  functions supporting direct memory files (DMF) read and write.  This
  *  file contains complete default implementations of these callback
  *  functions. These callback functions use the IzotTranslateWindowArea()
- *  helper function generated by the LON Interface Developer to translate
- *  from the virtual memory address within the LON Transceiver to the 
- *  host memory address. These functions typically do not need to be modified.
+ *  helper function to translate from the LON device virtual memory address
+ *  to persistent storage address.
  *
  *  Callback functions are called by LON Stack immediately, as needed,
  *  and may be called from any LON task.  The application *must not* call
@@ -2098,7 +2018,7 @@ LonStatusCode IzotMemoryRead(const unsigned address, const unsigned size, void* 
  *   virtual memory address. This function applies to CP value files, 
  *   user-defined files, and possibly other data. The address space for this
  *   command is limited to a 64 KB address space.  LON Stack automatically
- *   calls the IzotPersistentAppSegmentHasBeenUpdated> function to schedule
+ *   calls the IzotPersistentDataHasBeenUpdated> function to schedule
  *   an update whenever this callback returns *LonStatusNoError*.
  */
 LonStatusCode IzotMemoryWrite(const unsigned address, const unsigned size, const void* const pData)
@@ -2273,7 +2193,7 @@ LonStatusCode IzotPersistentSegExitTransaction(const IzotPersistentSegType persi
 }
 
 /*****************************************************************
- * Section: Event Registrar Function Definitions
+ * Section: LON Stack Event Registration Function Definitions
  *****************************************************************/
 /*
  *  Event handlers for LON Stack are implemented as optional callback functions.

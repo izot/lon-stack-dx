@@ -1,7 +1,7 @@
 /*
  * lcs_app.c
  *
- * Copyright (c) 2022-2025 EnOcean
+ * Copyright (c) 2022-2026 EnOcean
  * SPDX-License-Identifier: MIT
  * See LICENSE file for details.
  * 
@@ -98,6 +98,7 @@ Section: Globals
 IzotByte NmAuth = FALSE;
 extern IzotByte AliasTableCount;
 extern uint16_t BindableMTagCount;
+
 /*------------------------------------------------------------------------------
 Section: Global function prototypes
 ------------------------------------------------------------------------------*/
@@ -1805,8 +1806,7 @@ Comments:  None.
 void IzotPrepareNetworkData(IzotByte *ndi, IzotUbits16 dpIndex, IzotUbits16 dpLen, IzotByte *hdi)
 {
     memcpy(ndi, hdi, dpLen);
-    if (izot_dp_prop[dpIndex].ibolSeq)
-    {
+    if (izot_dp_prop[dpIndex].ibolSeq) {
         IzotHdiToNdi(izot_dp_prop[dpIndex].ibolSeq, hdi, ndi, MAX_STOP_OFFSET);
     }
 }
@@ -2213,7 +2213,7 @@ static void ProcessNVUpdate(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
             IzotDatapointUpdateOccurred(thisBaseIndex, &(gp->nvInAddr));
 			
 			if (IZOT_GET_ATTRIBUTE(izot_dp_prop[thisBaseIndex], IZOT_DATAPOINT_PERSIST)) {
-				LCS_WriteNvs();
+				LCS_WritePersistentAppData();
 			}
         }
     }

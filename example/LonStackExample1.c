@@ -1,12 +1,25 @@
 /*
  * LonStackExample1.c
  *
- * Copyright (c) 2023-2025 EnOcean
+ * Copyright (c) 2023-2026 EnOcean
  * SPDX-License-Identifier: MIT
  * See LICENSE file for details.
  * 
  * Title:   LON Stack Example 1
- * Purpose: Provides a simple example application for the LON Stack.
+ * Purpose: Provides a simple example application for LON Stack.
+ * Notes:   This example creates a LON Stack application with
+ *          three network variables (NVs):
+ *          - Heartbeat Interval Input NV (SNVT_elapsed_tm)
+ *          - Flow 1 Input NV (SNVT_flow_p)
+ *          - Flow 2 Input NV (SNVT_flow_f)
+ *          The example configures the LON Stack interface and
+ *          control data structures, and defines the NVs with
+ *          appropriate definitions and configurations.
+ *          The example does not include application logic for
+ *          handling NV updates or other functionality.
+ *          This file is intended to be used as a starting point
+ *          for test LON Stack ports to new platforms and for
+ *          developing LON Stack applications.
  */
 
 #include "LonStackExample1.h"   // Example declarations

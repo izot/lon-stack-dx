@@ -1,7 +1,7 @@
 /*
  * IzotOsal.c
  *
- * Copyright (c) 2021-2025 EnOcean
+ * Copyright (c) 2021-2026 EnOcean
  * SPDX-License-Identifier: MIT
  * See LICENSE file for details.
  * 
@@ -231,6 +231,23 @@ LonStatusCode OsalSetEvent(OsalHandle eventHandle)
  *          Function Definitions
  *****************************************************************/
 /*
+ * Returns a string representing the current date and time.
+ * Parameters:
+ *   None.
+ * Returns:
+ *   Pointer to a static string containing the current date and time
+ *   in "YYYY-MM-DD HH:MM:SS" format.
+ */
+char* OsalGetDateTimeString(void)
+{
+    static char datetime[20];
+    time_t now = time(NULL);
+    struct tm *tm_info = localtime(&now);
+    strftime(datetime, sizeof(datetime), "%Y-%m-%d %H:%M:%S", tm_info);
+    return datetime;
+}
+
+/*
  * Returns the current system tick count.
  * Parameters:
  *   None.
@@ -405,9 +422,9 @@ void OsalFreeMemory(void *buf)
 {
     uint32_t time = OsalGetTickCount()*1000/OsalGetTicksPerSecond();
     if (status_code == LonStatusNoError) {
-        snprintf(buffer, buffer_len, "%d.%.3d Info: ", time/1000, time % 1000);
+        snprintf(buffer, buffer_len, "%s.%.3d Info: ", OsalGetDateTimeString(), time % 1000);
     } else {
-        snprintf(buffer, buffer_len, "%d.%.3d Error %d: ", time/1000, time % 1000, status_code);
+        snprintf(buffer, buffer_len, "%s.%.3d Error %d: ", OsalGetDateTimeString(), time % 1000, status_code);
     }
     vsnprintf(buffer + strlen(buffer), buffer_len - strlen(buffer), status_string, args);
 }
@@ -489,7 +506,7 @@ void OsalPrintError(LonStatusCode status_code, char *status_string, ...)
     // out flash memory with redundant values
     if (status_code != LonStatusNoError && eep->errorLog != status_code){
         eep->errorLog = status_code;
-        LCS_WriteNvm();
+        LCS_WritePersistentNetworkImage();
     }
 
     if (logLevel < LOG_ERROR)

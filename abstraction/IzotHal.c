@@ -1,7 +1,7 @@
 /*
  * IzotHal.c
  *
- * Copyright (c) 2022-2025 EnOcean
+ * Copyright (c) 2022-2026 EnOcean
  * SPDX-License-Identifier: MIT
  * See LICENSE file for details.
  * 
@@ -44,6 +44,7 @@ extern void sync(void);
 // MUST come after sys/types.h and in this specific order for macOS
 #if OS_IS(LINUX) || defined(__unix__) || defined(__APPLE__) || defined(_POSIX_VERSION)
 #include <stdio.h>
+#include <stdbool.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/socket.h>
@@ -105,28 +106,44 @@ LonStatusCode persistentMemError = LonStatusNoError; // Last persistent memory e
 IzotBool persistentMemInitialized = FALSE; // Flag to indicate if flash is initialized
 
 #if OS_IS(LINUX)
-static const char *configFilePathDefault = "/var/lib/lon-device-stack/lon-app-config";
+static const char *configDirectoryDefault = "/var/lib/lon-device-stack";
                             // LON application configuration file path
-int flashFd = -1;           // File descriptor for the flash file
-const char *iface = "eth0"; // Hardware dependent IP interface name
-
-static const char *HalGetConfigFilePath(void)
-{
-    const char *overridePath = getenv("LON_STACK_DX_CONFIG_FILE");
-    if (overridePath && *overridePath) {
-        return overridePath;
-    }
-    return configFilePathDefault;
-}
+                            // Overridable via LON_STACK_DX_CONFIG_FILE environment variable
+static char configDirectory[512] = "";
+                            // LON Stack configuration directory
+static int storageFd[IzotPersistentSegNumSegmentTypes] = {-1}; 
+                            // File descriptors for segment data storage devices
+static const char *iface = "eth0"; // Hardware dependent IP interface name
 #endif // OS_IS(LINUX)
 
 #if PROCESSOR_IS(MC200)
-mdev_t *flashFd = NULL; // File descriptor for the flash device
+static mdev_t *flashFd = NULL; // File descriptor for the flash device
 #endif // PROCESSOR_IS(MC200)
 
 /*****************************************************************
  * Section: Storage Function Definitions
  *****************************************************************/
+
+#if OS_IS(LINUX)
+/* 
+ * Returns the default LON Stack configuration file path.
+ * Parameters:
+ *   None
+ * Returns:
+ *   Pointer to the configuration file path string.
+ * Notes:
+ *   The default path can be overridden by setting the
+ *   LON_STACK_DX_CONFIG_FILE environment variable.
+ */
+static const char *HalGetConfigDirectory(void)
+{
+    const char *overridePath = getenv("LON_STACK_DX_CONFIG_FILE");
+    if (overridePath && *overridePath) {
+        return overridePath;
+    }
+    return configDirectoryDefault;
+}
+#endif // OS_IS(LINUX)
 
 /* 
  * Creates the LON Stack configuration directory if it does not exist.
@@ -139,7 +156,7 @@ mdev_t *flashFd = NULL; // File descriptor for the flash device
  */
 LonStatusCode HalCreateConfigDirectory(const char *path, mode_t mode) {
 #if OS_IS(LINUX)
-    char tmp[512];
+    char workingPath[512];
     struct stat st;
     size_t len;
     char *p;
@@ -147,24 +164,24 @@ LonStatusCode HalCreateConfigDirectory(const char *path, mode_t mode) {
     if (!LON_SUCCESS(persistentMemError)) {
         return persistentMemError;
     }
-    if (!path || !*path || strlen(path) >= sizeof(tmp)) {
+    if (!path || !*path || strlen(path) >= sizeof(workingPath)) {
         // Invalid path
         return persistentMemError = LonStatusPersistentDataDirError;
     }
-    snprintf(tmp, sizeof(tmp), "%s", path);
-    len = strlen(tmp);
+    snprintf(workingPath, sizeof(workingPath), "%s", path);
+    len = strlen(workingPath);
 
     // Remove trailing slash (but preserve root "/")
-    if (len > 1 && tmp[len - 1] == '/')
-        tmp[len - 1] = '\0';
+    if (len > 1 && workingPath[len - 1] == '/')
+        workingPath[len - 1] = '\0';
 
     // Iterate through the path and identify directories to create
-    for (p = tmp + 1; *p; p++) {
+    for (p = workingPath + 1; *p; p++) {
         if (*p == '/') {
             *p = '\0';
-            if (stat(tmp, &st) != 0) {
+            if (stat(workingPath, &st) != 0) {
                 if (errno == ENOENT) {
-                    if (mkdir(tmp, mode) != 0) {
+                    if (mkdir(workingPath, mode) != 0) {
                         // mkdir failed
                         return persistentMemError = LonStatusPersistentDataDirError;
                     }
@@ -180,9 +197,9 @@ LonStatusCode HalCreateConfigDirectory(const char *path, mode_t mode) {
         }
     }
     // Final directory
-    if (stat(tmp, &st) != 0) {
+    if (stat(workingPath, &st) != 0) {
         if (errno == ENOENT) {
-            if (mkdir(tmp, mode) != 0) {
+            if (mkdir(workingPath, mode) != 0) {
                 // mkdir failed
                 return persistentMemError = LonStatusPersistentDataDirError;
             }
@@ -221,12 +238,11 @@ LonStatusCode HalInitStorage(void)
     persistentMemInitialized = TRUE;
 #if OS_IS(LINUX)
     // Get directory portion of configuration file path
-    char filedir[512];
-    snprintf(filedir, sizeof(filedir), "%s", HalGetConfigFilePath());
-    dirname(filedir); // modifies in place
+    snprintf(configDirectory, sizeof(configDirectory), "%s", HalGetConfigDirectory());
+    dirname(configDirectory); // modifies in place
 
     // Ensure configuration file path exists
-    return persistentMemError = HalCreateConfigDirectory(filedir, 0755);
+    return persistentMemError = HalCreateConfigDirectory(configDirectory, 0755);
 #elif PROCESSOR_IS(MC200)
     return persistentMemError = (iflash_drv_init() 
             ? LonStatusNoError : LonStatusPersistentDataFailure);
@@ -286,6 +302,7 @@ LonStatusCode HalStorageInfo(size_t *offset, size_t *region_size,
     *erase_required     = false;
     *erase_value        = 0;
     persistentMemError  = LonStatusPersistentDataFailure
+    OsalPrintError(persistentMemError, "HalStorageInfo: No persistent storage driver available");
 #endif
 
     return persistentMemError;
@@ -293,45 +310,54 @@ LonStatusCode HalStorageInfo(size_t *offset, size_t *region_size,
 
 /*
  * Opens the hardware-specific driver for interfacing with 
- * persistent storage.
+ * storage data segment persistent storage.
  * Parameters:
- *   None
+ *   persistent_seg_type: Persistent data storage segment to be opened
+ *   persistent_seg_name: Name of the persistent data storage segment to be opened
  * Returns:
  *   LonStatusNoError (0) on success, or an <LonStatusCode> error code
  *   on failure.
  */
-LonStatusCode HalOpenStorage(void)
+LonStatusCode HalOpenStorageSegment(
+        const IzotPersistentSegType persistent_seg_type, char *persistent_seg_name)
 {
     if (!LON_SUCCESS(persistentMemError)) {   
         return persistentMemError;
     }
 #if OS_IS(LINUX)
     // Open file (read/write, create if missing, no truncation)
-    if (flashFd != -1) {
+    if (storageFd[persistent_seg_type] != -1) {
         // Already open
         return persistentMemError = LonStatusNoError;
     }
-    flashFd = open(HalGetConfigFilePath(), O_RDWR | O_CREAT, 0644);
-    if (flashFd == -1) {
+    char config_file_path[512];
+    snprintf(config_file_path, sizeof(config_file_path), "%s/%s", 
+            configDirectory, persistent_seg_name);
+    storageFd[persistent_seg_type] = open(config_file_path, O_RDWR | O_CREAT, 0644);
+    if (storageFd[persistent_seg_type] == -1) {
         // Configuration file open error
+        OsalPrintError(errno, "HalOpenStorageSegment: Cannot open or create %s", config_file_path);
         return persistentMemError = LonStatusPersistentDataAccessError;
     }
 
     // Ensure the configuration file is the expected fixed size.
     // This allows random-access reads/writes up to FLASH_REGION_SIZE.
     struct stat st;
-    if (fstat(flashFd, &st) != 0) {
-        close(flashFd);
-        flashFd = -1;
+    if (fstat(storageFd[persistent_seg_type], &st) != 0) {
+        close(storageFd[persistent_seg_type]);
+        storageFd[persistent_seg_type] = -1;
+        OsalPrintError(errno, "HalOpenStorageSegment: Cannot read attributes for %s", config_file_path);
         return persistentMemError = LonStatusPersistentDataAccessError;
     }
     if ((size_t)st.st_size != (size_t)FLASH_REGION_SIZE) {
-        if (ftruncate(flashFd, (off_t)FLASH_REGION_SIZE) != 0) {
-            close(flashFd);
-            flashFd = -1;
+        if (ftruncate(storageFd[persistent_seg_type], (off_t)FLASH_REGION_SIZE) != 0) {
+            close(storageFd[persistent_seg_type]);
+            storageFd[persistent_seg_type] = -1;
+            OsalPrintError(errno, "HalOpenStorageSegment: Cannot set size of %d for %s", FLASH_REGION_SIZE, config_file_path);
             return persistentMemError = LonStatusPersistentDataAccessError;
         }
     }
+    OsalPrintDebug(persistentMemError, "HalOpenStorageSegment: Opened storage segment %s", persistent_seg_name);
 #elif PROCESSOR_IS(MC200)
     // Open the flash device
     if (flashFd != NULL) {
@@ -342,27 +368,27 @@ LonStatusCode HalOpenStorage(void)
             ? LonStatusNoError : LonStatusPersistentDataAccessError);
 #else
     persistentMemError = LonStatusPersistentDataAccessError;
+    OsalPrintError(persistentMemError, "HalOpenStorageSegment: No persistent storage driver available");
 #endif // OS_IS(FREERTOS)
     return persistentMemError;
 }
 
 /*
- * Closes the hardware-specific driver for interfacing with
- * persistent storage.
+ * Closes the hardware-specific driver for interfacing with persistent data storage.
  * Parameters:
- *   None
+ *   persistent_seg_type: Persistent data storage segment to be closed
  * Returns:
  *   None
  */
-LonStatusCode HalCloseStorage(void)
+LonStatusCode HalCloseStorageSegment(const IzotPersistentSegType persistent_seg_type)
 {
     if (!LON_SUCCESS(persistentMemError)) {   
         return persistentMemError;
     }
 #if OS_IS(LINUX)
-    if (flashFd != -1) {
-        close(flashFd);
-        flashFd = -1;
+    if (storageFd[persistent_seg_type] != -1) {
+        close(storageFd[persistent_seg_type]);
+        storageFd[persistent_seg_type] = -1;
     }
 #elif PROCESSOR_IS(MC200)
     if (flashFd != NULL) {
@@ -377,121 +403,145 @@ LonStatusCode HalCloseStorage(void)
  * Prepare storage for writing persistent data from the specified starting
  * offset by the specified size in bytes.
  * Parameters:
- *   start: offset in bytes from the start of the storage region
+ *   persistent_seg_type: Persistent data storage segment to be prepared
+ *   seg_start: virtual offset in bytes of the segment from the start of storage region
+ *   start: virtual offset in bytes from the start of the storage region
  *   size: number of bytes to prepare
+ *   erase_value: value to use for erasing
  * Returns:
- *   LonStatusNoError (0) on success, or an <LonStatusCode> error code
- *   on failure.
+ *   LonStatusNoError on success, or a LonStatusCode error code on failure.
  */
-LonStatusCode HalPrepareStorage(size_t start, size_t size)
+LonStatusCode HalPrepareStorageSegment(
+        const IzotPersistentSegType persistent_seg_type,
+        size_t seg_start, size_t start, size_t size, uint8_t erase_value)
 {
     if (!LON_SUCCESS(persistentMemError)) {   
         return persistentMemError;
     }
 #if OS_IS(LINUX)
     struct stat st;
-    if ((flashFd == -1) || (fstat(flashFd, &st) != 0)) {
+    if ((storageFd[persistent_seg_type] == -1) || (fstat(storageFd[persistent_seg_type], &st) != 0)) {
         // Persistent file not open or stat failed
+        OsalPrintError(LonStatusPersistentDataAccessError, "HalPrepareStorageSegment: Persistent file not open or stat failed");
         return persistentMemError = LonStatusPersistentDataAccessError;
     }
+    size_t file_start = seg_start - start;
     off_t file_size = st.st_size;
-    if (file_size < start) {
+    if (file_size < file_start) {
         // Seek to (start-1) and write a single 0x00 to extend the file
-        if (lseek(flashFd, start - 1, SEEK_SET) == (off_t)-1) {
+        if (lseek(storageFd[persistent_seg_type], file_start - 1, SEEK_SET) == (off_t)-1) {
             // Extend seek failed
+            OsalPrintError(LonStatusPersistentDataAccessError, "HalPrepareStorageSegment: Extend seek failed");
             return persistentMemError = LonStatusPersistentDataAccessError;
         }
         unsigned char zero = 0;
-        if (write(flashFd, &zero, 1) != 1) {
+        if (write(storageFd[persistent_seg_type], &zero, 1) != 1) {
             // Extend write failed
+            OsalPrintError(LonStatusPersistentDataAccessError, "HalPrepareStorageSegment: Extend write failed");
             return persistentMemError = LonStatusPersistentDataAccessError;
         }
     }
 
     // Seek to offset
-    if (lseek(flashFd, start, SEEK_SET) == -1) {
+    if (lseek(storageFd[persistent_seg_type], file_start, SEEK_SET) == -1) {
         // Seek to start failed
+        OsalPrintError(LonStatusPersistentDataAccessError, "HalPrepareStorageSegment: Seek to start failed");
         return persistentMemError = LonStatusPersistentDataAccessError;
     }
 
-    // Write 0xFF bytes
+    // If an erase is required, fill size bytes with erase_value, otherwise fill 2 bytes (the transaction record)
     unsigned char buf[256];
-    memset(buf, 0xFF, sizeof(buf));
+    memset(buf, erase_value, sizeof(buf));
     size_t left = size;
     while (left > 0) {
         size_t chunk = left > sizeof(buf) ? sizeof(buf) : left;
-        ssize_t w = write(flashFd, buf, chunk);
+        ssize_t w = write(storageFd[persistent_seg_type], buf, chunk);
         if (w < 0) {
             // Write to region failed
+            OsalPrintError(LonStatusPersistentDataAccessError, "HalPrepareStorageSegment: Write to region failed");
             return persistentMemError = LonStatusPersistentDataAccessError;
         }
         left -= w;
     }
-    return persistentMemError = LonStatusNoError;
+    persistentMemError = LonStatusNoError;
+    OsalPrintDebug(persistentMemError, "HalPrepareStorageSegment: Prepared storage segment %d from offset %zu for %zu bytes",
+            persistent_seg_type, start, size);
+    return persistentMemError;
 #elif PROCESSOR_IS(MC200)
     if (flashFd == NULL) {
         // Flash driver not initialized
         return persistentMemError = LonStatusPersistentDataAccessError;
     }
-    // Erase the flash region by filling the specified area with 0xFF
+    // Erase the storage region by filling the specified area with erase_value
     return persistentMemError = (iflash_drv_erase(flashFd, start, size) 
             ? LonStatusNoError : LonStatusPersistentDataAccessError);
 #else
+    OsalPrintError(LonStatusPersistentDataAccessError, "HalPrepareStorageSegment: No persistent storage driver available"); 
     return persistentMemError = LonStatusPersistentDataAccessError;
 #endif
 }
 
 /*
- * Writes the contents of buffer `buf` to an open storage descriptor
- * `flashFd`, starting at offset `start` for `size` bytes.
+ * Writes a buffer to a persistent data storage segment.
  * Parameters:
- *   start: offset in bytes from the start of the storage region
+ *   persistent_seg_type: Persistent data storage segment to write
+ *   seg_start: virtual offset in bytes of the segment from the start of storage region
+ *   start: virtual offset in bytes from the start of the storage region
  *   size: number of bytes to write
  * Returns:
- *   LonStatusNoError (0) on success, or an <LonStatusCode> error code
- *   on failure.
+ *   LonStatusNoError on success, or a LonStatusCode error code on failure.
  * Notes:
  *   The file is extended if the file size is less than the starting
  *   offset.
  */
-LonStatusCode HalWriteStorage(IzotByte *buf, size_t start, size_t size)
+LonStatusCode HalWriteStorageSegment(
+        const IzotPersistentSegType persistent_seg_type, IzotByte *buf, size_t seg_start, size_t start, size_t size)
 {
     if (!LON_SUCCESS(persistentMemError)) {   
         return persistentMemError;
     }
 #if OS_IS(LINUX)
     struct stat st;
-    if ((flashFd == -1) || (fstat(flashFd, &st) != 0)) {
+    if ((storageFd[persistent_seg_type] == -1) || (fstat(storageFd[persistent_seg_type], &st) != 0)) {
         // Persistent file not open or stat failed
+        OsalPrintError(LonStatusPersistentDataAccessError, "HalWriteStorageSegment: Persistent file not open or stat failed");
         return persistentMemError = LonStatusPersistentDataAccessError;
     }
-    if (st.st_size < start) {
+    size_t file_start = seg_start - start;
+    off_t file_size = st.st_size;
+    if (file_size < file_start) {
         // Extend file to the desired offset
-        if (lseek(flashFd, start - 1, SEEK_SET) == (off_t)-1) {
+        if (lseek(storageFd[persistent_seg_type], file_start - 1, SEEK_SET) == (off_t)-1) {
             // Extend seek failed
+            OsalPrintError(LonStatusPersistentDataAccessError, "HalWriteStorageSegment: Extend seek failed");
             return persistentMemError = LonStatusPersistentDataAccessError;
         }
         unsigned char zero = 0;
-        if (write(flashFd, &zero, 1) != 1) {
+        if (write(storageFd[persistent_seg_type], &zero, 1) != 1) {
             // Extend write failed
+            OsalPrintError(LonStatusPersistentDataAccessError, "HalWriteStorageSegment: Extend write failed");
             return persistentMemError = LonStatusPersistentDataAccessError;
         }
     }
     // Seek to the start offset
-    if (lseek(flashFd, start, SEEK_SET) == (off_t)-1) {
+    if (lseek(storageFd[persistent_seg_type], file_start, SEEK_SET) == (off_t)-1) {
         // Seek to start failed
+        OsalPrintError(LonStatusPersistentDataAccessError, "HalWriteStorageSegment: Seek to start failed");
         return persistentMemError = LonStatusPersistentDataAccessError;
     }
     // Write the data
     size_t written = 0;
     while (written < size) {
-        ssize_t w = write(flashFd, (const char*)buf + written, size - written);
+        ssize_t w = write(storageFd[persistent_seg_type], (const char*)buf + written, size - written);
         if (w < 0) {
             // Persistent data write failure
+            OsalPrintError(LonStatusPersistentDataAccessError, "HalWriteStorageSegment: Persistent data write failure");
             return persistentMemError = LonStatusPersistentDataAccessError;
         }
         written += w;
     }
+    OsalPrintDebug(persistentMemError, "HalWriteStorageSegment: Wrote %zu bytes to storage segment %d at offset %zu",
+            size, persistent_seg_type, start);
     return persistentMemError = LonStatusNoError;
 #elif PROCESSOR_IS(MC200)
     return persistentMemError = (iflash_drv_write(flashFd, buf, len, addr) 
@@ -502,56 +552,66 @@ LonStatusCode HalWriteStorage(IzotByte *buf, size_t start, size_t size)
 }
 
 /*
- * Reads `size` bytes from the file descriptor `flashFd` into buffer
- * `buf`, starting at offset `start`.
+ * Reads a buffer from a persistent data storage segment.
  * Parameters:
- *   start: offset in bytes from the start of the storage region
+ *   persistent_seg_type: Persistent data storage segment to read
+ *   seg_start: virtual offset in bytes of the segment from the start of storage region
+ *   start: virtual offset in bytes from the start of the storage region
  *   size: number of bytes to read
  * Returns:
- *   LonStatusNoError (0) on success, or an <LonStatusCode> error code
- *   on failure.
+ *   LonStatusNoError on success, or a LonStatusCode error code on failure.
  * Notes:
  *    An error is returned if the file size is less than `start + size` bytes.
  */
-LonStatusCode HalReadStorage(IzotByte *buf, size_t start, size_t size)
+LonStatusCode HalReadStorageSegment(
+        const IzotPersistentSegType persistent_seg_type, IzotByte *buf, size_t seg_start, size_t start, size_t size)
 {
     if (!LON_SUCCESS(persistentMemError)) {   
         return persistentMemError;
     }
 #if OS_IS(LINUX)
     struct stat st;
-    if ((flashFd == -1) || (fstat(flashFd, &st) != 0)) {
+    if ((storageFd[persistent_seg_type] == -1) || (fstat(storageFd[persistent_seg_type], &st) != 0)) {
         // Persistent file not open or stat failed
+        OsalPrintError(LonStatusPersistentDataAccessError, "HalReadStorageSegment: Persistent file not open or stat failed");
         return persistentMemError = LonStatusPersistentDataAccessError;
     }
     // Check that the file is large enough
-    if (st.st_size < (off_t)(start + size)) {
+    size_t file_start = seg_start - start;
+    off_t file_size = st.st_size;
+    if (file_size < (off_t)(file_start + size)) {
         // Attempt to read beyond end of file
         errno = EINVAL;
+        OsalPrintError(LonStatusPersistentDataAccessError, "HalReadStorageSegment: Attempt to read beyond end of file");
         return persistentMemError = LonStatusPersistentDataAccessError;
     }
     // Seek to the start offset
-    if (lseek(flashFd, start, SEEK_SET) == (off_t)-1) {
+    if (lseek(storageFd[persistent_seg_type], file_start, SEEK_SET) == (off_t)-1) {
         // Seek to start failed
+        OsalPrintError(LonStatusPersistentDataAccessError, "HalReadStorageSegment: Seek to start failed");
         return persistentMemError = LonStatusPersistentDataAccessError;
     }
     // Read the data
     size_t read_bytes = 0;
     while (read_bytes < size) {
-        ssize_t r = read(flashFd, (char*)buf + read_bytes, size - read_bytes);
+        ssize_t r = read(storageFd[persistent_seg_type], (char*)buf + read_bytes, size - read_bytes);
         if (r < 0) {
             // Persistent data read failure
+            OsalPrintError(LonStatusPersistentDataAccessError, "HalReadStorageSegment: Persistent data read failure");
             return persistentMemError = LonStatusPersistentDataAccessError;
         } else if (r == 0) {
             // End of file reached before reading enough bytes
             if (read_bytes < size) {
                 errno = EINVAL;
+                OsalPrintError(LonStatusPersistentDataAccessError, "HalReadStorageSegment: EOF before reading enough bytes");
                 return persistentMemError = LonStatusPersistentDataAccessError;
             }
             break; // Successfully read all requested bytes
         }
         read_bytes += r;
     }
+    OsalPrintDebug(persistentMemError, "HalReadStorageSegment: Read %zu bytes from storage segment %d at offset %zu",
+            size, persistent_seg_type, start);
     return persistentMemError = LonStatusNoError;
 #elif PROCESSOR_IS(MC200)
     return persistentMemError = (iflash_drv_read(flashFd, buf, size, start) 

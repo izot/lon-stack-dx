@@ -1,7 +1,7 @@
 /*
  * lcs.c
  *
- * Copyright (c) 2022-2025 EnOcean
+ * Copyright (c) 2022-2026 EnOcean
  * SPDX-License-Identifier: MIT
  * See LICENSE file for details.
  * 
@@ -20,7 +20,7 @@
 // LON Stack DX initialization
 extern LonStatusCode APPInit(void); // Init function for application layer
 
-// Send functions for the LON Stack DX layers
+// Send functions for the LON Stack layers
 extern void APPSend(void);
 extern void TPSend(void);
 extern void SNSend(void);

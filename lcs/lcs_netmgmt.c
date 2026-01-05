@@ -1,7 +1,7 @@
 /*
  * lcs_netmgmt.c
  *
- * Copyright (c) 2022-2025 EnOcean
+ * Copyright (c) 2022-2026 EnOcean
  * SPDX-License-Identifier: MIT
  * See LICENSE file for details.
  * 
@@ -73,8 +73,8 @@ extern IzotUbits32 AnnounceTimer;
 extern IzotUbits32 AddrMappingAgingTimer;
 
 static EEPROM save;
-static unsigned    DmfWindowAddress;
-static unsigned    DmfWindowSize;
+static unsigned DmfWindowAddress;
+static unsigned DmfWindowSize;
 
 /*****************************************************************
  * Section: Function Definitions
@@ -1275,7 +1275,7 @@ void HandleNmeUpdateNvByIndex(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr
 
             IzotDatapointUpdateOccurred(matchingPrimaryIndex, &(gp->nvInAddr));
             if (IZOT_GET_ATTRIBUTE(izot_dp_prop[matchingPrimaryIndex], IZOT_DATAPOINT_PERSIST)) {
-                LCS_WriteNvs();
+                LCS_WritePersistentAppData();
             }
         }
     }
@@ -1931,8 +1931,7 @@ void HandleNMReadMemory(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
     IZOT_SET_ATTRIBUTE(eep->configData, IZOT_CONFIG_INPUT_CLOCK, clockSave);
 
     if (memp == (char *) nmp && apduPtr->data[3] == 1) {
-        /* trap for absolute read of location 0 and write
-         version number */
+        /* Trap for absolute read of location 0 and write base firmware version number */
         apduRespPtr->data[0] = BASE_FIRMWARE_VERSION;
     }
 
@@ -1946,10 +1945,9 @@ void HandleNMReadMemory(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
  Purpose:   Handle incoming NM RecalcChecksum message.
  Comments:  None.
  *******************************************************************************/
-void HandleNMChecksumRecalc(APPReceiveParam *appReceiveParamPtr, 
-APDU *apduPtr) {
+void HandleNMChecksumRecalc(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
     LonStatusCode sts = LonStatusNoError;
-    // Re-config checksum.
+    // Re-config checksum
     RecomputeChecksum();
 
     NMNDRespond(NM_MESSAGE, sts, appReceiveParamPtr, apduPtr);
@@ -1990,9 +1988,9 @@ void HandleNMWriteMemory(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
     switch (pr->mode) {
     case ABSOLUTE_MEM_ADDR:
         if (inRange(offset, pr->count)) {
-            if (!IzotMemoryWrite(offset, pr->count, pr->data)) {
-                IzotPersistentSegSetCommitFlag(2);
-                IzotPersistentAppSegmentHasBeenUpdated();
+            if (LON_SUCCESS(IzotMemoryWrite(offset, pr->count, pr->data))) {
+                IzotPersistentSegSetCommitFlag(IzotPersistentSegNodeDefinition);
+                IzotPersistentDataHasBeenUpdated();
                 if (pr->form & CNFG_CS_RECALC) {
                     RecomputeChecksum();
                 }
@@ -2030,7 +2028,7 @@ void HandleNMWriteMemory(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
 
     memp += offset;
 
-    /* Check if the range of memory cells written is good. */
+    /* Check if the range of memory cells written is good */
     allowed
             = (memp >= (char *) nmp && (memp + pr->count) <= (char *) (nmp + 1))
                     || (memp >= (char *) eep && (memp + pr->count)
@@ -2390,7 +2388,7 @@ void HandleND(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
 
     // Persist any changes to NVM
     if (memcmp(&save, eep, sizeof(save))) {
-        LCS_WriteNvm();
+        LCS_WritePersistentNetworkImage();
     }
 
     if (sts == LonStatusNoError) {
@@ -2527,7 +2525,7 @@ void HandleNM(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
 
     // Persist any changes to NVM
     if (memcmp(&save, eep, sizeof(save))) {
-        LCS_WriteNvm();
+        LCS_WritePersistentNetworkImage();
     }
 
     QueueDropHead(&gp->appInQ);

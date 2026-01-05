@@ -962,10 +962,10 @@ void HandleNmeIupSwitchOver(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
     switchover_response.actionTime = swapword(IZOT_RESET_TIME_AFTER_SWITCHOVER);
     if (!IUP_isPreseveConfig(switchover_request->switchOverflags)) {
         OsalPrintDebug(LonStatusNoError, "HandleNmeIupSwitchOver: Erasing configuration data");
-        ErasePersistenceConfig();
+        ErasePersistentNetworkConfig();
     } else if (!IUP_isPersistence(switchover_request->switchOverflags)) {
         OsalPrintDebug(LonStatusNoError, "HandleNmeIupSwitchOver: Erasing persistent data");
-        ErasePersistenceData();
+        ErasePersistentAppData();
     } else {
         OsalPrintDebug(LonStatusNoError, "HandleNmeIupSwitchOver: Config and persistent data needs to be preserved");
     }

@@ -1,7 +1,7 @@
 /*
  * lcs_eeprom.c
  *
- * Copyright (c) 2022-2025 EnOcean
+ * Copyright (c) 2022-2026 EnOcean
  * SPDX-License-Identifier: MIT
  * See LICENSE file for details.
  * 
@@ -28,63 +28,76 @@
 #define MISC_START  (&gp->nvm)
 #define MISC_SIZE	(sizeof(gp->nvm))
 
-/*------------------------------------------------------------------------------
-Section: Globals
-------------------------------------------------------------------------------*/
+/*****************************************************************
+ * Section: Globals
+ *****************************************************************/
 EEPROM eeprom[NUM_STACKS];
 
-/*------------------------------------------------------------------------------
-Section: Function Definitions
-------------------------------------------------------------------------------*/
-/*******************************************************************************
-Function: LCW_WriteNvm
-Returns:  void
-Purpose:  Record all data to NVM.
-*******************************************************************************/
-void LCS_WriteNvm(void)
+/*****************************************************************
+ * Section: Function Definitions
+ *****************************************************************/
+/*
+ * Writes network image to non-volatile data storage.
+ * Parameters:
+ *   None
+ * Returns:
+ *   None
+ */
+void LCS_WritePersistentNetworkImage(void)
 {
 	eep->nodeState = IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NODE_STATE);
 	IzotPersistentSegSetCommitFlag(IzotPersistentSegNetworkImage);
-	IzotPersistentAppSegmentHasBeenUpdated();
+	IzotPersistentDataHasBeenUpdated();
 }
 
-/*******************************************************************************
-Function: LCW_ReadNvm
-Returns:  LonStatusNoError if successful, <LonStatusCode> error otherwise.
-Purpose:  Read all data from NVM.
-*******************************************************************************/
-LonStatusCode LCS_ReadNvm(void)
+/*
+ * Reads network image from non-volatile data storage.
+ * Parameters:
+ *   None
+ * Returns:
+ *   LonStatusNoError if no error occurred, otherwise a LonStatusCode error code indicating failure
+ */
+LonStatusCode LCS_ReadPersistentNetworkImage(void)
 {
 	LonStatusCode status;
 	status = IzotPersistentSegRestore(IzotPersistentSegNetworkImage);
 	if (status == LonStatusNoError) {
-		OsalPrintDebug(LonStatusNoError, "LCS_ReadNvm: Restored network image from non-volatile memory");
+		OsalPrintDebug(LonStatusNoError, "LCS_ReadPersistentNetworkImage: Restored network image from non-volatile memory");
 	} else {
-		OsalPrintDebug(status, "LCS_ReadNvm: Failed to restore network image from non-volatile memory--may be first boot");
+		OsalPrintDebug(status, "LCS_ReadPersistentNetworkImage: Failed to restore network image from non-volatile memory--may be first boot");
 	}
 	return (status);
 }
 
-/*******************************************************************************
-Function: LCW_WriteNvs
-Returns:  void
-Purpose:  Record all persistent NV data to NVM.
-*******************************************************************************/
-void LCS_WriteNvs(void)
+/*
+ * Writes all persistent application data to non-volatile data storage.
+ * Parameters:
+ *   None
+ * Returns:
+ *   None
+ */
+void LCS_WritePersistentAppData(void)
 {
 	IzotPersistentSegSetCommitFlag(IzotPersistentSegApplicationData);
-	IzotPersistentAppSegmentHasBeenUpdated();
+	IzotPersistentDataHasBeenUpdated();
 }
 
-/*******************************************************************************
-Function: LCS_ReadNvs
-Returns:  LonStatusNoError if successful, <LonStatusCode> error otherwise.
-Purpose:  Read all NV data from NVM.
-*******************************************************************************/
-LonStatusCode LCS_ReadNvs(void)
+/*
+ * Reads all persistent application data from non-volatile data storage.
+ * Parameters:
+ *   None
+ * Returns:
+ *   LonStatusNoError if no error occurred, otherwise a LonStatusCode error code indicating failure
+ */
+LonStatusCode LCS_ReadPersistentAppData(void)
 {
 	LonStatusCode status;
 	status = IzotPersistentSegRestore(IzotPersistentSegApplicationData);
-	return ((status == 0) ? LonStatusNoError : LonStatusNotFound);
+	if (status == LonStatusNoError) {
+		OsalPrintDebug(LonStatusNoError, "LCS_ReadPersistentAppData: Restored application data from non-volatile memory");
+	} else {
+		OsalPrintDebug(status, "LCS_ReadPersistentAppData: Failed to restore application data from non-volatile memory--may be first boot");
+	}
+	return (status);
 }
 

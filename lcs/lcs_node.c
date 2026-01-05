@@ -1,7 +1,7 @@
 /*
  * lcs_node.c
  *
- * Copyright (c) 2022-2025 EnOcean
+ * Copyright (c) 2022-2026 EnOcean
  * SPDX-License-Identifier: MIT
  * See LICENSE file for details.
  * 
@@ -83,7 +83,7 @@ IzotDomain *AccessDomain(IzotByte indexIn)
 {
     if (indexIn <= IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_TWO_DOMAINS)) {
         IzotDomain *domain_config = &eep->domainTable[indexIn];
-        OsalPrintDebug(LonStatusNoError, "AccessDomain: Domain ID %x %x %x %x %x %x, Subnet %d, NonClone %d, Node %d, Invalid %d, Length %d, Key %x\n", 
+        OsalPrintDebug(LonStatusNoError, "AccessDomain: Domain %x%x%x%x%x%x, Subnet %d, NonClone %d, Node %d, Invalid %d, Length %d, Key %x", 
                 domain_config->Id[0],domain_config->Id[1],domain_config->Id[2],domain_config->Id[3],domain_config->Id[4],domain_config->Id[5],domain_config->Subnet, 
                 IZOT_GET_ATTRIBUTE_P(domain_config,IZOT_DOMAIN_NONCLONE),
                 IZOT_GET_ATTRIBUTE_P(domain_config,IZOT_DOMAIN_NODE),
@@ -458,24 +458,23 @@ LonStatusCode InitEEPROM(uint32_t signature)
 {
     LonStatusCode status = LonStatusNoError;
     int i;
-
     
     if (!gp->initialized) {
-        // Init all of NVM
+        // Initialize all of non-volatile memory (NVM) to zero
         memset(eep, 0, sizeof(*eep));
 
         // Get the persistent data from persistent data storage if available
-        status = LCS_ReadNvm();
+        status = LCS_ReadPersistentNetworkImage();
         if (status == LonStatusInvalidParameter) {
-            // This can occur if the NVM image has grown too large for the max PAL size
+            // This can occur if the NVM image has grown too large
             status = LonStatusNoMemoryAvailable;
             OsalPrintError(status, "InitEEPROM: Non-volatile memory image too large");
         } else if (status != LonStatusNoError || 
                 memcmp(&eep->dimensions, &dimensions, sizeof(dimensions)) || 
                 eep->signature != signature) {
-            // This is a first boot, corrupted non-volatile data segment, changed 
-            // segment structure, or changed signature--reset status to no error 
-            // and re-initialize persistent data storage
+            // This is a first boot or there is a corrupted non-volatile
+            // data segment, changed segment structure, or changed signature;
+            // reset status to no error and re-initialize persistent data storage
             status = LonStatusNoError;
 
             // Re-initialize all of NVM
@@ -523,7 +522,7 @@ LonStatusCode InitEEPROM(uint32_t signature)
             LCS_InitAddress();
             nmp->nvTableSize  = 0;
             LCS_InitAlias();
-            LCS_WriteNvm();
+            LCS_WritePersistentNetworkImage();
         } else {
             IZOT_SET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NODE_STATE, eep->nodeState);
         }
