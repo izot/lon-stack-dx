@@ -1,7 +1,7 @@
 /*
  * IzotCal.c
  *
- * Copyright (c) 2022-2025 EnOcean
+ * Copyright (c) 2022-2026 EnOcean
  * SPDX-License-Identifier: MIT
  * See LICENSE file for details.
  * 
@@ -766,6 +766,7 @@ void CalSend(uint32_t port, IzotByte* addr, IzotByte* pData,
  */
 int CalReceive(IzotByte* pData, IzotByte* pSourceAddr)
 {
+    uint16_t bufferSize;
     int dataLength = 0;
 #if PROTOCOL_IS(LON_IP)
 #if PLATFORM_IS(FRTOS_ARM_EABI)
@@ -773,9 +774,11 @@ int CalReceive(IzotByte* pData, IzotByte* pSourceAddr)
     int                 fromLen = sizeof(from);
     uint32_t            SrcIP;
     
-    dataLength = recvfrom(app_udp_socket, pData, 
-    DecodeBufferSize(CAL_RECEIVE_BUF_SIZE), 0, (struct sockaddr *)&from, 
-    (socklen_t *)&fromLen);
+    if (!LON_SUCCESS(DecodeBufferSize(CAL_RECEIVE_BUF_SIZE, &bufferSize))) {
+        OsalPrintError(LonStatusInvalidBufferCount, "CalReceive: Invalid buffer size");
+        return -1;
+    }
+    dataLength = recvfrom(app_udp_socket, pData, bufferSize, 0, (struct sockaddr *)&from, (socklen_t *)&fromLen);
     
     // Get the data if dataLength is bigger than zero
     if (dataLength > 0) {

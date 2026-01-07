@@ -7,11 +7,10 @@
  * 
  * Title:   LON Stack Core Services
  * Purpose: Provides the main initialization and service functions for
- *          the LON Stack DX.
- * Notes:   All applications using the LON Stack DX must call the
- *          LCS_Init() function during initialization and the
- *          LCS_Service() function as often as practical (e.g., once
- * 			per millisecond).
+ *          LON Stack DX.
+ * Notes:   All applications using LON Stack DX must call LCS_Init()
+ *          during initialization and LCS_Service() as often as practical
+ * 			(e.g., once per millisecond).
  */
 
 #include "lcs/lcs.h"
@@ -49,6 +48,15 @@ extern void LKReceive(void);
 #define LED_TIMER_VALUE      2000  // How often to flash in ms
 #define CHECKSUM_TIMER_VALUE 1000  // How often to check config checksum in ms
 
+/*
+ * Provides the main initialization functions for LON Stack.
+ * Parameters:
+ *   cause: The reset cause
+ * Returns:
+ *   LonStatusNoError if successful, LonStatusCode error code otherwise.
+ * Notes:
+ *   This function must be called once during system initialization.
+ */
 LonStatusCode LCS_Init(IzotResetCause cause)
 {
     IzotByte   stackNum;
@@ -71,7 +79,7 @@ LonStatusCode LCS_Init(IzotResetCause cause)
         }
     }
 
-    // Reset the node at the start
+    // Reset the LON device at the start
     for (stackNum = 0; stackNum < NUM_STACKS; stackNum++) {
         gp = &protocolStackDataGbl[stackNum];
         eep = &eeprom[stackNum];
@@ -82,8 +90,8 @@ LonStatusCode LCS_Init(IzotResetCause cause)
 			OsalPrintError(LonStatusStackInitializationFailure, "LCS_Init: Application initialization failed for stack %d", stackNum);
 			return LonStatusStackInitializationFailure;
 		}
-        // Compute the configCheckSum for the first time. NodeReset
-        // will not verify checkSum firt time.
+        // Compute the configCheckSum for the first time; NodeReset
+        // will not verify checkSum first time
         eep->configCheckSum   = ComputeConfigCheckSum();
 		nmp->resetCause		  = cause;
 
@@ -94,8 +102,17 @@ LonStatusCode LCS_Init(IzotResetCause cause)
 	return LonStatusNoError;
 }
 
-void LCS_Service()
+/*
+ * Provides the main service function for LON Stack.
+ * Returns:
+ *   LonStatusNoError if successful; LonStatusCode error code otherwise.
+ * Notes:
+ *   This function must be called as often as practical (e.g., once
+ *   per millisecond) to allow LON Stack to perform its processing.
+ */
+LonStatusCode LCS_Service()
 {
+	LonStatusCode status = LonStatusNoError;
 	int stackNum;
     for (stackNum = 0; stackNum < NUM_STACKS; stackNum++) {
 		gp  = &protocolStackDataGbl[stackNum];
@@ -107,10 +124,10 @@ void LCS_Service()
 		// Check if the node needs to be reset.
 		if (gp->resetNode) {
 			gp->resetOk = TRUE;
-			NodeReset(FALSE);
-			if (!gp->resetOk) {
-				OsalPrintError(LonStatusNoError, "LCS_Service: LON application reset failed for stack %d", stackNum);
-				return;
+			status = NodeReset(FALSE);
+			if (!LON_SUCCESS(status) || !gp->resetOk) {
+				OsalPrintError(status, "LCS_Service: LON application reset failed for stack %d", stackNum);
+				return status;
 			}
 			continue; // Easy way to do scheduler reset,
 		}
@@ -177,10 +194,12 @@ void LCS_Service()
 				IzotOffline();  // Indicate to application program.
 				gp->resetNode = TRUE;
 				nmp->resetCause = IzotSoftwareReset;
+				// Report but don't return a checksum error to enable reset to proceed
 				OsalPrintError(LonStatusCnfgChecksumError, 
 						"LCS_Service: Configuration checksum error detected, resetting");
 			}
 			SetLonTimer(&gp->checksumTimer, CHECKSUM_TIMER_VALUE);
 		}
 	}
+	return status;
 }

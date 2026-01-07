@@ -1,7 +1,7 @@
 /*
  * ipv4_to_lon_udp.c
  *
- * Copyright (c) 2023-2025 EnOcean
+ * Copyright (c) 2023-2026 EnOcean
  * SPDX-License-Identifier: MIT
  * See LICENSE file for details.
  * 
@@ -875,43 +875,52 @@ IzotByte subnetId, IzotByte nodeId, IzotByte *pAddr
 }
 
 
-/* 
- *  Callback: LsUDPReset
- *  To allocate space for link layer queues.
- *
- *  Parameters:
- *
- *  Returns:
- *  <void>.   
- *
+/*
+ * Initializes the LON Stack UDP link layer including queues used by the link layer.
+ * Parameters:
+ *   None
+ * Returns:
+ *   LonStatusNoError if successful, LonStatusCode error code otherwise.
+ * Notes:
+ *   Sets gp->resetOk to FALSE if unable to reset properly.
  */
-void LsUDPReset(void)
+LonStatusCode LsUDPReset(void)
 {
     IzotUbits16 queueItemSize;
     LonStatusCode status = LonStatusNoError;
     
     // Allocate and initialize the output queue.
-    gp->lkOutBufSize  = DecodeBufferSize(LK_OUT_BUF_SIZE); //1280
-    gp->lkOutQCnt     = DecodeBufferCnt((IzotByte)IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NW_OUTBUF_CNT));
+    if (!LON_SUCCESS(status = DecodeBufferSize(LK_OUT_BUF_SIZE, &gp->lkOutBufSize))) {
+        gp->resetOk = FALSE;
+        OsalPrintError(status, "LsUDPReset: Unable to decode output link buffer size");
+        return status;
+    }
+    if (!LON_SUCCESS(status = DecodeBufferCnt((IzotByte)IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NW_OUTBUF_CNT), &gp->lkOutQCnt))) {
+        gp->resetOk = FALSE;
+        OsalPrintError(status, "LsUDPReset: Unable to decode output link buffer count");
+        return status;
+    }
     queueItemSize    = gp->lkOutBufSize + sizeof(LKSendParam) + 21;
 
-    status = QueueInit(&gp->lkOutQ, queueItemSize, gp->lkOutQCnt);
-    if (status != LonStatusNoError) {
-        OsalPrintError(status, "LsUDPReset: Unable to initialize the output queue");
+    if (!LON_SUCCESS(status = QueueInit(&gp->lkOutQ, queueItemSize, gp->lkOutQCnt))) {
         gp->resetOk = FALSE;
-        return;
+        OsalPrintError(status, "LsUDPReset: Unable to initialize the output link queue");
+        return status;
     }
 
     // Allocate and initialize the priority output queue.
     gp->lkOutPriBufSize = gp->lkOutBufSize; //1280
-    gp->lkOutPriQCnt    = DecodeBufferCnt((IzotByte)IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NW_OUT_PRICNT));
+    if (!LON_SUCCESS(status = DecodeBufferCnt((IzotByte)IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NW_OUT_PRICNT), &gp->lkOutPriQCnt))) {
+        gp->resetOk = FALSE;
+        OsalPrintError(status, "LsUDPReset: Unable to decode priority output link buffer count");
+        return status;
+    }
     queueItemSize       = gp->lkOutPriBufSize + sizeof(LKSendParam);
 
-    status = QueueInit(&gp->lkOutPriQ, queueItemSize, gp->lkOutPriQCnt);
-    if (status != LonStatusNoError) {
-        OsalPrintError(status, "LsUDPReset: Unable to initialize the priority output queue");
+    if (!LON_SUCCESS(status = QueueInit(&gp->lkOutPriQ, queueItemSize, gp->lkOutPriQCnt))) {
         gp->resetOk = FALSE;
-        return;
+        OsalPrintError(status, "LsUDPReset: Unable to initialize the priority output link queue");
+        return status;
     }
 
     // Initialize repeat timers
@@ -919,7 +928,7 @@ void LsUDPReset(void)
     SetLonRepeatTimer(&AgingTimer, AddrMappingAgingTimer, AddrMappingAgingTimer);
 
     OsalPrintDebug(LonStatusNoError, "LsUDPReset: Link layer queues initialized");
-    return;
+    return status;
 }
 
 /* 

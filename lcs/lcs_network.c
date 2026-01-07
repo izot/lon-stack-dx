@@ -1,7 +1,7 @@
 /*
  * lcs_network.c
  *
- * Copyright (c) 2022-2025 EnOcean
+ * Copyright (c) 2022-2026 EnOcean
  * SPDX-License-Identifier: MIT
  * See LICENSE file for details.
  * 
@@ -35,79 +35,94 @@ typedef struct __attribute__ ((packed)) {
     IzotByte       data[MAX_DATA_SIZE/*1*/];                /* Variable part */
 } NPDU;
 
-/*------------------------------------------------------------------------------
-  Section: Globals
-  ------------------------------------------------------------------------------*/
+/*****************************************************************
+ * Section: Globals
+ *****************************************************************/
+
 extern IzotByte NmAuth;
 
-/*------------------------------------------------------------------------------
-  Section: Local Function Prototypes
-  ------------------------------------------------------------------------------*/
+/*****************************************************************
+ * Section: Function Declarations
+ *****************************************************************/
+
 static IzotByte DecodeDomainLength(IzotByte lengthCode);
 LonStatusCode EncodeDomainLength(IzotByte length, IzotByte* pValue);
 
-/*------------------------------------------------------------------------------
-  Section: Function Definitions
-  ------------------------------------------------------------------------------*/
+/*****************************************************************
+ * Section: Function Definitions
+ *****************************************************************/
 
-/*******************************************************************************
-Function:  NWReset
-Returns:   None
-Reference: None
-Purpose:   To initialize the queues used by the network layer.
-Comments:  None.
-*******************************************************************************/
-void NWReset(void)
+/*
+ * Initializes the LON Stack network layer including queues used by the network layer.
+ * Parameters:
+ *   None
+ * Returns:
+ *   LonStatusNoError if successful, LonStatusCode error code otherwise.
+ */
+LonStatusCode NWReset(void)
 {
     IzotUbits16 queueItemSize;
     LonStatusCode status = LonStatusNoError;
 
     /* Allocate and initialize the input queue. */
-    gp->nwInBufSize   = DecodeBufferSize(NW_IN_BUF_SIZE); //1280
-    gp->nwInQCnt      = DecodeBufferCnt((IzotByte)IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NW_INBUF_CNT));
+    if (!LON_SUCCESS(status = DecodeBufferSize(NW_IN_BUF_SIZE, &gp->nwInBufSize))) {
+        gp->resetOk = FALSE;
+        OsalPrintError(status, "NWReset: Unable to decode input network buffer size");
+        return status;
+    }
+    if (!LON_SUCCESS(status = DecodeBufferCnt((IzotByte)IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NW_INBUF_CNT), &gp->nwInQCnt))) {
+        gp->resetOk = FALSE;
+        OsalPrintError(status, "NWReset: Unable to decode input network queue count");
+        return status;
+    }
     queueItemSize     = gp->nwInBufSize + sizeof(NWReceiveParam);
 
-    status = QueueInit(&gp->nwInQ, queueItemSize, gp->nwInQCnt);
-    if (status != LonStatusNoError) {
+    if (!LON_SUCCESS(status = QueueInit(&gp->nwInQ, queueItemSize, gp->nwInQCnt))) {
         gp->resetOk = FALSE;
         OsalPrintError(status, "NWReset: Unable to initialize the input queue");
-        return;
+        return status;
     }
 
     /* Allocate and initialize the output queue. */
-    gp->nwOutBufSize  = DecodeBufferSize(IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NW_OUTBUF_SIZE)) + 12; //1280
-    gp->nwOutQCnt     = DecodeBufferCnt((IzotByte)IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NW_OUTBUF_CNT));
-    queueItemSize     = gp->nwOutBufSize + sizeof(NWSendParam);
-    if (gp->nwOutQCnt < 2) {
+    if (!LON_SUCCESS(status = DecodeBufferSize(IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NW_OUTBUF_SIZE), &gp->nwOutBufSize))) {
         gp->resetOk = FALSE;
-        return;
+        OsalPrintError(status, "NWReset: Unable to decode output network buffer size");
+        return status;
+    }
+    if (!LON_SUCCESS(status = DecodeBufferCnt((IzotByte)IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NW_OUTBUF_CNT), &gp->nwOutQCnt))) {
+        gp->resetOk = FALSE;
+        OsalPrintError(status, "NWReset: Unable to decode output network queue count");
+        return status;
     }
 
-    status = QueueInit(&gp->nwOutQ, queueItemSize, gp->nwOutQCnt);
-    if (status != LonStatusNoError) {
+    if (!LON_SUCCESS(status = QueueInit(&gp->nwOutQ, queueItemSize, gp->nwOutQCnt))) {
         gp->resetOk = FALSE;
         OsalPrintError(status, "NWReset: Unable to initialize the output queue");
-        return;
+        return status;
     }
 
     /* Allocate and initialize the priority output queue. */
     gp->nwOutPriBufSize = gp->nwOutBufSize; //1280
-    gp->nwOutPriQCnt    = DecodeBufferCnt((IzotByte)IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NW_OUT_PRICNT));
+    if (!LON_SUCCESS(status = DecodeBufferCnt((IzotByte)IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NW_OUT_PRICNT), &gp->nwOutPriQCnt))) {
+        gp->resetOk = FALSE;
+        OsalPrintError(status, "NWReset: Unable to decode priority output network queue count");
+        return status;
+    }
     queueItemSize       = gp->nwOutPriBufSize + sizeof(NWSendParam);
 
     if (gp->nwOutPriQCnt < 1) {
         gp->resetOk = FALSE;
-        return;
+        OsalPrintError(LonStatusInvalidBufferCount, "NWReset: Priority output network queue count must be at least 1");
+        return status;
     }
 
-    status = QueueInit(&gp->nwOutPriQ, queueItemSize, gp->nwOutPriQCnt);
-    if (status != LonStatusNoError) {
+    if (!LON_SUCCESS(status = QueueInit(&gp->nwOutPriQ, queueItemSize, gp->nwOutPriQCnt))) {
         gp->resetOk = FALSE;
         OsalPrintError(status, "NWReset: Unable to initialize the priority output queue");
-        return;
+        return status;
     }
-    OsalPrintDebug(LonStatusNoError, "NWReset: Network layer queues initialized");
-    return;
+    OsalPrintDebug(status, "NWReset: Network layer queues initialized");
+    return status;
 }
 
 

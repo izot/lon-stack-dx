@@ -1,7 +1,7 @@
 /*
  * lcs_app.h
  *
- * Copyright (c) 2022-2025 EnOcean
+ * Copyright (c) 2022-2026 EnOcean
  * SPDX-License-Identifier: MIT
  * See LICENSE file for details.
  * 
@@ -157,7 +157,7 @@ generated.
 Section: Function Prototypes
 ------------------------------------------------------------------------------*/
 LonStatusCode APPInit(void);
-void APPReset(void);
+LonStatusCode APPReset(void);
 void APPSend(void);
 void APPReceive(void);
 LonStatusCode SendResponse(RequestId reqId, IzotByte code, int len, IzotByte *pData);

@@ -207,65 +207,78 @@ IzotUbits16 AddrTableIndex(IzotByte domainIndexIn, IzotByte groupIn)
     return(0xFF); /* Not Found */
 }
 
-
-/*****************************************************************
-Function:  DecodeBufferSize
-Returns:   Actual Buffer Size
-Reference: Tech Device Data Rev 1 p9-9
-Purpose:   Computes the actual buffer size from a size code
-******************************************************************/
-IzotUbits16  DecodeBufferSize(IzotByte bufSizeIn)
+/*
+ * Decodes a buffer size code to the actual buffer size in bytes.
+ * Parameters:
+ *   bufSizeIn: The buffer size code to decode
+ *   decodedSizeOut: Pointer to variable to receive the decoded size
+ * Returns:
+ *   LonStatusNoError if successful; LonStatusInvalidBufferSize if the
+ *   input code is invalid
+ */
+LonStatusCode  DecodeBufferSize(IzotByte bufSizeIn, uint16_t *decodedSizeOut)
 {
     if (bufSizeIn <= 15) {
-        return(bufSizeCodeLGbl[bufSizeIn]);
+        *decodedSizeOut = bufSizeCodeLGbl[bufSizeIn];
+        return LonStatusNoError;
     }
     OsalPrintError(LonStatusInvalidBufferSize, "DecodeBufferSize: Invalid buffer size code %d", bufSizeIn);
-    return(0);
+    return(LonStatusInvalidBufferSize);
 }
 
-/*****************************************************************
-Function:  DecodeBufferCnt
-Returns:   Actual Buffer Count
-Reference: Tech Device Data Rev 1 p.9-10
-Purpose:   Computes the actual buffer count from a count code
-******************************************************************/
-IzotUbits16  DecodeBufferCnt(IzotByte bufCntIn)
+/*
+ * Decodes a buffer count code to the actual buffer count.
+ * Parameters:
+ *   bufCntIn: The buffer count code to decode
+ *   decodedCountOut: Pointer to variable to receive the decoded count
+ * Returns:
+ *   LonStatusNoError if successful; LonStatusInvalidBufferCount if the
+ *   input code is invalid
+ */
+LonStatusCode  DecodeBufferCnt(IzotByte bufCntIn, uint16_t *decodedCountOut)
 {
     if (bufCntIn <= 15) {
-        return(bufCntCodeLGbl[bufCntIn]);
+        *decodedCountOut = bufCntCodeLGbl[bufCntIn];
+        return LonStatusNoError;
     }
     OsalPrintError(LonStatusInvalidBufferCount, "DecodeBufferCnt: Invalid buffer count code");
-    return(0);
+    return(LonStatusInvalidBufferCount);
 }
 
-/*****************************************************************
-Function:  DecodeRptTimer
-Returns:   Actual timer value in ms
-Reference: Tech Device Data Rev 1 p.9-17
-Purpose:   Computes the actual rpt timer value from code
-******************************************************************/
-IzotUbits16 DecodeRptTimer(IzotByte rptTimerIn)
+/*
+ * Decodes a repeat timer code to the actual timer value in milliseconds.
+ * Parameters:
+ *   rptTimerIn: The repeat timer code to decode
+ *   decodedTimerOut: Pointer to variable to receive the decoded timer value
+ * Returns:
+ *   LonStatusNoError if successful; LonStatusInvalidTimer if the input code is invalid
+ */
+LonStatusCode  DecodeRptTimer(IzotByte rptTimerIn, uint16_t *decodedTimerOut)
 {
     if (rptTimerIn <= 15) {
-        return(rptTimerCodeLGbl[rptTimerIn]);
+        *decodedTimerOut = rptTimerCodeLGbl[rptTimerIn];
+        return LonStatusNoError;
     }
     OsalPrintError(LonStatusInvalidTimer, "DecodeRptTimer: Invalid timer code");
-    return(0);
+    return(LonStatusInvalidTimer);
 }
 
-/*****************************************************************
-Function:  DecodeRcvTimer
-Returns:   Actual Receive Timer value in ms
-Reference: Tech Device Data Rev 1 p.9-17
-Purpose:   Computes the actual rcv timer value in ms from code
-******************************************************************/
-IzotUbits16 DecodeRcvTimer(IzotByte rcvTimerIn)
+/*
+ * Decodes a receive timer code to the actual timer value in milliseconds.
+ * Parameters:
+ *   rcvTimerIn: The receive timer code to decode
+ *   decodedTimerOut: Pointer to variable to receive the decoded timer value
+ * Returns:
+ *   LonStatusNoError if successful; LonStatusInvalidTimer if the input code is invalid
+ */
+LonStatusCode  DecodeRcvTimer(IzotByte rcvTimerIn, uint16_t *decodedTimerOut)
 {
     if (rcvTimerIn <= 15) {
-        return(rcvTimerCodeLGbl[rcvTimerIn]);
+        *decodedTimerOut = rcvTimerCodeLGbl[rcvTimerIn];
+        return LonStatusNoError;
     }
     OsalPrintError(LonStatusInvalidTimer, "DecodeRcvTimer: Invalid timer code");
-    return(0);
+    return(LonStatusInvalidTimer);
 }
 
 /*****************************************************************
@@ -362,30 +375,32 @@ void UpdateAlias(IzotAliasConfig *aliasStructInp, IzotUbits16 indexIn)
     }
 }
 
-/*****************************************************************
-Function:  NodeReset
-Returns:   None
-Reference:
-Purpose:   Initialization of node data structures.
-Comments:
-******************************************************************/
-void NodeReset(IzotByte firstReset)
+/*
+ * Resets the LON Stack data structures for all layers.
+ * Parameters:
+ *   firstReset: TRUE if this is the first reset after power-up;
+ *               FALSE if this is a subsequent reset
+ * Returns:
+ *   LonStatusNoError if successful; LonStatusCode error code otherwise
+ */
+LonStatusCode NodeReset(IzotByte firstReset)
 {
-    OsalPrintDebug(LonStatusNoError, "NodeReset: Start LON application reset with firstReset=%d", firstReset);
+    LonStatusCode status = LonStatusNoError;
+    OsalPrintDebug(status, "NodeReset: Start LON application reset with firstReset=%d", firstReset);
 #if LINK_IS(ETHERNET) || LINK_IS(WIFI)
-    void APPReset(void), TCSReset(void), TSAReset(void), NWReset(void),
+    LonStatusCode APPReset(void), TCSReset(void), TSAReset(void), NWReset(void),
             LsUDPReset(void);
-    void (*resetFns[])(void) = {APPReset, TCSReset, TSAReset, NWReset,
+    LonStatusCode (*resetFns[])(void) = {APPReset, TCSReset, TSAReset, NWReset,
             LsUDPReset};
 #elif LINK_IS(USB)
-    void APPReset(void), TCSReset(void), TSAReset(void), NWReset(void),
+    LonStatusCode APPReset(void), TCSReset(void), TSAReset(void), NWReset(void),
             LKReset(void);
-    void (*resetFns[])(void) = {APPReset, TCSReset, TSAReset, NWReset,
+    LonStatusCode (*resetFns[])(void) = {APPReset, TCSReset, TSAReset, NWReset,
             LKReset};
 #elif LINK_IS(MIP)
-    void APPReset(void), TCSReset(void), TSAReset(void), NWReset(void),
+    LonStatusCode APPReset(void), TCSReset(void), TSAReset(void), NWReset(void),
             LKReset(void), PHYReset(void);
-    void (*resetFns[])(void) = {APPReset, TCSReset, TSAReset, NWReset,
+    LonStatusCode (*resetFns[])(void) = {APPReset, TCSReset, TSAReset, NWReset,
             LKReset, PHYReset};
 #else
     OsalPrintError(LonStatusInitializationFailed, "NodeReset: Unsupported link type");
@@ -420,10 +435,10 @@ void NodeReset(IzotByte firstReset)
     /* Call all the Reset functions */
     fnsCnt = sizeof(resetFns)/sizeof(FnType);
     for (fnNum = 0; fnNum < fnsCnt; fnNum++) {
-        resetFns[fnNum](); /* Call the Reset function. */
-        if (!gp->resetOk) {
-            OsalPrintError(LonStatusResetFailed, "NodeReset: Failure");
-            return;
+        status = resetFns[fnNum](); /* Call the Reset function. */
+        if (!LON_SUCCESS(status) || !gp->resetOk) {
+            OsalPrintError(status, "NodeReset: Reset failure");
+            return status;
         }
     }
 
@@ -441,7 +456,8 @@ void NodeReset(IzotByte firstReset)
     gp->resetNode        = FALSE;
     
     IzotReset(NULL);
-    OsalPrintDebug(LonStatusNoError, "NodeReset: Completed LON application reset");
+    OsalPrintDebug(status, "NodeReset: Completed LON application reset");
+    return status;
 }
 
 /*****************************************************************

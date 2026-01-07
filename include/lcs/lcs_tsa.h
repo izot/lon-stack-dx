@@ -1,7 +1,7 @@
 /*
  * lcs_tsa.h
  *
- * Copyright (c) 2022-2025 EnOcean
+ * Copyright (c) 2022-2026 EnOcean
  * SPDX-License-Identifier: MIT
  * See LICENSE file for details.
  * 
@@ -49,7 +49,7 @@
 /*-------------------------------------------------------------------
   Section: Function Prototypes
   -------------------------------------------------------------------*/
-void TSAReset(void);
+LonStatusCode TSAReset(void);
 
 void TPSend(void);
 void TPReceive(void);

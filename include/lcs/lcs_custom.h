@@ -45,6 +45,7 @@
 #define NW_OUT_BUF_SIZE      0
 #define NW_IN_BUF_SIZE       0
 #define LK_OUT_BUF_SIZE      LCS_BUF_SIZE
+#define LK_IN_BUF_SIZE       0
 #define LK_SEND_BUF_SIZE     0
 #define LK_RECEIVE_BUF_SIZE  0
 #define CAL_RECEIVE_BUF_SIZE 0
@@ -61,6 +62,10 @@
 #define NW_OUT_Q_CNT          3
 #define NW_OUT_PRI_Q_CNT      2
 #define NW_IN_Q_CNT           3
+
+#define LK_IN_Q_CNT           3
+#define LK_OUT_PRI_Q_CNT      2
+#define LK_OUT_Q_CNT          3
 
 #define NGTIMER_SPCL_VAL   8192
 

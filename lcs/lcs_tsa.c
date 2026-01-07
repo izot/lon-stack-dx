@@ -242,106 +242,133 @@ IzotByte SendBlocked(void)
     return LonTimerRunning(&gp->tsDelayTimer);
 }
 
-/*****************************************************************
- Function:  TSAReset
- Returns:   None
- Reference: None
- Purpose:   To initialize the queues used by the transport and session
- layers and to initialize transmit and receive records.
- Comments:  Sets gp->resetOk to FALSE if unable to reset properly.
- ******************************************************************/
-void TSAReset(void) 
+/*
+ * Initializes the LON Stack transaction services sub-layer including queues used by the sub-layer.
+ * Parameters:
+ *   None
+ * Returns:
+ *   LonStatusNoError if successful, LonStatusCode error code otherwise.
+ * Notes:
+ *   The transaction services sub-layer is used by both the transport and session layers.
+ *   The function sets gp->resetOk to FALSE if unable to reset properly.
+ */
+ LonStatusCode TSAReset(void) 
 {
     IzotUbits16 queueItemSize;
     IzotUbits16 i;
-    LonStatusCode status;
+    LonStatusCode status = LonStatusNoError;
     
     /* Allocate and initialize the input queue. */
-    
-    /* Some TSPDUs have APDU attached and others do not.
+    /* Some TSPDUs have an APDU attached and others do not.
     The max # bytes for TSPDU with no APDU is 10 (REMINDER).
     The max header size for those with APDU is 4 (REM/MSG). */
-    
-    gp->tsaInBufSize = DecodeBufferSize(TSA_IN_BUF_SIZE) + 4;
-    gp->tsaInBufSize = MAX(gp->tsaInBufSize, 10);
-    gp->tsaInQCnt = DecodeBufferCnt((IzotByte)IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_INBUF_CNT));
+    if (!LON_SUCCESS(status = DecodeBufferSize(TSA_IN_BUF_SIZE, &gp->tsaInBufSize))) {
+        gp->resetOk = FALSE;
+        OsalPrintError(status, "TSAReset: Unable to decode input transaction buffer size");
+        return status;
+    }
+    gp->tsaInBufSize = MAX(gp->tsaInBufSize + 4, 10);
+    if (!LON_SUCCESS(status = DecodeBufferCnt((IzotByte)IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_INBUF_CNT), &gp->tsaInQCnt))) {
+        gp->resetOk = FALSE;
+        OsalPrintError(status, "TSAReset: Unable to decode input transaction queue count");
+        return status;
+    }
     queueItemSize = gp->tsaInBufSize + sizeof(TSAReceiveParam);
     
-    status = QueueInit(&gp->tsaInQ, queueItemSize, gp->tsaInQCnt);
-    if (status != LonStatusNoError) {
+    if (!LON_SUCCESS(status = QueueInit(&gp->tsaInQ, queueItemSize, gp->tsaInQCnt))) {
+        gp->resetOk = FALSE;
         OsalPrintError(status, "TSAReset: Unable to initialize the input queue");
-        gp->resetOk = FALSE;
-        return;
+        return status;
     }
     
-    /* Allocate and initialize the output queue. */
-    gp->tsaOutBufSize = DecodeBufferSize(TSA_OUT_BUF_SIZE) + 4;
+    /* Allocate and initialize the output queue */
+    if (!LON_SUCCESS(status = DecodeBufferSize(TSA_OUT_BUF_SIZE, &gp->tsaOutBufSize))) {
+        gp->resetOk = FALSE;
+        OsalPrintError(status, "TSAReset: Unable to decode output transaction buffer size");
+        return status;
+    }
+    gp->tsaOutBufSize += 4;
     gp->tsaOutBufSize = MAX(gp->tsaOutBufSize, 10);
-    gp->tsaOutQCnt = DecodeBufferCnt((IzotByte)IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_OUTBUF_CNT));
+    if (!LON_SUCCESS(status = DecodeBufferCnt((IzotByte)IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_OUTBUF_CNT), &gp->tsaOutQCnt))) {
+        gp->resetOk = FALSE;
+        OsalPrintError(status, "TSAReset: Unable to decode output transaction queue count");
+        return status;
+    }
     queueItemSize = gp->tsaOutBufSize + sizeof(TSASendParam);
-    
-    status = QueueInit(&gp->tsaOutQ, queueItemSize, gp->tsaOutQCnt);
-    if (status != LonStatusNoError) {
-        OsalPrintError(status, "TSAReset: Unable to initialize the output queue");
+    if (!LON_SUCCESS(status = QueueInit(&gp->tsaOutQ, queueItemSize, gp->tsaOutQCnt))) {
         gp->resetOk = FALSE;
-        return;
+        OsalPrintError(status, "TSAReset: Unable to initialize the output transaction queue");
+        return status;
     }
     
-    
-    /* Allocate and initialize the priority output queue. */
+    /* Allocate and initialize the priority output queue */
     gp->tsaOutPriBufSize = gp->tsaOutBufSize;
-    gp->tsaOutPriQCnt = DecodeBufferCnt((IzotByte) IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_OUT_PRICNT));
-    queueItemSize = gp->tsaOutPriBufSize + sizeof(TSASendParam);
-    
-    status = QueueInit(&gp->tsaOutPriQ, queueItemSize, gp->tsaOutPriQCnt);
-    if (status != LonStatusNoError) {
-        OsalPrintError(status, "TSAReset: Unable to initialize the priority output queue");
+    if (!LON_SUCCESS(status = DecodeBufferCnt((IzotByte) IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_OUT_PRICNT), &gp->tsaOutPriQCnt))) {
         gp->resetOk = FALSE;
-        return;
+        OsalPrintError(status, "TSAReset: Unable to decode priority output transaction queue count");
+        return status;
+    }
+    queueItemSize = gp->tsaOutPriBufSize + sizeof(TSASendParam);    
+    if (!LON_SUCCESS(status = QueueInit(&gp->tsaOutPriQ, queueItemSize, gp->tsaOutPriQCnt))) {
+        gp->resetOk = FALSE;
+        OsalPrintError(status, "TSAReset: Unable to initialize the priority output transaction queue");
+        return status;
     }
     
-    /* Allocate and initialize the responses queue. */
-    gp->tsaRespBufSize = DecodeBufferSize(TSA_RESP_BUF_SIZE); // To fit the maximum NV size in response buffer
+    /* Allocate and initialize the responses queue */
+    if (!LON_SUCCESS(status = DecodeBufferSize(TSA_RESP_BUF_SIZE, &gp->tsaRespBufSize))) {
+        gp->resetOk = FALSE;
+        OsalPrintError(status, "TSAReset: Unable to decode response transaction buffer size");
+        return status;
+    }
     gp->tsaRespQCnt = gp->tsaOutQCnt;
     queueItemSize = gp->tsaRespBufSize + sizeof(TSASendParam);
-    
-    status = QueueInit(&gp->tsaRespQ, queueItemSize, gp->tsaRespQCnt);
-    if (status != LonStatusNoError) {
-        OsalPrintError(status, "TSAReset: Unable to initialize the responses queue");
+    if (!LON_SUCCESS(status = QueueInit(&gp->tsaRespQ, queueItemSize, gp->tsaRespQCnt))) {
         gp->resetOk = FALSE;
-        return;
+        OsalPrintError(status, "TSAReset: Unable to initialize the response transaction queue");
+        return status;
     }
     
-    /* Initialize the transmit records. */
+    /* Initialize the transmit records */
     gp->xmitRec.status = UNUSED_TX;
     gp->priXmitRec.status = UNUSED_TX;
     
-    /* Initialize the receive records. */
+    /* Initialize the receive records */
     gp->recvRecCnt = RECEIVE_TRANS_COUNT;
-    
     gp->recvRec = OsalAllocateMemory((size_t) (gp->recvRecCnt * sizeof(ReceiveRecord)));
     if (gp->recvRec == NULL) {
         gp->resetOk = FALSE;
-        return;
+        OsalPrintError(LonStatusNoMemoryAvailable, "TSAReset: Unable to allocate receive records");
+        return status;
     }
-    
     for (i = 0; i < gp->recvRecCnt; i++) {
-        gp->recvRec[i].response = OsalAllocateMemory(DecodeBufferSize(RECV_REC_RESP_SIZE));
-        gp->recvRec[i].apdu = OsalAllocateMemory(DecodeBufferSize(RECV_REC_APDU_SIZE));
-    
-        if (gp->recvRec[i].response == NULL || gp->recvRec[i].apdu == NULL) {
-            OsalPrintError(LonStatusNoMemoryAvailable, "TSAReset: Insufficient space for response");
+        uint16_t decodedResponseBufSize;
+        if (!LON_SUCCESS(status = DecodeBufferSize(RECV_REC_RESP_SIZE, &decodedResponseBufSize))) {
             gp->resetOk = FALSE;
-            return;
+            OsalPrintError(LonStatusNoMemoryAvailable, "TSAReset: Unable to decode response buffer size");
+            return status;
+        }
+        uint16_t decodedReceiveBufSize;
+        if (!LON_SUCCESS(status = DecodeBufferSize(RECV_REC_APDU_SIZE, &decodedReceiveBufSize))) {
+            gp->resetOk = FALSE;
+            OsalPrintError(LonStatusNoMemoryAvailable, "TSAReset: Unable to decode receive buffer size");
+            return status;
+        }
+        gp->recvRec[i].response = OsalAllocateMemory((size_t) decodedResponseBufSize);
+        gp->recvRec[i].apdu = OsalAllocateMemory((size_t) decodedReceiveBufSize);
+        if (gp->recvRec[i].response == NULL || gp->recvRec[i].apdu == NULL) {
+            gp->resetOk = FALSE;
+            OsalPrintError(LonStatusNoMemoryAvailable, "TSAReset: Insufficient space for response");
+            return status;
         }
         gp->recvRec[i].status = UNUSED_RR;
-    
-    }    
-    /* Initialize the running count for request id assignment. */
+    }
+
+    /* Initialize the running count for request id assignment */
     gp->reqId = 0;
     
     OsalPrintDebug(LonStatusNoError, "TSAReset: Transport and session layers initialized");
-    return;
+    return status;
 }
 
 /*****************************************************************
@@ -896,11 +923,16 @@ static void SendNewMsg(Layer layerIn, IzotByte priorityIn)
             ,(IzotByte) tsaSendParamPtr->destAddr.SubnetNode.longTimer
     #endif
             );
-    rptTimer = DecodeRptTimer((IzotByte) IZOT_GET_ATTRIBUTE(tsaSendParamPtr->destAddr.SubnetNode, IZOT_SENDSN_REPEAT_TIMER));
+    if (!LON_SUCCESS(status = DecodeRptTimer((IzotByte) IZOT_GET_ATTRIBUTE(tsaSendParamPtr->destAddr.SubnetNode, IZOT_SENDSN_REPEAT_TIMER), &rptTimer))) {
+        SendCompletion(tsaSendParamPtr, FALSE);
+        OsalPrintError(status, "SendNewMsg: Invalid repeat timer attribute");
+        return;
+    }
     retryCount = IZOT_GET_ATTRIBUTE(tsaSendParamPtr->destAddr.SubnetNode, IZOT_SENDSN_RETRY);
 
     if (TSA_AddressConversion(&tsaSendParamPtr->destAddr, &nwDestAddr) != LonStatusNoError) {
         SendCompletion(tsaSendParamPtr, FALSE);
+        OsalPrintError(LonStatusInvalidMessageAddress, "SendNewMsg: Invalid destination address");
         return;
     }
 
@@ -2103,6 +2135,7 @@ static void SNSendResponse(IzotUbits16 rrIndexIn, IzotByte nullResponse,
     Queue *nwQueuePtr;
     DestinationAddress destAddr;
     IzotByte dataIndex = 0;
+    LonStatusCode status = LonStatusNoError;
 
     if (gp->recvRec[rrIndexIn].priority) {
         nwQueuePtr = &gp->nwOutPriQ;
@@ -2147,7 +2180,12 @@ static void SNSendResponse(IzotUbits16 rrIndexIn, IzotByte nullResponse,
         dataIndex = 1;
     }
     /* Copy the existing response from RR */
-    if (gp->recvRec[rrIndexIn].rspSize <= DecodeBufferSize(TSA_RESP_BUF_SIZE)) {
+    uint16_t responseSize;
+    if (!LON_SUCCESS(status = DecodeBufferSize(TSA_RESP_BUF_SIZE, &responseSize))) {
+        OsalPrintError(status, "SNSendResponse: Unable to decode response buffer size");
+        return;
+    }
+    if (gp->recvRec[rrIndexIn].rspSize <= responseSize) {
         /* *** Saved Response Length *** */
         /* This implementation saves the entire response in the receive transaction record.  Thus,
         * if and when a retry of the request is received, the response can be re-transmitted without
@@ -2365,6 +2403,7 @@ static IzotUbits16 ComputeRecvTimerValue(AddrMode addrModeIn,
         IzotByte groupIdIn) 
 {
     IzotUbits16 i, max = 0, temp;
+    LonStatusCode status = LonStatusNoError;
 
     if (addrModeIn == AM_UNIQUE_NODE_ID) {
         return (NGTIMER_SPCL_VAL);
@@ -2379,9 +2418,12 @@ static IzotUbits16 ComputeRecvTimerValue(AddrMode addrModeIn,
             IZOT_ADDRESS_GROUP_TYPE) == 1 && eep->addrTable[i].Group.Group 
             == groupIdIn) {
                 /* Group format match */
-                temp = DecodeRcvTimer(
+                if (!LON_SUCCESS(status = DecodeRcvTimer(
                         (IzotByte) IZOT_GET_ATTRIBUTE(eep->addrTable[i].Group, 
-                                    IZOT_ADDRESS_GROUP_RECEIVE_TIMER));
+                                    IZOT_ADDRESS_GROUP_RECEIVE_TIMER), &temp))) {
+                    OsalPrintError(status, "ComputeRecvTimerValue: Unable to decode receive timer");
+                    return 0;
+                }
                 /* Using the maximum receive timer for the group is not required.  It
                 * is acceptable to use the receive timer for the first group entry
                 * found in the table. */
@@ -2394,8 +2436,12 @@ static IzotUbits16 ComputeRecvTimerValue(AddrMode addrModeIn,
     }
 
     /* All other messages use non-group timer value. */
-    return (DecodeRcvTimer((IzotByte) IZOT_GET_ATTRIBUTE(eep->configData, 
-                                                        IZOT_CONFIG_NONGRPRCV)));
+    if (!LON_SUCCESS(status = DecodeRcvTimer((IzotByte) IZOT_GET_ATTRIBUTE(
+            eep->configData, IZOT_CONFIG_NONGRPRCV), &temp))) {
+        OsalPrintError(status, "ComputeRecvTimerValue: Unable to decode non-group receive timer");
+        return 0;
+    }
+    return (temp);
 }
 
 /*****************************************************************

@@ -905,11 +905,11 @@ LonStatusCode   UpdateAddress(const IzotAddress *addrEntryInp, IzotUbits16 index
 IzotUbits16  AddrTableIndex(IzotByte domainIndexIn, IzotByte groupIn);
 IzotByte IsGroupMember(IzotByte domainIndex, IzotByte groupIn,
                       IzotByte *groupMemberOut);
-IzotUbits16  DecodeBufferSize(IzotByte bufSizeIn);
-IzotUbits16  DecodeBufferCnt(IzotByte bufCntIn);
-IzotUbits16  DecodeRptTimer(IzotByte rptTimerIn);
-IzotUbits16  DecodeRcvTimer(IzotByte rcvTimerIn);
-IzotUbits16  DecodeTxTimer(IzotByte  txTimerIn);
+LonStatusCode  DecodeBufferSize(IzotByte bufSizeIn, uint16_t *decodedSizeOut);
+LonStatusCode  DecodeBufferCnt(IzotByte bufCntIn, uint16_t *decodedCountOut);
+LonStatusCode  DecodeRptTimer(IzotByte rptTimerIn, uint16_t *decodedTimerOut);
+LonStatusCode  DecodeRcvTimer(IzotByte rcvTimerIn, uint16_t *decodedTimerOut);
+IzotUbits16    DecodeTxTimer(IzotByte  txTimerIn);
 // Deleted from DecodeTxTimer: "", IzotByte longTimer"
 
 IzotDatapointConfig *AccessNV(IzotUbits16 indexIn);
@@ -917,7 +917,7 @@ void     UpdateNV(IzotDatapointConfig *nvStructInp, IzotUbits16 indexIn);
 IzotAliasConfig *AccessAlias(IzotUbits16 indexIn);
 void     UpdateAlias(IzotAliasConfig *aliasStructInp, IzotUbits16 indexIn);
 IzotUbits16 AliasTableIndex(char varNameIn[]);
-void     NodeReset(IzotByte firstReset);
+LonStatusCode NodeReset(IzotByte firstReset);
 void	 NodeReset_wrapper(void);
 LonStatusCode   InitEEPROM(uint32_t signature);
 IzotByte CheckSum8(void *data, IzotUbits16 lengthIn);

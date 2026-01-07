@@ -1,7 +1,7 @@
 /*
  * lcs.h
  *
- * Copyright (c) 2022-2025 EnOcean
+ * Copyright (c) 2022-2026 EnOcean
  * SPDX-License-Identifier: MIT
  * See LICENSE file for details.
  * 
@@ -35,7 +35,7 @@ extern "C" {
 
 // Main initialization and service functions for LON Stack DX.
 LonStatusCode LCS_Init(IzotResetCause cause);
-extern void LCS_Service(void);
+extern LonStatusCode LCS_Service(void);
 
 #ifdef  __cplusplus
 }

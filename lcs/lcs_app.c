@@ -253,6 +253,7 @@ LonStatusCode APPInit(void)
 {
     IzotUbits16  len;
     IzotUbits16  sizeNeeded;
+    LonStatusCode status = LonStatusNoError;
 
 	if (gp->initialized) {
 		return LonStatusNoError;
@@ -260,11 +261,9 @@ LonStatusCode APPInit(void)
 
     gp->resetOk = TRUE;
     nmp->resetCause = IzotPowerUpReset;
-    NodeReset(TRUE);
-
-    if (!gp->resetOk) {
-		OsalPrintError(LonStatusStackInitializationFailure, "APPInit: Reset failure");
-        return LonStatusInitializationFailed;
+    if (!LON_SUCCESS(status = NodeReset(TRUE)) || !gp->resetOk) {
+		OsalPrintError(status, "APPInit: Reset failure");
+        return status;
     }
 
     gp->unboundSelector       = 0x3FFF;  // Countdown as we assign
@@ -342,80 +341,105 @@ LonStatusCode APPInit(void)
     nmp->snvt.aliasPtr->hostAlias  = hton16(AliasTableCount);
     nmp->nvTableSize  = 0;
 	gp->initialized = true;
-    OsalPrintDebug(LonStatusNoError, "APPInit: Application layer initialized");
-    return LonStatusNoError;
+    OsalPrintDebug(status, "APPInit: Application layer initialized");
+    return status;
 }
 
 /*
  * Initializes the LON Stack application layer including queues used by the application layer.
- * Parameters:  None
- * Returns:     None
+ * Parameters:
+ *   None
+ * Returns:
+ *   LonStatusNoError if successful, LonStatusCode error code otherwise.
+ * Notes:
+ *   The function sets gp->resetOk to FALSE if unable to reset properly.
  */
-void APPReset(void)
+LonStatusCode APPReset(void)
 {
     IzotUbits16 queueItemSize;
+    LonStatusCode status = LonStatusNoError;
+
+    gp->resetOk = TRUE;
 
     // Allocate and initialize input queue
-    gp->appInBufSize  = DecodeBufferSize(IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_INBUF_SIZE)); // 1280
-    gp->appInQCnt     = DecodeBufferCnt((IzotByte)IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_INBUF_CNT));
-    queueItemSize     = gp->appInBufSize + sizeof(APPReceiveParam);
+    if (!LON_SUCCESS(status = DecodeBufferSize(IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_INBUF_SIZE), &gp->appInBufSize))) {
+    	OsalPrintError(status, "APPReset: Unable to decode input application buffer size");
+        gp->resetOk = FALSE;
+        return status;
+    }
+    if (!LON_SUCCESS(status = DecodeBufferCnt((IzotByte)IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_INBUF_CNT), &gp->appInQCnt))) {
+    	OsalPrintError(status, "APPReset: Unable to decode input application buffer count");
+        gp->resetOk = FALSE;
+        return status;
+    }
+    queueItemSize = gp->appInBufSize + sizeof(APPReceiveParam);
 
-    if (QueueInit(&gp->appInQ, queueItemSize, gp->appInQCnt)
-            != LonStatusNoError || QueueInit(&gp->appCeRspInQ, queueItemSize, gp->appInQCnt)
-	        != LonStatusNoError) {
+    if (!LON_SUCCESS(status = QueueInit(&gp->appInQ, queueItemSize, gp->appInQCnt)) 
+            || !LON_SUCCESS(status = QueueInit(&gp->appCeRspInQ, queueItemSize, gp->appInQCnt))) {
     	OsalPrintError(LonStatusStackInitializationFailure, "APPReset: Unable to initialize input queues");
         gp->resetOk = FALSE;
-        return;
+        return status;
     }
     
     // Allocate and initialize output queue
-    gp->appOutBufSize = DecodeBufferSize((IzotByte)IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_OUTBUF_SIZE)) + 1;
-    gp->appOutQCnt    = DecodeBufferCnt((IzotByte)IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_OUTBUF_CNT));
-    queueItemSize    = gp->appOutBufSize + sizeof(APPSendParam);
-
-    if (QueueInit(&gp->appOutQ, queueItemSize, gp->appOutQCnt) != LonStatusNoError) {
-    	OsalPrintError(LonStatusStackInitializationFailure, "APPReset: Unable to initialize output queue");
+    if (!LON_SUCCESS(status = DecodeBufferSize((IzotByte)IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_OUTBUF_SIZE), &gp->appOutBufSize))) {
+    	OsalPrintError(status, "APPReset: Unable to decode output application buffer size");
         gp->resetOk = FALSE;
-        return;
+        return status;
+    }
+    gp->appOutBufSize += 1;
+    if (!LON_SUCCESS(status = DecodeBufferCnt((IzotByte)IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_OUTBUF_CNT), &gp->appOutQCnt))) {
+    	OsalPrintError(status, "APPReset: Unable to decode output application buffer count");
+        gp->resetOk = FALSE;
+        return status;
+    }
+    queueItemSize    = gp->appOutBufSize + sizeof(APPSendParam);
+    if (!LON_SUCCESS(status = QueueInit(&gp->appOutQ, queueItemSize, gp->appOutQCnt))) {
+    	OsalPrintError(status, "APPReset: Unable to initialize output queue");
+        gp->resetOk = FALSE;
+        return status;
     }
     OsalPrintDebug(LonStatusNoError, "APPReset: Application queues initialized");
 
     // Allocate and initialize priority output queue
     gp->appOutPriBufSize = gp->appOutBufSize;
-    gp->appOutPriQCnt = DecodeBufferCnt((IzotByte)IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_OUT_PRICNT));
-    queueItemSize    = gp->appOutPriBufSize + sizeof(APPSendParam);
-
-    if (QueueInit(&gp->appOutPriQ, queueItemSize, gp->appOutPriQCnt) != LonStatusNoError) {
-    	OsalPrintError(LonStatusStackInitializationFailure, "APPReset: Unable to initialize priority output queue");
+    if (!LON_SUCCESS(status = DecodeBufferCnt((IzotByte)IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_OUT_PRICNT), &gp->appOutPriQCnt))) {
+    	OsalPrintError(status, "APPReset: Unable to decode priority output application buffer count");
         gp->resetOk = FALSE;
-        return;
+        return status;
+    }
+    queueItemSize = gp->appOutPriBufSize + sizeof(APPSendParam);
+    if (!LON_SUCCESS(status = QueueInit(&gp->appOutPriQ, queueItemSize, gp->appOutPriQCnt))) {
+    	OsalPrintError(status, "APPReset: Unable to initialize priority output queue");
+        gp->resetOk = FALSE;
+        return status;
     }
 
     // Allocate and initialize queue for NV output variable scheduling
-    gp->nvOutIndexQCnt    = MAX_NV_OUT;
+    gp->nvOutIndexQCnt = MAX_NV_OUT;
     gp->nvOutIndexBufSize = 2 + MAX_NV_LENGTH;
-    if (QueueInit(&gp->nvOutIndexQ, gp->nvOutIndexBufSize, gp->nvOutIndexQCnt)  != LonStatusNoError) {
-    	OsalPrintError(LonStatusStackInitializationFailure, "APPReset: Unable to initialize output NV index queue");
+    if (!LON_SUCCESS(status = QueueInit(&gp->nvOutIndexQ, gp->nvOutIndexBufSize, gp->nvOutIndexQCnt))) {
+    	OsalPrintError(status, "APPReset: Unable to initialize output NV index queue");
         gp->resetOk = FALSE;
-        return;
+        return status;
     }
     gp->nvOutStatus      = LonStatusNoError;    // Propagate succeeds if all the scheduled
                                                 // transactions complete successfully
     gp->nvOutCanSchedule = TRUE;
-    gp->nvOutIndex       = 0;          // Not relevant initially
+    gp->nvOutIndex       = 0;                   // Not relevant initially
 
     // Allocate and initialize queue for NV input variable scheduling
     gp->nvInIndexQCnt = MAX_NV_IN;
-    if (QueueInit(&gp->nvInIndexQ, 2, gp->nvInIndexQCnt)  != LonStatusNoError) {
-    	OsalPrintError(LonStatusStackInitializationFailure, "APPReset: Unable to initialize input NV index queue");
+    if (!LON_SUCCESS(status = QueueInit(&gp->nvInIndexQ, 2, gp->nvInIndexQCnt))) {
+    	OsalPrintError(status, "APPReset: Unable to initialize input NV index queue");
         gp->resetOk = FALSE;
-        return;
+        return status;
     }
     gp->nvInDataStatus  = LonStatusInvalidOperation;    // See node.h for usage
     gp->nvInTranStatus  = LonStatusNoError;             // See node.h for usage
     gp->nvInCanSchedule = TRUE;
-    gp->nvInIndex       = 0;           // Not relevant initially
-    OsalPrintDebug(LonStatusNoError, "APPReset: NV scheduling queues initialized");
+    gp->nvInIndex       = 0;                            // Not relevant initially
+    OsalPrintDebug(status, "APPReset: NV scheduling queues initialized");
     
     // Set flags to correct state
     gp->msgReceive      = FALSE;       // TRUE if data is in gp->msgIn
@@ -425,15 +449,16 @@ void APPReset(void)
     gp->selectQueryFlag = FALSE;       // FALSE until selected
 
     // Initialize msg and resp
-    memset(&gp->msgIn,   0, sizeof(gp->msgIn));
-    memset(&gp->msgOut,  0, sizeof(gp->msgOut));
-    memset(&gp->respIn,  0, sizeof(gp->respIn));
-    memset(&gp->respOut, 0, sizeof(gp->respOut));
+    memset(&gp->msgIn,    0, sizeof(gp->msgIn));
+    memset(&gp->msgOut,   0, sizeof(gp->msgOut));
+    memset(&gp->respIn,   0, sizeof(gp->respIn));
+    memset(&gp->respOut,  0, sizeof(gp->respOut));
     memset(&gp->nvInAddr, 0, sizeof(gp->nvInAddr));
     gp->nvArrayIndex = 0;
 
 	// Initialize LON network management module
 	NM_Init();
+    return status;
 }
 
 /*******************************************************************************

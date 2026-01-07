@@ -90,11 +90,11 @@ void LKGetXcvrParams(int niIndex, XcvrParam *p);
  *****************************************************************/
 
 /*
- * Allocates space for link layer queues.
+ * Initializes the LON Stack link layer including queues used by the link layer.
  * Parameters:
  *   None
  * Returns:
- *   None
+ *   LonStatusNoError if successful, LonStatusCode error code otherwise.
  * Notes:
  *   Sets gp->resetOk to FALSE if unable to reset properly.
  *   For a MIP LON link, the input queue is also used by the physical
@@ -109,7 +109,7 @@ void LKGetXcvrParams(int niIndex, XcvrParam *p);
  *     CRC uses 2 bytes.
  *   Total # bytes in addition to NPDU is thus 6 bytes.
  */
-void LKReset(void)
+LonStatusCode LKReset(void)
 {
     IzotUbits16 queueItemSize;
     IzotByte   *p;  // Used to initialize lkInQ
@@ -118,13 +118,22 @@ void LKReset(void)
     LonStatusCode status = LonStatusNoError;
 
     // Allocate and initialize the input queue
-    gp->lkInBufSize = DecodeBufferSize((IzotUbits16)gp->nwInBufSize) + 6;
-    gp->lkInQCnt = DecodeBufferCnt((IzotUbits16)gp->nwInQCnt);
+    if (!LON_SUCCESS(status = DecodeBufferSize(LK_IN_BUF_SIZE, &gp->lkInBufSize))) {
+        OsalPrintError(status, "LKReset: Unable to decode input link buffer size");
+        gp->resetOk = FALSE;
+        return status;
+    }
+    gp->lkInBufSize += 6;
+    if (!LON_SUCCESS(status = DecodeBufferCnt(LK_IN_Q_CNT, &gp->lkInQCnt))) {
+        OsalPrintError(status, "LKReset: Unable to decode input link queue count");
+        gp->resetOk = FALSE;
+        return status;
+    }
     gp->lkInQ = OsalAllocateMemory((size_t)(gp->lkInBufSize * gp->lkInQCnt));
     if (gp->lkInQ == NULL) {
         OsalPrintError(LonStatusNoMemoryAvailable, "LKReset: Unable to initialize the input queue");
         gp->resetOk = FALSE;
-        return;
+        return status;
     }
     // Initialize the flag in each item of the queue to 0
     p = gp->lkInQ;
@@ -135,48 +144,56 @@ void LKReset(void)
     gp->lkInQHeadPtr = gp->lkInQTailPtr = gp->lkInQ;
 
     // Allocate and initialize the output queue
-    gp->lkOutBufSize = DecodeBufferSize((IzotUbits16)gp->nwOutBufSize);
-    gp->lkOutQCnt    = DecodeBufferCnt((IzotUbits16)gp->nwOutQCnt);
+    if (!LON_SUCCESS(status = DecodeBufferSize(LK_OUT_BUF_SIZE, &gp->lkOutBufSize))) {
+        OsalPrintError(status, "LKReset: Unable to decode output link buffer size");
+        gp->resetOk = FALSE;
+        return status;
+    }
+    if (!LON_SUCCESS(status = DecodeBufferCnt(LK_OUT_Q_CNT, &gp->lkOutQCnt))) {
+        OsalPrintError(status, "LKReset: Unable to decode output link queue count");
+        gp->resetOk = FALSE;
+        return status;
+    }
     queueItemSize    = gp->lkOutBufSize + sizeof(LKSendParam);
 
     status = QueueInit(&gp->lkOutQ, queueItemSize, gp->lkOutQCnt);
     if (status != LonStatusNoError) {
         OsalPrintError(status, "LKReset: Unable to initialize the output queue");
         gp->resetOk = FALSE;
-        return;
+        return status;
     }
 
     // Allocate and initialize the priority output queue
     gp->lkOutPriBufSize = gp->lkOutBufSize;
-    gp->lkOutPriQCnt = DecodeBufferCnt((IzotUbits16)gp->nwOutPriQCnt);
+    if (!LON_SUCCESS(status = DecodeBufferCnt(LK_OUT_PRI_Q_CNT, &gp->lkOutPriQCnt))) {
+        OsalPrintError(status, "LKReset: Unable to decode priority output link queue count");
+        gp->resetOk = FALSE;
+        return status;
+    }
     queueItemSize = gp->lkOutPriBufSize + sizeof(LKSendParam);
 
-    status = QueueInit(&gp->lkOutPriQ, queueItemSize, gp->lkOutPriQCnt);
-    if (status != LonStatusNoError) {
+    if (!LON_SUCCESS(status = QueueInit(&gp->lkOutPriQ, queueItemSize, gp->lkOutPriQCnt))) {
         OsalPrintError(status, "LKReset: Unable to initialize the priority output queue");
         gp->resetOk = FALSE;
-        return;
+        return status;
     }
     OsalPrintDebug(LonStatusNoError, "LKReset: Link layer queues initialized");
 
 	for (int niIndex=0; niIndex<NUM_LON_NI; niIndex++) {
 		int iface_index;
 
-		status = OpenLonUsbLink(lonNi[niIndex].lon_dev_name,
+        if (!LON_SUCCESS(status = OpenLonUsbLink(lonNi[niIndex].lon_dev_name,
                 lonNi[niIndex].usb_dev_name,
                 &lonNi[niIndex].iface_index,
                 lonNi[niIndex].iface_mode,
-                lonNi[niIndex].lon_usb_iface_model 
-            );
-        if (status != LonStatusNoError) {
-            OsalPrintDebug(status, "LKReset: Unable to open LON link %s",
-                    lonNi[niIndex].lon_dev_name);
+                lonNi[niIndex].lon_usb_iface_model))) {
+            OsalPrintError(status, "LKReset: Unable to open LON link %s", lonNi[niIndex].lon_dev_name);
             lonNi[niIndex].linkOpened = false;
-            continue;
+            gp->resetOk = FALSE;
+            return status;
 		}
 		lonNi[niIndex].linkOpened = true;
-        OsalPrintDebug(LonStatusNoError, "LKReset: LON link %s opened",
-                lonNi[niIndex].lon_dev_name);
+        OsalPrintDebug(LonStatusNoError, "LKReset: LON link %s opened", lonNi[niIndex].lon_dev_name);
 
          // If this is a power line interface, get its Unique ID
 		if (lonNi[niIndex].isPowerLine) {
@@ -217,7 +234,7 @@ void LKReset(void)
 	    SetLonRepeatTimer(&lonLinkXcvrPlFetchTimer, XCVR_PARAM_FETCH_INTERVAL, XCVR_PARAM_FETCH_INTERVAL);
     }
 	
-    return;
+    return status;
 }
 
 /*

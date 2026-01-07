@@ -94,11 +94,11 @@ IZOT_EXTERNAL_FN LonStatusCode IzotEventPump(void)
     CheckNetworkStatus();
 
 	if(is_connected) {    
-		LCS_Service();
+		status = LCS_Service();
 		IzotPersistentMemCommitCheck();
 	}
 #else
-	LCS_Service();
+	status = LCS_Service();
 	IzotPersistentMemCommitCheck();
 #endif
 

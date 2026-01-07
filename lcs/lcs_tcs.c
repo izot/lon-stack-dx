@@ -1,7 +1,7 @@
 /*
  * lcs_tcs.c
  *
- * Copyright (c) 2023-2025 EnOcean
+ * Copyright (c) 2023-2026 EnOcean
  * SPDX-License-Identifier: MIT
  * See LICENSE file for details.
  * 
@@ -51,8 +51,20 @@ Reference: Section 7, Protocol Specification.
 Purpose:   To initialize all globals to proper values.
 Comments:  None.
 ******************************************************************/
-void TCSReset(void)
+
+/*
+ * Initializes the LON Stack transaction control sub-layer.
+ * Parameters:
+ *   None
+ * Returns:
+ *   LonStatusNoError if successful, LonStatusCode error code otherwise.
+ * Notes:
+ *   The transaction control sub-layer is used by both the transport and session layers.
+ *   The function sets gp->resetOk to FALSE if unable to reset properly.
+ */
+LonStatusCode TCSReset(void)
 {
+    LonStatusCode status = LonStatusNoError;
     gp->priTransID    = 0; /* On node reset, transaction id 0 is used. */
     gp->nonpriTransID = 0;
     gp->priTransCtrlRec.inProgress    = FALSE;
@@ -73,7 +85,8 @@ void TCSReset(void)
         gp->priTblSize       = 0;
         gp->nonpriTblSize    = 0;
     }
-    OsalPrintDebug(LonStatusNoError, "TCSReset: Transaction control sublayer initialized");
+    OsalPrintDebug(status, "TCSReset: Transaction control sublayer initialized");
+    return status;
 }
 
 /*****************************************************************
