@@ -1149,8 +1149,9 @@ IZOT_EXTERNAL_FN LonStatusCode IzotCreateStack(const IzotStackInterfaceData* con
 #if LINK_IS(WIFI)
     char oldProgId[8];
 #endif 
-    OsalPrintDebug(LonStatusNoError, "\n************************************************");
-    OsalPrintDebug(LonStatusNoError, "IzotCreateStack: Starting LON Stack initialization");
+    OsalPrintDebug(LonStatusNoError, "\n*****************************************************************************************");
+    OsalPrintDebug(LonStatusNoError, "IzotCreateStack: Starting LON Stack DX %d.%d.%d initialization",
+            FIRMWARE_VERSION, FIRMWARE_MINOR_VERSION, FIRMWARE_BUILD);
 
     // Only a few of these fields are used by LON Stack.  The
     // stack implements partial support for a multi-stack model, but 

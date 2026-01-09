@@ -49,7 +49,7 @@ typedef enum {
     LonStatusInvalidDriverInfo				= 23,
     LonStatusInvalidDeviceInfo				= 24,
     LonStatusDeviceInUse					= 25,
-    LonStatusNotImplemented					= 26,
+    LonStatusNotImplemented					= 26,   // Feature not implemented
     LonStatusInvalidParameter				= 27,   // Invalid parameter specified
     LonStatusInvalidDriverId				= 28,
     LonStatusInvalidDataFormat				= 29,

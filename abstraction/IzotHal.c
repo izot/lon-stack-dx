@@ -626,47 +626,65 @@ LonStatusCode HalReadStorageSegment(
 /*****************************************************************
  * Section: USB TTY Interface Function Definitions
  *****************************************************************/
-int HalOpenUsb(const char *usb_dev_name, int ldisc)
+LonStatusCode HalOpenUsb(const char *usb_dev_name, int ldisc, int *usb_fd_out)
 {
+    LonStatusCode status = LonStatusNoError;
     if (!usb_dev_name || ldisc < 0 || ldisc >= NR_LDISCS) {
-        return -1;
+        *usb_fd_out = -1;
+        status = LonStatusInvalidParameter;
+        OsalPrintError(status, "HalOpenUsb: Invalid parameters");
+        return status;
     }
 #if OS_IS(LINUX)
-    int fd = open(usb_dev_name, O_RDWR | O_NOCTTY | O_NONBLOCK);
-    if (fd < 0) return -1;
+    *usb_fd_out = open(usb_dev_name, O_RDWR | O_NOCTTY | O_NONBLOCK);
+    if (*usb_fd_out < 0) {
+        status = LonStatusInterfaceError;
+        OsalPrintError(status, "HalOpenUsb: Cannot open USB device %s (errno %d)", usb_dev_name, errno);
+        return status;
+    }
 
     // Set custom line discipline if requested
     if (ldisc >= 0) {
-        if (ioctl(fd, TIOCSETD, &ldisc) < 0) {
-            close(fd);
-            return -2;
+        if (ioctl(*usb_fd_out, TIOCSETD, &ldisc) < 0) {
+            close(*usb_fd_out);
+            status = LonStatusInterfaceError;
+            OsalPrintError(status, "HalOpenUsb: Cannot set line discipline %d on %s (errno %d)", ldisc, usb_dev_name, errno);
+            return status;
         }
     }
 
     // Set raw mode
     struct termios tio;
-    if (tcgetattr(fd, &tio) < 0) {
-        close(fd);
-        return -3;
+    if (tcgetattr(*usb_fd_out, &tio) < 0) {
+        close(*usb_fd_out);
+        status = LonStatusInterfaceError;
+        OsalPrintError(status, "HalOpenUsb: Cannot get attributes for %s (errno %d)", usb_dev_name, errno);
+        return status;
     }
     cfmakeraw(&tio);
     tio.c_cc[VMIN] = 1;
     tio.c_cc[VTIME] = 0;
-    if (tcsetattr(fd, TCSANOW, &tio) < 0) {
-        close(fd);
-        return -4;
+    if (tcsetattr(*usb_fd_out, TCSANOW, &tio) < 0) {
+        close(*usb_fd_out);
+        status = LonStatusInterfaceError;
+        OsalPrintError(status, "HalOpenUsb: Cannot set raw mode on %s (errno %d)", usb_dev_name, errno);
+        return status;
     }
-    return fd;
+    return LonStatusNoError;
 #elif OS_IS(FREERTOS)
     // For FreeRTOS, assume descriptor is a UART-like driver and not standard POSIX fd.
     // Placeholder: integrate with platform-specific open API when available.
     // int fd = open(usb_dev_name, ...);
     // if (fd < 0) return -1;
     // return fd;
-    return -1; // Not implemented
+    status = LonStatusNotImplemented;
+    OsalPrintError(status, "HalOpenUsb: Implementation missing for the USB interface on FreeRTOS");
+    return status;
 #else
     // Placeholder: integrate with platform-specific open API when available.
-    return -1; // Not implemented
+    status = LonStatusNotImplemented;
+    OsalPrintError(status, "HalOpenUsb: Implementation missing for the USB interface on this platform");
+    return status;
 #endif
 }
 

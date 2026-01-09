@@ -191,19 +191,21 @@ LonStatusCode OpenLonUsbLink(char *lon_dev_name, char *usb_dev_name,
 					int *iface_index, LonUsbOpenMode iface_mode,
 					LonUsbIfaceModel lon_usb_iface_model)
 {
+	LonStatusCode status = LonStatusNoError;
 	if (!lon_dev_name || !usb_dev_name || !iface_index
 			|| (iface_mode != LON_USB_OPEN_LAYER2 && iface_mode != LON_USB_OPEN_LAYER5)
 			|| (lon_usb_iface_model < 0 || lon_usb_iface_model >= MAX_IFACE_MODELS)) {
-		return LonStatusInvalidParameter;
+		status = LonStatusInvalidParameter;
+		OsalPrintError(status, "OpenLonUsbLink: Invalid parameter(s)");
+		return status;
 	}
 	// Initialize link interface states if this is the first LON USB open
 	if (!linkInitialized) {
-		LonStatusCode code;
-		code = InitIfaceStates();
-		if (code != LonStatusNoError) {
+		status = InitIfaceStates();
+		if (status != LonStatusNoError) {
 			*iface_index = -1;
-			OsalPrintError(code, "Failed to inititialize LON USB link interface states");
-			return code;
+			OsalPrintError(status, "OpenLonUsbLink: Failed to inititialize LON USB link interface states");
+			return status;
 		}
 		linkInitialized = TRUE;
 	}
@@ -211,14 +213,18 @@ LonStatusCode OpenLonUsbLink(char *lon_dev_name, char *usb_dev_name,
 	*iface_index = AssignIfaceState();
 	if ((*iface_index < 0) || (*iface_index >= MAX_IFACE_STATES)) {
 		*iface_index = -1;
-		return LonStatusNoMoreCapableDevices;
+		status = LonStatusNoMoreCapableDevices;
+		OsalPrintError(status, "OpenLonUsbLink: No available LON USB interface states for %s", lon_dev_name);
+		return status;
 	}
 	// Get pointer to assigned interface state
 	LonUsbLinkState *state = GetIfaceState(*iface_index);
 	if (state == NULL) {
 		ResetUplinkState(*iface_index);
 		*iface_index = -1;
-		return LonStatusOpenFailed;
+		status = LonStatusOpenFailed;
+		OsalPrintError(status, "OpenLonUsbLink: Failed to get LON USB interface state for %s", lon_dev_name);
+		return status;
 	}
 	// Copy LON device name to state and ensure nul-termination
     strncpy(state->lon_dev_name, lon_dev_name, sizeof(state->lon_dev_name) - 1);
@@ -232,23 +238,30 @@ LonStatusCode OpenLonUsbLink(char *lon_dev_name, char *usb_dev_name,
 	state->lon_usb_iface_model = lon_usb_iface_model;
 
 	// Initialize USB link and get the USB device file descriptor
-	int fd = HalOpenUsb(usb_dev_name, lon_usb_iface_configs[state->lon_usb_iface_model].usb_line_discipline);
-    if (fd < 0) {
+	int usb_fd;
+	status = HalOpenUsb(usb_dev_name, lon_usb_iface_configs[state->lon_usb_iface_model].usb_line_discipline, &usb_fd);
+    if (status != LonStatusNoError) {
 		ResetUplinkState(*iface_index);
 		*iface_index = -1;
-        return LonStatusOpenFailed;
+		status = LonStatusOpenFailed;
+		OsalPrintError(status, "OpenLonUsbLink: Failed to open USB interface %s for LON interface %s", usb_dev_name, lon_dev_name);
+        return status;
     }
-	state->usb_fd = fd;
+	state->usb_fd = usb_fd;
 	
 	// Start LON USB link
-	LonStatusCode code = StartLonUsbLink(*iface_index, iface_mode);
-	if (code != LonStatusNoError) {
-		HalCloseUsb(fd);
+	status = StartLonUsbLink(*iface_index, iface_mode);
+	if (status != LonStatusNoError) {
+		HalCloseUsb(state->usb_fd);
 		ResetUplinkState(*iface_index);
 		*iface_index = -1;
+		OsalPrintError(status, "OpenLonUsbLink: Failed to start %s", lon_dev_name);
+		return status;
 	}
 	state->start_time = state->last_timeout = OsalGetTickCount();
-	return code;
+	OsalPrintDebug(status, "OpenLonUsbLink: Opened LON USB interface %s on USB device %s with index %d",
+			lon_dev_name, usb_dev_name, *iface_index);
+	return status;
 };
 
 /*
@@ -964,8 +977,8 @@ static LonStatusCode ResetDownlinkState(int iface_index)
 	OsalLockMutex(&state->state_lock);
 	if (state->downlink_buffer.buf_size > 0) {
 		memset(&state->downlink_buffer, 0, sizeof(state->downlink_buffer));
-		state->downlink_reject_timer = 0;
 	}
+	state->downlink_reject_timer = 0;
 	OsalUnlockMutex(&state->state_lock);
 	// Clear the ack timer and change state to idle
 	code = StopAckTimer(iface_index);
@@ -1779,29 +1792,20 @@ static LonStatusCode InitIfaceStates(void)
 		state->downlink_seq_number = 0;
 		memset(&state->downlink_buffer, 0, sizeof(state->downlink_buffer));
 		memset(&state->downlink_cp_requested, 0, sizeof(state->downlink_cp_requested));
-		code = ResetDownlinkState(iface_index);
-		if (code != LonStatusNoError) {
-			OsalPrintError(code, "Failed to reset link state for index %d", iface_index);
-			return code;
-		}
 
 		// Initialize uplink state
 		state->uplink_state = UPLINK_IDLE;
-		state->uplink_frame_error = false;
-		state->uplink_duplicate = false;
 		state->uplink_ack_timer = 0;
+		state->uplink_ack_timeout = STARTUP_ACK_WAIT_TIME;	// Use longer timeout to allow LON interface reset
 		state->uplink_ack_timeouts = 0;
 		state->uplink_ack_timeout_phase = 0;
+		state->uplink_duplicate = false;
+		state->uplink_frame_error = false;
+		state->uplink_msg_index = 0;
+		state->uplink_msg_length = 0;
+		state->uplink_msg_timer = 0;
 		state->uplink_seq_number = ~FRAME_CODE_SEQ_NUM_MASK; // Force mismatch on first frame
-		code = ResetUplinkState(iface_index);
-		if (code != LonStatusNoError) {
-			OsalPrintError(code, "Failed to reset link state for index %d", iface_index);
-			return code;
-		}
-		// Increase ack wait time set in ResetUplinkState() for startup only,
-		// overwriting the timeout set in ResetUplinkState(); this allows more
-		// time for the LON interface to reset after the first startup command
-		state->uplink_ack_timeout = STARTUP_ACK_WAIT_TIME;
+		state->uplink_tail_escaped = false;
 
 	    // Allocate and initialize LON USB downlink queues
 		if (((code = QueueInit(&state->lon_usb_downlink_normal_queue, sizeof(LonUsbQueueBuffer), MAX_LON_DOWNLINK_BUFFERS)) != LonStatusNoError)
@@ -1846,8 +1850,8 @@ static int AssignIfaceState(void)
 {
     for (int i = 0; i < MAX_IFACE_STATES; i++) {
         if (!iface_state[i].assigned) {
-			ResetUplinkState(i);
             iface_state[i].assigned = TRUE;
+			ResetUplinkState(i);
             return i;  // Return index of assigned interface state
         }
     }

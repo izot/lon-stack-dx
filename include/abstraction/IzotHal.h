@@ -159,7 +159,7 @@ typedef struct usbtty_ctx {
 } usbtty_ctx;
 
 // Open USB tty device with custom line discipline; returns file descriptor or <0 on error
-int HalOpenUsb(const char *usb_dev_name, int ldisc);
+LonStatusCode HalOpenUsb(const char *usb_dev_name, int ldisc, int *usb_fd_out);
 
 // Close device (just closes fd)
 void HalCloseUsb(int fd);
