@@ -302,20 +302,29 @@ typedef struct LonUsbIfaceConfig {
 	bool supports_code_packet_acks;
 } LonUsbIfaceConfig;
 
+// Line discipline for LON USB interfaces
+#if OS_IS(LINUX_KERNEL)
+#define LON_USB_LDISC_MIP_U50  28
+#define LON_USB_LDISC_MIP_U61  27
+#else
+#define LON_USB_LDISC_MIP_U50  -1   // Use default
+#define LON_USB_LDISC_MIP_U61  -1   // Use default
+#endif	// OS_IS(LINUX_KERNEL)
+
 // LON USB interface configurations indexed by LonUsbIfaceModel
 static LonUsbIfaceConfig lon_usb_iface_configs[] = {
 	// U10 FT Rev A/B
-	{LON_USB_INTERFACE_U61, 27, FRAME_SYNC_ONLY, false, false, false},
+	{LON_USB_INTERFACE_U61, LON_USB_LDISC_MIP_U61, FRAME_SYNC_ONLY, false, false, false},
 	// U10 FT Rev C
-	{LON_USB_INTERFACE_U50, 28, FRAME_CODE_PACKET, true, true, true},
+	{LON_USB_INTERFACE_U50, LON_USB_LDISC_MIP_U50, FRAME_CODE_PACKET, true, true, true},
 	// U20 PL
-	{LON_USB_INTERFACE_U61, 27, FRAME_SYNC_ONLY, false, false, false},
+	{LON_USB_INTERFACE_U61, LON_USB_LDISC_MIP_U61, FRAME_SYNC_ONLY, false, false, false},
 	// U60 FT
-	{LON_USB_INTERFACE_U50, 28, FRAME_CODE_PACKET, true, true, true},
+	{LON_USB_INTERFACE_U50, LON_USB_LDISC_MIP_U50, FRAME_CODE_PACKET, true, true, true},
 	// U60 TP-1250
-	{LON_USB_INTERFACE_U61, 27, FRAME_SYNC_ONLY, false, false, false},
+	{LON_USB_INTERFACE_U61, LON_USB_LDISC_MIP_U61, FRAME_SYNC_ONLY, false, false, false},
 	// U70 PL
-	{LON_USB_INTERFACE_U61, 27, FRAME_SYNC_ONLY, false, false, false}
+	{LON_USB_INTERFACE_U61, LON_USB_LDISC_MIP_U61, FRAME_SYNC_ONLY, false, false, false}
 };
 
 // LON USB link state structure

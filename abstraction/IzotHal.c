@@ -629,7 +629,7 @@ LonStatusCode HalReadStorageSegment(
 LonStatusCode HalOpenUsb(const char *usb_dev_name, int ldisc, int *usb_fd_out)
 {
     LonStatusCode status = LonStatusNoError;
-    if (!usb_dev_name || ldisc < 0 || ldisc >= NR_LDISCS) {
+    if (!usb_dev_name || ldisc >= NR_LDISCS) {
         *usb_fd_out = -1;
         status = LonStatusInvalidParameter;
         OsalPrintError(status, "HalOpenUsb: Invalid parameters");

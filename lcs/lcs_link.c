@@ -61,13 +61,13 @@ typedef struct {
 // LON network interface definition array
 LonNiDef lonNi[NUM_LON_NI] = {
 #if !PRODUCT_IS(SLB)
-	 {"LON1", "/dev/ttyUSB0", -1, LON_USB_OPEN_LAYER2, U60_FT, false, false, false, {0}, false}
+	 {"LON1", "/dev/ttyACM0", -1, LON_USB_OPEN_LAYER2, U60_FT, false, false, false, {0}, false}
   #if NUM_LON_NI > 1
-   , {"LON2", "/dev/ttyUSB1", -1, LON_USB_OPEN_LAYER2, U60_FT, false, false, false, {0}, false}
+   , {"LON2", "/dev/ttyACM1", -1, LON_USB_OPEN_LAYER2, U60_FT, false, false, false, {0}, false}
   #elif NUM_LON_NI > 2
-   , {"LON3", "/dev/ttyUSB2", -1, LON_USB_OPEN_LAYER2, U60_FT, false, false, false, {0}, false}
+   , {"LON3", "/dev/ttyACM2", -1, LON_USB_OPEN_LAYER2, U60_FT, false, false, false, {0}, false}
   #elif NUM_LON_NI > 3
-   , {"LON4", "/dev/ttyUSB3", -1, LON_USB_OPEN_LAYER2, U60_FT, false, false, false, {0}, false}
+   , {"LON4", "/dev/ttyACM3", -1, LON_USB_OPEN_LAYER2, U60_FT, false, false, false, {0}, false}
   #endif
 #else   // PRODUCT_IS(SLB)
       {"RF", "/dev/ttyUSB0", -1, LON_USB_OPEN_LAYER2, RF_900, false, false, false, {0}, false}
