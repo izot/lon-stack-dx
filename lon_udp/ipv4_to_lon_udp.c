@@ -884,7 +884,7 @@ IzotByte subnetId, IzotByte nodeId, IzotByte *pAddr
  * Notes:
  *   Sets gp->resetOk to FALSE if unable to reset properly.
  */
-LonStatusCode LsUDPReset(void)
+LonStatusCode LinkLayerUdpReset(void)
 {
     IzotUbits16 queueItemSize;
     LonStatusCode status = LonStatusNoError;
@@ -892,19 +892,19 @@ LonStatusCode LsUDPReset(void)
     // Allocate and initialize the output queue.
     if (!LON_SUCCESS(status = DecodeBufferSize(LK_OUT_BUF_SIZE, &gp->lkOutBufSize))) {
         gp->resetOk = FALSE;
-        OsalPrintError(status, "LsUDPReset: Unable to decode output link buffer size");
+        OsalPrintLog(ERROR_LOG, status, "LinkLayerUdpReset: Unable to decode output link buffer size");
         return status;
     }
     if (!LON_SUCCESS(status = DecodeBufferCnt((IzotByte)IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NW_OUTBUF_CNT), &gp->lkOutQCnt))) {
         gp->resetOk = FALSE;
-        OsalPrintError(status, "LsUDPReset: Unable to decode output link buffer count");
+        OsalPrintLog(ERROR_LOG, status, "LinkLayerUdpReset: Unable to decode output link buffer count");
         return status;
     }
     queueItemSize    = gp->lkOutBufSize + sizeof(LKSendParam) + 21;
 
-    if (!LON_SUCCESS(status = QueueInit(&gp->lkOutQ, queueItemSize, gp->lkOutQCnt))) {
+    if (!LON_SUCCESS(status = QueueInit(&gp->lkOutQ, "link layer output", queueItemSize, gp->lkOutQCnt))) {
         gp->resetOk = FALSE;
-        OsalPrintError(status, "LsUDPReset: Unable to initialize the output link queue");
+        OsalPrintLog(ERROR_LOG, status, "LinkLayerUdpReset: Unable to initialize the output link queue");
         return status;
     }
 
@@ -912,14 +912,14 @@ LonStatusCode LsUDPReset(void)
     gp->lkOutPriBufSize = gp->lkOutBufSize; //1280
     if (!LON_SUCCESS(status = DecodeBufferCnt((IzotByte)IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NW_OUT_PRICNT), &gp->lkOutPriQCnt))) {
         gp->resetOk = FALSE;
-        OsalPrintError(status, "LsUDPReset: Unable to decode priority output link buffer count");
+        OsalPrintLog(ERROR_LOG, status, "LinkLayerUdpReset: Unable to decode priority output link buffer count");
         return status;
     }
     queueItemSize       = gp->lkOutPriBufSize + sizeof(LKSendParam);
 
-    if (!LON_SUCCESS(status = QueueInit(&gp->lkOutPriQ, queueItemSize, gp->lkOutPriQCnt))) {
+    if (!LON_SUCCESS(status = QueueInit(&gp->lkOutPriQ, "link layer priority output", queueItemSize, gp->lkOutPriQCnt))) {
         gp->resetOk = FALSE;
-        OsalPrintError(status, "LsUDPReset: Unable to initialize the priority output link queue");
+        OsalPrintLog(ERROR_LOG, status, "LinkLayerUdpReset: Unable to initialize the priority output link queue");
         return status;
     }
 
@@ -927,12 +927,12 @@ LonStatusCode LsUDPReset(void)
     SetLonRepeatTimer(&AnnouncementTimer, AnnounceTimer, AnnounceTimer);
     SetLonRepeatTimer(&AgingTimer, AddrMappingAgingTimer, AddrMappingAgingTimer);
 
-    OsalPrintDebug(LonStatusNoError, "LsUDPReset: Link layer queues initialized");
+    OsalPrintLog(INFO_LOG, LonStatusNoError, "LinkLayerUdpReset: Link layer queues initialized");
     return status;
 }
 
 /* 
- *  Callback: LsUDPSend
+ *  Callback: LinkLayerUdpSend
  *  To take the NPDU from link layer's output queue and put it
  *  in the queue for the physical layer.
  *
@@ -942,7 +942,7 @@ LonStatusCode LsUDPReset(void)
  *  <void>.   
  *
  */
-void LsUDPSend(void)
+void LinkLayerUdpSend(void)
 {
     LKSendParam   *lkSendParamPtr;
     Queue         *lkSendQueuePtr;
@@ -1018,14 +1018,14 @@ void LsUDPSend(void)
 }
 
 /* 
- *  Callback: LsUDPReceive
+ *  Callback: LinkLayerUdpReceive
  *  Receive and process incoming LPDUs.
  *
  *  Parameters: none
  *
  *  Returns: <void>  
  */
-void LsUDPReceive(void)
+void LinkLayerUdpReceive(void)
 {
     NWReceiveParam      *nwReceiveParamPtr;
     IzotByte            *npduPtr;
@@ -1107,7 +1107,7 @@ void LsUDPReceive(void)
             memcpy(npduPtr, &LtVxPayload[1], nwReceiveParamPtr->pduSize);
             QueueWrite(&gp->nwInQ);
         } else {
-            OsalPrintError(LonStatusInvalidPacketLength, "LsUDPReceive: LON/IP packet size too large");
+            OsalPrintLog(ERROR_LOG, LonStatusInvalidPacketLength, "LinkLayerUdpReceive: LON/IP packet size too large");
             // We are losing this packet.
             INCR_STATS(LcsMissed);
         }
@@ -1215,7 +1215,7 @@ LonStatusCode WiFiInit(void)
         int err = wm_wlan_init();
         if (!err) {
             status = LonStatusInitializationFailed;
-            OsalPrintError(status, "WiFiInit: Failed to initialize WLAN with error %d", err);
+            OsalPrintLog(ERROR_LOG, status, "WiFiInit: Failed to initialize WLAN with error %d", err);
             return status;
         }
     #endif  // PROCESSOR_IS(MC200)
@@ -1240,10 +1240,10 @@ LonStatusCode UdpStart(void)
     int ret = InitSocket(IPV4_LS_UDP_PORT); 
     if (ret < 0) {
         status = LonStatusIpAddressNotDefined;
-        OsalPrintError(status, "UdpStart: Socket initialization failure with error %d", ret);
+        OsalPrintLog(ERROR_LOG, status, "UdpStart: Socket initialization failure with error %d", ret);
         return status;
     }
-    OsalPrintDebug(LonStatusNoError, "UdpStart: Sockets created");
+    OsalPrintLog(INFO_LOG, LonStatusNoError, "UdpStart: Sockets created");
     // Restore multicast membership
     RestoreIpMembership();
 #endif  // LINK_IS(ETHERNET) || LINK_IS(WIFI)

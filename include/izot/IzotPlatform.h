@@ -1,7 +1,7 @@
 /*
  * IzotPlatform.h
  *
- * Copyright (c) 2023-2025 EnOcean
+ * Copyright (c) 2023-2026 EnOcean
  * SPDX-License-Identifier: MIT
  * See LICENSE file for details.
  * 
@@ -1317,19 +1317,8 @@
  * Section: Platform-Dependent Link Definitions
  *****************************************************************/
 
-// TBD: Create temporary stubs for a LON USB link interface.
-// Replace these with actual implementations when available.
-#if LINK_IS(USB)
-#define OpenLonLink OpenLonUsbLink
-#define CloseLonLink CloseLonUsbLink
-#define ReadLonLinkMsg  ReadLonUsbMsg
-#define WriteLonLinkMsg WriteLonUsbMsg
-#elif LINK_IS(ETHERNET) || LINK_IS(WIFI)
-// No special definitions required for Ethernet or Wi-Fi UDP/IP links.  
-// Equivalent functions are defined in LsUDPReset(), LsUDPSend(), 
-// LSUDPReceive(), and LsUDPReset() in IPv4ToLsUdp.c.
-#else   // !LINK_IS(USB) && !LINK_IS(ETHERNET) && !LINK_IS(WIFI)
-#pragma message("Implement LON link interface code")
+#if !LINK_IS(USB) && !LINK_IS(ETHERNET) && !LINK_IS(WIFI)
+    #pragma message("Implement LON link interface code")
 #endif
 
  /*****************************************************************

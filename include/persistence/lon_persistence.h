@@ -1,7 +1,7 @@
 /*
  * lon_persistence.h
  *
- * Copyright (c) 2023-2025 EnOcean
+ * Copyright (c) 2023-2026 EnOcean
  * SPDX-License-Identifier: MIT
  * See LICENSE file for details.
  * 
@@ -32,7 +32,7 @@
 typedef IZOT_STRUCT_BEGIN(IzotPersistenceHeader)
 {
 	unsigned int length;
-	unsigned signature;
+	unsigned isiSignature;
 	unsigned appSignature;
 	unsigned short version;
 	unsigned short checksum;

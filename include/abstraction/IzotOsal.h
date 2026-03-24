@@ -75,17 +75,26 @@ extern "C"
 #define OSAL_ERROR_STRING_MAXLEN 256
 #endif
 
+// Log categories for message reporting
+typedef enum {
+    ERROR_LOG = 1,
+    INFO_LOG = 2,
+    PACKET_TRACE_LOG = 4,
+    DETAIL_TRACE_LOG = 8
+} LogCategory;
+
 // Log level enumeration for message reporting
 typedef enum {
     LOG_NONE  = 0,
-    LOG_ERROR = 1,
-    LOG_DEBUG = 2,
-    LOG_TRACE = 3
+    LOG_ERROR = ERROR_LOG,
+    LOG_DEBUG = ERROR_LOG | INFO_LOG,
+    LOG_PACKET_TRACE = ERROR_LOG | INFO_LOG | PACKET_TRACE_LOG,
+    LOG_DETAIL_TRACE = ERROR_LOG | INFO_LOG | PACKET_TRACE_LOG | DETAIL_TRACE_LOG
 } LogLevel;
 
-// Set INITIAL_LOG_LEVEL to a LogLevel value
-#ifndef INITIAL_LOG_LEVEL
-#define INITIAL_LOG_LEVEL LOG_ERROR
+// Set INITIAL_LOG_CATEGORIES to a combination of LogCategory values
+#ifndef INITIAL_LOG_CATEGORIES
+#define INITIAL_LOG_CATEGORIES LOG_ERROR
 #endif
 
 // Tick count type used by OSAL timing functions
@@ -286,42 +295,29 @@ void OsalFreeMemory(void *buf);
 /*****************************************************************
  * Section: Message Reporting Abstraction Types and Function Declarations
  *****************************************************************/
-/*
- * Sets the current log level for message reporting.
- * Parameters:
- *   level: New log level (LOG_NONE, LOG_ERROR, or LOG_DEBUG)
- * Returns:
- *   None
- */
-void OsalSetLogLevel(LogLevel level);
 
 /*
- * Gets the current log level for message reporting.
+ * Sets the active log categories for message reporting.
  * Parameters:
- *   None
+ *   categories: Bitmask of active log categories defined in LogCategory
  * Returns:
- *   Current log level (LOG_NONE, LOG_ERROR, LOG_DEBUG, LOG_TRACE)
+ *   None
  */
-LogLevel OsalGetLogLevel(void);
+void OsalSetLogCategories(unsigned int categories);
 
 /*
- * Prints a system call error message with optional message code and text.
+ * Gets the current log categories for message reporting.
  * Parameters:
- *   errorCode: Error code to include in message, or LonStatusNoError for none
- *   errorString: printf-style format string for message
- *   ...: Variable arguments for format string
- * Returns:
  *   None
- * Notes:
- *   If errorCode is >= 0, the message is prefixed with "Error <errorCode>: ".
- *   If errno is set, the string from strerror(errno) is appended to the 
- *   message.  This function is intended for reporting system call errors.
+ * Returns:
+ *   Current log categories (bitmask of LogCategory values)
  */
-void OsalPrintSysError(LonStatusCode errorCode, char *errorString, ...);
+unsigned int OsalGetLogCategories(void);
 
 /*
  * Prints an error message with optional message code and text.
  * Parameters:
+ *   category: Log category of the message
  *   errorCode: Error code to include in message, or LonStatusNoError for none
  *   errorString: printf-style format string for message
  *   ...: Variable arguments for format string
@@ -331,33 +327,19 @@ void OsalPrintSysError(LonStatusCode errorCode, char *errorString, ...);
  *  This function only prints messages if the current log level is LOG_ERROR
  *  or LOG_DEBUG.
  */
-void OsalPrintError(LonStatusCode errorCode, char *errorString, ...);
+void OsalPrintLog(LogCategory category, LonStatusCode errorCode, const char *errorString, ...);
 
 /*
- * Prints a debug message with optional message code and text.
+ * Prints a LON message buffer in a formatted hex dump
  * Parameters:
- *   errorCode: Error code to include in message, or LonStatusNoError for none
- *   errorString: printf-style format string for message
- *   ...: Variable arguments for format string
+ *   msg: pointer to message buffer
+ *   length: length of message in bytes
  * Returns:
  *   None
  * Notes:
- *  This function only prints messages if the current log level is LOG_DEBUG.
+ *   Only prints if log level is LOG_TRACE or higher.
  */
-void OsalPrintDebug(LonStatusCode errorCode, char *errorString, ...); 
-
-/*
- * Prints a trace message with optional message code and text.
- * Parameters:
- *   errorCode: Error code to include in message, or -1 for none
- *   errorString: printf-style format string for message
- *   ...: Variable arguments for format string
- * Returns:
- *   None
- * Notes:
- *   This function only prints messages if the current log level is LOG_TRACE.
- */
-void OsalPrintTrace(LonStatusCode errorCode, char *errorString, ...);
+void OsalPrintMessage(LogCategory category, const char *prefix, const uint8_t *msg, size_t length);
 
 #ifdef __cplusplus
 }

@@ -22,16 +22,30 @@
 
 typedef short LonLinkHandle;
 
-typedef struct {
-	IzotByte cmd;
-	IzotByte len;
-	IzotByte pdu[MAX_PDU_SIZE];
-} L2Frame;
+// LON NI frame structure used for non-extended and extended frames as
+// stored in the link layer queues; use the LonNiExtendedFrame structure
+// to access the extended length field
+
+typedef struct LonDataFrame{
+	uint8_t ni_command;			// Network interface command; use LonNiCommand values
+	uint8_t short_pdu_length; 	// PDU length if < EXT_LENGTH; else EXT_LENGTH
+	uint8_t pdu[MAX_LON_MSG_EX_LEN];
+} LonDataFrame;
+
+// LON NI frame structure used for extended frames as stored in the
+// link layer queues; the first two bytes match the LonNiFrame structure; the
+// ext_length_be field is in network byte order (big-endian) format
+typedef struct LonExtDataFrame {
+	uint8_t ni_command;			// Network interface command; use LonNiCommand values
+	uint8_t short_pdu_length; 	// PDU length if < EXT_LENGTH; else EXT_LENGTH
+	uint16_t ext_length_be; 	// Big-endian PDU length in bytes
+	uint8_t ext_pdu[MAX_LON_MSG_EX_LEN - 2];
+} LonExtDataFrame;
 
 /*****************************************************************
  * Section: Function Declarations
  *****************************************************************/
-LonStatusCode LKReset(void);
-void LKSend(void);
-void LKReceive(void);
+LonStatusCode LinkLayerReset(void);
+void LinkLayerUsbSend(void);
+void LinkLayerUsbReceive(void);
 #endif

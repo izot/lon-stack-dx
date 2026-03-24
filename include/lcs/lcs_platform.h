@@ -1,7 +1,7 @@
 /*
  * lcs_platform.h
  *
- * Copyright (c) 2022-2025 EnOcean
+ * Copyright (c) 2022-2026 EnOcean
  * SPDX-License-Identifier: MIT
  * See LICENSE file for details.
  * 
@@ -15,6 +15,11 @@
 
 #include "izot/IzotPlatform.h"
 #include "common/lon_stack_dx_version.h"
+
+#ifndef NUM_LON_NI
+// Number of LON network interfaces supported
+#define NUM_LON_NI 1 
+#endif
 
 // The base LON Stack version on which this implementation is based.
 // The base firmware version number is reported in the ND_QUERY_STATUS
@@ -46,7 +51,9 @@
 #define LON_ARCH_REFERENCE     0xC1
 
 // The architecture number of this platform
+#ifndef ARCHITECTURE_NUMBER
 #define ARCHITECTURE_NUMBER LON_ARCH_ARM64
+#endif
 
 // Turn on packing so that structures are packed on byte boundaries.
 // This should be done globally via a compiler switch.  Otherwise,

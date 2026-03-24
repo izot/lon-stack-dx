@@ -29,9 +29,9 @@
 /*------------------------------------------------------------------------------
   Section: Function Prototypes
   ------------------------------------------------------------------------------*/
-LonStatusCode NWReset(void);
-void   NWSend(void);
-void   NWReceive(void);
+LonStatusCode NetworkLayerReset(void);
+void   NetworkLayerSend(void);
+void   NetworkLayerReceive(void);
 
 #endif
 

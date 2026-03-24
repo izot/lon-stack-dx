@@ -302,7 +302,7 @@ LonStatusCode HalStorageInfo(size_t *offset, size_t *region_size,
     *erase_required     = false;
     *erase_value        = 0;
     persistentMemError  = LonStatusPersistentDataFailure
-    OsalPrintError(persistentMemError, "HalStorageInfo: No persistent storage driver available");
+    OsalPrintLog(ERROR_LOG, persistentMemError, "HalStorageInfo: No persistent storage driver available");
 #endif
 
     return persistentMemError;
@@ -338,7 +338,9 @@ LonStatusCode HalOpenStorageSegment(
     storageFd[persistent_seg_type] = open(config_file_path, O_RDWR | O_CREAT, 0644);
     if (storageFd[persistent_seg_type] == -1) {
         // Configuration file open error
-        OsalPrintError(errno, "HalOpenStorageSegment: Cannot open or create %s", config_file_path);
+        OsalPrintLog(ERROR_LOG, LonStatusPersistentDataAccessError,
+                "HalOpenStorageSegment: Cannot open or create %s, %s system error (errno %d)",
+                config_file_path, strerror(errno), errno );
         return persistentMemError = LonStatusPersistentDataAccessError;
     }
 
@@ -348,18 +350,22 @@ LonStatusCode HalOpenStorageSegment(
     if (fstat(storageFd[persistent_seg_type], &st) != 0) {
         close(storageFd[persistent_seg_type]);
         storageFd[persistent_seg_type] = -1;
-        OsalPrintError(errno, "HalOpenStorageSegment: Cannot read attributes for %s", config_file_path);
+        OsalPrintLog(ERROR_LOG, LonStatusPersistentDataAccessError,
+                "HalOpenStorageSegment: Cannot read attributes for %s, %s system error (errno %d)",
+                config_file_path, strerror(errno), errno );
         return persistentMemError = LonStatusPersistentDataAccessError;
     }
     if ((size_t)st.st_size != max_data_size) {
         if (ftruncate(storageFd[persistent_seg_type], (off_t)max_data_size) != 0) {
             close(storageFd[persistent_seg_type]);
             storageFd[persistent_seg_type] = -1;
-            OsalPrintError(errno, "HalOpenStorageSegment: Cannot set size of %d for %s", max_data_size, config_file_path);
+            OsalPrintLog(ERROR_LOG, LonStatusPersistentDataAccessError,
+                    "HalOpenStorageSegment: Cannot set size of %d for %s, %s system error (errno %d)",
+                    max_data_size, config_file_path, strerror(errno), errno );
             return persistentMemError = LonStatusPersistentDataAccessError;
         }
     }
-    OsalPrintDebug(persistentMemError, "HalOpenStorageSegment: Opened %d byte storage segment %s", max_data_size, persistent_seg_name);
+    OsalPrintLog(INFO_LOG, persistentMemError, "HalOpenStorageSegment: Opened %d byte storage segment %s", max_data_size, persistent_seg_name);
 #elif PROCESSOR_IS(MC200)
     // Open the flash device
     if (flashFd != NULL) {
@@ -370,7 +376,7 @@ LonStatusCode HalOpenStorageSegment(
             ? LonStatusNoError : LonStatusPersistentDataAccessError);
 #else
     persistentMemError = LonStatusPersistentDataAccessError;
-    OsalPrintError(persistentMemError, "HalOpenStorageSegment: No persistent storage driver available");
+    OsalPrintLog(ERROR_LOG, persistentMemError, "HalOpenStorageSegment: No persistent storage driver available");
 #endif // OS_IS(FREERTOS)
     return persistentMemError;
 }
@@ -424,7 +430,7 @@ LonStatusCode HalPrepareStorageSegment(
     struct stat st;
     if ((storageFd[persistent_seg_type] == -1) || (fstat(storageFd[persistent_seg_type], &st) != 0)) {
         // Persistent file not open or stat failed
-        OsalPrintError(LonStatusPersistentDataAccessError, "HalPrepareStorageSegment: Persistent file not open or stat failed");
+        OsalPrintLog(ERROR_LOG, LonStatusPersistentDataAccessError, "HalPrepareStorageSegment: Persistent file not open or stat failed");
         return persistentMemError = LonStatusPersistentDataAccessError;
     }
     size_t file_start = seg_start - start;
@@ -433,13 +439,13 @@ LonStatusCode HalPrepareStorageSegment(
         // Seek to (start-1) and write a single 0x00 to extend the file
         if (lseek(storageFd[persistent_seg_type], file_start - 1, SEEK_SET) == (off_t)-1) {
             // Extend seek failed
-            OsalPrintError(LonStatusPersistentDataAccessError, "HalPrepareStorageSegment: Extend seek failed");
+            OsalPrintLog(ERROR_LOG, LonStatusPersistentDataAccessError, "HalPrepareStorageSegment: Extend seek failed");
             return persistentMemError = LonStatusPersistentDataAccessError;
         }
         unsigned char zero = 0;
         if (write(storageFd[persistent_seg_type], &zero, 1) != 1) {
             // Extend write failed
-            OsalPrintError(LonStatusPersistentDataAccessError, "HalPrepareStorageSegment: Extend write failed");
+            OsalPrintLog(ERROR_LOG, LonStatusPersistentDataAccessError, "HalPrepareStorageSegment: Extend write failed");
             return persistentMemError = LonStatusPersistentDataAccessError;
         }
     }
@@ -447,7 +453,7 @@ LonStatusCode HalPrepareStorageSegment(
     // Seek to offset
     if (lseek(storageFd[persistent_seg_type], file_start, SEEK_SET) == -1) {
         // Seek to start failed
-        OsalPrintError(LonStatusPersistentDataAccessError, "HalPrepareStorageSegment: Seek to start failed");
+        OsalPrintLog(ERROR_LOG, LonStatusPersistentDataAccessError, "HalPrepareStorageSegment: Seek to start failed");
         return persistentMemError = LonStatusPersistentDataAccessError;
     }
 
@@ -460,13 +466,13 @@ LonStatusCode HalPrepareStorageSegment(
         ssize_t w = write(storageFd[persistent_seg_type], buf, chunk);
         if (w < 0) {
             // Write to region failed
-            OsalPrintError(LonStatusPersistentDataAccessError, "HalPrepareStorageSegment: Write to region failed");
+            OsalPrintLog(ERROR_LOG, LonStatusPersistentDataAccessError, "HalPrepareStorageSegment: Write to region failed");
             return persistentMemError = LonStatusPersistentDataAccessError;
         }
         left -= w;
     }
     persistentMemError = LonStatusNoError;
-    OsalPrintDebug(persistentMemError, "HalPrepareStorageSegment: Prepared storage segment %d from offset %zu for %zu bytes",
+    OsalPrintLog(INFO_LOG, persistentMemError, "HalPrepareStorageSegment: Prepared storage segment %d from offset %zu for %zu bytes",
             persistent_seg_type, seg_start - start, size);
     return persistentMemError;
 #elif PROCESSOR_IS(MC200)
@@ -478,7 +484,7 @@ LonStatusCode HalPrepareStorageSegment(
     return persistentMemError = (iflash_drv_erase(flashFd, start, size) 
             ? LonStatusNoError : LonStatusPersistentDataAccessError);
 #else
-    OsalPrintError(LonStatusPersistentDataAccessError, "HalPrepareStorageSegment: No persistent storage driver available"); 
+    OsalPrintLog(ERROR_LOG, LonStatusPersistentDataAccessError, "HalPrepareStorageSegment: No persistent storage driver available"); 
     return persistentMemError = LonStatusPersistentDataAccessError;
 #endif
 }
@@ -497,7 +503,8 @@ LonStatusCode HalPrepareStorageSegment(
  *   offset.
  */
 LonStatusCode HalWriteStorageSegment(
-        const IzotPersistentSegType persistent_seg_type, IzotByte *buf, size_t seg_start, size_t start, size_t size)
+        const IzotPersistentSegType persistent_seg_type, IzotByte *buf,
+        size_t seg_start, size_t start, size_t size)
 {
     if (!LON_SUCCESS(persistentMemError)) {   
         return persistentMemError;
@@ -506,7 +513,7 @@ LonStatusCode HalWriteStorageSegment(
     struct stat st;
     if ((storageFd[persistent_seg_type] == -1) || (fstat(storageFd[persistent_seg_type], &st) != 0)) {
         // Persistent file not open or stat failed
-        OsalPrintError(LonStatusPersistentDataAccessError, "HalWriteStorageSegment: Persistent file not open or stat failed");
+        OsalPrintLog(ERROR_LOG, LonStatusPersistentDataAccessError, "HalWriteStorageSegment: Persistent file not open or stat failed");
         return persistentMemError = LonStatusPersistentDataAccessError;
     }
     size_t file_start = start - seg_start;
@@ -515,20 +522,20 @@ LonStatusCode HalWriteStorageSegment(
         // Extend file to the desired offset
         if (lseek(storageFd[persistent_seg_type], file_start - 1, SEEK_SET) == (off_t)-1) {
             // Extend seek failed
-            OsalPrintError(LonStatusPersistentDataAccessError, "HalWriteStorageSegment: Extend seek failed");
+            OsalPrintLog(ERROR_LOG, LonStatusPersistentDataAccessError, "HalWriteStorageSegment: Extend seek failed");
             return persistentMemError = LonStatusPersistentDataAccessError;
         }
         unsigned char zero = 0;
         if (write(storageFd[persistent_seg_type], &zero, 1) != 1) {
             // Extend write failed
-            OsalPrintError(LonStatusPersistentDataAccessError, "HalWriteStorageSegment: Extend write failed");
+            OsalPrintLog(ERROR_LOG, LonStatusPersistentDataAccessError, "HalWriteStorageSegment: Extend write failed");
             return persistentMemError = LonStatusPersistentDataAccessError;
         }
     }
     // Seek to the start offset
     if (lseek(storageFd[persistent_seg_type], file_start, SEEK_SET) == (off_t)-1) {
         // Seek to start failed
-        OsalPrintError(LonStatusPersistentDataAccessError, "HalWriteStorageSegment: Seek to start failed");
+        OsalPrintLog(ERROR_LOG, LonStatusPersistentDataAccessError, "HalWriteStorageSegment: Seek to start failed");
         return persistentMemError = LonStatusPersistentDataAccessError;
     }
     // Write the data
@@ -537,13 +544,14 @@ LonStatusCode HalWriteStorageSegment(
         ssize_t w = write(storageFd[persistent_seg_type], (const char*)buf + written, size - written);
         if (w < 0) {
             // Persistent data write failure
-            OsalPrintError(LonStatusPersistentDataAccessError, "HalWriteStorageSegment: Persistent data write failure");
+            OsalPrintLog(ERROR_LOG, LonStatusPersistentDataAccessError, "HalWriteStorageSegment: Persistent data write failure");
             return persistentMemError = LonStatusPersistentDataAccessError;
         }
         written += w;
     }
-    OsalPrintDebug(persistentMemError, "HalWriteStorageSegment: Wrote %zu bytes to storage segment %d at offset %zu",
+    OsalPrintLog(INFO_LOG, persistentMemError, "HalWriteStorageSegment: Wrote %zu bytes to storage segment %d at offset %zu",
             size, persistent_seg_type, start - seg_start);
+    OsalPrintMessage(DETAIL_TRACE_LOG, "HalWriteStorageSegment: ", buf, size);
     return persistentMemError = LonStatusNoError;
 #elif PROCESSOR_IS(MC200)
     return persistentMemError = (iflash_drv_write(flashFd, buf, len, addr) 
@@ -575,7 +583,7 @@ LonStatusCode HalReadStorageSegment(
     struct stat st;
     if ((storageFd[persistent_seg_type] == -1) || (fstat(storageFd[persistent_seg_type], &st) != 0)) {
         // Persistent file not open or stat failed
-        OsalPrintError(LonStatusPersistentDataAccessError, "HalReadStorageSegment: Persistent file not open or stat failed");
+        OsalPrintLog(ERROR_LOG, LonStatusPersistentDataAccessError, "HalReadStorageSegment: Persistent file not open or stat failed");
         return persistentMemError = LonStatusPersistentDataAccessError;
     }
     // Check that the file is large enough
@@ -584,13 +592,15 @@ LonStatusCode HalReadStorageSegment(
     if (file_size < (off_t)(file_start + size)) {
         // Attempt to read beyond end of file
         errno = EINVAL;
-        OsalPrintError(LonStatusPersistentDataAccessError, "HalReadStorageSegment: Attempt to read beyond end of file for segment %d", persistent_seg_type);
+        OsalPrintLog(ERROR_LOG, LonStatusPersistentDataAccessError,
+                "HalReadStorageSegment: Attempt to read beyond end of file for segment %d", persistent_seg_type);
         return persistentMemError = LonStatusPersistentDataAccessError;
     }
     // Seek to the start offset
     if (lseek(storageFd[persistent_seg_type], file_start, SEEK_SET) == (off_t)-1) {
         // Seek to start failed
-        OsalPrintError(LonStatusPersistentDataAccessError, "HalReadStorageSegment: Seek to %zu failed for segment %d", file_start, persistent_seg_type);
+        OsalPrintLog(ERROR_LOG, LonStatusPersistentDataAccessError,
+                "HalReadStorageSegment: Seek to %zu failed for segment %d", file_start, persistent_seg_type);
         return persistentMemError = LonStatusPersistentDataAccessError;
     }
     // Read the data
@@ -599,21 +609,23 @@ LonStatusCode HalReadStorageSegment(
         ssize_t r = read(storageFd[persistent_seg_type], (char*)buf + read_bytes, size - read_bytes);
         if (r < 0) {
             // Persistent data read failure
-            OsalPrintError(LonStatusPersistentDataAccessError, "HalReadStorageSegment: Persistent data read failure for segment %d", persistent_seg_type);
+            OsalPrintLog(ERROR_LOG, LonStatusPersistentDataAccessError,
+                    "HalReadStorageSegment: Persistent data read failure for segment %d", persistent_seg_type);
             return persistentMemError = LonStatusPersistentDataAccessError;
         } else if (r == 0) {
             // End of file reached before reading enough bytes
             if (read_bytes < size) {
                 errno = EINVAL;
-                OsalPrintError(LonStatusPersistentDataAccessError, "HalReadStorageSegment: EOF before reading enough bytes for segment %d", persistent_seg_type);
+                OsalPrintLog(ERROR_LOG, LonStatusPersistentDataAccessError, "HalReadStorageSegment: EOF before reading enough bytes for segment %d", persistent_seg_type);
                 return persistentMemError = LonStatusPersistentDataAccessError;
             }
             break; // Successfully read all requested bytes
         }
         read_bytes += r;
     }
-    OsalPrintDebug(persistentMemError, "HalReadStorageSegment: Read %zu bytes from storage segment %d at offset %zu",
+    OsalPrintLog(INFO_LOG, persistentMemError, "HalReadStorageSegment: Read %zu bytes from storage segment %d at offset %zu",
             size, persistent_seg_type, start - seg_start);
+    OsalPrintMessage(DETAIL_TRACE_LOG, "HalReadStorageSegment: ", buf, size);
     return persistentMemError = LonStatusNoError;
 #elif PROCESSOR_IS(MC200)
     return persistentMemError = (iflash_drv_read(flashFd, buf, size, start) 
@@ -632,14 +644,16 @@ LonStatusCode HalOpenUsb(const char *usb_dev_name, int ldisc, int *usb_fd_out)
     if (!usb_dev_name || ldisc >= NR_LDISCS) {
         *usb_fd_out = -1;
         status = LonStatusInvalidParameter;
-        OsalPrintError(status, "HalOpenUsb: Invalid parameters");
+        OsalPrintLog(ERROR_LOG, status, "HalOpenUsb: Invalid parameter to open the LON USB device");
         return status;
     }
 #if OS_IS(LINUX)
     *usb_fd_out = open(usb_dev_name, O_RDWR | O_NOCTTY | O_NONBLOCK);
     if (*usb_fd_out < 0) {
         status = LonStatusInterfaceError;
-        OsalPrintError(status, "HalOpenUsb: Cannot open USB device %s (errno %d)", usb_dev_name, errno);
+        OsalPrintLog(ERROR_LOG, status, 
+                "HalOpenUsb: Cannot open LON USB device %s, %s system error (errno %d)",
+                usb_dev_name, strerror(errno), errno);
         return status;
     }
 
@@ -648,7 +662,9 @@ LonStatusCode HalOpenUsb(const char *usb_dev_name, int ldisc, int *usb_fd_out)
         if (ioctl(*usb_fd_out, TIOCSETD, &ldisc) < 0) {
             close(*usb_fd_out);
             status = LonStatusInterfaceError;
-            OsalPrintError(status, "HalOpenUsb: Cannot set line discipline %d on %s (errno %d)", ldisc, usb_dev_name, errno);
+            OsalPrintLog(ERROR_LOG, status, 
+                    "HalOpenUsb: Cannot set line discipline %d on LON USB device %s, %s system error (errno %d)",
+                    ldisc, usb_dev_name, strerror(errno), errno);
             return status;
         }
     }
@@ -658,19 +674,39 @@ LonStatusCode HalOpenUsb(const char *usb_dev_name, int ldisc, int *usb_fd_out)
     if (tcgetattr(*usb_fd_out, &tio) < 0) {
         close(*usb_fd_out);
         status = LonStatusInterfaceError;
-        OsalPrintError(status, "HalOpenUsb: Cannot get attributes for %s (errno %d)", usb_dev_name, errno);
+        OsalPrintLog(ERROR_LOG, status,
+                "HalOpenUsb: Cannot get attributes for LON USB device %s, %s system error (errno %d)",
+                usb_dev_name, strerror(errno), errno);
         return status;
     }
     cfmakeraw(&tio);
-    tio.c_cc[VMIN] = 1;
+    // Explicitly configure 8N1, disable HW flow, enable receiver
+    tio.c_cflag |= (CLOCAL | CREAD);
+    tio.c_cflag &= ~PARENB;       // no parity
+    tio.c_cflag &= ~CSTOPB;       // 1 stop bit
+    tio.c_cflag &= ~CRTSCTS;      // no HW flow control
+    // Set a commonly used speed; for CDC-ACM many devices still expect it
+    cfsetispeed(&tio, B115200);
+    cfsetospeed(&tio, B115200);
+    tio.c_cc[VMIN] = 0;
     tio.c_cc[VTIME] = 0;
     if (tcsetattr(*usb_fd_out, TCSANOW, &tio) < 0) {
         close(*usb_fd_out);
         status = LonStatusInterfaceError;
-        OsalPrintError(status, "HalOpenUsb: Cannot set raw mode on %s (errno %d)", usb_dev_name, errno);
+        OsalPrintLog(ERROR_LOG, status, "HalOpenUsb: Cannot set raw mode on LON USB device %s, %s system error (errno %d)",
+                usb_dev_name, strerror(errno), errno);
         return status;
     }
-    return LonStatusNoError;
+    // Flush any pending I/O
+    tcflush(*usb_fd_out, TCIOFLUSH);
+    // Assert DTR/RTS in case the interface requires it to exit reset
+    int mflags = 0;
+    if (ioctl(*usb_fd_out, TIOCMGET, &mflags) == 0) {
+        mflags |= (TIOCM_DTR | TIOCM_RTS);
+        (void)ioctl(*usb_fd_out, TIOCMSET, &mflags);
+    }
+    OsalPrintLog(INFO_LOG, status, "HalOpenUsb: Successfully opened LON USB device %s as interface %d (errno %d)", usb_dev_name, *usb_fd_out, errno);
+    return status;
 #elif OS_IS(FREERTOS)
     // For FreeRTOS, assume descriptor is a UART-like driver and not standard POSIX fd.
     // Placeholder: integrate with platform-specific open API when available.
@@ -678,12 +714,12 @@ LonStatusCode HalOpenUsb(const char *usb_dev_name, int ldisc, int *usb_fd_out)
     // if (fd < 0) return -1;
     // return fd;
     status = LonStatusNotImplemented;
-    OsalPrintError(status, "HalOpenUsb: Implementation missing for the USB interface on FreeRTOS");
+    OsalPrintLog(ERROR_LOG, status, "HalOpenUsb: Implementation missing for the LON USB interface on FreeRTOS");
     return status;
 #else
     // Placeholder: integrate with platform-specific open API when available.
     status = LonStatusNotImplemented;
-    OsalPrintError(status, "HalOpenUsb: Implementation missing for the USB interface on this platform");
+    OsalPrintLog(ERROR_LOG, status, "HalOpenUsb: Implementation missing for the LON USB interface on this platform");
     return status;
 #endif
 }
@@ -708,46 +744,62 @@ void HalCloseUsb(int fd)
  *   For Linux, it retries on EINTR and EAGAIN. For partial progress followed
  *   by error, the already-written byte count is returned via bytes_written.
  */
-LonStatusCode HalWriteUsb(int fd, const void *buf, size_t len, size_t *bytes_written)
+LonStatusCode HalWriteUsb(int usb_fd, const void *buf, size_t len, size_t *bytes_written)
 {
+    LonStatusCode status = LonStatusNoError;
 #if OS_IS(LINUX)
     const uint8_t *p = (const uint8_t*)buf;
     size_t total = 0;
     if (bytes_written) *bytes_written = 0;
-    const int MAX_POLL_MS = 5000;        // overall soft budget
-    const int SLICE_MS = 100;            // poll slice
+    const int MAX_POLL_MS = 5000;        // Overall soft budget
+    const int SLICE_MS = 100;            // Poll slice
     int elapsed = 0;
-    struct pollfd pfd; pfd.fd = fd; pfd.events = POLLOUT;
+    struct pollfd pfd; pfd.fd = usb_fd; pfd.events = POLLOUT;
     while (total < len) {
-        ssize_t n = write(fd, p + total, len - total);
+        ssize_t n = write(usb_fd, p + total, len - total);
         if (n > 0) { total += (size_t)n; continue; }
         if (n == -1) {
-            if (errno == EINTR) continue; // transient
+            if (errno == EINTR) continue; // Transient
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
                 int to = (elapsed + SLICE_MS > MAX_POLL_MS) ? (MAX_POLL_MS - elapsed) : SLICE_MS;
-                if (to <= 0) { // budget exhausted
+                if (to <= 0) { // Budget exhausted
                     if (bytes_written) *bytes_written = total;
+                    OsalPrintLog(ERROR_LOG, LonStatusTimeout, "HalWriteUsb: Timeout after writing %zu/%zu bytes for LON USB interface %d", total, len, usb_fd);
                     return LonStatusTimeout;
                 }
                 int pr = poll(&pfd, 1, to);
                 if (pr < 0) {
-                    if (errno == EINTR) continue; // reattempt
+                    if (errno == EINTR) continue; // Reattempt
                     if (bytes_written) *bytes_written = total;
-                    OsalPrintError(LonStatusWriteFailed, "HalWriteUsb poll error (errno=%d)", errno);
+                    OsalPrintLog(ERROR_LOG, LonStatusWriteFailed,
+                            "HalWriteUsb: Write status poll error with %s system error (errno %d) for LON USB interface %d",
+                            strerror(errno), errno, usb_fd);
                     return LonStatusWriteFailed;
                 }
                 elapsed += to;
-                continue; // try write again
+                continue; // Try write again
             }
             LonStatusCode ec = LonStatusWriteFailed;
-            if (errno == ENODEV || errno == EIO) ec = LonStatusInterfaceError;
-            else if (errno == ETIMEDOUT) ec = LonStatusTimeout;
+            if (errno == ENODEV || errno == EIO) {
+                ec = LonStatusInterfaceError;
+            } else if (errno == ETIMEDOUT) {
+                ec = LonStatusTimeout;
+            }
             if (bytes_written) *bytes_written = total;
-            OsalPrintError(ec, "HalWriteUsb failed after %zu/%zu bytes (errno=%d)", total, len, errno);
+            OsalPrintLog(ERROR_LOG, ec,
+                    "HalWriteUsb: Write failed after %zu/%zu bytes for LON USB interface %d, %s system error (errno=%d)",
+                    total, len, usb_fd, strerror(errno), errno);
             return ec;
         }
     }
-    if (bytes_written) *bytes_written = total;
+    if (bytes_written) {
+        *bytes_written = total;
+    }
+    OsalPrintLog(PACKET_TRACE_LOG, LonStatusNoError,
+            "HalWriteUsb: Wrote %zu bytes to LON USB interface %d",
+            total, usb_fd);
+    OsalPrintMessage(PACKET_TRACE_LOG, "HalWriteUsb: ", buf, (size_t)total);
+    return LonStatusNoError;
 #elif OS_IS(FREERTOS)
     // For FreeRTOS, assume descriptor is a UART-like driver and not standard POSIX fd.
     // Placeholder: integrate with platform-specific write API when available.
@@ -759,7 +811,7 @@ LonStatusCode HalWriteUsb(int fd, const void *buf, size_t len, size_t *bytes_wri
     //     if (rc < 0) { if (bytes_written) *bytes_written = total; return LonStatusWriteFailed; }
     // }
     if (bytes_written) *bytes_written = 0;
-    OsalPrintError(LonStatusWriteFailed, "HalWriteUsb() not implemented");
+    OsalPrintLog(ERROR_LOG, LonStatusWriteFailed, "HalWriteUsb() not implemented");
     return LonStatusWriteFailed;
 #else
     // Placeholder: integrate with platform-specific write API when available.
@@ -772,10 +824,9 @@ LonStatusCode HalWriteUsb(int fd, const void *buf, size_t len, size_t *bytes_wri
     // if (bytes_written) *bytes_written = total;
     // return LonStatusNoError;
     if (bytes_written) *bytes_written = 0;
-    OsalPrintError(LonStatusWriteFailed, "HalWriteUsb() not implemented");
+    OsalPrintLog(ERROR_LOG, LonStatusWriteFailed, "HalWriteUsb() not implemented");
     return LonStatusWriteFailed;
 #endif
-    return LonStatusNoError;
 }
 
 /*
@@ -795,26 +846,36 @@ LonStatusCode HalWriteUsb(int fd, const void *buf, size_t len, size_t *bytes_wri
  *   or implement code to asynchronously call LonUsbFeedRx() to feed data
  *   received from the LON USB network interface into the RX ring buffer.
  */
-LonStatusCode HalReadUsb(int fd, void *buf, size_t len, ssize_t *bytes_read)
+LonStatusCode HalReadUsb(int usb_fd, void *buf, size_t len, ssize_t *bytes_read)
 {
 #if OS_IS(LINUX)
-    if (fd < 0 || !buf || len == 0 || !bytes_read) {
-        OsalPrintError(LonStatusInvalidParameter, "HalReadUsb invalid parameter");
+    if (usb_fd < 0 || !buf || len == 0 || !bytes_read) {
+        OsalPrintLog(ERROR_LOG, LonStatusInvalidParameter, "HalReadUsb: Invalid parameter to read from the LON USB device");
         return LonStatusInvalidParameter;
     }
-    *bytes_read = read(fd, buf, len);
-    if (*bytes_read < 0) {
-        if (errno == EAGAIN || errno == EWOULDBLOCK) {
+    *bytes_read = 0; // Ensure caller never sees stale counts on error
+    *bytes_read = read(usb_fd, buf, len);
+    if (*bytes_read <= 0) {
+        // Clear buffer so callers don't interpret stale bytes when no data is available
+        if (buf && len > 0) {
+            memset(buf, 0, len);
+        }
+        if (*bytes_read == 0 || errno == EAGAIN || errno == EWOULDBLOCK) {
             return LonStatusNoMessageAvailable;
         }
-        OsalPrintError(LonStatusReadFailed, "Read error %d", errno);
+        OsalPrintLog(ERROR_LOG, LonStatusReadFailed, 
+                "HalReadUsb: Read error %s (errno %d) for LON USB interface %d",
+                strerror(errno), errno, usb_fd);
         return LonStatusReadFailed;
     }
-    if (*bytes_read == 0) {
-        OsalPrintError(LonStatusInterfaceError, "Read returned 0 bytes; device may be disconnected");
-        return LonStatusInterfaceError;
-    }
-    OsalPrintTrace(LonStatusNoError, "Read %zd bytes", *bytes_read);
+    char plural[4] = "s";
+    if (*bytes_read == 1) {
+        plural[0] = '\0';
+    };
+    OsalPrintLog(PACKET_TRACE_LOG, LonStatusNoError,
+            "HalReadUsb: Read %zd byte%s from LON USB interface %d",
+            *bytes_read, plural, usb_fd);
+    OsalPrintMessage(PACKET_TRACE_LOG, "HalReadUsb: ", buf, (size_t)(*bytes_read));
     return LonStatusNoError;
 #elif OS_IS(FREERTOS)
     // HalReadUsb for FreeRTOS depends on the specific UART or USB stack in use;
@@ -822,12 +883,14 @@ LonStatusCode HalReadUsb(int fd, void *buf, size_t len, ssize_t *bytes_read)
     // or implement code to asynchronously call LonUsbFeedRx() to feed data 
     // received from the LON USB network interface into the RX ring buffer
     #pragma message("Optional: implement OS-dependent definition of HalReadUsb()")
+    OsalPrintLog(ERROR_LOG, LonStatusNotImplemented, "HalReadUsb() not implemented for FreeRTOS");
     return LonStatusNoMessageAvailable;
 #else
     // Implement a non-blocking read from the LON USB network interface here,
     // or implement code to asynchronously call LonUsbFeedRx() to feed data 
     // received from the LON USB network interface into the RX ring buffer
     #pragma message("Optional: implement OS-dependent definition of HalReadUsb()")
+    OsalPrintLog(ERROR_LOG, LonStatusNotImplemented, "HalReadUsb() not implemented for this OS");
     return LonStatusNoMessageAvailable;
 #endif
 }

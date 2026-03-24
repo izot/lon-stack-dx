@@ -45,7 +45,7 @@
   Section: Function Prototypes
   -------------------------------------------------------------------*/
 /*****************************************************************
-Function:  TCSReset
+Function:  TransactionControlSublayerReset
 Returns:   None
 Reference: Section 7, Protocol Specification.
 Purpose:   To initialize all globals to proper values.
@@ -62,7 +62,7 @@ Comments:  None.
  *   The transaction control sub-layer is used by both the transport and session layers.
  *   The function sets gp->resetOk to FALSE if unable to reset properly.
  */
-LonStatusCode TCSReset(void)
+LonStatusCode TransactionControlSublayerReset(void)
 {
     LonStatusCode status = LonStatusNoError;
     gp->priTransID    = 0; /* On node reset, transaction id 0 is used. */
@@ -85,7 +85,7 @@ LonStatusCode TCSReset(void)
         gp->priTblSize       = 0;
         gp->nonpriTblSize    = 0;
     }
-    OsalPrintDebug(status, "TCSReset: Transaction control sublayer initialized");
+    OsalPrintLog(INFO_LOG, status, "TransactionControlSublayerReset: Transaction control sublayer initialized");
     return status;
 }
 
@@ -201,7 +201,7 @@ LonStatusCode NewTrans(IzotByte priorityIn, DestinationAddress addrIn,
             }
             break;
         default:
-            OsalPrintError(LonStatusInvalidMessageAddress, "NewTrans: Unexpected address mode");
+            OsalPrintLog(ERROR_LOG, LonStatusInvalidMessageAddress, "NewTrans: Unexpected address mode");
             /* Should not come here. */
         }
         if (found) {
@@ -281,7 +281,7 @@ LonStatusCode NewTrans(IzotByte priorityIn, DestinationAddress addrIn,
         tbl[*tblSize].addr.subnet.SubnetId = addrIn.addr.addr0.SubnetId;
     } else {
         /* Should not come here as addressMode was checked before too. */
-        OsalPrintError(LonStatusInvalidMessageAddress, "NewTrans: Invalid address mode at unexpected place");
+        OsalPrintLog(ERROR_LOG, LonStatusInvalidMessageAddress, "NewTrans: Invalid address mode at unexpected place");
     }
     SetLonTimer(&tbl[*tblSize].timer, (IzotUbits16)(MIN_TABLE_TIME * 1000));
     tbl[*tblSize].tid = *transNumPtr;

@@ -762,7 +762,7 @@ IZOT_EXTERNAL_FN LonStatusCode IzotQueryDpConfig(signed index, IzotDatapointConf
 IZOT_EXTERNAL_FN LonStatusCode IzotUpdateDpConfig(signed index, const IzotDatapointConfig* const pDatapointConfig)
 {
     memcpy(&eep->nvConfigTable[index], pDatapointConfig, sizeof(IzotDatapointConfig));
-    OsalPrintDebug(LonStatusNoError, "IzotUpdateDpConfig: NV index %d", index);
+    OsalPrintLog(INFO_LOG, LonStatusNoError, "IzotUpdateDpConfig: NV index %d", index);
     RecomputeChecksum();
     LCS_WritePersistentNetworkImage();
     return LonStatusNoError;
@@ -895,7 +895,7 @@ IZOT_EXTERNAL_FN LonStatusCode IzotQueryAliasConfig(unsigned index, IzotAliasCon
         memcpy(pAlias, &eep->nvAliasTable[index], sizeof(IzotAliasConfig));
     } else {
         status = LonStatusInvalidParameter;
-        OsalPrintError(status, "IzotQueryAliasConfig: NULL pointer for index %d alias configuration", index);
+        OsalPrintLog(ERROR_LOG, status, "IzotQueryAliasConfig: NULL pointer for index %d alias configuration", index);
     }
     return status;
 }
@@ -1149,15 +1149,15 @@ IZOT_EXTERNAL_FN LonStatusCode IzotCreateStack(const IzotStackInterfaceData* con
 #if LINK_IS(WIFI)
     char oldProgId[8];
 #endif 
-    OsalPrintDebug(LonStatusNoError, "\n*****************************************************************************************");
-    OsalPrintDebug(LonStatusNoError, "IzotCreateStack: Starting LON Stack DX %d.%d.%d initialization",
+    OsalPrintLog(INFO_LOG, LonStatusNoError, "\n*****************************************************************************************");
+    OsalPrintLog(INFO_LOG, LonStatusNoError, "IzotCreateStack: Starting LON Stack DX %d.%d.%d initialization",
             FIRMWARE_VERSION, FIRMWARE_MINOR_VERSION, FIRMWARE_BUILD);
 
     // Only a few of these fields are used by LON Stack.  The
     // stack implements partial support for a multi-stack model, but 
     // the stack is limited to a single stack model.  Only stack[0]
     // is supported.    
-    SetAppSignature(pInterface->Signature);
+    SetAppSignature(pInterface->AppSignature);
     SetPeristenceGuardBand(pControlData->PersistentFlushGuardTimeout*1000);
     nm[0].snvt.sb = (char *)pInterface->SiData;
     SetSiDataLength(pInterface->SiDataLength);    
@@ -1181,13 +1181,13 @@ IZOT_EXTERNAL_FN LonStatusCode IzotCreateStack(const IzotStackInterfaceData* con
     DataPointCount = pInterface->StaticDatapoints;
     AliasTableCount = pInterface->Aliases;
     BindableMTagCount = pInterface->BindableMsgTags;
-    OsalPrintDebug(LonStatusNoError, "IzotCreateStack: LON Stack global data initialized with %d static datapoints, %d aliases, and %d bindable message tags",
+    OsalPrintLog(INFO_LOG, LonStatusNoError, "IzotCreateStack: Initialized with %d static datapoints, %d aliases, and %d message tags",
             DataPointCount, AliasTableCount, BindableMTagCount);
 #if LINK_IS(WIFI)
     // Initialize Wi-Fi interface
     status = WiFiInit();
     if (status != LonStatusNoError) {
-        OsalPrintError(status, "IzotCreateStack: Wi-Fi initialization failed");
+        OsalPrintLog(ERROR_LOG, status, "IzotCreateStack: Wi-Fi initialization failed");
         return status;
     }
 #endif  // LINK_IS(WIFI)
@@ -1195,7 +1195,7 @@ IZOT_EXTERNAL_FN LonStatusCode IzotCreateStack(const IzotStackInterfaceData* con
     // Initialize LON Stack
     status = LCS_Init(IzotPowerUpReset);
     if (status != LonStatusNoError) {
-        OsalPrintError(status, "IzotCreateStack: LON Stack initialization failed");
+        OsalPrintLog(ERROR_LOG, status, "IzotCreateStack: LON Stack initialization failed");
         return status;
     }
 
@@ -1211,7 +1211,7 @@ IZOT_EXTERNAL_FN LonStatusCode IzotCreateStack(const IzotStackInterfaceData* con
     // Start the Wi-Fi interface
     status = WiFiStart();
     if (status != LonStatusNoError) {
-        OsalPrintError(status, "IzotCreateStack: Wi-Fi start failed");
+        OsalPrintLog(ERROR_LOG, status, "IzotCreateStack: Wi-Fi start failed");
         return status;
     }
 #endif  // LINK_IS(WIFI)
@@ -1343,7 +1343,7 @@ IZOT_EXTERNAL_FN LonStatusCode IzotStartStack(void)
     // Load persistent NVs from NVM
     if (IzotGetAppSegmentSize() != 0) {
         if (LCS_ReadPersistentAppData() != LonStatusNoError) {
-            OsalPrintDebug(LonStatusNoError, "IzotStartStack: No application data found--put the device into unconfigured mode");
+            OsalPrintLog(INFO_LOG, LonStatusNoError, "IzotStartStack: No application data found--put the device into unconfigured mode");
             ErasePersistentAppData();
             ErasePersistentNetworkConfig();
             IzotPersistentSegSetCommitFlag(IzotPersistentSegApplicationData);

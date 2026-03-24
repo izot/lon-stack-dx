@@ -49,7 +49,7 @@ typedef struct {
     char *lon_dev_name;
     char *usb_dev_name;
     int iface_index;
-    LonUsbOpenMode iface_mode;
+    LonUsbInterfaceMode configured_iface_mode;
     LonUsbIfaceModel lon_usb_iface_model;
     bool linkOpened;
 	bool isPowerLine;
@@ -61,18 +61,18 @@ typedef struct {
 // LON network interface definition array
 LonNiDef lonNi[NUM_LON_NI] = {
 #if !PRODUCT_IS(SLB)
-	 {"LON1", "/dev/ttyACM0", -1, LON_USB_OPEN_LAYER2, U60_FT, false, false, false, {0}, false}
+	 {"LON1", "/dev/ttyACM0", -1, LON_IFACE_MODE_LAYER2, U60_FT, false, false, false, {0}, false}
   #if NUM_LON_NI > 1
-   , {"LON2", "/dev/ttyACM1", -1, LON_USB_OPEN_LAYER2, U60_FT, false, false, false, {0}, false}
+   , {"LON2", "/dev/ttyACM1", -1, LON_IFACE_MODE_LAYER2, U60_FT, false, false, false, {0}, false}
   #elif NUM_LON_NI > 2
-   , {"LON3", "/dev/ttyACM2", -1, LON_USB_OPEN_LAYER2, U60_FT, false, false, false, {0}, false}
+   , {"LON3", "/dev/ttyACM2", -1, LON_IFACE_MODE_LAYER2, U60_FT, false, false, false, {0}, false}
   #elif NUM_LON_NI > 3
-   , {"LON4", "/dev/ttyACM3", -1, LON_USB_OPEN_LAYER2, U60_FT, false, false, false, {0}, false}
+   , {"LON4", "/dev/ttyACM3", -1, LON_IFACE_MODE_LAYER2, U60_FT, false, false, false, {0}, false}
   #endif
 #else   // PRODUCT_IS(SLB)
-      {"RF", "/dev/ttyUSB0", -1, LON_USB_OPEN_LAYER2, RF_900, false, false, false, {0}, false}
+      {"RF", "/dev/ttyUSB0", -1, LON_IFACE_MODE_LAYER2, RF_900, false, false, false, {0}, false}
   #if NUM_LON_NI > 1
-   , {"PLC", "/dev/ttyUSB1", -1, LON_USB_OPEN_LAYER2, U70_PL, false, true, true, {0}, true}
+   , {"PLC", "/dev/ttyUSB1", -1, LON_IFACE_MODE_LAYER2, U70_PL, false, true, true, {0}, true}
   #endif  // NUM_LON_NI > 1	  
 #endif  // PRODUCT_IS(SLB) || !PRODUCT_IS(SLB)
 };
@@ -109,7 +109,7 @@ void LKGetXcvrParams(int niIndex, XcvrParam *p);
  *     CRC uses 2 bytes.
  *   Total # bytes in addition to NPDU is thus 6 bytes.
  */
-LonStatusCode LKReset(void)
+LonStatusCode LinkLayerReset(void)
 {
     IzotUbits16 queueItemSize;
     IzotByte   *p;  // Used to initialize lkInQ
@@ -119,19 +119,19 @@ LonStatusCode LKReset(void)
 
     // Allocate and initialize the input queue
     if (!LON_SUCCESS(status = DecodeBufferSize(LK_IN_BUF_SIZE, &gp->lkInBufSize))) {
-        OsalPrintError(status, "LKReset: Unable to decode input link buffer size");
+        OsalPrintLog(ERROR_LOG, status, "LinkLayerReset: Unable to decode input link buffer size");
         gp->resetOk = FALSE;
         return status;
     }
     gp->lkInBufSize += 6;
     if (!LON_SUCCESS(status = DecodeBufferCnt(LK_IN_Q_CNT, &gp->lkInQCnt))) {
-        OsalPrintError(status, "LKReset: Unable to decode input link queue count");
+        OsalPrintLog(ERROR_LOG, status, "LinkLayerReset: Unable to decode input link queue count");
         gp->resetOk = FALSE;
         return status;
     }
     gp->lkInQ = OsalAllocateMemory((size_t)(gp->lkInBufSize * gp->lkInQCnt));
     if (gp->lkInQ == NULL) {
-        OsalPrintError(LonStatusNoMemoryAvailable, "LKReset: Unable to initialize the input queue");
+        OsalPrintLog(ERROR_LOG, LonStatusNoMemoryAvailable, "LinkLayerReset: Unable to initialize the input queue");
         gp->resetOk = FALSE;
         return status;
     }
@@ -145,20 +145,20 @@ LonStatusCode LKReset(void)
 
     // Allocate and initialize the output queue
     if (!LON_SUCCESS(status = DecodeBufferSize(LK_OUT_BUF_SIZE, &gp->lkOutBufSize))) {
-        OsalPrintError(status, "LKReset: Unable to decode output link buffer size");
+        OsalPrintLog(ERROR_LOG, status, "LinkLayerReset: Unable to decode output link buffer size");
         gp->resetOk = FALSE;
         return status;
     }
     if (!LON_SUCCESS(status = DecodeBufferCnt(LK_OUT_Q_CNT, &gp->lkOutQCnt))) {
-        OsalPrintError(status, "LKReset: Unable to decode output link queue count");
+        OsalPrintLog(ERROR_LOG, status, "LinkLayerReset: Unable to decode output link queue count");
         gp->resetOk = FALSE;
         return status;
     }
     queueItemSize    = gp->lkOutBufSize + sizeof(LKSendParam);
 
-    status = QueueInit(&gp->lkOutQ, queueItemSize, gp->lkOutQCnt);
+    status = QueueInit(&gp->lkOutQ, "link layer output", queueItemSize, gp->lkOutQCnt);
     if (status != LonStatusNoError) {
-        OsalPrintError(status, "LKReset: Unable to initialize the output queue");
+        OsalPrintLog(ERROR_LOG, status, "LinkLayerReset: Unable to initialize the output queue");
         gp->resetOk = FALSE;
         return status;
     }
@@ -166,18 +166,18 @@ LonStatusCode LKReset(void)
     // Allocate and initialize the priority output queue
     gp->lkOutPriBufSize = gp->lkOutBufSize;
     if (!LON_SUCCESS(status = DecodeBufferCnt(LK_OUT_PRI_Q_CNT, &gp->lkOutPriQCnt))) {
-        OsalPrintError(status, "LKReset: Unable to decode priority output link queue count");
+        OsalPrintLog(ERROR_LOG, status, "LinkLayerReset: Unable to decode priority output link queue count");
         gp->resetOk = FALSE;
         return status;
     }
     queueItemSize = gp->lkOutPriBufSize + sizeof(LKSendParam);
 
-    if (!LON_SUCCESS(status = QueueInit(&gp->lkOutPriQ, queueItemSize, gp->lkOutPriQCnt))) {
-        OsalPrintError(status, "LKReset: Unable to initialize the priority output queue");
+    if (!LON_SUCCESS(status = QueueInit(&gp->lkOutPriQ, "link layer priority output", queueItemSize, gp->lkOutPriQCnt))) {
+        OsalPrintLog(ERROR_LOG, status, "LinkLayerReset: Unable to initialize the priority output queue");
         gp->resetOk = FALSE;
         return status;
     }
-    OsalPrintDebug(LonStatusNoError, "LKReset: Link layer queues initialized");
+    OsalPrintLog(INFO_LOG, LonStatusNoError, "LinkLayerReset: Link layer queues initialized");
 
 	for (int niIndex=0; niIndex<NUM_LON_NI; niIndex++) {
 		int iface_index;
@@ -185,17 +185,18 @@ LonStatusCode LKReset(void)
         if (!LON_SUCCESS(status = OpenLonUsbLink(lonNi[niIndex].lon_dev_name,
                 lonNi[niIndex].usb_dev_name,
                 &lonNi[niIndex].iface_index,
-                lonNi[niIndex].iface_mode,
+                lonNi[niIndex].configured_iface_mode,
                 lonNi[niIndex].lon_usb_iface_model))) {
-            OsalPrintError(status, "LKReset: Unable to open LON link %s", lonNi[niIndex].lon_dev_name);
+            OsalPrintLog(ERROR_LOG, status, "LinkLayerReset: Unable to open LON link %s", lonNi[niIndex].lon_dev_name);
             lonNi[niIndex].linkOpened = false;
             gp->resetOk = FALSE;
             return status;
 		}
 		lonNi[niIndex].linkOpened = true;
-        OsalPrintDebug(LonStatusNoError, "LKReset: LON link %s opened", lonNi[niIndex].lon_dev_name);
+        OsalPrintLog(INFO_LOG, LonStatusNoError, "LinkLayerReset: LON link %s opened", lonNi[niIndex].lon_dev_name);
 
          // If this is a power line interface, get its Unique ID
+         // TBD: review power line initialization and move to later in the startup process
 		if (lonNi[niIndex].isPowerLine) {
             anyPowerLineNi = true;
 			bool requestUid = true;
@@ -205,18 +206,18 @@ LonStatusCode LKReset(void)
             // and try again
 			while (1) {
 			    const int messageLength = 5;
-				const L2Frame nidRead = {LonNiLocalNetMgmtCmd, 14+messageLength,
+				const LonDataFrame nidRead = {LonNiLocalNetMgmtCmd, 14+messageLength,
                         0x70|LNM_TAG, 0x00, messageLength, 0x00, 0x00, 0x00,
                         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                         NM_opcode_base|NM_READ_MEMORY, READ_ONLY_RELATIVE, 
                         0x00, 0x00, IZOT_UNIQUE_ID_LENGTH};
-				L2Frame sicbIn;
+				LonDataFrame sicbIn;
 				OsalSleep(UNIQUE_ID_FETCH_INTERVAL);
 				if (requestUid && WriteLonUsbMsg(lonNi[niIndex].iface_index, (void*)&nidRead) == LonStatusNoError) {
 					requestUid = false;
 				}
 				if (ReadLonUsbMsg(lonNi[niIndex].iface_index, &sicbIn) == LonStatusNoError
-                        && sicbIn.cmd == LonNiResponseCmd 
+                        && sicbIn.ni_command == LonNiResponseCmd 
                         && (sicbIn.pdu[0]&0x0F) == LNM_TAG 
                         && sicbIn.pdu[14] == (NM_resp_success|NM_READ_MEMORY)) {
 					memcpy(eep->readOnlyData.UniqueNodeId, &sicbIn.pdu[15], IZOT_UNIQUE_ID_LENGTH);
@@ -249,24 +250,35 @@ LonStatusCode LKReset(void)
  *   Extra bytes are allocated in the buffers to accomodate layer-specific
  *   additions to the buffer contents.
  */
-void LKSend(void)
+void LinkLayerUsbSend(void)
 {
     LKSendParam     *lkSendParamPtr;
     Queue           *lkSendQueuePtr;
-    uint8_t            *npduPtr;
+    uint8_t         *npduPtr;
     LPDUHeader      *lpduHeaderPtr;
     bool             fetchTimerExpired;
     bool             priority;
-	L2Frame		     sicb;
+	LonDataFrame     sicb;
 	int				 niIndex;
 
+	static OsalTickCount last_report_time = 0;
+	if (OsalGetTickCount() - last_report_time > 1000) {
+		last_report_time = OsalGetTickCount();
+        if (!QueueEmpty(&gp->lkOutPriQ) || !QueueEmpty(&gp->lkOutQ)) {
+            OsalPrintLog(INFO_LOG, LonStatusNoError,
+                "LinkLayerUsbSend: %zu output priority queue entries,  %zu output normal queue entries",
+                QueueEntries(&gp->lkOutPriQ), QueueEntries(&gp->lkOutQ));
+        }
+	}
+
+    // Fetch the PL transceiver parameters for each power line LON NI
     fetchTimerExpired = LonTimerExpired(&lonLinkXcvrPlFetchTimer);
     for (niIndex=0; niIndex<NUM_LON_NI; niIndex++) {
         if (lonNi[niIndex].isPowerLine && lonNi[niIndex].fetchXcvrParams && fetchTimerExpired) {
             LKFetchXcvrPl(niIndex);
         }
         if (lonNi[niIndex].isPowerLine && lonNi[niIndex].setPlPhase) {
-            L2Frame mode = {LonNiPhaseModeCmd|2, 0};
+            LonDataFrame mode = {LonNiPhaseModeCmd|2, 0};
             lonNi[niIndex].setPlPhase = WriteLonUsbMsg(lonNi[niIndex].iface_index, &mode) != LonStatusNoError;
         }
     }
@@ -283,26 +295,34 @@ void LKSend(void)
     }
 
 	lkSendParamPtr = QueuePeek(lkSendQueuePtr);
-	npduPtr        = (uint8_t *) (lkSendParamPtr + 1);
+    // TBD: this assumes that the NPDU is located in the buffer immediately
+    // following the first byte of the LKSendParam structure in the queue item;
+    // consider changing to have the first entry in the buffer be the size of
+    // the NPDU and then the NPDU itself
+	npduPtr = (uint8_t *) (lkSendParamPtr + 1);
 
-	sicb.cmd = 0x12;
-	sicb.len = lkSendParamPtr->pduSize+1;
+	sicb.ni_command = LonNiNetworkMgmtCmd;
+	sicb.short_pdu_length = lkSendParamPtr->pduSize+1;
 
 	lpduHeaderPtr = (LPDUHeader *)sicb.pdu;
 	lpduHeaderPtr->priority = priority;
-	lpduHeaderPtr->altPath  = lkSendParamPtr->altPath;
-	lpduHeaderPtr->deltaBL  = lkSendParamPtr->deltaBL;
+	lpduHeaderPtr->altPath = lkSendParamPtr->altPath;
+	lpduHeaderPtr->deltaBL = lkSendParamPtr->deltaBL;
 
 	// Copy the NPDU
 	if (lkSendParamPtr->pduSize <= sizeof(sicb.pdu)) {
 		memcpy(&sicb.pdu[1], npduPtr, lkSendParamPtr->pduSize);
 	}
 	
-    // Send the LPDU to all LON network interfaces
+    // Send the LPDU to all open LON network interface downlink queues
 	for (niIndex=0; niIndex<NUM_LON_NI; niIndex++) {
-		WriteLonUsbMsg(lonNi[niIndex].iface_index, &sicb);
-	}
+        // Send pending downlink requests from the link layer output queue to NI downlink queue niIndex
+        if (lonNi[niIndex].linkOpened) {
+		    WriteLonUsbMsg(niIndex, &sicb);
+        }
+ 	}
 
+    // Remove the LPDU from the link layer output queue
 	QueueDropHead(lkSendQueuePtr);
 
     return;
@@ -326,18 +346,18 @@ void LKSend(void)
  *         CRC is 2 bytes
  *   If a packet is in lkInQ then it will fit into nwInQ.
  */
-void LKReceive(void)
+void LinkLayerUsbReceive(void)
 {
     NWReceiveParam *nwReceiveParamPtr;
     IzotByte       *npduPtr;
     LPDUHeader     *lpduHeaderPtr;
     IzotByte       *tempPtr;
     IzotUbits16     lpduSize;
-	L2Frame			sicb;
+	LonDataFrame	sicb;
 	int				niIndex;
 	
 	for (niIndex=0; niIndex<NUM_LON_NI; niIndex++) {
-		if (ReadLonUsbMsg(lonNi[niIndex].iface_index, &sicb) == LonStatusNoError) {
+		if (ReadLonUsbMsg(niIndex, &sicb) == LonStatusNoError) {
             // Packet found to process
 			break;
 		}
@@ -348,7 +368,7 @@ void LKReceive(void)
 	  	return;
 	}
 
-	if (lonNi[niIndex].isPowerLine && sicb.cmd == LonNiResponseCmd 
+	if (lonNi[niIndex].isPowerLine && sicb.ni_command == LonNiResponseCmd 
             && (sicb.pdu[0]&0x0F) == LNM_TAG 
             && sicb.pdu[14] == (ND_resp_success|ND_QUERY_XCVR)) {
 	  	// This is the response to a PL xcvr register read (done in
@@ -358,19 +378,24 @@ void LKReceive(void)
 		return;
 	}
 
-    lpduSize 	  =	sicb.len-3;	                // Subtract 2 for register info and 1 for zero crossing info
-    lpduHeaderPtr = (LPDUHeader*)&sicb.pdu[1];	// Offset is 1 because of zero crossing info
+    if (lonNi[niIndex].isPowerLine) {
+        lpduSize 	  =	sicb.short_pdu_length-3;	// Subtract 2 for register info and 1 for zero crossing info
+        lpduHeaderPtr = (LPDUHeader*)&sicb.pdu[1];	// Offset is 1 because of zero crossing info
+    } else {
+        lpduSize      =	sicb.short_pdu_length;
+        lpduHeaderPtr = (LPDUHeader*)&sicb.pdu[0];
+    }
 	
 	// Throw away layer 2 mode 2 packets that are smaller than 8 bytes long;
     // layer 2 mode 2 network interfaces report CRC errors as a packet with
     // a short length
-	if (sicb.cmd == LonNiIncomingL2Mode2Cmd && lpduSize < 8 ||
-		(sicb.cmd&0xF0) == (LonNiError&0xF0)) {
+	if (sicb.ni_command == LonNiIncomingL2Mode2Cmd && lpduSize < 8 ||
+		(sicb.ni_command&0xF0) == (LonNiError&0xF0)) {
 	  	INCR_STATS(LcsTxError);
 		return;
-	} else if (sicb.cmd != LonNiIncomingL2Mode2Cmd) {
-	    if (lonNi[niIndex].isPowerLine && (sicb.cmd == LonNiResetDeviceCmd
-                || sicb.cmd == LonNiIncomingL2Cmd || sicb.cmd == LonNiIncomingL2Mode1Cmd)) {
+	} else if (sicb.ni_command != LonNiIncomingL2Mode2Cmd) {
+	    if (lonNi[niIndex].isPowerLine && (sicb.ni_command == LonNiResetDeviceCmd
+                || sicb.ni_command == LonNiIncomingL2Cmd || sicb.ni_command == LonNiIncomingL2Mode1Cmd)) {
 		  	// Phase setting was lost
 			lonNi[niIndex].setPlPhase = true;
 		}
@@ -379,7 +404,7 @@ void LKReceive(void)
 
     if (lonNi[niIndex].isPowerLine) {
         // Fill in the packet specific register info for a PL network interface
-	    tempPtr = &sicb.pdu[sicb.len-2];
+	    tempPtr = &sicb.pdu[sicb.short_pdu_length-2];
 	    lonNi[niIndex].xcvrParams.data[2] = *tempPtr++;
 	    lonNi[niIndex].xcvrParams.data[3] = lonNi[niIndex].xcvrParams.data[4] = *tempPtr;
     }
@@ -389,7 +414,7 @@ void LKReceive(void)
     INCR_STATS(LcsL2Rx);
 
     // Check if the packet is for us
-    if (sicb.cmd != LonNiIncomingL2Mode2Cmd || sicb.pdu[0] != LonNiLocalNetMgmtCmd) {
+    if (sicb.ni_command != LonNiIncomingL2Mode2Cmd || sicb.pdu[0] != LonNiLocalNetMgmtCmd) {
         INCR_STATS(LcsMissed);
         return;
     }
@@ -424,7 +449,7 @@ void LKReceive(void)
         if (nwReceiveParamPtr->pduSize <= gp->nwInBufSize) {
             memcpy(npduPtr, tempPtr, nwReceiveParamPtr->pduSize);
         } else {
-            OsalPrintError(LonStatusNoMemoryAvailable, "LKReceive: NPDU size is too large");
+            OsalPrintLog(ERROR_LOG, LonStatusNoMemoryAvailable, "LinkLayerUsbReceive: NPDU size is too large");
         }
         QueueWrite(&gp->nwInQ);
     }
@@ -500,13 +525,13 @@ void LKGetXcvrParams(int niIndex, XcvrParam *p)
 void LKFetchXcvrPl(int index)
 {
 	const int msgLen = 1;
-	const L2Frame sicbOut = {LonNiLocalNetMgmtCmd, 14+msgLen, 0x70|LNM_TAG, 0x00, msgLen, 
+	const LonDataFrame sicbOut = {LonNiLocalNetMgmtCmd, 14+msgLen, 0x70|LNM_TAG, 0x00, msgLen, 
 							 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 							 ND_opcode_base|ND_QUERY_XCVR};
     if (lonNi[index].isPowerLine) {
 	    // Send the fetch message; if send fails, set the fetch flag to try again next time
 	    lonNi[index].fetchXcvrParams = WriteLonUsbMsg(lonNi[index].iface_index,
-                (L2Frame*)&sicbOut) != LonStatusNoError;
+                (LonDataFrame*)&sicbOut) != LonStatusNoError;
     }
 }
 

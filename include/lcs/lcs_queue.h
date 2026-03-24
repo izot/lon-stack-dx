@@ -1,7 +1,7 @@
 /*
  * lcs_queue.h
  *
- * Copyright (c) 2022-2025 EnOcean
+ * Copyright (c) 2022-2026 EnOcean
  * SPDX-License-Identifier: MIT
  * See LICENSE file for details.
  * 
@@ -51,6 +51,7 @@ typedef struct RingBuffer {
  * Initializes a queue with the specified capacity and entry size.
  * Parameters:
  *   queue_out: Pointer to the queue to initialize.
+ *   queue_name: Optional name of the queue (for debugging)
  *   entry_size: Size of each entry in the queue in bytes.
  *   queue_capacity: Capacity of the queue in entries.
  * Returns:
@@ -61,21 +62,21 @@ typedef struct RingBuffer {
  *  initialized to point to the start of the data storage, the
  *  queue size is initialized to zero, and the entry size is stored.
  */
-LonStatusCode QueueInit(Queue *queue_out, size_t entry_size, size_t queue_capacity);
+LonStatusCode QueueInit(Queue *queue_out, char *queue_name, size_t entry_size, size_t queue_capacity);
 
 /* 
  * Returns the current size of a queue.
  * Parameters:
  *   queue_in: Pointer to the queue.
  * Returns:
- *   The current size (# of items) of the queue.
+ *   The current size (# of entries) of the queue.
  */
-size_t QueueSize(Queue *queue_in);
+size_t QueueEntries(Queue *queue_in);
 
-/* QueueCapacity returns the capacity (i.e max items) of the queue. */
+/* QueueCapacity returns the capacity (i.e max entries) of the queue. */
 size_t QueueCapacity(Queue *queue_in);
 
-/* QueueEntrySize returns the size of each item in the queue. */
+/* QueueEntrySize returns the size of each entry in the queue. */
 size_t QueueEntrySize(Queue *queue_in);
 
 /* QueueFull returns TRUE if the queue is full and FALSE otherwise. */
@@ -84,24 +85,24 @@ IzotBool QueueFull(Queue *queue_in);
 /* QueueEmpty returns TRUE if the queue is empty and FALSE else. */
 IzotBool QueueEmpty(Queue *queue_in);
 
-/* QueueDropHead removes an item (i.e advances head) from the queue. */
+/* QueueDropHead removes an entry (i.e advances head) from the queue. */
 void QueueDropHead(Queue *queue_in_out);
 
 /* Flushes all entries in the specified queue. */
 void QueueFlush(Queue *queue_in_out);
 
-/* Enqueue adds an item (i.e advances tail) to queue. */
+/* Enqueue adds an entry (i.e advances tail) to queue. */
 void QueueWrite(Queue *queue_in_out);
 
 /* QueuePeek returns the pointer to the head of the queue so that
-   client can examine the queue's first item without actually
+   client can examine the queue's first entry without actually
    removing it. If needed it can be removed with QueueDropHead. */
 void *QueuePeek(Queue *queue_in);
 
 /* QueueTail returns the pointer to the tail of the queue (i.e free
-   space) so that a new item can be formed directly in the queue
+   space) so that a new entry can be formed directly in the queue
    before calling QueueWrite. It is important to make sure that the
-   Queue is not Full before filling an item. */
+   Queue is not Full before filling an entry. */
 void *QueueTail(Queue *queue_in);
 
 /*****************************************************************

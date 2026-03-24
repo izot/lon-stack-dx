@@ -1,7 +1,7 @@
 /*
  * lon_usb_link.h
  *
- * Copyright (c) 2017-2025 EnOcean
+ * Copyright (c) 2017-2026 EnOcean
  * SPDX-License-Identifier: MIT
  * See LICENSE file for details.
  * 
@@ -21,9 +21,29 @@
 #include "lcs/lcs_link.h"
 #include "lcs/lcs_queue.h"
 
+// Maximum time to wait for an uplink reset on startup and a layer mode change (milliseconds)
+#ifndef NI_RESET_WAIT_TIME
+#define NI_RESET_WAIT_TIME 800
+#endif
+
+// Maximum time to wait for a NULL frame response on startup (milliseconds)
+#ifndef NI_NULL_WAIT_TIME
+#define NI_NULL_WAIT_TIME 700
+#endif
+
+// Resynchronization delay to synchronize uplink and downlink state machines after a reset (milliseconds)
+#ifndef NI_RESYNC_DELAY
+#define NI_RESYNC_DELAY 300
+#endif
+
 // Maximum time to wait for a LON interface unique ID (UID) response (milliseconds)
-#ifndef UID_WAIT_TIME
-#define UID_WAIT_TIME 500
+#ifndef NI_UID_WAIT_TIME
+#define NI_UID_WAIT_TIME 350
+#endif
+
+// Maximum time to wait for a LON interface status response (milliseconds)
+#ifndef NI_STATUS_WAIT_TIME
+#define NI_STATUS_WAIT_TIME 350
 #endif
 
 // Maximum time to wait for an uplink message (milliseconds)
@@ -54,7 +74,12 @@
 
 // Maximum number of attempts to read the LON interface UID
 #ifndef MAX_UID_RETRIES
-#define MAX_UID_RETRIES 3
+#define MAX_UID_RETRIES 4
+#endif
+
+// Maximum number of attempts to read the LON interface status
+#ifndef MAX_STATUS_RETRIES
+#define MAX_STATUS_RETRIES 4
 #endif
 
 // Maximum bytes to read from the USB network interface per event loop cycle
@@ -77,24 +102,19 @@
 #define MAX_IFACE_STATES 4
 #endif
 
-// Maximum LON MAC layer message size (bytes) for non-expanded non-extended
-// and extended messages,and expanded extended messages with framesync
-// byte-stuffing; the LON MAC layer can carry ISO/IEC 14908-1 payloads up
-// to 228 bytes, or UDP payloads up to 1280 bytes
-#define MAX_LON_MSG_NON_EX_LEN		240
-#define MAX_LON_MSG_EX_LEN			1280
-#define MAX_EXP_LON_MSG_EX_LEN		(2*MAX_LON_MSG_EX_LEN+4)
-
 // Maximum entries in the LON downlink and uplink buffer queues
 #define MAX_LON_DOWNLINK_BUFFERS	16
 #define MAX_LON_UPLINK_BUFFERS		16
 
+// Unknown LON interface status value
+#define LON_NI_STATUS_UNKNOWN -1
+
 // LON USB interface mode enumeration
 typedef enum {
-	LON_USB_OPEN_LAYER5,				// LON protocol layer 5 (for host apps)
-	LON_USB_OPEN_LAYER2,				// LON protocol layer 2 (for LON stacks)
-	LON_USB_OPEN_UNKNOWN = -1
-} LonUsbOpenMode;
+	LON_IFACE_MODE_LAYER5 = 0,			// LON protocol layer 5 (for host apps)
+	LON_IFACE_MODE_LAYER2,				// LON protocol layer 2 (for LON stacks)
+	LON_IFACE_MODE_UNKNOWN = -1
+} LonUsbInterfaceMode;
 
 // LON uplink statistics structure
 typedef struct LonUplinkStats {
@@ -114,7 +134,7 @@ typedef struct LonDownlinkStats {
 	size_t packets_sent;				// Total packets sent
 	size_t bytes_sent;					// Total bytes sent
 	size_t tx_aborted_errors;			// Incomplete downlink transmit errors
-	size_t tx_rejects;			// Downlink message rejects by network interface
+	size_t tx_rejects;					// Downlink message rejects by network interface
 } LonDownlinkStats;
 
 // USB RX staging statistics structure; tracks ring-buffer receive staging activity
@@ -133,9 +153,18 @@ typedef struct LonStats {
 	LonDownlinkStats downlink;			// LON downlink statistics
 	LonUsbRxStats usb_rx;				// LON USB receive staging statistics
 	int reference_count;				// open() reference count
-	int reset_count;					// NI reset count
-	int tx_id;							// Reported on NI reset
-	int l2_l5_mode;						// Reported on NI reset
+	int reset_count;					// LON interface reset count
+	int channel_type_id;				// Channel type reported on NI reset
+										// See stdxcvr.xml for type IDs
+										// Channel type 30 is the Custom channel type
+	LonUsbInterfaceMode l2_l5_mode;		// Reported on NI reset and by MIP status response
+	uint8_t ni_model_id;				// LON interface model ID reported by MIP status response
+	uint8_t ni_fw_version;				// LON interface firmware version
+										// reported by MIP status response encoded
+										// as (Value / 10); example: 0xA0 = 160,
+										// interpreted as version 16.0
+	int ni_status;						// LON interface status reported by MIP status response
+										// 0 is ready; -1 is unknown; other values are LON interface specific
 } LonStats;
 
 // Increment 'x' and peg at 0xFFFFFFFF on overflow
@@ -168,20 +197,85 @@ typedef struct LonStats {
 typedef struct LonUsbConfig {
 	uint32_t in_transfer_size;			// Input transfer size in bytes
 	uint32_t read_timeout;				// Read timeout in milliseconds
-	uint32_t write_timeout;			// Write timeout in milliseconds
+	uint32_t write_timeout;				// Write timeout in milliseconds
 	uint32_t uplink_container_limit;	// Uplink container limit in packets
 	uint32_t llp_timeout;				// LLP timeout in milliseconds
 } LonUsbConfig;
 
 // Downlink state machine states
 typedef enum {
-	DOWNLINK_START = 0,				// Starting state, downlink initialization pending
-	DOWNLINK_IDLE,					// Idle state, nothing in progress
-	DOWNLINK_CP_ACK_WAIT,			// Waiting for a code packet ACK
-	DOWNLINK_MSG_ACK_WAIT,			// Waiting for a message ACK
-	DOWNLINK_CP_MSG_REQ_ACK_WAIT,	// Waiting for a message request ACK
-	DOWNLINK_CP_RESPONSE_WAIT		// Waiting for uplink local command response
+	/* --- RESTART --- */
+	DOWNLINK_START = 0,					// Restart initialization after receiving a reset
+										// command or detecting a reset condition on the link
+	/* --- INITIAL BOOT & RESYNC --- */
+	DOWNLINK_WAIT_STARTUP_RESET,		// Wait for uplink reset message during startup
+	DOWNLINK_WAIT_STARTUP_RESYNC_ACK,	// Wait for uplink null frame indicating LON interface
+										// restart after startup resync
+	DOWNLINK_WAIT_RESYNC_RESET,			// Wait for uplink reset message after startup resync
+	/* --- LAYER 5 TRANSITION & VERIFICATION --- */
+	DOWNLINK_LAYER_5_REQUEST,			// Send request to set LON interface mode to layer 5
+	DOWNLINK_WAIT_LAYER_5_ACK,			// Wait for uplink null frame indicating LON
+										// interface restart after network interface
+	DOWNLINK_WAIT_L5_RESYNC_ACK,		// Wait for uplink null frame indicating layer 5
+										// resync complete
+	DOWNLINK_WAIT_L5_RESET,				// Wait for uplink reset message after change to
+										// layer 5 mode
+#if 0
+// TBD: delete
+	DOWNLINK_RESYNC_DELAY,				// Waiting for resynchronization delay to
+										// synchronize uplink and downlink state machines
+#endif
+	/* --- LON INTERFACE UNIQUE ID READ --- */
+	DOWNLINK_NI_UNIQUE_ID_REQUEST,		// Send read memory request for the LON interface unique ID
+	DOWNLINK_WAIT_NI_UNIQUE_ID,			// Wait for uplink memory read response with unique ID
+	/* --- LAYER 2 TRANSITION & VERIFICATION --- */
+	DOWNLINK_LAYER_2_REQUEST,			// Send request to set LON interface mode to layer 2
+	DOWNLINK_WAIT_LAYER_2_ACK,			// Wait for uplink null frame indicating network
+										// interface restart after change to layer 2 mode
+	DOWNLINK_WAIT_L2_RESYNC_ACK,		// Wait for uplink null frame indicating layer 2
+										// resync complete
+	DOWNLINK_WAIT_L2_RESET,				// Wait for uplink reset message after change to
+										// layer 2 mode
+	/* --- LON INTERFACE MIP STATUS READ --- */
+	DOWNLINK_MIP_STATUS_REQUEST,		// Send MIP status request
+	DOWNLINK_WAIT_MIP_STATUS,			// Wait for uplink MIP status response after sending MIP status request
+	/* --- NORMAL OPERATIONS --- */
+	DOWNLINK_IDLE_START,				// Initial idle state	
+	DOWNLINK_IDLE,						// Idle state, nothing in progress
+	/* --- OPERATIONAL WAITS --- */
+	DOWNLINK_WAIT_CP_ACK,				// Wait for a code packet ACK
+	DOWNLINK_WAIT_MSG_ACK,				// Wait for a message ACK
+	DOWNLINK_WAIT_CP_MSG_REQ_ACK,		// Wait for a message request ACK
+	DOWNLINK_WAIT_CP_RESPONSE,			// Wait for uplink local command response
+	DOWNLINK_INVALID					// Invalid state
 } DownlinkState;
+
+// Downlink state machine state names
+static const char* downlink_state_names[] = {
+	"DOWNLINK_START",
+	"DOWNLINK_WAIT_STARTUP_RESET",
+	"DOWNLINK_WAIT_STARTUP_RESYNC_ACK",
+	"DOWNLINK_WAIT_RESYNC_RESET",
+	"DOWNLINK_LAYER_5_REQUEST",
+	"DOWNLINK_WAIT_LAYER_5_ACK",
+	"DOWNLINK_WAIT_L5_RESYNC_ACK",
+	"DOWNLINK_WAIT_L5_RESET",
+	"DOWNLINK_NI_UNIQUE_ID_REQUEST",
+	"DOWNLINK_WAIT_NI_UNIQUE_ID",
+	"DOWNLINK_LAYER_2_REQUEST",
+	"DOWNLINK_WAIT_LAYER_2_ACK",
+	"DOWNLINK_WAIT_L2_RESYNC_ACK",
+	"DOWNLINK_WAIT_L2_RESET",
+	"DOWNLINK_MIP_STATUS_REQUEST",
+	"DOWNLINK_WAIT_MIP_STATUS",
+	"DOWNLINK_IDLE_START",
+	"DOWNLINK_IDLE",
+	"DOWNLINK_WAIT_CP_ACK",
+	"DOWNLINK_WAIT_MSG_ACK",
+	"DOWNLINK_WAIT_CP_MSG_REQ_ACK",
+	"DOWNLINK_WAIT_CP_RESPONSE",
+	"DOWNLINK_INVALID"
+};
 
 // Uplink state machine states
 typedef enum {
@@ -190,8 +284,20 @@ typedef enum {
 	UPLINK_FRAME_PARAMETER,			// Waiting for frame parameter byte; N/A for MIP/U61
 	UPLINK_CODE_PACKET_CHECKSUM,	// Waiting for code packet checksum byte; N/A for MIP/U61
 	UPLINK_MESSAGE,					// Message streaming
-	UPLINK_ESCAPED_DATA				// Message streaming, escaped data
+	UPLINK_ESCAPED_DATA,			// Message streaming, escaped data
+	UPLINK_INVALID					// Invalid state
 } UplinkState;
+
+// Uplink state machine state names
+static const char* uplink_state_names[] = {
+	"UPLINK_IDLE",
+	"UPLINK_FRAME_CODE",
+	"UPLINK_FRAME_PARAMETER",
+	"UPLINK_CODE_PACKET_CHECKSUM",
+	"UPLINK_MESSAGE",
+	"UPLINK_ESCAPED_DATA",
+	"UPLINK_INVALID"
+};
 
 // Message priority levels
 typedef enum {
@@ -201,24 +307,36 @@ typedef enum {
 } MessagePriorityLevel;
 
 // LON extended message alternate structure
-#define EXT_LENGTH	0xFF			// Extended message length indicator
-typedef struct LON_PACKED LdvExtendedMessage {
-	uint8_t cmd;					// Network interface command (use LonNiCommand value)
-	uint8_t ext_flag;				// Will be set to EXT_LENGTH
+#define EXT_LENGTH	0xFF					 // Extended message length indicator
+typedef struct LdvExtendedMessage {
+	uint8_t cmd;							 // Network interface command (use LonNiCommand value)
+	uint8_t ext_flag;				 		 // Will be set to EXT_LENGTH
 	uint16_t ext_length;
-	uint8_t ext_pdu[MAX_LON_MSG_EX_LEN]; // Size is based on ext_length
+	uint8_t ext_pdu[MAX_LON_MSG_EX_LEN]; 	 // Size is based on ext_length
 } LdvExtendedMessage;
 
 // Uplink and downlink buffer sizes (including expansions)
 #define UPLINK_BUF_LEN  ((MAX_LON_MSG_EX_LEN+4)*2)    // Size of ul serial buffer (including expansions)
 #define DOWNLINK_BUF_LEN  ((MAX_LON_MSG_EX_LEN+4)*2)  // Size of dl serial buffer (including expansions)
 
-typedef struct LON_PACKED UsbNiExtendedMessage {
-	uint8_t cmd;					// Network interface command (use LonNiCommand value)
-	uint8_t ext_flag;				// Will be set to EXT_LENGTH
-	uint8_t ext_length;				// PDU size in bytes
-	uint8_t ext_pdu[MAX_LON_MSG_EX_LEN];
-} UsbNiExtendedMessage;
+// LON NI frame structure used for non-extended and extended frames as
+// transmitted on the USB link; use the LonNiExtendedFrame structure to
+// access the extended length field
+typedef struct LonNiFrame {
+	uint8_t short_pdu_length;				 // PDU length if < EXT_LENGTH; else EXT_LENGTH
+	uint8_t ni_command;				 		 // Network interface command--use LonNiCommand values
+	uint8_t pdu[MAX_LON_MSG_EX_LEN];
+} LonNiFrame;
+
+// LON NI frame structure used for extended frames as transmitted on the
+// USB link; the first two bytes match the LonNiFrame structure; the
+// ext_length_be field is in network byte order (big-endian) format
+typedef struct LonNiExtendedFrame {
+	uint8_t ext_flag;				 		 // Set to EXT_LENGTH
+	uint8_t ni_command;				 		 // Network interface command--use LonNiCommand values
+	uint16_t ext_length_be;					 // Big-endian PDU length in bytes
+	uint8_t ext_pdu[MAX_LON_MSG_EX_LEN - 2];
+} LonNiExtendedFrame;
 
 // LON USB frame header type enumeration
 typedef enum {
@@ -226,7 +344,10 @@ typedef enum {
 	FRAME_CODE_PACKET
 } LonUsbFrameHeaderType;
 
-// LON USB frame commands -- must match the MIP/U50 implementation
+// LON USB frame codes -- must match the MIP/U50 implementation
+// The frame command values are in the lower 4 bits of the frame command
+// byte for MIP/U50; for MIP/U61, the frame code byte is always 0 and the
+//command is determined by the parameter byte
 typedef enum {
 	NULL_FRAME_CMD			= 0,
 	FAIL_FRAME_CMD			= 1,
@@ -247,30 +368,48 @@ typedef enum {
 	FRAME_CMD_COUNT			= 16
 } LonUsbFrameCommand;
 
-// LON frame code packet structure; member of LON frame header
-// TBD: little-endian vs big-endian bit-field ordering is compiler-dependent
-//      and must match the MIP/U50 implementation
-typedef struct LON_PACKED LonFrameCode {
-	unsigned int sequence_num : 3;	// Sequence number for duplicate detection; set to 0 for MIP/U61
-	bool ack : 1;					// Acknowledgment flag; set to 0 for MIP/U61
-	unsigned int frame_cmd : 4;		// Frame command; set to 0 for MIP/U61
-} LonFrameCode;
+/*
+ * LON frame header structure; for MIP/U50 this is a code packet;
+ * for MIP/U61 this is always FRAME_SYNC followed by a 0 byte only
+ */
 
-// LON frame header structure; for MIP/U50 this is a code packet;
-// for MIP/U61 this is always FRAME_SYNC followed by a 0 byte only
-typedef struct LON_PACKED LonFrameHeader {
-	uint8_t frame_sync;				// Always FRAME_SYNC (0x7E)
-	LonFrameCode frame_code;		// Frame code with sequence number, ack, and frame command
-	uint8_t parameter;				// Parameter for the frame command; zero if none; not used for MIP/U61
-	uint8_t checksum;				// Negative modulo 256 sum of the frame contents; not used for MIP/U61
-} LonFrameHeader;
+// Macros to access the seq field in LonFrameHeader.frame_code field;
+// sequence number for duplicate detection; set to 0 for MIP/U61
+#define IZOT_U50_FRAME_CODE_SEQ_MASK  0xE0
+#define IZOT_U50_FRAME_CODE_SEQ_SHIFT 5
+#define IZOT_U50_FRAME_CODE_SEQ_FIELD frame_code
+
+// Macros to access the ack field in LonFrameHeader.frame_code field;
+// acknowledgment flag; set to 0 for MIP/U61
+#define IZOT_U50_FRAME_CODE_ACK_MASK  0x10
+#define IZOT_U50_FRAME_CODE_ACK_SHIFT 4
+#define IZOT_U50_FRAME_CODE_ACK_FIELD frame_code
+
+// Macros to access the cmd field in LonFrameHeader.frame_code field;
+// frame command; set to 0 for MIP/U61
+#define IZOT_U50_FRAME_CODE_CMD_MASK  0x0F
+#define IZOT_U50_FRAME_CODE_CMD_SHIFT 0
+#define IZOT_U50_FRAME_CODE_CMD_FIELD frame_code
+
+typedef IZOT_STRUCT_BEGIN(LonFrameHeader) {
+    uint8_t frame_sync;	   // Always FRAME_SYNC (0x7E)
+    uint8_t frame_code;    // Frame code with sequence number, ack, and
+                           // frame command, use IZOT_U50_FRAME_CODE_*
+                           // macros for MIP/U50; always 0 for MIP/U61
+    uint8_t parameter;	   // Parameter for the frame command; zero if
+                           // none; not used for MIP/U61
+    uint8_t checksum;	   // Negative modulo 256 sum of the frame contents;
+                           // not used for MIP/U61
+} IZOT_STRUCT_END(LonFrameHeader);
+LON_STATIC_ASSERT(sizeof(LonFrameHeader) == 4, "LonFrameHeader size incorrect");
 
 // The full message element as stored in this driver for non-extended messages
-typedef struct LON_PACKED LonUsbQueueBuffer {
+typedef struct LonUsbQueueBuffer {
 	size_t buf_size;				// Buffer size in bytes, with variable size PDU
+	size_t data_frame_size;			// Variable size PDU in bytes
 	MessagePriorityLevel priority;	// Message priority level
-	LonFrameHeader frame_header;	// Two (frame sync and zero only) or four-byte (code packet) frame header
-	L2Frame usb_ni_message;	// Underlying USB NI message
+	LonFrameHeader frame_header;	// Two (frame sync and zero) or four-byte (code packet) frame header
+	LonNiFrame usb_ni_data_frame;   // Underlying USB NI message
 } LonUsbQueueBuffer;
 
 // LON USB interface type enumeration
@@ -302,14 +441,18 @@ typedef struct LonUsbIfaceConfig {
 	bool supports_code_packet_acks;
 } LonUsbIfaceConfig;
 
-// Line discipline for LON USB interfaces
+// Special sequence numbers for LonUsbLinkState.downlink_ack_seq_number to indicate special conditions
+#define NO_ACK_REQUIRED -2				// No acknowledgment required
+#define ACK_WITH_NEXT_SEQ_NUM -1		// Next acknowledgment sequence number to use
+
+// Line discipline for LON USB interfaces; -1 specifies default line discipline
 #if OS_IS(LINUX_KERNEL)
 #define LON_USB_LDISC_MIP_U50  28
 #define LON_USB_LDISC_MIP_U61  27
 #else
-#define LON_USB_LDISC_MIP_U50  -1   // Use default
-#define LON_USB_LDISC_MIP_U61  -1   // Use default
-#endif	// OS_IS(LINUX_KERNEL)
+#define LON_USB_LDISC_MIP_U50  -1
+#define LON_USB_LDISC_MIP_U61  -1
+#endif
 
 // LON USB interface configurations indexed by LonUsbIfaceModel
 static LonUsbIfaceConfig lon_usb_iface_configs[] = {
@@ -329,69 +472,106 @@ static LonUsbIfaceConfig lon_usb_iface_configs[] = {
 
 // LON USB link state structure
 typedef struct LonUsbLinkState {
-	OsalLockType state_lock;			// Mutex or spinlock for this structure
-	OsalLockType queue_lock;			// Mutex or spinlock for queue operations
-	bool assigned;						// True if this entry is in use
-										// Set on start to ALL_PRIORITIES to clear all queues
-										// Set on restart to NORMAL_PRIORITY to clear normal queue only
-	bool wait_for_uid;					// True if waiting for UID response
-	int uid_retries;					// Remaining LON NI UID read retries
-	bool have_uid;						// True if LON NI UID acquired
-    volatile bool shutdown;				// True to terminate any threads
+	OsalLockType state_lock;				// Mutex or spinlock for this structure
+	OsalLockType queue_lock;				// Mutex or spinlock for queue operations
+	bool assigned;							// True if this entry is in use
+											// Set on start to ALL_PRIORITIES to clear all queues
+											// Set on restart to NORMAL_PRIORITY to clear normal queue only
+	bool wait_for_reset;					// True if waiting for reset command to be received on uplink
+	bool have_reset;						// True if an uplink reset message has been received
+	bool wait_for_null;						// True if waiting for null frame response on uplink
+	bool have_null;							// True if an uplink null frame has been received
+	bool wait_for_uid;						// True if waiting for UID response
+	int uid_retries;						// Remaining LON interface unique ID read retries
+	bool have_uid;							// True if LON interface unique ID acquired
+	bool wait_for_status;					// True if waiting for MIP status response
+	int status_retries;						// Remaining MIP status request retries
+	bool have_status;						// True if MIP status response received
+	bool ready;								// True if link layer is ready for normal operation
+    volatile bool shutdown;					// True to terminate any threads
 	int iface_index;
 	char lon_dev_name[FILENAME_MAX];
 	char usb_dev_name[DEVICE_NAME_MAX];
-	int usb_fd;							// USB device file descriptor
+	int usb_fd;								// USB device file descriptor
 
-	// LON USB interface model
+	// LON USB interface model and type (MIP/U50 vs MIP/U61)
 	LonUsbIfaceModel lon_usb_iface_model;
+	LonUsbIfaceType lon_usb_iface_type;
 
 	// LON settings and statistics
-	uint8_t uid[IZOT_UNIQUE_ID_LENGTH];	// LON NI unique ID (MAC ID or Neuron ID)
-	LonUsbOpenMode iface_mode;			// LON NI mode (Layer 2 or Layer 5)
-	LonStats lon_stats;					// Last copy of LON stats
+	uint8_t uid[IZOT_UNIQUE_ID_LENGTH];		   // LON NI unique ID (MAC ID or Neuron ID)
+	LonUsbInterfaceMode configured_iface_mode; // LON NI mode (Layer 2 or Layer 5)
+	LonUsbInterfaceMode current_iface_mode;    // Current desired LON NI mode; may
+											   // differ from configured_iface_mode
+											   // during startup and mode changes
+	LonStats lon_stats;						   // Last copy of LON stats
 
 	// USB parameters
 	LonUsbConfig usb_params;
 
 	// Timestamps
-	OsalTickCount start_time;			// Time of interface startup
-	OsalTickCount last_timeout;			// Time of last uplink ack timeout
+	OsalTickCount start_time;				// Time of interface startup
+	OsalTickCount last_timeout;				// Time of last uplink ack timeout
 
 	// Uplink packet state machine
 	UplinkState uplink_state;
-	OsalTickCount uplink_msg_timer;		// Uplink wait for message timeout timer
-	// OsalTickCount uplink_ack_timer;	// Uplink wait for ack timeout timer
-	bool uplink_frame_error;			// True if last uplink had a frame error
-	bool uplink_duplicate;				// True if last uplink frame was a duplicate
+	OsalTickCount reset_wait_timer;			// Network interface reset timeout timer
+	OsalTickCount null_wait_timer;			// NULL frame response timeout timer
+	OsalTickCount resync_delay_timer;		// Resynchronization delay timer to synchronize
+											// uplink and downlink state machines
+	OsalTickCount uid_wait_timer;			// UID response timeout timer
+	OsalTickCount status_wait_timer;		// MIP status response timeout timer
+	OsalTickCount uplink_msg_timer;			// Uplink wait for message timeout timer
+	// OsalTickCount uplink_ack_timer;		// Uplink wait for ack timeout timer
+	bool uplink_frame_error;				// True if last uplink had a frame error
+	bool uplink_duplicate;					// True if last uplink frame was a duplicate
 	LonUsbQueueBuffer uplink_buffer;		// Current uplink buffer being built
-	uint8_t uplink_msg[UPLINK_BUF_LEN];	// Uplink packets built here
-	int uplink_msg_index;				// Index into uplink_msg[]
-	int uplink_msg_length;				// Length or extended length
-	int uplink_seq_number;				// Uplink sequence number
-	bool uplink_tail_escaped;			// True if last byte of a message was a frame sync byte
-	OsalTickCount uplink_ack_timer;		// Start time in ms ticks if waiting for an uplink ack
-										// to a downlink packet; 0 if not waiting
-	OsalTickCount uplink_ack_timeout;	// Uplink ack timeout duration
-	int uplink_ack_timeouts;			// Uplink ack timeout count
-	int uplink_ack_timeout_phase;		// Uplink ack timeout phase, incremented on repeated timeouts
-	LonNiCommand uplink_expected_rsp;	// Expected uplink response command
+	uint8_t uplink_msg[UPLINK_BUF_LEN];		// Uplink packets built here
+	int uplink_msg_index;					// Index into uplink_msg[]
+	int uplink_msg_length;					// Length or extended length
+	int uplink_seq_number;					// Uplink sequence number
+	bool uplink_tail_escaped;				// True if last byte of a message was a frame sync byte
+	OsalTickCount uplink_ack_timer;			// Start time in ms ticks if waiting for an uplink ack
+											// to a downlink packet; 0 if not waiting
+	OsalTickCount uplink_ack_timeout;		// Uplink ack timeout duration
+	int uplink_ack_timeouts;				// Uplink ack timeout count
+	int uplink_ack_timeout_phase;			// Uplink ack timeout phase, incremented on repeated timeouts
+	LonNiCommand uplink_expected_rsp;		// Expected uplink response command
 
 	// Downlink packet state machine
-	DownlinkState downlink_state;		// Current downlink state
-	OsalTickCount downlink_reject_timer;// Downlink reject timeout timer;
-										// Cleared when downlink message is acknowledged
-	LonUsbQueueBuffer downlink_buffer;		// Current downlink buffer being built
+	DownlinkState downlink_state;			// Current downlink state
+	OsalTickCount downlink_reject_timer;	// Downlink reject timeout timer;
+											// Cleared when downlink message is acknowledged
+	LonUsbQueueBuffer downlink_buffer_staging;	
+											// Staging downlink buffer used to build a message
+											// before adding the message to the downlink queue;
+											// this is shared across calls but only one message
+											// can be processed at a time due to the state lock
+	LonUsbQueueBuffer downlink_buffer;		// Current downlink buffer from the head of the downlink
+											// queue; this buffer is expanded to
+											// exp_downlink_ni_data_frame[] in WriteDownlinkMessage()
+	uint8_t exp_downlink_ni_data_frame[MAX_EXP_LON_MSG_EX_LEN];	
+											// Expanded downlink data frame used to build the message
+											// data frame to be written to the USB interface
+	#if 0
+	// TBD: delete
 	bool downlink_cp_requested[MSG_QUEUE_CMD_COUNT];  // True if downlink code packet requested indexed by LonUsbFrameCommand
-	int downlink_seq_number;			// Downlink sequence number
-	bool downlink_ack_required;			// True if an ack is required to be sent downlink
+	#endif
+	int downlink_seq_number;				// Downlink sequence number
+	int downlink_ack_seq_number;			// Downlink sequence number to be acknowledged
+											// Set to NO_ACK_REQUIRED if no ack is pending
+											// Set to ACK_WITH_NEXT_SEQ_NUM if ack is required
+											// with the next sequence number; used for both 
+											// code packet and message acks
+	// TBD: delete next
+	// bool downlink_ack_required;			// True if an ack is required to be sent downlink
 
 	// Buffer queues for parsed messages; each queue holds LonUsbQueueBuffer entries
 	// Implemented using the generic Queue type from lcs_queue.h
-	Queue lon_usb_downlink_normal_queue;		// Downlink normal priority buffer queue
-	Queue lon_usb_downlink_priority_queue;		// Downlink high priority buffer queue
-	Queue lon_usb_uplink_normal_queue;			// Uplink normal priority buffer queue
-	Queue lon_usb_uplink_priority_queue;		// Uplink high priority buffer queue
+	Queue lon_usb_downlink_normal_queue;	// Downlink normal priority buffer queue
+	Queue lon_usb_downlink_priority_queue;	// Downlink high priority buffer queue
+	Queue lon_usb_uplink_normal_queue;		// Uplink normal priority buffer queue
+	Queue lon_usb_uplink_priority_queue;	// Uplink high priority buffer queue
 
 	// Uplink ring buffer for staging raw bytes received from the LON USB interface
 	// before parsing into messages
@@ -423,6 +603,20 @@ LON_STATIC_ASSERT(sizeof(LonUsbFrameHeaderType) == 4 * sizeof(uint8_t), "LonFram
 /*****************************************************************
  * Section: Function Declarations
  *****************************************************************/
+
+/*
+ * Processes retry and downlink requests for a specified LON USB network interface.
+ * Parameters:
+ *   iface_index: LON interface index returned by OpenLonUsbLink()
+ * Returns:
+ *   LonStatusNoError on success; LonStatusCode error code if unsuccessful
+ * Notes:
+ *   This function processes retry attempts for failed messages and downlink
+ *   messages from the downlink queue and writes them to the USB interface. It
+ *   is called periodically to handle downlink traffic.
+ */
+LonStatusCode ProcessDownlinkRequests(int iface_index);
+
 /*
  * Opens a LON USB network interface.
  * Parameters:
@@ -430,8 +624,8 @@ LON_STATIC_ASSERT(sizeof(LonUsbFrameHeaderType) == 4 * sizeof(uint8_t), "LonFram
  *   usb_dev_name: Host USB interface name, for example "/dev/ttyUSB0"
  *   iface_index: Interface index to be used in subsequent read, write, 
  *   		   and close calls for the interface
- *	 iface_mode: LON interface iface_mode, set to LON_USB_OPEN_LAYER5
- *			   for layer 5 (host apps) or LON_USB_OPEN_LAYER2 for
+ *	 configured_iface_mode: LON interface configured_iface_mode, set to LON_IFACE_MODE_LAYER5
+ *			   for layer 5 (host apps) or LON_IFACE_MODE_LAYER2 for
  *			   layer 2 (LON stacks)
  *   line_discipline: USB line discipline number, set to LDISCS_50 for
  *			   the U10 FT Rev C and U60 FT, and LDISCS_61 for the U10 FT
@@ -440,7 +634,7 @@ LON_STATIC_ASSERT(sizeof(LonUsbFrameHeaderType) == 4 * sizeof(uint8_t), "LonFram
  *   LonStatusNoError on success; LonStatusCode error code if unsuccessful
  */
 LonStatusCode OpenLonUsbLink(char *lon_dev_name, char *usb_dev_name,
-					int *iface_index, LonUsbOpenMode iface_mode,
+					int *iface_index, LonUsbInterfaceMode configured_iface_mode,
 					LonUsbIfaceModel lon_usb_iface_model);
 
 /*
@@ -451,7 +645,7 @@ LonStatusCode OpenLonUsbLink(char *lon_dev_name, char *usb_dev_name,
  * Returns:
  *   LonStatusNoError on success; LonStatusCode error code if unsuccessful
  */
-LonStatusCode WriteLonUsbMsg(int iface_index, const L2Frame* in_msg);
+LonStatusCode WriteLonUsbMsg(int iface_index, const LonDataFrame* in_msg);
 
 /*
  * Reads an uplink message from the LON USB interface, if available.
@@ -467,7 +661,7 @@ LonStatusCode WriteLonUsbMsg(int iface_index, const L2Frame* in_msg);
  *   available. If no full message is available, tests for timeout waiting
  *   for the LON interface unique ID (UID) and retries the UID read request.
  */
-LonStatusCode ReadLonUsbMsg(int iface_index, L2Frame *out_msg);
+LonStatusCode ReadLonUsbMsg(int iface_index, LonDataFrame *out_msg);
 
 /*
  * Feeds received bytes into the RX ring buffer for a LON USB interface.

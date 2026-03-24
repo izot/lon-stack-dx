@@ -49,7 +49,7 @@
 /*-------------------------------------------------------------------
   Section: Function Prototypes
   -------------------------------------------------------------------*/
-LonStatusCode TCSReset(void);
+LonStatusCode TransactionControlSublayerReset(void);
 
 void   TransDone(IzotByte  priorityIn);
 void OverrideTrans(IzotByte   priorityIn, TransNum num);

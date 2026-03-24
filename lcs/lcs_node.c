@@ -83,7 +83,7 @@ IzotDomain *AccessDomain(IzotByte indexIn)
 {
     if (indexIn <= IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_TWO_DOMAINS)) {
         IzotDomain *domain_config = &eep->domainTable[indexIn];
-        OsalPrintDebug(LonStatusNoError, "AccessDomain: Domain %x%x%x%x%x%x, Subnet %d, NonClone %d, Node %d, Invalid %d, Length %d, Key %x", 
+        OsalPrintLog(INFO_LOG, LonStatusNoError, "AccessDomain: Domain %x%x%x%x%x%x, Subnet %d, NonClone %d, Node %d, Invalid %d, Length %d, Key %x", 
                 domain_config->Id[0],domain_config->Id[1],domain_config->Id[2],domain_config->Id[3],domain_config->Id[4],domain_config->Id[5],domain_config->Subnet, 
                 IZOT_GET_ATTRIBUTE_P(domain_config,IZOT_DOMAIN_NONCLONE),
                 IZOT_GET_ATTRIBUTE_P(domain_config,IZOT_DOMAIN_NODE),
@@ -91,7 +91,7 @@ IzotDomain *AccessDomain(IzotByte indexIn)
                 IZOT_GET_ATTRIBUTE_P(domain_config,IZOT_DOMAIN_ID_LENGTH), domain_config->Key[0]);
         return(domain_config);
     }
-    OsalPrintError(LonStatusInvalidDomain, "AccessDomain: Invalid domain index");
+    OsalPrintLog(ERROR_LOG, LonStatusInvalidDomain, "AccessDomain: Invalid domain index");
     return(NULL);
 }
 
@@ -143,7 +143,7 @@ LonStatusCode UpdateAddress(const IzotAddress *addrEntryInp, IzotUbits16 indexIn
     if (indexIn < eep->readOnlyData.Extended) {
         eep->addrTable[indexIn] = *addrEntryInp;
     } else {
-        OsalPrintError(LonStatusInvalidAddrTableIndex, "UpdateAddress: Invalid address table index");
+        OsalPrintLog(ERROR_LOG, LonStatusInvalidAddrTableIndex, "UpdateAddress: Invalid address table index");
         sts = LonStatusInvalidAddrTableIndex;
     }
 
@@ -222,7 +222,7 @@ LonStatusCode  DecodeBufferSize(IzotByte bufSizeIn, uint16_t *decodedSizeOut)
         *decodedSizeOut = bufSizeCodeLGbl[bufSizeIn];
         return LonStatusNoError;
     }
-    OsalPrintError(LonStatusInvalidBufferSize, "DecodeBufferSize: Invalid buffer size code %d", bufSizeIn);
+    OsalPrintLog(ERROR_LOG, LonStatusInvalidBufferSize, "DecodeBufferSize: Invalid buffer size code %d", bufSizeIn);
     return(LonStatusInvalidBufferSize);
 }
 
@@ -241,7 +241,7 @@ LonStatusCode  DecodeBufferCnt(IzotByte bufCntIn, uint16_t *decodedCountOut)
         *decodedCountOut = bufCntCodeLGbl[bufCntIn];
         return LonStatusNoError;
     }
-    OsalPrintError(LonStatusInvalidBufferCount, "DecodeBufferCnt: Invalid buffer count code");
+    OsalPrintLog(ERROR_LOG, LonStatusInvalidBufferCount, "DecodeBufferCnt: Invalid buffer count code");
     return(LonStatusInvalidBufferCount);
 }
 
@@ -259,7 +259,7 @@ LonStatusCode  DecodeRptTimer(IzotByte rptTimerIn, uint16_t *decodedTimerOut)
         *decodedTimerOut = rptTimerCodeLGbl[rptTimerIn];
         return LonStatusNoError;
     }
-    OsalPrintError(LonStatusInvalidTimer, "DecodeRptTimer: Invalid timer code");
+    OsalPrintLog(ERROR_LOG, LonStatusInvalidTimer, "DecodeRptTimer: Invalid timer code");
     return(LonStatusInvalidTimer);
 }
 
@@ -277,7 +277,7 @@ LonStatusCode  DecodeRcvTimer(IzotByte rcvTimerIn, uint16_t *decodedTimerOut)
         *decodedTimerOut = rcvTimerCodeLGbl[rcvTimerIn];
         return LonStatusNoError;
     }
-    OsalPrintError(LonStatusInvalidTimer, "DecodeRcvTimer: Invalid timer code");
+    OsalPrintLog(ERROR_LOG, LonStatusInvalidTimer, "DecodeRcvTimer: Invalid timer code");
     return(LonStatusInvalidTimer);
 }
 
@@ -319,7 +319,7 @@ IzotDatapointConfig *AccessNV(IzotUbits16 indexIn)
     {
         return(&eep->nvConfigTable[indexIn]);
     }
-    OsalPrintError(LonStatusDpIndexInvalid, "AccessNV: Invalid index");
+    OsalPrintLog(ERROR_LOG, LonStatusDpIndexInvalid, "AccessNV: Invalid index");
     return(NULL);
 }
 
@@ -333,7 +333,7 @@ IzotAliasConfig *AccessAlias(IzotUbits16 indexIn)
     if (indexIn < NV_ALIAS_TABLE_SIZE) {
         return(&eep->nvAliasTable[indexIn]);
     }
-    OsalPrintError(LonStatusDpIndexInvalid, "AccessAlias: Invalid index");
+    OsalPrintLog(ERROR_LOG, LonStatusDpIndexInvalid, "AccessAlias: Invalid index");
     return(NULL);
 }
 
@@ -350,9 +350,9 @@ void UpdateNV(IzotDatapointConfig *nvStructInp, IzotUbits16 indexIn)
         return;
     }
     if (nvStructInp) {
-        OsalPrintError(LonStatusInvalidDatapointIndex, "UpdateNV: Invalid index");
+        OsalPrintLog(ERROR_LOG, LonStatusInvalidDatapointIndex, "UpdateNV: Invalid index");
     } else {
-        OsalPrintError(LonStatusInvalidDatapointIndex, "UpdateNV: Invalid NV configuration table update");
+        OsalPrintLog(ERROR_LOG, LonStatusInvalidDatapointIndex, "UpdateNV: Invalid NV configuration table update");
     }
 }
 
@@ -369,9 +369,9 @@ void UpdateAlias(IzotAliasConfig *aliasStructInp, IzotUbits16 indexIn)
         return;
     }
     if (aliasStructInp) {
-        OsalPrintError(LonStatusInvalidDatapointIndex, "UpdateAlias: Invalid index");
+        OsalPrintLog(ERROR_LOG, LonStatusInvalidDatapointIndex, "UpdateAlias: Invalid index");
     } else {
-        OsalPrintError(LonStatusInvalidDatapointIndex, "UpdateAlias: Invalid alias configuration table update");
+        OsalPrintLog(ERROR_LOG, LonStatusInvalidDatapointIndex, "UpdateAlias: Invalid alias configuration table update");
     }
 }
 
@@ -386,24 +386,30 @@ void UpdateAlias(IzotAliasConfig *aliasStructInp, IzotUbits16 indexIn)
 LonStatusCode NodeReset(IzotByte firstReset)
 {
     LonStatusCode status = LonStatusNoError;
-    OsalPrintDebug(status, "NodeReset: Start LON application reset with firstReset=%d", firstReset);
+    OsalPrintLog(INFO_LOG, status, "NodeReset: Start LON application reset with firstReset=%d", firstReset);
 #if LINK_IS(ETHERNET) || LINK_IS(WIFI)
-    LonStatusCode APPReset(void), TCSReset(void), TSAReset(void), NWReset(void),
-            LsUDPReset(void);
-    LonStatusCode (*resetFns[])(void) = {APPReset, TCSReset, TSAReset, NWReset,
-            LsUDPReset};
+    LonStatusCode AppLayerReset(void), TransactionControlSublayerReset(void),
+            TransactionServicesSublayerReset(void), NetworkLayerReset(void),
+            LinkLayerUdpReset(void);
+    LonStatusCode (*resetFns[])(void) = {AppLayerReset,
+            TransactionControlSublayerReset, TransactionServicesSublayerReset,
+            NetworkLayerReset, LinkLayerUdpReset};
 #elif LINK_IS(USB)
-    LonStatusCode APPReset(void), TCSReset(void), TSAReset(void), NWReset(void),
-            LKReset(void);
-    LonStatusCode (*resetFns[])(void) = {APPReset, TCSReset, TSAReset, NWReset,
-            LKReset};
+    LonStatusCode AppLayerReset(void), TransactionControlSublayerReset(void),
+            TransactionServicesSublayerReset(void), NetworkLayerReset(void),
+            LinkLayerReset(void);
+    LonStatusCode (*resetFns[])(void) = {AppLayerReset,
+            TransactionControlSublayerReset, TransactionServicesSublayerReset,
+            NetworkLayerReset, LinkLayerReset};
 #elif LINK_IS(MIP)
-    LonStatusCode APPReset(void), TCSReset(void), TSAReset(void), NWReset(void),
-            LKReset(void), PHYReset(void);
-    LonStatusCode (*resetFns[])(void) = {APPReset, TCSReset, TSAReset, NWReset,
-            LKReset, PHYReset};
+    LonStatusCode AppLayerReset(void), TransactionControlSublayerReset(void),
+            TransactionServicesSublayerReset(void), NetworkLayerReset(void),
+            LinkLayerReset(void), PhysicalLayerReset(void);
+    LonStatusCode (*resetFns[])(void) = {AppLayerReset,
+            TransactionControlSublayerReset, TransactionServicesSublayerReset,
+            NetworkLayerReset, LinkLayerReset, PhysicalLayerReset};
 #else
-    OsalPrintError(LonStatusInitializationFailed, "NodeReset: Unsupported link type");
+    OsalPrintLog(ERROR_LOG, LonStatusInitializationFailed, "NodeReset: Unsupported link type");
     return;
 #endif // LINK_IS(ETHERNET) || LINK_IS(WIFI)
     IzotByte fnNum, fnsCnt;
@@ -429,15 +435,18 @@ LonStatusCode NodeReset(IzotByte firstReset)
         gp->appPgmMode = OFF_LINE;
     }
 
+#if 0
+// TBD: make this conditional based on malloc support in OSAL
     /* First, let each layer determine the address of all its data structures */
     gp->mallocUsedSize = 0;
+#endif
 
     /* Call all the Reset functions */
     fnsCnt = sizeof(resetFns)/sizeof(FnType);
     for (fnNum = 0; fnNum < fnsCnt; fnNum++) {
         status = resetFns[fnNum](); /* Call the Reset function. */
         if (!LON_SUCCESS(status) || !gp->resetOk) {
-            OsalPrintError(status, "NodeReset: Reset failure");
+            OsalPrintLog(ERROR_LOG, status, "NodeReset: Reset failure");
             return status;
         }
     }
@@ -456,7 +465,7 @@ LonStatusCode NodeReset(IzotByte firstReset)
     gp->resetNode        = FALSE;
     
     IzotReset(NULL);
-    OsalPrintDebug(status, "NodeReset: Completed LON application reset");
+    OsalPrintLog(INFO_LOG, status, "NodeReset: Completed LON application reset");
     return status;
 }
 
@@ -470,7 +479,7 @@ Comments:  Incomplete Initialization. Make sure it has the var you
            want or else add it here or in custom.h or custom.c
                 depending on where it fits.
 ******************************************************************/
-LonStatusCode InitEEPROM(uint32_t signature)
+LonStatusCode InitEEPROM(uint32_t app_signature)
 {
     LonStatusCode status = LonStatusNoError;
     int i;
@@ -484,13 +493,14 @@ LonStatusCode InitEEPROM(uint32_t signature)
         if (status == LonStatusInvalidParameter) {
             // This can occur if the NVM image has grown too large
             status = LonStatusNoMemoryAvailable;
-            OsalPrintError(status, "InitEEPROM: Non-volatile memory image too large");
+            OsalPrintLog(ERROR_LOG, status, "InitEEPROM: Non-volatile memory image too large");
         } else if (status != LonStatusNoError || 
                 memcmp(&eep->dimensions, &dimensions, sizeof(dimensions)) || 
-                eep->signature != signature) {
+                eep->appSignature != app_signature) {
             // This is a first boot or there is a corrupted non-volatile
-            // data segment, changed segment structure, or changed signature;
-            // reset status to no error and re-initialize persistent data storage
+            // data segment, changed segment structure, or changed application
+            // signature; reset status to no error and re-initialize persistent
+            // data storage
             status = LonStatusNoError;
 
             // Re-initialize all of NVM
@@ -543,8 +553,8 @@ LonStatusCode InitEEPROM(uint32_t signature)
             IZOT_SET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NODE_STATE, eep->nodeState);
         }
 
-        // Record the signature in case the application interface changes.
-        eep->signature = signature;
+        // Record the application signature in case the application interface changes.
+        eep->appSignature = app_signature;
 
         // Read only data we always set.  Note that this means if you modify these things
         // over the network, they'll get wiped out after a reset.  The reason for this is

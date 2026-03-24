@@ -4,7 +4,7 @@
     {
       "label": "Build Example1 (arm64-cross)",
       "type": "shell",
-      "command": "cmake --preset arm64-cross && cmake --build --preset arm64-cross -j",
+      "command": "cmake --preset arm64-cross && cmake --build --preset arm64-cross --verbose -j",
       "group": "build",
       "problemMatcher": [
         "$gcc"

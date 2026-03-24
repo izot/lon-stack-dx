@@ -49,13 +49,13 @@
 /*-------------------------------------------------------------------
   Section: Function Prototypes
   -------------------------------------------------------------------*/
-LonStatusCode TSAReset(void);
+LonStatusCode TransactionServicesSublayerReset(void);
 
-void TPSend(void);
-void TPReceive(void);
+void TransportLayerSend(void);
+void TransportLayerReceive(void);
 
-void SNSend(void);
-void SNReceive(void);
+void SessionLayerSend(void);
+void SessionLayerReceive(void);
 
 void AuthSend(void);
 void AuthReceive(void);

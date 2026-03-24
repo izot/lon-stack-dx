@@ -18,7 +18,7 @@
  *          The example does not include application logic for
  *          handling NV updates or other functionality.
  *          This file is intended to be used as a starting point
- *          for test LON Stack ports to new platforms and for
+ *          for testing LON Stack ports to new platforms and for
  *          developing LON Stack applications.
  */
 
@@ -53,7 +53,7 @@ static const IzotStackInterfaceData LonStackInterface = {
 static const IzotControlData LonStackControlData = {
    STACK_CONTROLDATA_VERSION,   // Format version number
    0,                           // See IZOT_CONTROL_FLAG
-   5,                           // Number of seconds to wait after receiving
+   10,                          // Number of seconds to wait after receiving
                                 // an update to non-volatile config data before
                                 // writing the data (1 -- 60)
    {  // Transceiver type and communication parameters
@@ -209,17 +209,20 @@ void main() {
 
     // Send a Service message to indicate that the node has started
     // This is not required, but is useful for testing purposes
+#if 0
+// TBD: add a delay here to allow time for the stack to initialize before sending the service message, or send the service message in the callback from stack creation completion if available
     if (LON_SUCCESS(status)) {
         IzotSendServiceMessage();
     }
-    
+#endif
+
     // Main loop
     while (LON_SUCCESS(status)) {
         // Execute one pass of the LON Stack event pump
         status = LoopExample1();
     }
 
-    OsalPrintError(status, "Example1 main: Application terminated due to error");
+    OsalPrintLog(ERROR_LOG, status, "Example1 main: Application terminated due to error");
 }
 #endif
 
@@ -237,7 +240,9 @@ LonStatusCode SetUpExample1(void)
     IzotBool domainId = EXAMPLE_DOMAIN_ID;  // Use a 1-byte domain
 
     // Create, configure, and start the LON Stack
-    success =  LON_SUCCESS(status = IzotCreateStack(&LonStackInterface, &LonStackControlData)) 
+    success =  LON_SUCCESS(status = IzotCreateStack(&LonStackInterface, &LonStackControlData));
+    // TBD: do the following after a delay to allow stack to initialize, or in the callback from stack creation completion if available
+#if 0
             && LON_SUCCESS(status = SetUpStaticNVs()) 
             && LON_SUCCESS(status = IzotStartStack())
             && LON_SUCCESS(status = IzotUpdateDomain(0, EXAMPLE_DOMAIN_LENGTH, (IzotByte*) &domainId, EXAMPLE_SUBNET, EXAMPLE_NODE))
@@ -248,6 +253,7 @@ LonStatusCode SetUpExample1(void)
         // Start the heartbeat timer using the heartbeatIn NV default value
         SetHeartbeatTimer();
     }
+#endif
 
     return status;
 }

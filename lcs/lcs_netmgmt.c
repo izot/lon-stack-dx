@@ -128,7 +128,7 @@ LonStatusCode ManualServiceRequestMessage(void) {
     APDU *apduRespPtr;
 
     if (QueueFull(&gp->nwOutQ)) {
-        OsalPrintError(LonStatusNoBufferAvailable, "No room for service request message in network layer queue");
+        OsalPrintLog(ERROR_LOG, LonStatusNoBufferAvailable, "No room for service request message in network layer queue");
         return (LonStatusNoBufferAvailable); /* Can't send it now. Try later. */
     }
 
@@ -318,7 +318,7 @@ void HandleNMLeaveDomain(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
     }
     /* If the domain index is bad, fail */
     if (apduPtr->data[0] != 0 && apduPtr->data[0] != 1) {
-        OsalPrintError(LonStatusInvalidDomain, "HandleNMLeaveDomain: Invalid domain");
+        OsalPrintLog(ERROR_LOG, LonStatusInvalidDomain, "HandleNMLeaveDomain: Invalid domain");
         NMNDRespond(NM_MESSAGE, LonStatusInvalidDomain, appReceiveParamPtr, apduPtr);
         return;
     }
@@ -363,7 +363,7 @@ void HandleNMUpdateKey(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
     }
     if (apduPtr->data[0] != 0 && apduPtr->data[0] != 1) {
 
-        OsalPrintError(LonStatusInvalidDomain, "HandleNMUpdateKey: Invalid domain");
+        OsalPrintLog(ERROR_LOG, LonStatusInvalidDomain, "HandleNMUpdateKey: Invalid domain");
         NMNDRespond(NM_MESSAGE, LonStatusInvalidDomain, appReceiveParamPtr, apduPtr);
         return;
     }
@@ -430,7 +430,7 @@ void HandleNMQueryAddr(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
     }
     // Fail if the address table index is bad and set statistics
     if (apduPtr->data[0] >= eep->readOnlyData.Extended) {
-        OsalPrintError(LonStatusInvalidAddrTableIndex, "HandleNMQueryAddr: Invalid address table index");
+        OsalPrintLog(ERROR_LOG, LonStatusInvalidAddrTableIndex, "HandleNMQueryAddr: Invalid address table index");
         NMNDRespond(NM_MESSAGE, LonStatusInvalidAddrTableIndex, appReceiveParamPtr, apduPtr);
         return;
     }
@@ -510,7 +510,7 @@ void HandleNMQueryNvCnfg(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
         
         memcpy(apduRespPtr->data, &alias_config, sizeof(AliasStruct));
     } else {
-        OsalPrintError(LonStatusInvalidDatapointIndex, "HandleNMQueryNvCnfg: Invalid NV index");
+        OsalPrintLog(ERROR_LOG, LonStatusInvalidDatapointIndex, "HandleNMQueryNvCnfg: Invalid NV index");
         apduRespPtr->code.allBits = NM_resp_failure | NM_QUERY_NV_CNFG;
         tsaSendParamPtr->apduSize = 1;
     }
@@ -834,7 +834,7 @@ void HandleNmeReportDomain(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
     if (appReceiveParamPtr->pduSize < 3) {
         NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr, apduPtr);
     } else if (p == NULL) {
-        OsalPrintError(LonStatusInvalidDomain, "HandleNmeReportDomain: Invalid domain");
+        OsalPrintLog(ERROR_LOG, LonStatusInvalidDomain, "HandleNmeReportDomain: Invalid domain");
         NMNDRespond(NM_MESSAGE, LonStatusInvalidDomain, appReceiveParamPtr, apduPtr);
     } else {
         reportDomain.subcommand = apduPtr->data[0];
@@ -977,7 +977,7 @@ void HandleNmeUpdateNvCnfg(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
         }
     } else {
     /* Invalid nv table index */
-        OsalPrintError(LonStatusInvalidDatapointIndex, "HandleNmeUpdateNvCnfg: Invalid NV index");
+        OsalPrintLog(ERROR_LOG, LonStatusInvalidDatapointIndex, "HandleNmeUpdateNvCnfg: Invalid NV index");
         NMNDRespond(NM_MESSAGE, LonStatusInvalidDatapointIndex, appReceiveParamPtr, apduPtr);
          return;
     }
@@ -1021,7 +1021,7 @@ void HandleNmeQueryNvCnfg(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
         SendResponse(appReceiveParamPtr->reqId, NM_resp_success | NM_EXPANDED, 
         sizeof(query_nv_config), (IzotByte*)&query_nv_config);
     } else {
-        OsalPrintError(LonStatusInvalidDatapointIndex, "HandleNmeQueryNvCnfg: Invalid NV index");
+        OsalPrintLog(ERROR_LOG, LonStatusInvalidDatapointIndex, "HandleNmeQueryNvCnfg: Invalid NV index");
         NMNDRespond(NM_MESSAGE, LonStatusInvalidDatapointIndex, appReceiveParamPtr, apduPtr);
     }
 }
@@ -1055,7 +1055,7 @@ void HandleNmeUpdateNvAliasCnfg(APPReceiveParam *appReceiveParamPtr, APDU *apduP
         }
     } else {
         /* Invalid nv table index */
-        OsalPrintError(LonStatusInvalidDatapointIndex, "HandleNmeUpdateNvAliasCnfg: Invalid NV index");
+        OsalPrintLog(ERROR_LOG, LonStatusInvalidDatapointIndex, "HandleNmeUpdateNvAliasCnfg: Invalid NV index");
         NMNDRespond(NM_MESSAGE, LonStatusInvalidDatapointIndex, appReceiveParamPtr, apduPtr);
         return;
     }
@@ -1100,7 +1100,7 @@ void HandleNmeQueryNvAliasCnfg(APPReceiveParam *appReceiveParamPtr, APDU *apduPt
         SendResponse(appReceiveParamPtr->reqId, NM_resp_success | NM_EXPANDED, 
         sizeof(query_alias_config), (IzotByte*)&query_alias_config);
     } else {
-        OsalPrintError(LonStatusInvalidDatapointIndex, "HandleNmeQueryNvAliasCnfg: Invalid NV index");
+        OsalPrintLog(ERROR_LOG, LonStatusInvalidDatapointIndex, "HandleNmeQueryNvAliasCnfg: Invalid NV index");
         NMNDRespond(NM_MESSAGE, LonStatusInvalidDatapointIndex, appReceiveParamPtr, apduPtr);
     }
 }
@@ -1181,7 +1181,7 @@ void HandleNmeUpdateNvByIndex(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr
     
     if (appReceiveParamPtr->pduSize < 5) {
         // The message does not have any correct size or data field.
-        OsalPrintError(LonStatusDatapointMsgTooShort, "HandleNmeUpdateNvByIndex: Message too short");
+        OsalPrintLog(ERROR_LOG, LonStatusDatapointMsgTooShort, "HandleNmeUpdateNvByIndex: Message too short");
         NMNDRespond(NM_MESSAGE, LonStatusDatapointMsgTooShort, appReceiveParamPtr, apduPtr);
         return;
     }
@@ -1197,14 +1197,14 @@ void HandleNmeUpdateNvByIndex(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr
     matchingDataLength   = NV_LENGTH(matchingPrimaryIndex);
     // If the data size does not match, don't update. ignore.
     if (dataLength != matchingDataLength) {
-        OsalPrintError(LonStatusDatapointLengthMismatch, "HandleNmeUpdateNvByIndex: Data length mismatch");
+        OsalPrintLog(ERROR_LOG, LonStatusDatapointLengthMismatch, "HandleNmeUpdateNvByIndex: Data length mismatch");
         err = NM_resp_failure;
     }
     
     matchingNVStrPtr = GetNVStructPtr(matchingPrimaryIndex);
     if (err == NM_resp_success && IZOT_GET_ATTRIBUTE_P(matchingNVStrPtr, IZOT_DATAPOINT_DIRECTION) == 
     IzotDatapointDirectionIsOutput) {
-        OsalPrintError(LonStatusDatapointUpdateOnOutput, "HandleNmeUpdateNvByIndex: Attempt to update output NV");
+        OsalPrintLog(ERROR_LOG, LonStatusDatapointUpdateOnOutput, "HandleNmeUpdateNvByIndex: Attempt to update output NV");
         err = NM_resp_failure;
     }
 
@@ -1215,7 +1215,7 @@ void HandleNmeUpdateNvByIndex(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr
     }
 
     if (!authOK) {
-        OsalPrintError(LonStatusAuthenticationMismatch, "HandleNmeUpdateNvByIndex: Authentication failure");
+        OsalPrintLog(ERROR_LOG, LonStatusAuthenticationMismatch, "HandleNmeUpdateNvByIndex: Authentication failure");
         err = NM_resp_failure;
     }
     
@@ -1246,7 +1246,7 @@ void HandleNmeUpdateNvByIndex(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr
         memcpy(NV_ADDRESS(matchingPrimaryIndex), &apduPtr->data[3], dplength);
 
         if (AppPgmRuns()) {
-            OsalPrintDebug(LonStatusNoError, "HandleNmeUpdateNvByIndex: Notify application");
+            OsalPrintLog(INFO_LOG, LonStatusNoError, "HandleNmeUpdateNvByIndex: Notify application");
             // Notify application program only if it is running.
             IZOT_SET_ATTRIBUTE(gp->nvInAddr, IZOT_RECEIVEADDRESS_DOMAIN, appReceiveParamPtr->srcAddr.dmn.domainIndex);
             IZOT_SET_ATTRIBUTE(gp->nvInAddr, IZOT_RECEIVEADDRESS_FLEX, (appReceiveParamPtr->srcAddr.dmn.domainIndex == 
@@ -1624,7 +1624,7 @@ void HandleNMQueryDomain(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
      domain and the index is 1, then fail. */
     if (p == NULL) {
         /* Domain index is bad. */
-        OsalPrintError(LonStatusInvalidDomain, "HandleNMQueryDomain: Invalid domain index");
+        OsalPrintLog(ERROR_LOG, LonStatusInvalidDomain, "HandleNMQueryDomain: Invalid domain index");
         NMNDRespond(NM_MESSAGE, LonStatusInvalidDomain, appReceiveParamPtr, apduPtr);
         return;
     }
@@ -1707,7 +1707,7 @@ void HandleNMUpdateNvConfig(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) 
         }
     } else {
         /* Invalid nv table index */
-        OsalPrintError(LonStatusInvalidDatapointIndex, "HandleNmeUpdateNvByIndex: Invalid NV index");
+        OsalPrintLog(ERROR_LOG, LonStatusInvalidDatapointIndex, "HandleNmeUpdateNvByIndex: Invalid NV index");
         NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageAddress, appReceiveParamPtr, apduPtr);
         return;
     }
@@ -2352,7 +2352,7 @@ void HandleND(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
                 != ND_QUERY_STATUS_FLEX && apduPtr->code.nd.ndCode
                 != ND_QUERY_XCVR_BIDIR && apduPtr->code.nd.ndCode
                 != ND_GET_FULL_VERSION)) {
-            OsalPrintError(LonStatusAuthenticationMismatch, "HandleND: Authentication mismatch");
+            OsalPrintLog(ERROR_LOG, LonStatusAuthenticationMismatch, "HandleND: Authentication mismatch");
             NMNDRespond(ND_MESSAGE, LonStatusAuthenticationMismatch, appReceiveParamPtr, apduPtr);
         } else {
             /* Handle various network diagnostic message codes */
@@ -2433,7 +2433,7 @@ void HandleNM(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
 #endif
     ))) 
 		{
-            OsalPrintError(LonStatusInvalidOperation,
+            OsalPrintLog(ERROR_LOG, LonStatusInvalidOperation,
                     "HandleND: Unsupported network management operation (message code 0x%02X, subcommand 0x%02X)", 
                     apduPtr->code.nm.nmCode, subCommand);
             NMNDRespond(NM_MESSAGE, LonStatusInvalidOperation, appReceiveParamPtr, apduPtr);

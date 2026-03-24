@@ -16,33 +16,38 @@
 #include "lcs/lcs.h"
 #include "izot/IzotApi.h"
 
+#if LINK_IS(MIP) || LINK_IS(USB)
+#include "lon_usb/lon_usb_link.h"
+#endif // LINK_IS(MIP) || LINK_IS(USB)
+
 // LON Stack DX initialization
-extern LonStatusCode APPInit(void); // Init function for application layer
+extern LonStatusCode AppLayerInit(void); // Init function for application layer
 
 // Send functions for the LON Stack layers
-extern void APPSend(void);
-extern void TPSend(void);
-extern void SNSend(void);
+extern void AppLayerSend(void);
+extern void TransportLayerSend(void);
+extern void SessionLayerSend(void);
 extern void AuthSend(void);
-extern void NWSend(void);
+extern void NetworkLayerSend(void);
 #if LINK_IS(WIFI) || LINK_IS(ETHERNET)
-extern void LsUDPSend(void);
+extern void LinkLayerUdpSend(void);
 #endif // LINK_IS(WIFI) || LINK_IS(ETHERNET)
 #if LINK_IS(USB) || LINK_IS(MIP)
-extern void LKSend(void);
+extern void LinkLayerUsbSend(void);
+extern LonStatusCode NetworkInterfaceSend(void);
 #endif // LINK_IS(USB) || LINK_IS(MIP)
 
 // Receive functions for the LON Stack DX layers
-extern void APPReceive(void);
-extern void TPReceive(void);
-extern void SNReceive(void);
+extern void AppLayerReceive(void);
+extern void TransportLayerReceive(void);
+extern void SessionLayerReceive(void);
 extern void AuthReceive(void);
-extern void NWReceive(void);
+extern void NetworkLayerReceive(void);
 #if LINK_IS(WIFI) || LINK_IS(ETHERNET)
-extern void LsUDPReceive(void);
+extern void LinkLayerUdpReceive(void);
 #endif // LINK_IS(WIFI) || LINK_IS(ETHERNET)
 #if LINK_IS(USB) || LINK_IS(MIP)
-extern void LKReceive(void);
+extern void LinkLayerUsbReceive(void);
 #endif // LINK_IS(USB) || LINK_IS(MIP)
 
 #define LED_TIMER_VALUE      2000  // How often to flash in ms
@@ -74,7 +79,7 @@ LonStatusCode LCS_Init(IzotResetCause cause)
         snvt_capability_info = &capability_info;
         si_header_ext = &header_ext;
 	    if (InitEEPROM(IzotGetAppSignature()) != LonStatusNoError) {
-			OsalPrintError(LonStatusStackInitializationFailure, "LCS_Init: Non-volatile data initialization failed for stack %d", stackNum);
+			OsalPrintLog(ERROR_LOG, LonStatusStackInitializationFailure, "LCS_Init: Non-volatile data initialization failed for stack %d", stackNum);
             return LonStatusStackInitializationFailure;
         }
     }
@@ -86,8 +91,8 @@ LonStatusCode LCS_Init(IzotResetCause cause)
         nmp = &nm[stackNum];
         snvt_capability_info = &capability_info;
         si_header_ext = &header_ext;
-        if (APPInit() != LonStatusNoError) {
-			OsalPrintError(LonStatusStackInitializationFailure, "LCS_Init: Application initialization failed for stack %d", stackNum);
+        if (AppLayerInit() != LonStatusNoError) {
+			OsalPrintLog(ERROR_LOG, LonStatusStackInitializationFailure, "LCS_Init: Application initialization failed for stack %d", stackNum);
 			return LonStatusStackInitializationFailure;
 		}
         // Compute the configCheckSum for the first time; NodeReset
@@ -98,7 +103,7 @@ LonStatusCode LCS_Init(IzotResetCause cause)
 	    SetLonTimer(&gp->ledTimer, LED_TIMER_VALUE);
 		SetLonTimer(&gp->checksumTimer, CHECKSUM_TIMER_VALUE); // Initial value
     }
-	OsalPrintDebug(LonStatusNoError, "LCS_Init: LON Stack initialization completed successfully");
+	OsalPrintLog(INFO_LOG, LonStatusNoError, "LCS_Init: LON Stack initialization completed successfully");
 	return LonStatusNoError;
 }
 
@@ -126,42 +131,43 @@ LonStatusCode LCS_Service()
 			gp->resetOk = TRUE;
 			status = NodeReset(FALSE);
 			if (!LON_SUCCESS(status) || !gp->resetOk) {
-				OsalPrintError(status, "LCS_Service: LON application reset failed for stack %d", stackNum);
+				OsalPrintLog(ERROR_LOG, status, "LCS_Service: LON application reset failed for stack %d", stackNum);
 				return status;
 			}
 			continue; // Easy way to do scheduler reset,
 		}
 
-		// Call the application program, 
-        // and let it know whether it is online or offline.
-		DoApp(AppPgmRuns()); // Call the application. 
-                             // Let it do whatever it wants.
+		// Call the application program
+		DoApp(AppPgmRuns());
 
-		// Call all the Send functions
-		APPSend();
-		SNSend();
-		TPSend();
+		// Call the Send functions of all layers
+		AppLayerSend();
+		SessionLayerSend();
+		TransportLayerSend();
 		AuthSend();
-		NWSend();
+		NetworkLayerSend();
 		#if LINK_IS(MIP) || LINK_IS(USB)
-			LKSend();
-		#else // !LINK_IS(MIP)
-			LsUDPSend();
-		#endif // LINK_IS(MIP)
+			// Send pending downlink requests from the link layer to the downlink queues
+			LinkLayerUsbSend();
+			// Send messages from the downlink queues to the network interfaces
+			status = NetworkInterfaceSend();
+		#else  // !(LINK_IS(MIP) || LINK_IS(USB))
+			LinkLayerUdpSend();
+		#endif // LINK_IS(MIP) || LINK_IS(USB)
 		
-		// Call all the Receive functions.
+		// Call the Receive functions of all layers
 		#if LINK_IS(MIP) || LINK_IS(USB)
-			LKReceive();
-		#else // !LINK_IS(MIP)
-			LsUDPReceive();
-		#endif // LINK_IS(MIP)
-		NWReceive();
+			LinkLayerUsbReceive();
+		#else  // !(LINK_IS(MIP) || LINK_IS(USB))
+			LinkLayerUdpReceive();
+		#endif // LINK_IS(MIP) || LINK_IS(USB)
+		NetworkLayerReceive();
 		AuthReceive();
-		TPReceive();
-		SNReceive();
-		APPReceive();
+		TransportLayerReceive();
+		SessionLayerReceive();
+		AppLayerReceive();
 
-		// Flash service LED if needed.
+		// Flash Service LED if needed
 		if (LonTimerExpired(&gp->ledTimer)) {
 			if (IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NODE_STATE) == IzotApplicationUnconfig) {
 				gp->serviceLedState = SERVICE_BLINKING;
@@ -188,14 +194,14 @@ LonStatusCode LCS_Service()
 		if (LonTimerExpired(&gp->checksumTimer)) {
 			if (!NodeUnConfigured() &&
 					eep->configCheckSum != ComputeConfigCheckSum()) {
-				// Go unconfigured and reset.
+				// Go unconfigured and reset
 				IZOT_SET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NODE_STATE, IzotApplicationUnconfig);
 				gp->appPgmMode  = ON_LINE;
-				IzotOffline();  // Indicate to application program.
+				IzotOffline();  // Indicate offline state to application program
 				gp->resetNode = TRUE;
 				nmp->resetCause = IzotSoftwareReset;
 				// Report but don't return a checksum error to enable reset to proceed
-				OsalPrintError(LonStatusCnfgChecksumError, 
+				OsalPrintLog(ERROR_LOG, LonStatusCnfgChecksumError, 
 						"LCS_Service: Configuration checksum error detected, resetting");
 			}
 			SetLonTimer(&gp->checksumTimer, CHECKSUM_TIMER_VALUE);

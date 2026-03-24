@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.21)
 
 project(lon_stack_dx
-    VERSION 3.5.3
+    VERSION 4.0.0
     DESCRIPTION "LON Stack DX for LON/IP and U10/U60 LON FT-compatible USB interfaces"
     LANGUAGES C
 )
@@ -124,7 +124,10 @@ target_compile_definitions(lon_stack_dx
     LINK_ID=LINK_ID_USB
     PROTOCOL_ID=PROTOCOL_ID_LON_NATIVE
     ISI_ID=ISI_ID_NO_ISI
-    INITIAL_LOG_LEVEL=LOG_TRACE
+    INITIAL_LOG_CATEGORIES=LOG_PACKET_TRACE
+    MAX_UID_RETRIES=4
+    MAX_STATUS_RETRIES=4
+    MAX_IFACE_STATES=1
 )
 
 # LON Stack DX is a C-only library, so comment out C++ features

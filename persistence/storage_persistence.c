@@ -19,14 +19,6 @@
 #define TX_DATA_VALID 0xFFFFFFFF
 #define TX_DATA_INVALID 0
 
-// A non-volatile transaction record; the data in a segment is
-// considered valid if and only if (tx.signature == TX_SIGNATURE)
-// AND (tx_state == TX_DATA_VALID)
-typedef struct {
-    unsigned signature;
-    unsigned tx_state;
-} PersistentTransactionRecord;
-
 // Element of the segment_map array. The segment_map array is built at
 // runtime and is used to map segments to offsets within persistent
 // memory.  To ensure that modifying one segment does not effect
@@ -100,9 +92,6 @@ static LonStatusCode InitSegmentMap(
 static LonStatusCode PrepareStorageSegment(
         const IzotPersistentSegType persistent_seg_type, size_t size);
 
-// Translates a segment type to a name for persistent memory tracing
-static char *IzotPersistentGetSegName(IzotPersistentSegType persistent_seg_type);
-
 #ifdef FLASH_DEBUG
 // Prints a time stamp for persistent memory access tracing
 static void PrintTimeStamp();
@@ -132,11 +121,11 @@ IzotPersistentSegType IzotStorageOpenSegForRead(IzotPersistentSegType persistent
 {
     LonStatusCode status;
     if (LON_SUCCESS(status = OpenStorageSegment(persistent_seg_type))) {   
-        OsalPrintDebug(LonStatusNoError, "IzotStorageOpenSegForRead: %s opened", 
+        OsalPrintLog(INFO_LOG, LonStatusNoError, "IzotStorageOpenSegForRead: %s opened", 
                 IzotPersistentGetSegName(persistent_seg_type));  
         return persistent_seg_type;
     } else {
-        OsalPrintError(status, "IzotStorageOpenSegForRead: Cannot open %s", 
+        OsalPrintLog(ERROR_LOG, status, "IzotStorageOpenSegForRead: Cannot open %s", 
                 IzotPersistentGetSegName(persistent_seg_type));  
         // Return unassigned persistent segment type
         return IzotPersistentSegUnassigned;
@@ -162,7 +151,7 @@ IzotPersistentSegType IzotStorageOpenSegForWrite(const IzotPersistentSegType per
 {
     LonStatusCode status;
     if (!LON_SUCCESS(status = OpenStorageSegment(persistent_seg_type))) {
-        OsalPrintError(status, "IzotStorageOpenSegForWrite: Cannot open %s", 
+        OsalPrintLog(ERROR_LOG, status, "IzotStorageOpenSegForWrite: Cannot open %s", 
                 IzotPersistentGetSegName(persistent_seg_type));  
         return IzotPersistentSegUnassigned;
     }
@@ -170,21 +159,21 @@ IzotPersistentSegType IzotStorageOpenSegForWrite(const IzotPersistentSegType per
         // Set all bytes of the transaction record to 0xFF, and erase
         // the data segment if erasing is required prior to writing. 
         // This leaves the transaction record in the following state:
-        //   signature = 0xFFFFFFFF (invalid)
+        //   tx_signature = 0xFFFFFFFF (invalid)
         //   tx_state   = 0xFFFFFFFF (TX_DATA_VALID)
-        // Because the signature is invalid, a transaction is 
-        // reported as in progress until data and a valid
-        // signature is written
+        // Because the transaction signature is invalid, a transaction 
+        // is reported as in progress until data and a valid
+        // transaction signature is written
         status = PrepareStorageSegment(persistent_seg_type, 
                 data_size + sizeof(PersistentTransactionRecord));
     }
     // Close the storage--it will be opened again when necessary
     if (!LON_SUCCESS(status = HalCloseStorageSegment(persistent_seg_type))) {
-        OsalPrintError(status, "IzotStorageOpenSegForWrite: Cannot close %s", 
+        OsalPrintLog(ERROR_LOG, status, "IzotStorageOpenSegForWrite: Cannot close %s", 
                 IzotPersistentGetSegName(persistent_seg_type));  
         return IzotPersistentSegUnassigned;
     }
-    OsalPrintDebug(LonStatusNoError, "IzotStorageOpenSegForWrite: %s opened", 
+    OsalPrintLog(INFO_LOG, LonStatusNoError, "IzotStorageOpenSegForWrite: %s opened", 
             IzotPersistentGetSegName(persistent_seg_type));  
     return persistent_seg_type;
 }
@@ -200,7 +189,7 @@ void IzotStorageCloseSeg(const IzotPersistentSegType persistent_seg_type)
 {
     // Storage is opened and closed on each access - so there is nothing to 
     // do in this function
-    OsalPrintDebug(LonStatusNoError, "IzotStorageCloseSeg: Segment %s closed", IzotPersistentGetSegName(persistent_seg_type));
+    OsalPrintLog(INFO_LOG, LonStatusNoError, "IzotStorageCloseSeg: Segment %s closed", IzotPersistentGetSegName(persistent_seg_type));
 }
 
 /* 
@@ -217,7 +206,7 @@ void IzotStorageDeleteSeg(const IzotPersistentSegType persistent_seg_type)
 {
     // There is nothing to be gained by deleting the segment, because the space 
     // is reserved.  This function is just a stub.  
-    OsalPrintDebug(LonStatusNoError, "IzotStorageDeleteSeg: Segment %s deleted", IzotPersistentGetSegName(persistent_seg_type));
+    OsalPrintLog(INFO_LOG, LonStatusNoError, "IzotStorageDeleteSeg: Segment %s deleted", IzotPersistentGetSegName(persistent_seg_type));
 }
 
 /* 
@@ -240,7 +229,7 @@ LonStatusCode IzotStorageReadSeg(const IzotPersistentSegType persistent_seg_type
 {
     LonStatusCode status = LonStatusNoError;
     if (!LON_SUCCESS(status = OpenStorageSegment(persistent_seg_type))) {
-        OsalPrintError(status, "IzotStorageReadSeg: Cannot open %s", 
+        OsalPrintLog(ERROR_LOG, status, "IzotStorageReadSeg: Cannot open %s", 
                 IzotPersistentGetSegName(persistent_seg_type));  
         return status;
     }
@@ -248,17 +237,17 @@ LonStatusCode IzotStorageReadSeg(const IzotPersistentSegType persistent_seg_type
     if (!LON_SUCCESS(status = HalReadStorageSegment(persistent_seg_type, (IzotByte *)data_buffer,
             segment_map[persistent_seg_type].segment_start, 
             segment_map[persistent_seg_type].segment_start + segment_offset, data_size))) {
-        OsalPrintError(status, "IzotStorageReadSeg: Cannot read %s", 
+        OsalPrintLog(ERROR_LOG, status, "IzotStorageReadSeg: Cannot read %s", 
                 IzotPersistentGetSegName(persistent_seg_type));
         return status;
     }
     if (!LON_SUCCESS(status = HalCloseStorageSegment(persistent_seg_type))) {
-        OsalPrintError(status, "IzotStorageReadSeg: Cannot close %s", 
+        OsalPrintLog(ERROR_LOG, status, "IzotStorageReadSeg: Cannot close %s", 
                 IzotPersistentGetSegName(persistent_seg_type));  
         return status;
     }
-    OsalPrintDebug(status, "IzotStorageReadSeg: Read %ld bytes starting at %ld for %s",  
-            IzotPersistentGetSegName(persistent_seg_type), data_size, segment_offset);
+    OsalPrintLog(INFO_LOG, status, "IzotStorageReadSeg: Read %ld bytes starting at %ld for %s",  
+            data_size, segment_offset, IzotPersistentGetSegName(persistent_seg_type));
     return status;
 }
 
@@ -286,13 +275,13 @@ LonStatusCode IzotStorageWriteSeg(const IzotPersistentSegType persistent_seg_typ
 {
     LonStatusCode status = LonStatusNoError;
     if (!LON_SUCCESS(status = OpenStorageSegment(persistent_seg_type))) {
-        OsalPrintError(status, "IzotStorageWriteSeg: Cannot open %s", 
+        OsalPrintLog(ERROR_LOG, status, "IzotStorageWriteSeg: Cannot open %s", 
                 IzotPersistentGetSegName(persistent_seg_type));
         return status;
     }
     // Calculate the starting offset within the flash; the offset is updated
     // as each block of data is written
-    size_t next_offset = segment_offset + segment_map[persistent_seg_type].data_offset; 
+    size_t next_offset = segment_offset + segment_map[persistent_seg_type].segment_start; 
     // Number of bytes left to write
     size_t remaining_data_size = data_size;
     // Get a pointer to the next data to be written.
@@ -315,7 +304,7 @@ LonStatusCode IzotStorageWriteSeg(const IzotPersistentSegType persistent_seg_typ
         // Update the current block
         if (!LON_SUCCESS(status = HalWriteStorageSegment(persistent_seg_type, next_buffer,
                 segment_map[persistent_seg_type].segment_start, next_offset, size_to_write))) {
-            OsalPrintError(status, "IzotStorageWriteSeg: Cannot write %s", 
+            OsalPrintLog(ERROR_LOG, status, "IzotStorageWriteSeg: Cannot write %s", 
                     IzotPersistentGetSegName(persistent_seg_type));
             return status;
         }
@@ -325,11 +314,11 @@ LonStatusCode IzotStorageWriteSeg(const IzotPersistentSegType persistent_seg_typ
         remaining_data_size -= size_to_write;
     }
     if (!LON_SUCCESS(status = HalCloseStorageSegment(persistent_seg_type))) {
-        OsalPrintError(status, "IzotStorageWriteSeg: Cannot close %s", 
+        OsalPrintLog(ERROR_LOG, status, "IzotStorageWriteSeg: Cannot close %s", 
                 IzotPersistentGetSegName(persistent_seg_type));  
         return status;
     }
-    OsalPrintDebug(status, "IzotStorageWriteSeg: Wrote %ld bytes starting at %ld for %s",  
+    OsalPrintLog(INFO_LOG, status, "IzotStorageWriteSeg: Wrote %ld bytes starting at %ld for %s",  
             data_size, segment_offset, IzotPersistentGetSegName(persistent_seg_type));
     return status;
 }
@@ -359,7 +348,7 @@ IzotBool IzotStorageSegIsInvalid(const IzotPersistentSegType persistent_seg_type
     LonStatusCode status = LonStatusNoError;
     // Open the storage segment to read the transaction record
     if (!LON_SUCCESS(status = OpenStorageSegment(persistent_seg_type))) {
-        OsalPrintError(status, "IzotStorageSegIsInvalid: Cannot open %s", 
+        OsalPrintLog(ERROR_LOG, status, "IzotStorageSegIsInvalid: Cannot open %s", 
                 IzotPersistentGetSegName(persistent_seg_type));  
         return invalid_segment;
     }
@@ -369,28 +358,28 @@ IzotBool IzotStorageSegIsInvalid(const IzotPersistentSegType persistent_seg_type
     if (!LON_SUCCESS(status = HalReadStorageSegment(persistent_seg_type,
             (IzotByte *)&transaction_record, segment_map[persistent_seg_type].segment_start,
             segment_map[persistent_seg_type].tx_offset, sizeof(transaction_record)))) {
-        OsalPrintError(status, "IzotStorageSegIsInvalid: Cannot read %s", 
+        OsalPrintLog(ERROR_LOG, status, "IzotStorageSegIsInvalid: Cannot read %s", 
                 IzotPersistentGetSegName(persistent_seg_type));
         return invalid_segment;
     }
 
-    // Successfully read the transaction record; if the signature matches
-    // and the state is TX_DATA_VALID, the data is valid
-    invalid_segment = !(transaction_record.signature == TX_SIGNATURE 
+    // Successfully read the transaction record; if the transaction signature
+    // matches and the state is TX_DATA_VALID, the data is valid
+    invalid_segment = !(transaction_record.tx_signature == TX_SIGNATURE 
             && transaction_record.tx_state == TX_DATA_VALID);
     if (!LON_SUCCESS(status = HalCloseStorageSegment(persistent_seg_type))) {
         invalid_segment = TRUE;
-        OsalPrintError(status, "IzotStorageSegIsInvalid: Cannot close %s", 
+        OsalPrintLog(ERROR_LOG, status, "IzotStorageSegIsInvalid: Cannot close %s", 
                 IzotPersistentGetSegName(persistent_seg_type));  
         return invalid_segment;
     }
     // Optionally print the result; neither value is an error condition since a
     // storage data segment is always invalid on first use
     if (invalid_segment) {
-        OsalPrintError(LonStatusNoError, "IzotStorageSegIsInvalid: %s is invalid or uninitialized (%X signature, %X validity)", 
-                IzotPersistentGetSegName(persistent_seg_type), transaction_record.signature, transaction_record.tx_state);  
+        OsalPrintLog(ERROR_LOG, LonStatusNoError, "IzotStorageSegIsInvalid: %s is invalid or uninitialized (%X transaction signature, %X validity)", 
+                IzotPersistentGetSegName(persistent_seg_type), transaction_record.tx_signature, transaction_record.tx_state);  
     } else {
-        OsalPrintDebug(LonStatusNoError, "IzotStorageSegIsInvalid: %s is valid", 
+        OsalPrintLog(INFO_LOG, LonStatusNoError, "IzotStorageSegIsInvalid: %s is valid", 
                 IzotPersistentGetSegName(persistent_seg_type));  
     }
     return(invalid_segment);
@@ -415,17 +404,17 @@ LonStatusCode IzotStorageStartSegUpdate(const IzotPersistentSegType persistent_s
 {
     LonStatusCode status = LonStatusNoError;
     if (!LON_SUCCESS(status = OpenStorageSegment(persistent_seg_type))) {
-        OsalPrintError(status, "IzotStorageStartSegUpdate: Cannot open %s", 
+        OsalPrintLog(ERROR_LOG, status, "IzotStorageStartSegUpdate: Cannot open %s", 
                 IzotPersistentGetSegName(persistent_seg_type));  
         return status;
     }
     // Invalidate the segment; if the segment transaction record was valid 
     // before it looks like this:
-    //   signature = TX_SIGNATURE (0x89ABCDEF, valid)
+    //   tx_signature = TX_SIGNATURE (0x89ABCDEF, valid)
     //   tx_state  = TX_DATA_VALID (0xFFFFFFFF, valid))
     // In that case it can be updated to the following on all platforms,
     // because only 1 bits are changed by setting them to 0 bits:
-    //   signature = TX_SIGNATURE (0x89ABCDEF, valid)
+    //   tx_signature = TX_SIGNATURE (0x89ABCDEF, valid)
     //   tx_state  = TX_DATA_INVALID (0x00000000, invalid)
     // After this is done, if a segment erase is required, the segment
     // must be erased, and then the segment can be updated.  If the
@@ -433,21 +422,21 @@ LonStatusCode IzotStorageStartSegUpdate(const IzotPersistentSegType persistent_s
     // this pattern will not make it valid.  Once the segment is updated,
     // the transaction record must be updated to make it valid again.
     PersistentTransactionRecord transaction_record;
-    transaction_record.signature = TX_SIGNATURE;
+    transaction_record.tx_signature = TX_SIGNATURE;
     transaction_record.tx_state = TX_DATA_INVALID;  // No longer valid
     if (!LON_SUCCESS(status = HalWriteStorageSegment(persistent_seg_type, (IzotByte *)&transaction_record,
             segment_map[persistent_seg_type].segment_start,
             segment_map[persistent_seg_type].tx_offset, sizeof(transaction_record)))) {
-        OsalPrintError(status, "IzotStorageStartSegUpdate: Cannot write %s", 
+        OsalPrintLog(ERROR_LOG, status, "IzotStorageStartSegUpdate: Cannot write %s", 
                 IzotPersistentGetSegName(persistent_seg_type));
     }
     if (!LON_SUCCESS(status = HalCloseStorageSegment(persistent_seg_type))) {
-        OsalPrintError(status, "IzotStorageStartSegUpdate: Cannot close %s", 
+        OsalPrintLog(ERROR_LOG, status, "IzotStorageStartSegUpdate: Cannot close %s", 
                 IzotPersistentGetSegName(persistent_seg_type));  
         return status;
     }
-    OsalPrintDebug(status, "IzotStorageStartSegUpdate: %s invalidated for write (%X signature, %X validity)",  
-            IzotPersistentGetSegName(persistent_seg_type), transaction_record.signature, transaction_record.tx_state);
+    OsalPrintLog(INFO_LOG, status, "IzotStorageStartSegUpdate: %s invalidated for write (%X transaction signature, %X validity)",  
+            IzotPersistentGetSegName(persistent_seg_type), transaction_record.tx_signature, transaction_record.tx_state);
     return(status);
 }
 
@@ -469,38 +458,38 @@ LonStatusCode IzotStorageFinishSegUpdate(const IzotPersistentSegType persistent_
 {
     LonStatusCode status = LonStatusNoError;
     if (!LON_SUCCESS(status = OpenStorageSegment(persistent_seg_type))) {
-        OsalPrintError(status, "IzotStorageFinishSegUpdate: Cannot open %s", 
+        OsalPrintLog(ERROR_LOG, status, "IzotStorageFinishSegUpdate: Cannot open %s", 
                 IzotPersistentGetSegName(persistent_seg_type));  
         return status;
     }
     // Mark the segment as valid; if the segment transaction record was erased 
     // by a previsous call to IzotStorageOpenSegForWrite() it looks like this:
-    //   signature = TX_SIGNATURE (0xFFFFFFFF, invalid)
+    //   tx_signature = TX_SIGNATURE (0xFFFFFFFF, invalid)
     //   tx_state  = TX_DATA_VALID (0xFFFFFFFF, valid))
     // In that case it can be updated to the following on all platforms,
     // because only 1 bits are changed by setting them to 0 bits:
-    //   signature = TX_SIGNATURE (0x89ABCDEF, valid)
+    //   tx_signature = TX_SIGNATURE (0x89ABCDEF, valid)
     //   tx_state  = TX_DATA_VALID (0xFFFFFFFF, valid)
     // Later, a new update to the same segment can be started by setting tx_state
     // to invalid, leaving the following state:
-    //   signature = TX_SIGNATURE (0x89ABCDEF, valid)
+    //   tx_signature = TX_SIGNATURE (0x89ABCDEF, valid)
     //   tx_state  = TX_DATA_INVALID (0x00000000, invalid)
     PersistentTransactionRecord transaction_record;
-    transaction_record.signature = TX_SIGNATURE;
+    transaction_record.tx_signature = TX_SIGNATURE;
     transaction_record.tx_state = TX_DATA_VALID; 
     if (!LON_SUCCESS(status = HalWriteStorageSegment(persistent_seg_type, (IzotByte *)&transaction_record,
             segment_map[persistent_seg_type].segment_start,
             segment_map[persistent_seg_type].tx_offset, sizeof(transaction_record)))) {
-        OsalPrintError(status, "IzotStorageFinishSegUpdate: Cannot write %s", 
+        OsalPrintLog(ERROR_LOG, status, "IzotStorageFinishSegUpdate: Cannot write %s", 
                 IzotPersistentGetSegName(persistent_seg_type));
     }
     if (!LON_SUCCESS(status = HalCloseStorageSegment(persistent_seg_type))) {
-        OsalPrintError(status, "IzotStorageFinishSegUpdate: Cannot close %s", 
+        OsalPrintLog(ERROR_LOG, status, "IzotStorageFinishSegUpdate: Cannot close %s", 
                 IzotPersistentGetSegName(persistent_seg_type));  
         return status;
     }
-    OsalPrintDebug(status, "IzotStorageFinishSegUpdate: %s marked valid after write (%X signature, %X validity)",  
-            IzotPersistentGetSegName(persistent_seg_type), transaction_record.signature, transaction_record.tx_state);
+    OsalPrintLog(INFO_LOG, status, "IzotStorageFinishSegUpdate: %s marked valid after write (%X transaction signature, %X validity)",  
+            IzotPersistentGetSegName(persistent_seg_type), transaction_record.tx_signature, transaction_record.tx_state);
     return(status);
 }
 
@@ -543,29 +532,30 @@ static LonStatusCode OpenStorageSegment(const IzotPersistentSegType persistent_s
     if (persistent_seg_type > IzotPersistentSegNumSegmentTypes) {
         // Invalid persistent segment type
         status = LonStatusPersistentDataAccessError;
-        OsalPrintError(status, "OpenStorageSegment: Invalid segment type %d", persistent_seg_type);
+        OsalPrintLog(ERROR_LOG, status, "OpenStorageSegment: Invalid segment type %d", persistent_seg_type);
         return status;
     }
     // Initialize persistent data storage, if required
     if (!LON_SUCCESS(status = HalInitStorage())) {
-        OsalPrintError(status, "OpenStorageSegment: Cannot initialize storage for %s", 
+        OsalPrintLog(ERROR_LOG, status, "OpenStorageSegment: Cannot initialize storage for %s", 
                 IzotPersistentGetSegName(persistent_seg_type));
         return status;
     }
     // Initialize the segment_map, if required
     if (!LON_SUCCESS(status = InitSegmentMap(persistent_seg_type))) {
-        OsalPrintError(status, "OpenStorageSegment: Cannot initialize segment map for %s", 
+        OsalPrintLog(ERROR_LOG, status, "OpenStorageSegment: Cannot initialize segment map for %s", 
                 IzotPersistentGetSegName(persistent_seg_type));
         return status;
     }
     // Open the persistent data storage
     if (!LON_SUCCESS(status = HalOpenStorageSegment(persistent_seg_type,
-            IzotPersistentGetSegName(persistent_seg_type), segment_map[persistent_seg_type].max_data_size))) {
-        OsalPrintError(status, "OpenStorageSegment: Cannot open storage for %s", 
+            IzotPersistentGetSegName(persistent_seg_type),
+            segment_map[persistent_seg_type].max_data_size + sizeof(PersistentTransactionRecord)))) {
+        OsalPrintLog(ERROR_LOG, status, "OpenStorageSegment: Cannot open storage for %s", 
                 IzotPersistentGetSegName(persistent_seg_type));
         return status;
     }
-    OsalPrintDebug(status, "OpenStorageSegment: %s opened", IzotPersistentGetSegName(persistent_seg_type));
+    OsalPrintLog(INFO_LOG, status, "OpenStorageSegment: %s opened", IzotPersistentGetSegName(persistent_seg_type));
     return status;
 }
 
@@ -596,7 +586,7 @@ static LonStatusCode InitSegmentMap(const IzotPersistentSegType persistent_seg_t
     // TBD: Remove this code when HAL storage init is reliable
     // Initialize persistent data storage
     if (!LON_SUCCESS(status = HalInitStorage())) {
-        OsalPrintError(status, "InitSegmentMap: Cannot initialize storage for %s", 
+        OsalPrintLog(ERROR_LOG, status, "InitSegmentMap: Cannot initialize storage for %s", 
                 IzotPersistentGetSegName(persistent_seg_type));
         return status;
     }
@@ -608,7 +598,7 @@ static LonStatusCode InitSegmentMap(const IzotPersistentSegType persistent_seg_t
         // Open the storage
         if (!LON_SUCCESS(status = HalOpenStorageSegment(persistent_seg_type, IzotPersistentGetSegName(persistent_seg_type)))) {
             // Storage cannot be opened
-            OsalPrintError(status, "InitSegmentMap: Cannot open storage for %s", 
+            OsalPrintLog(ERROR_LOG, status, "InitSegmentMap: Cannot open storage for %s", 
                     IzotPersistentGetSegName(persistent_seg_type));
             return status;
         } 
@@ -617,7 +607,7 @@ static LonStatusCode InitSegmentMap(const IzotPersistentSegType persistent_seg_t
         if (!LON_SUCCESS(status = HalStorageInfo(&region_offset, &region_size, &number_of_blocks, 
                 &block_size, &number_of_regions, &erase_required, &erase_value))) {
             // Storage information cannot be read
-            OsalPrintError(status, "InitSegmentMap: Cannot get storage info for %s", 
+            OsalPrintLog(ERROR_LOG, status, "InitSegmentMap: Cannot get storage info for %s", 
                     IzotPersistentGetSegName(persistent_seg_type));
             return status;
         }
@@ -672,15 +662,15 @@ static LonStatusCode InitSegmentMap(const IzotPersistentSegType persistent_seg_t
         // Update the lowest used storage data offset
         lowest_used_storage_data_offset = virtual_storage_offset;
 
-        OsalPrintDebug(status, "InitSegmentMap: %s segment start: %X", 
+        OsalPrintLog(INFO_LOG, status, "InitSegmentMap: %s segment start: %X", 
                 IzotPersistentGetSegName(persistent_seg_type), segment_map[persistent_seg_type].segment_start);
-        OsalPrintDebug(status, "InitSegmentMap: %s transaction record offset: %X", 
+        OsalPrintLog(INFO_LOG, status, "InitSegmentMap: %s transaction record offset: %X", 
                 IzotPersistentGetSegName(persistent_seg_type), segment_map[persistent_seg_type].tx_offset);
-        OsalPrintDebug(status, "InitSegmentMap: %s data offset: %X", 
+        OsalPrintLog(INFO_LOG, status, "InitSegmentMap: %s data offset: %X", 
                 IzotPersistentGetSegName(persistent_seg_type), segment_map[persistent_seg_type].data_offset);
-        OsalPrintDebug(status, "InitSegmentMap: %s maximum data size: %X", 
+        OsalPrintLog(INFO_LOG, status, "InitSegmentMap: %s maximum data size: %X", 
                 IzotPersistentGetSegName(persistent_seg_type), segment_map[persistent_seg_type].max_data_size);
-        OsalPrintDebug(status, "InitSegmentMap: %s lowest used storage data offset: %d", 
+        OsalPrintLog(INFO_LOG, status, "InitSegmentMap: %s lowest used storage data offset: %d", 
                 IzotPersistentGetSegName(persistent_seg_type), lowest_used_storage_data_offset);
     }    
     return status;
@@ -718,7 +708,7 @@ static LonStatusCode PrepareStorageSegment(const IzotPersistentSegType persisten
         // Prepare the block
         if (!LON_SUCCESS(status = HalPrepareStorageSegment(persistent_seg_type,
                 seg_start, offset, erase_block_size, segment_map[persistent_seg_type].erase_value))) {
-            OsalPrintError(status, "PrepareStorageSegment: Cannot erase %s", IzotPersistentGetSegName(persistent_seg_type));
+            OsalPrintLog(ERROR_LOG, status, "PrepareStorageSegment: Cannot erase %s", IzotPersistentGetSegName(persistent_seg_type));
             return status;
         }
         // Next block
@@ -737,7 +727,7 @@ static LonStatusCode PrepareStorageSegment(const IzotPersistentSegType persisten
  *   The friendly name is used for configuration file naming and 
  *   persistent tracing.
  */
-static char *IzotPersistentGetSegName(IzotPersistentSegType persistent_seg_type)
+char *IzotPersistentGetSegName(IzotPersistentSegType persistent_seg_type)
 {
     static char *name = NULL;
     switch (persistent_seg_type) {

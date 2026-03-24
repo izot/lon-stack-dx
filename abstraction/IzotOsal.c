@@ -372,7 +372,7 @@ void* OsalAllocateMemory(size_t size)
     void *ptr;
     if (gp->mallocUsedSize + sizeIn > MALLOC_SIZE) {
         // No space for requested size
-        OsalPrintError(LonStatusMemoryAllocFailure, "OsalAllocateMemory: out of memory");
+        OsalPrintLog(ERROR_LOG, LonStatusMemoryAllocFailure, "OsalAllocateMemory: out of memory");
         return(NULL);
     }
     ptr = gp->mallocStorage + gp->mallocUsedSize;
@@ -414,9 +414,9 @@ void OsalFreeMemory(void *buf)
   * Returns:
   *   None
   * Notes:
-  *  This is a helper function used by OsalPrintError(), OsalPrintSysError(),
-  *  and OsalPrintDebug().  If status_code is >= 0, the message is prefixed with
-  *  "Error <status_code>: ".
+  *  This is a helper function used by OsalPrintLog() and OsalPrintSysError().
+  *  If status_code is no LonStatusNoError, the message is prefixed with
+  *  "Error <status_code>: ", otherwise it is prefixed with "Info: ".
   */
  static void OsalFormatErrorString(char *buffer, size_t buffer_len, LonStatusCode status_code, const char *status_string, va_list args)
 {
@@ -430,86 +430,55 @@ void OsalFreeMemory(void *buf)
 }
 
 /*
- * Sets the current log level for message reporting.
+ * Sets the active log categories for message reporting.
  * Parameters:
- *   level: New log level (LOG_NONE, LOG_ERROR, LOG_DEBUG, LOG_TRACE)
+ *   categories: Bitmask of active log categories defined in LogCategory
  * Returns:
  *   None
  */
-static LogLevel logLevel = INITIAL_LOG_LEVEL;
+static unsigned int log_categories = INITIAL_LOG_CATEGORIES;
 
-void OsalSetLogLevel(LogLevel level) {
-    logLevel = level;
-}
-
-/*
- * Gets the current log level for message reporting.
- * Parameters:
- *   None
- * Returns:
- *   Current log level (LOG_NONE, LOG_ERROR, LOG_DEBUG, LOG_TRACE)
- */
-LogLevel OsalGetLogLevel(void)
+void OsalSetLogCategories(unsigned int categories)
 {
-    return logLevel;
+    log_categories = categories;
 }
 
 /*
- * Prints a system call error message with optional message code and text.
+ * Gets the current log categories for message reporting.
  * Parameters:
- *   status_code: Error code to include in message, or LonStatusNoError for none
- *   status_string: printf-style format string for message
- *   ...: Variable arguments for format string
- * Returns:
  *   None
- * Notes:
- *   If status_code is >= 0, the message is prefixed with "Error <status_code>: ".
- *   If errno is set, the string from strerror(errno) is appended to the 
- *   message.  This function is intended for reporting system call errors.
+ * Returns:
+ *   Current log categories (bitmask of LogCategory values)
  */
-void OsalPrintSysError(LonStatusCode status_code, char *status_string, ...)
+unsigned int OsalGetLogCategories(void)
 {
-    if (logLevel < LOG_ERROR)
-        return;
-
-    char formatted[OSAL_ERROR_STRING_MAXLEN];
-    va_list args;
-    va_start(args, status_string);
-    OsalFormatErrorString(formatted, sizeof(formatted), status_code, status_string, args);
-    va_end(args);
-
-#if OS_IS(LINUX)
-    fprintf(stderr, "%s (strerror(errno))\n", formatted, strerror(errno));
-#elif OS_IS(FREERTOS)
-    printf("%s\n", formatted);
-#else
-    // Implement as needed
-    #pragma message("Implement OS-dependent definition of OsalPrintSysError()")
-#endif
+    return log_categories;
 }
 
 /*
- * Logs an error code and prints an error message with optional message code and text.
+ * Prints a log message with optional message code and text if the
+ *   specified log category is enabled.
  * Parameters:
+ *   category: Log category of the message
  *   status_code: Error code to log and include in message, or LonStatusNoError for none
  *   status_string: printf-style format string for message
  *   ...: Variable arguments for format string
  * Returns:
  *   None
  * Notes:
- *  This function only prints messages if the current log level is LOG_ERROR
- *  or LOG_DEBUG.
+ *  This function only prints messages if the current log level includes the specified category.
  */
-void OsalPrintError(LonStatusCode status_code, char *status_string, ...)
+void OsalPrintLog(LogCategory category, LonStatusCode status_code, const char *status_string, ...)
 {
-    // Log to non-volatile memory if the error code has changed to avoid wearing
-    // out flash memory with redundant values
+    // If status_code indicates an error, log the error to non-volatile memory
+    // if the error code has changed to avoid wearing out flash memory with
+    // redundant values
     if (status_code != LonStatusNoError && eep->errorLog != status_code){
         eep->errorLog = status_code;
         LCS_WritePersistentNetworkImage();
     }
 
-    if (logLevel < LOG_ERROR)
+    if ((OsalGetLogCategories() & category) != category)
         return;
 
     char formatted[OSAL_ERROR_STRING_MAXLEN];
@@ -524,71 +493,76 @@ void OsalPrintError(LonStatusCode status_code, char *status_string, ...)
     printf("%s\n", formatted);
 #else
     // Implement as needed
-    #pragma message("Implement OS-dependent definition of OsalPrintError()")
+    #pragma message("Implement OS-dependent definition of OsalPrintLog()")
 #endif
 }
 
 /*
- * Prints a debug message with optional message code and text.
+ * Prints a LON message buffer in a formatted hex dump
  * Parameters:
- *   status_code: Error code to include in message, or -1 for none
- *   status_string: printf-style format string for message
- *   ...: Variable arguments for format string
+ *   category: Log category of the message
+ *   prefix: string to prefix each line of output
+ *   msg: pointer to message buffer
+ *   length: length of message in bytes
  * Returns:
  *   None
  * Notes:
- *  This function only prints messages if the current log level is LOG_DEBUG.
+ *   Only prints if log categories include the specified category.
  */
-void OsalPrintDebug(LonStatusCode status_code, char *status_string, ...)
+void OsalPrintMessage(LogCategory category, const char *prefix, const uint8_t *msg, size_t length)
 {
-    if (logLevel < LOG_DEBUG)
-        return;
+	if ((OsalGetLogCategories() & category) != category) {
+		return;    // Fast path: tracing disabled
+	}
 
-    char formatted[OSAL_ERROR_STRING_MAXLEN];
-    va_list args;
-    va_start(args, status_string);
-    OsalFormatErrorString(formatted, sizeof(formatted), status_code, status_string, args);
-    va_end(args);
+	const size_t prefix_len = strlen(prefix); // Used for indentation
+	const int per_line = 20;                  // Hex bytes per output line
 
-#if OS_IS(LINUX)
-    fprintf(stderr, "%s\n", formatted);
-#elif OS_IS(FREERTOS)
-    printf("%s\n", formatted);
-#else
-    // Implement as needed
-    #pragma message("Implement OS-dependent definition of OsalPrintDebug()")
-#endif
+	size_t index = 0;
+	while (index < length) {
+		char line[256];
+		int pos = 0;
+
+		// First line starts with the prefix; continuation lines are indented with spaces
+		if (index == 0) {
+			strncpy(line, prefix, sizeof(line) - 1);
+			line[sizeof(line) - 1] = '\0';
+			pos = (int)strlen(line);
+		} else {
+			// Fill indentation spaces
+			size_t indent = prefix_len < (sizeof(line) - 1) ? prefix_len : (sizeof(line) - 1);
+			memset(line, ' ', indent);
+			pos = (int)indent;
+			line[pos] = '\0';
+		}
+
+		// Append up to per_line hex bytes
+		int count = 0;
+		while (index < length && count < per_line) {
+			if (pos >= (int)(sizeof(line) - 4)) { // Reserve space for "..\n\0"
+				break; // Prevent overflow
+			}
+			int written = snprintf(line + pos, sizeof(line) - pos, "%02X ", msg[index]);
+			if (written <= 0 || written >= (int)(sizeof(line) - pos)) {
+				break; // Truncation or error
+			}
+			pos += written;
+			index++;
+			count++;
+		}
+
+		// Trim trailing space if present
+		if (pos > 0 && line[pos - 1] == ' ') {
+			line[--pos] = '\0';
+		}
+		// Null-terminate the line
+		if (pos < (int)sizeof(line) - 1) {
+			line[pos] = '\0';
+		} else {
+			line[sizeof(line) - 1] = '\0';
+		}
+
+		// Emit this line
+		OsalPrintLog(PACKET_TRACE_LOG, LonStatusNoError, line);
+	}
 }
-
-/*
- * Prints a trace message with optional message code and text.
- * Parameters:
- *   status_code: Error code to include in message, or -1 for none
- *   status_string: printf-style format string for message
- *   ...: Variable arguments for format string
- * Returns:
- *   None
- * Notes:
- *   This function only prints messages if the current log level is LOG_TRACE.
- */
-void OsalPrintTrace(LonStatusCode status_code, char *status_string, ...)
-{
-    if (logLevel < LOG_TRACE)
-        return;
-
-    char formatted[OSAL_ERROR_STRING_MAXLEN];
-    va_list args;
-    va_start(args, status_string);
-    OsalFormatErrorString(formatted, sizeof(formatted), status_code, status_string, args);
-    va_end(args);
-
-#if OS_IS(LINUX)
-    fprintf(stderr, "%s\n", formatted);
-#elif OS_IS(FREERTOS)
-    printf("%s\n", formatted);
-#else
-    // Implement as needed
-    #pragma message("Implement OS-dependent definition of OsalPrintTrace()")
-#endif
-}
-

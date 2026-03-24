@@ -1,7 +1,7 @@
 /*
  * lcs_iup.c
  *
- * Copyright (c) 2022-2025 EnOcean
+ * Copyright (c) 2022-2026 EnOcean
  * SPDX-License-Identifier: MIT
  * See LICENSE file for details.
  * 
@@ -154,7 +154,7 @@ void readIupPersistData(void)
     iflash_drv_read(NULL, data, 1, IUP_FLASH_OFFSET);
     
     if (data[0] == IUP_PERSIST_DATA_VALID) {
-        OsalPrintTrace(LonStatusNoError, "readIupPersistData: Found IUP persistent data");
+        OsalPrintLog(DETAIL_TRACE_LOG, LonStatusNoError, "readIupPersistData: Found IUP persistent data");
         
         iflash_drv_init();
         device = flash_drv_open(part->device);
@@ -169,10 +169,10 @@ void readIupPersistData(void)
                 iupRcvdPckCount++;
             }
         }
-        OsalPrintDebug(LonStatusNoError, "readIupPersistData: Received %d packets before power failure", 
+        OsalPrintLog(INFO_LOG, LonStatusNoError, "readIupPersistData: Received %d packets before power failure", 
                 iupRcvdPckCount);
     } else {
-        OsalPrintDebug(LonStatusNoError, "readIupPersistData: No IUP persistent data found");
+        OsalPrintLog(INFO_LOG, LonStatusNoError, "readIupPersistData: No IUP persistent data found");
     }
 #endif  // !IUP_IS(NO_IUP) && PLATFORM_IS(FRTOS_ARM_EABI)
 }
@@ -196,25 +196,25 @@ int InitUpdateProcess(void)
     iupPersistData.iupCommitDone = FALSE;
     iupPersistData.SecondaryFlag = FALSE;
     
-    OsalPrintDebug(LonStatusNoError, "InitUpdateProcess: Erasing IUP persistent data in Init stage");
+    OsalPrintLog(INFO_LOG, LonStatusNoError, "InitUpdateProcess: Erasing IUP persistent data in Init stage");
     EraseIupPersistData();
     
     iflash_drv_init();
     device = flash_drv_open(part->device);
     if (device == NULL) {
-        OsalPrintError(LonStatusInvalidOperation, "InitUpdateProcess: Flash driver initialization is required before open");
+        OsalPrintLog(ERROR_LOG, LonStatusInvalidOperation, "InitUpdateProcess: Flash driver initialization is required before open");
         return IUP_ERROR;
     }
 
     if (iflash_drv_erase(device, part->start, part->size) < 0) {
-        OsalPrintError(LonStatusInitializationFailed, "InitUpdateProcess: Failed to erase partition");
+        OsalPrintLog(ERROR_LOG, LonStatusInitializationFailed, "InitUpdateProcess: Failed to erase partition");
         return IUP_ERROR;
     }
     
     writeIupPersistData((IzotByte *)&iupPersistData.iupMode, sizeof(iupPersistData.iupMode) + 
     sizeof(iupPersistData.initData), IUP_FLASH_OFFSET);
     
-    OsalPrintDebug(LonStatusNoError, "InitUpdateProcess: Image Update Process (IUP) initialization completed");
+    OsalPrintLog(INFO_LOG, LonStatusNoError, "InitUpdateProcess: Image Update Process (IUP) initialization completed");
 #endif  // !IUP_IS(NO_IUP) && PLATFORM_IS(FRTOS_ARM_EABI)
     return IUP_ERROR_NONE;
 }
@@ -228,16 +228,16 @@ int VerifyImage(void)
     int error = IUP_ERROR_NONE;
 
  #if !IUP_IS(NO_IUP) && PLATFORM_IS(FRTOS_ARM_EABI)   
-    OsalPrintDebug(LonStatusNoError, "VerifyImage: Validating firmware start from %X... IupImageLen = %d",
+    OsalPrintLog(INFO_LOG, LonStatusNoError, "VerifyImage: Validating firmware start from %X... IupImageLen = %d",
             part->start, iupPersistData.initData.IupImageLen);
     
     // Then validate firmware data in flash
     error = verify_load_firmware(part->start, iupPersistData.initData.IupImageLen);
 
     if (error) {
-        OsalPrintError(LonStatusInvalidFirmwareImage, "VerifyImage: Validation failed with error %d", error);
+        OsalPrintLog(ERROR_LOG, LonStatusInvalidFirmwareImage, "VerifyImage: Validation failed with error %d", error);
     } else {
-        OsalPrintDebug(LonStatusNoError, "VerifyImage: Validation done successfully");
+        OsalPrintLog(INFO_LOG, LonStatusNoError, "VerifyImage: Validation done successfully");
     }
 #endif  // !IUP_IS(NO_IUP) && PLATFORM_IS(FRTOS_ARM_EABI)
     return error;
@@ -507,13 +507,13 @@ void CalculateMD5(void)
         SetLonTimer(&iupMd5EventTimer, 2);
     } else {
         MD5Final(digestResp, &md5c);
-        OsalPrintDebug(LonStatusNoError, 
+        OsalPrintLog(INFO_LOG, LonStatusNoError, 
             "CalculateMD5: MD5 requested for digest %02X %02X : %02X %02X : %02X %02X : %02X %02X : %02X %02X : %02X %02X : %02X %02X : %02X %02X",
             digestBytes[0], digestBytes[1], digestBytes[2], digestBytes[3],
             digestBytes[4], digestBytes[5], digestBytes[6], digestBytes[7],
             digestBytes[8], digestBytes[9], digestBytes[10], digestBytes[11],
             digestBytes[12], digestBytes[13], digestBytes[14],  digestBytes[15]);
-        OsalPrintDebug(LonStatusNoError, 
+        OsalPrintLog(INFO_LOG, LonStatusNoError, 
             "CalculateMD5: MD5 computed with digest %02X %02X : %02X %02X : %02X %02X : %02X %02X : %02X %02X : %02X %02X : %02X %02X : %02X %02X",
             digestResp[0], digestResp[1], digestResp[2], digestResp[3],
             digestResp[4], digestResp[5], digestResp[6], digestResp[7],
@@ -521,7 +521,7 @@ void CalculateMD5(void)
             digestResp[12], digestResp[13], digestResp[14],  digestResp[15]);
         if (memcmp(digestResp, digestBytes, MD5_DIGEST_LENGTH)) {
 			digestmatch = FALSE;	// not match
-            OsalPrintError(LonStatusInvalidFirmwareImage, "CalculateMD5: MD5 digest not matched");
+            OsalPrintLog(ERROR_LOG, LonStatusInvalidFirmwareImage, "CalculateMD5: MD5 digest not matched");
         } else {
 			digestmatch = TRUE;	    // match
         }
@@ -675,23 +675,23 @@ void HandleNmeIupInit(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
         
         if (init_request->imageHeader[0] != tagId || memcmp(&init_request->imageHeader[2], mfgId, 4) ||
         memcmp(&init_request->imageHeader[6], hwId, 2)) {
-            OsalPrintError(LonStatusIupInvalidImage, "HandleNmeIupInit: Firmware image model incompatible %02X %02X %02X %02X %02X %02X %02X", init_request->imageHeader[0], 
+            OsalPrintLog(ERROR_LOG, LonStatusIupInvalidImage, "HandleNmeIupInit: Firmware image model incompatible %02X %02X %02X %02X %02X %02X %02X", init_request->imageHeader[0], 
             init_request->imageHeader[2], init_request->imageHeader[3], init_request->imageHeader[4], 
             init_request->imageHeader[5], init_request->imageHeader[6], init_request->imageHeader[7]);
             init_response.resultCode = IUP_INIT_RESULT_MODEL_INCOMPATIBLE;
         }
         if (init_request->imageHeader[1] != 0 || init_request->imageHeader[10] != hwVer) {
-            OsalPrintError(LonStatusIupInvalidImage, "HandleNmeIupInit: Firmware image version incompatible %02X %02X", 
+            OsalPrintLog(ERROR_LOG, LonStatusIupInvalidImage, "HandleNmeIupInit: Firmware image version incompatible %02X %02X", 
             init_request->imageHeader[1], init_request->imageHeader[10]);
             init_response.resultCode = IUP_INIT_RESULT_VERSION_INCOMPATIBLE;
         }
     }
     
-    OsalPrintDebug(LonStatusNoError, "HandleNmeIupInit: IupPacketLen: %d", iupPersistData.initData.IupPacketLen);
-    OsalPrintDebug(LonStatusNoError, "HandleNmeIupInit: IupPacketCount: %d", iupPersistData.initData.IupPacketCount);
-    OsalPrintDebug(LonStatusNoError, "HandleNmeIupInit: IupSessionNumber: %X", iupPersistData.initData.IupSessionNumber);
-    OsalPrintDebug(LonStatusNoError, "HandleNmeIupInit: IupImageLen: %d", iupPersistData.initData.IupImageLen);
-    OsalPrintDebug(LonStatusNoError, "HandleNmeIupInit: Initializing image update process");
+    OsalPrintLog(INFO_LOG, LonStatusNoError, "HandleNmeIupInit: IupPacketLen: %d", iupPersistData.initData.IupPacketLen);
+    OsalPrintLog(INFO_LOG, LonStatusNoError, "HandleNmeIupInit: IupPacketCount: %d", iupPersistData.initData.IupPacketCount);
+    OsalPrintLog(INFO_LOG, LonStatusNoError, "HandleNmeIupInit: IupSessionNumber: %X", iupPersistData.initData.IupSessionNumber);
+    OsalPrintLog(INFO_LOG, LonStatusNoError, "HandleNmeIupInit: IupImageLen: %d", iupPersistData.initData.IupImageLen);
+    OsalPrintLog(INFO_LOG, LonStatusNoError, "HandleNmeIupInit: Initializing image update process");
     
     SetLonTimer(&iupInitFirmwareTimer, IUP_INIT_FIRMWARE_TIMER_VALUE);
     SendResponse(appReceiveParamPtr->reqId, NM_resp_success | NM_EXPANDED, sizeof(init_response), 
@@ -711,7 +711,7 @@ void HandleNmeIupTransfer(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
 
     // Drop the packet with no data
     if (appReceiveParamPtr->pduSize <= 2) {
-        OsalPrintError(LonStatusInvalidParameter, "HandleNmeIupTransfer: IUP transfer packet length too small");
+        OsalPrintLog(ERROR_LOG, LonStatusInvalidParameter, "HandleNmeIupTransfer: IUP transfer packet length too small");
         return;
     }
 
@@ -721,13 +721,13 @@ void HandleNmeIupTransfer(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
     if (appReceiveParamPtr->pduSize > 8) {
         // Check the session number 
         if (swaplong(transfer_request->sessionNumber) != iupPersistData.initData.IupSessionNumber) {
-            OsalPrintError(LonStatusIupInvalidParameter,"HandleNmeIupTransfer: IUP transfer session number does not match");
+            OsalPrintLog(ERROR_LOG, LonStatusIupInvalidParameter,"HandleNmeIupTransfer: IUP transfer session number does not match");
             return;
         }
 
         // If all packet are received then drop new incoming broadcast packets
         if (iupPersistData.iupConfirmResultSucceed == TRUE) {
-            OsalPrintDebug(LonStatusNoError, "HandleNmeIupTransfer: Confirm result successfully sent; all packets rreceived; dropping this packet");
+            OsalPrintLog(INFO_LOG, LonStatusNoError, "HandleNmeIupTransfer: Confirm result successfully sent; all packets rreceived; dropping this packet");
             return;
         }
 
@@ -735,7 +735,7 @@ void HandleNmeIupTransfer(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
 
         // Drop already received packet
         if (!isPacketMissed(newPckNum)) {
-            OsalPrintDebug(LonStatusNoError, "HandleNmeIupTransfer: Packet Number %d already received; dropping it", newPckNum);
+            OsalPrintLog(INFO_LOG, LonStatusNoError, "HandleNmeIupTransfer: Packet Number %d already received; dropping it", newPckNum);
             return;
         }
         
@@ -747,7 +747,7 @@ void HandleNmeIupTransfer(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
             IzotByte received = EEPROM_WRITTEN;
             writeIupPersistData(&received, 1, IUP_FLASH_OFFSET + iupPersistDataLen + newPckNum - 1);
 
-            OsalPrintDebug(LonStatusNoError, "HandleNmeIupTransfer: Packet number %d at address %X", newPckNum, part->start + 
+            OsalPrintLog(INFO_LOG, LonStatusNoError, "HandleNmeIupTransfer: Packet number %d at address %X", newPckNum, part->start + 
                     ((newPckNum - 1) * iupPersistData.initData.IupPacketLen));
         }
     }
@@ -787,7 +787,7 @@ void HandleNmeIupConfirm(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
     }
     
     if (iupRcvdPckCount < EIGHTY_PERCENT(iupPersistData.initData.IupPacketCount)) {
-        OsalPrintError(LonStatusIupTransferFailure,"HandleNmeIupConfirm: 20 percent or more packets are lost; ignoring this update");
+        OsalPrintLog(ERROR_LOG, LonStatusIupTransferFailure,"HandleNmeIupConfirm: 20 percent or more packets are lost; ignoring this update");
         confirm_response.resultCode = IUP_CONFIRM_RESULT_IMAGE_NOT_VIABLE;
         SendResponse(appReceiveParamPtr->reqId, NM_resp_success | NM_EXPANDED, sizeof(confirm_response) - 
         sizeof(confirm_response.pcktNumberColl) + (confirm_response.packetCount * 2), (IzotByte *)&confirm_response);
@@ -795,7 +795,7 @@ void HandleNmeIupConfirm(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
     }
     
     if (iupPersistData.initData.IupPacketCount == iupRcvdPckCount) {
-        OsalPrintDebug(LonStatusNoError, "HandleNmeIupConfirm: No packet error detected");
+        OsalPrintLog(INFO_LOG, LonStatusNoError, "HandleNmeIupConfirm: No packet error detected");
         
         confirm_response.resultCode = IUP_CONFIRM_RESULT_SUCESS;
         confirm_response.packetCount = 0;
@@ -815,7 +815,7 @@ void HandleNmeIupConfirm(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
         iflash_drv_read(NULL, &isPktWritten, 1, IUP_FLASH_OFFSET + iupPersistDataLen + pktNumber);
         
         if (isPktWritten == EEPROM_NOT_WRITTEN) {
-            OsalPrintError(LonStatusIupImageWriteFailure,"HandleNmeIupConfirm: Packet number %d write failed", pktNumber + 1);
+            OsalPrintLog(ERROR_LOG, LonStatusIupImageWriteFailure,"HandleNmeIupConfirm: Packet number %d write failed", pktNumber + 1);
             confirm_response.pcktNumberColl[confirm_response.packetCount] = swapword(pktNumber + 1);
             confirm_response.packetCount++;
         }
@@ -824,7 +824,7 @@ void HandleNmeIupConfirm(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
             break;
         }
     }
-    OsalPrintError(LonStatusIupImageWriteFailure, "HandleNmeIupConfirm: Total %d packet(s) missed", confirm_response.packetCount);
+    OsalPrintLog(ERROR_LOG, LonStatusIupImageWriteFailure, "HandleNmeIupConfirm: Total %d packet(s) missed", confirm_response.packetCount);
     
     if (!confirm_response.packetCount) {
         confirm_response.resultCode = IUP_CONFIRM_RESULT_SUCESS;
@@ -853,7 +853,7 @@ void HandleNmeIupValidate(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
         
     // Compare the session number
     if (swaplong(validate_request->sessionNumber) != iupPersistData.initData.IupSessionNumber) {
-        OsalPrintError(LonStatusIupTransferFailure, "HandleNmeIupValidate: Session number does not match");
+        OsalPrintLog(ERROR_LOG, LonStatusIupTransferFailure, "HandleNmeIupValidate: Session number does not match");
         return;
     }
     
@@ -934,7 +934,7 @@ void HandleNmeIupSwitchOver(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
     
     //Image is not validated
     if (!iupImageValidated) {
-        OsalPrintError(LonStatusIupInvalidImage, "HandleNmeIupSwitchOver: Image not validated");
+        OsalPrintLog(ERROR_LOG, LonStatusIupInvalidImage, "HandleNmeIupSwitchOver: Image not validated");
         switchover_response.resultCode = IUP_SWITCHOVER_RESULT_IMAGE_REJECTED;
         SendResponse(appReceiveParamPtr->reqId, NM_resp_success | NM_EXPANDED, sizeof(switchover_response), 
         (IzotByte *)&switchover_response);
@@ -957,17 +957,17 @@ void HandleNmeIupSwitchOver(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
         (IzotByte *)&switchover_response);
         return;
     }
-    OsalPrintDebug(LonStatusNoError, "HandleNmeIupSwitchOver countdown timer: %d seconds", countDownTimer);
+    OsalPrintLog(INFO_LOG, LonStatusNoError, "HandleNmeIupSwitchOver countdown timer: %d seconds", countDownTimer);
         
     switchover_response.actionTime = swapword(IZOT_RESET_TIME_AFTER_SWITCHOVER);
     if (!IUP_isPreseveConfig(switchover_request->switchOverflags)) {
-        OsalPrintDebug(LonStatusNoError, "HandleNmeIupSwitchOver: Erasing configuration data");
+        OsalPrintLog(INFO_LOG, LonStatusNoError, "HandleNmeIupSwitchOver: Erasing configuration data");
         ErasePersistentNetworkConfig();
     } else if (!IUP_isPersistence(switchover_request->switchOverflags)) {
-        OsalPrintDebug(LonStatusNoError, "HandleNmeIupSwitchOver: Erasing persistent data");
+        OsalPrintLog(INFO_LOG, LonStatusNoError, "HandleNmeIupSwitchOver: Erasing persistent data");
         ErasePersistentAppData();
     } else {
-        OsalPrintDebug(LonStatusNoError, "HandleNmeIupSwitchOver: Config and persistent data needs to be preserved");
+        OsalPrintLog(INFO_LOG, LonStatusNoError, "HandleNmeIupSwitchOver: Config and persistent data needs to be preserved");
     }
         
     // Start the switchover timer
@@ -997,7 +997,7 @@ void HandleNmeIupStatus(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
     
     // Fail if the request does not have correct size
     if (appReceiveParamPtr->pduSize != 1 + sizeof(IUP_StatusRequest)) {
-        OsalPrintError(LonStatusIupTransferFailure, "HandleNmeIupStatus: invalid packet size");
+        OsalPrintLog(ERROR_LOG, LonStatusIupTransferFailure, "HandleNmeIupStatus: invalid packet size");
         NMNDRespond(NM_MESSAGE, LonStatusInvalidParameter, appReceiveParamPtr, apduPtr);
         return;
      }
@@ -1010,7 +1010,7 @@ void HandleNmeIupStatus(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
     status_response.actionTime = 0;
     if (memcmp(&status_request->imgIdent, &iupPersistData.initData.IupImageIdentifier, sizeof(status_request->imgIdent))) {
         status_response.rejectionCode = IUP_STATUS_REJECTION_VERSION_INCOMPATIBLE;
-        OsalPrintError(LonStatusIupInvalidImage, "HandleNmeIupStatus: Image identifier does not match in status request; erasing IUP data");
+        OsalPrintLog(ERROR_LOG, LonStatusIupInvalidImage, "HandleNmeIupStatus: Image identifier does not match in status request; erasing IUP data");
         EraseIupPersistData();
         SendResponse(appReceiveParamPtr->reqId, NM_resp_success | NM_EXPANDED, sizeof(status_response), 
         (IzotByte *)&status_response);
@@ -1020,12 +1020,12 @@ void HandleNmeIupStatus(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
     if (iupPersistData.iupCommitDone) {
         status_response.statusFlag = 0x05;
         status_response.rejectionCode = IUP_STATUS_REJECTION_NONE;
-        OsalPrintDebug(LonStatusNoError, "HandleNmeIupStatus: Erasing IUP persistent data in status request because there will be no commit request now");
+        OsalPrintLog(INFO_LOG, LonStatusNoError, "HandleNmeIupStatus: Erasing IUP persistent data in status request because there will be no commit request now");
         EraseIupPersistData();
     } else if (!iupPersistData.SecondaryFlag) {
         status_response.statusFlag = 0x00;
         status_response.rejectionCode = IUP_STATUS_REJECTION_IMAGE_REJECTED;
-        OsalPrintError(LonStatusIupInvalidImage, "HandleNmeIupStatus: Image rejected, erasing IUP data");
+        OsalPrintLog(ERROR_LOG, LonStatusIupInvalidImage, "HandleNmeIupStatus: Image rejected, erasing IUP data");
         EraseIupPersistData();    
     } else {
         status_response.statusFlag = 0x07;
@@ -1054,7 +1054,7 @@ void HandleNmeIupCommit(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
     
     // Fail if the request does not have correct size
     if (appReceiveParamPtr->pduSize != 1 + sizeof(IUP_CommitRequest)) {
-        OsalPrintError(LonStatusIupTransferFailure, "HandleNmeIupCommit: Invalid packet size, erasing IUP data");
+        OsalPrintLog(ERROR_LOG, LonStatusIupTransferFailure, "HandleNmeIupCommit: Invalid packet size, erasing IUP data");
         EraseIupPersistData();
         NMNDRespond(NM_MESSAGE, LonStatusIupTransferFailure, appReceiveParamPtr, apduPtr);
         return;
@@ -1069,7 +1069,7 @@ void HandleNmeIupCommit(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
     memset(&commit_response.rejectInfo.data[0], 0, commit_response.rejectInfo.dataLen);
     
     if (memcmp(&commit_request->imgIdent, &iupPersistData.initData.IupImageIdentifier, sizeof(commit_request->imgIdent))) {
-        OsalPrintError(LonStatusIupTransferFailure, "HandleNmeIupCommit: Image identifier does not match, erasing IUP data");
+        OsalPrintLog(ERROR_LOG, LonStatusIupTransferFailure, "HandleNmeIupCommit: Image identifier does not match, erasing IUP data");
         commit_response.resultCode = IUP_COMMIT_RESULT_FAILED;
         EraseIupPersistData();
         SendResponse(appReceiveParamPtr->reqId, NM_resp_success | NM_EXPANDED, sizeof(commit_response), 
@@ -1089,7 +1089,7 @@ void HandleNmeIupCommit(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
             commit_response.resultCode = IUP_COMMIT_RESULT_SUCCESS;
 		}
     } else {
-        OsalPrintError(LonStatusIupTransferFailure, "HandleNmeIupCommit: Image is already primary, erasing IUP data");
+        OsalPrintLog(ERROR_LOG, LonStatusIupTransferFailure, "HandleNmeIupCommit: Image is already primary, erasing IUP data");
         commit_response.resultCode = IUP_COMMIT_RESULT_IMAGE_ALREADY_PRIMARY;
         EraseIupPersistData();
     }

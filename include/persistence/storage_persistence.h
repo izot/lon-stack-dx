@@ -1,7 +1,7 @@
 /*
  * storage_persistence.h
  *
- * Copyright (c) 2022-2025 EnOcean
+ * Copyright (c) 2022-2026 EnOcean
  * SPDX-License-Identifier: MIT
  * See LICENSE file for details.
  * 
@@ -22,10 +22,17 @@
 	#define FLASH_PRINTF	wmprintf
 #endif
 
+// A non-volatile transaction record; the data in a segment is
+// considered valid if and only if (tx.tx_signature == TX_SIGNATURE)
+// AND (tx_state == TX_DATA_VALID)
+typedef struct {
+    unsigned tx_signature;
+    unsigned tx_state;
+} PersistentTransactionRecord;
+
 /*****************************************************************
  * Section: Function Declarations
  *****************************************************************/
-
 /* 
  * Opens a persistent storage data segment for reading
  * Parameters:
@@ -178,6 +185,18 @@ extern LonStatusCode ErasePersistentAppData(void);
  *   LonStatusNoError on success, or a LonStatusCode error code on failure.   
  */
 extern LonStatusCode ErasePersistentNetworkConfig(void);
+
+/* 
+ * Translate a segment type to a friendly name.
+ * Parameters:
+ *   persistent_seg_type: Non-volatile storage data segment to name
+ * Returns:
+ *   Character string representing the persistent segment.
+ * Notes:
+ *   The friendly name is used for configuration file naming and 
+ *   persistent tracing.
+ */
+extern char *IzotPersistentGetSegName(IzotPersistentSegType persistent_seg_type);
 
 #endif  /* defined(DEFINED_PERSISTENT_STORAGE_H) */
  

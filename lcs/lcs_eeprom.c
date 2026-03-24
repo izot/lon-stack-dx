@@ -62,11 +62,11 @@ LonStatusCode LCS_ReadPersistentNetworkImage(void)
 	LonStatusCode status;
 	status = IzotPersistentSegRestore(IzotPersistentSegNetworkImage);
 	if (status == LonStatusNoError) {
-		OsalPrintDebug(LonStatusNoError, "LCS_ReadPersistentNetworkImage: Restored network image from non-volatile memory");
+		OsalPrintLog(INFO_LOG, LonStatusNoError, "LCS_ReadPersistentNetworkImage: Restored network image from non-volatile memory");
 	} else if (status == LonStatusPersistentDataFailure) {
-		OsalPrintDebug(LonStatusNoError, "LCS_ReadPersistentNetworkImage: Failed to restore network image from non-volatile memory--may be first boot");
+		OsalPrintLog(INFO_LOG, LonStatusNoError, "LCS_ReadPersistentNetworkImage: Failed to restore network image from NVM--may be first boot");
 	} else {
-		OsalPrintError(status, "LCS_ReadPersistentNetworkImage: Failed to restore network image from non-volatile memory");
+		OsalPrintLog(ERROR_LOG, status, "LCS_ReadPersistentNetworkImage: Failed to restore network image from non-volatile memory");
 	}
 	return (status);
 }
@@ -96,9 +96,9 @@ LonStatusCode LCS_ReadPersistentAppData(void)
 	LonStatusCode status;
 	status = IzotPersistentSegRestore(IzotPersistentSegApplicationData);
 	if (status == LonStatusNoError) {
-		OsalPrintDebug(LonStatusNoError, "LCS_ReadPersistentAppData: Restored application data from non-volatile memory");
+		OsalPrintLog(INFO_LOG, LonStatusNoError, "LCS_ReadPersistentAppData: Restored application data from non-volatile memory");
 	} else {
-		OsalPrintDebug(status, "LCS_ReadPersistentAppData: Failed to restore application data from non-volatile memory--may be first boot");
+		OsalPrintLog(INFO_LOG, status, "LCS_ReadPersistentAppData: Failed to restore application data from non-volatile memory--may be first boot");
 	}
 	return (status);
 }

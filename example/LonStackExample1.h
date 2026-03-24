@@ -1,7 +1,7 @@
 /*
  * LonStackExample1.c
  *
- * Copyright (c) 2023-2025 EnOcean
+ * Copyright (c) 2023-2026 EnOcean
  * SPDX-License-Identifier: MIT
  * See LICENSE file for details.
  * 

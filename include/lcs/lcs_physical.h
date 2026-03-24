@@ -1,7 +1,7 @@
 /*
  * lcs_physical.h
  *
- * Copyright (c) 2023-2025 EnOcean
+ * Copyright (c) 2023-2026 EnOcean
  * SPDX-License-Identifier: MIT
  * See LICENSE file for details.
  * 
@@ -24,6 +24,7 @@
 /* Length in bytes of Packet buffers for SPM ISR */
 #define PKT_BUF_LEN 255
 
+// Serial Purpose Mode setting
 typedef enum {
     RUN = 0,   /* The SPI is engaged in transfer */
     STOP,      /* The SPI is stopped usually due to error
@@ -31,6 +32,7 @@ typedef enum {
     OVERWRITE, /* receive new packet before old copied out */
 } SPMMode;
 
+// Serial Purpose Mode state
 typedef enum {
     IDLE = 0,
     RECEIVE,
@@ -69,7 +71,7 @@ typedef struct {
                                counter register for clock */
 } TimerData32;
 
-/* Special Purpose Mode Receive Frame 16 bit */
+// Special Purpose Mode 16-bit receive frame
 typedef struct {
     unsigned setTxFlag    : 1; /* XCVR accepts req to xmit packet */
     unsigned clrTxReqFlag : 1; /* XCVR acks req to xmit packet */
@@ -87,7 +89,7 @@ typedef struct {
     uint8    data;             /* data byte */
 } SPMRxFrame;
 
-/* Special Purpose Mode Transmit Frame 16 bit */
+// Special Purpose Mode 16-bit transmit frame
 typedef struct {
     unsigned txFlag      : 1; /* 360 is transmitting packet */
     unsigned txReqFlag   : 1; /* 360 requests to transmit on network */
@@ -207,7 +209,7 @@ extern volatile SPMParam spmGbl;
 /*-------------------------------------------------------------------
   Section: Function Prototypes
   -------------------------------------------------------------------*/
-void PHYReset(void);
+void PhysicalLayerReset(void);
 void PHYSend(void);
 void PHYReceive(void);
 void PHYInitSPM(BOOLEAN firstReset);

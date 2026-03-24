@@ -191,7 +191,7 @@ LonStatusCode TSA_AddressConversion(IzotSendAddress* pSrc, DestinationAddress *p
             break;
         default:
             /* It must be some invalid value. Let us fail. */
-            OsalPrintError(LonStatusBadAddressType, "TSA_AddressConversion: Unknown address mode");
+            OsalPrintLog(ERROR_LOG, LonStatusBadAddressType, "TSA_AddressConversion: Unknown address mode");
             sts = LonStatusBadAddressType;
         } /* switch */
     }
@@ -252,7 +252,7 @@ IzotByte SendBlocked(void)
  *   The transaction services sub-layer is used by both the transport and session layers.
  *   The function sets gp->resetOk to FALSE if unable to reset properly.
  */
- LonStatusCode TSAReset(void) 
+ LonStatusCode TransactionServicesSublayerReset(void) 
 {
     IzotUbits16 queueItemSize;
     IzotUbits16 i;
@@ -264,40 +264,40 @@ IzotByte SendBlocked(void)
     The max header size for those with APDU is 4 (REM/MSG). */
     if (!LON_SUCCESS(status = DecodeBufferSize(TSA_IN_BUF_SIZE, &gp->tsaInBufSize))) {
         gp->resetOk = FALSE;
-        OsalPrintError(status, "TSAReset: Unable to decode input transaction buffer size");
+        OsalPrintLog(ERROR_LOG, status, "TransactionServicesSublayerReset: Unable to decode input transaction buffer size");
         return status;
     }
     gp->tsaInBufSize = MAX(gp->tsaInBufSize + 4, 10);
     if (!LON_SUCCESS(status = DecodeBufferCnt((IzotByte)IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_INBUF_CNT), &gp->tsaInQCnt))) {
         gp->resetOk = FALSE;
-        OsalPrintError(status, "TSAReset: Unable to decode input transaction queue count");
+        OsalPrintLog(ERROR_LOG, status, "TransactionServicesSublayerReset: Unable to decode input transaction queue count");
         return status;
     }
     queueItemSize = gp->tsaInBufSize + sizeof(TSAReceiveParam);
     
-    if (!LON_SUCCESS(status = QueueInit(&gp->tsaInQ, queueItemSize, gp->tsaInQCnt))) {
+    if (!LON_SUCCESS(status = QueueInit(&gp->tsaInQ, "transaction services input", queueItemSize, gp->tsaInQCnt))) {
         gp->resetOk = FALSE;
-        OsalPrintError(status, "TSAReset: Unable to initialize the input queue");
+        OsalPrintLog(ERROR_LOG, status, "TransactionServicesSublayerReset: Unable to initialize the input queue");
         return status;
     }
     
     /* Allocate and initialize the output queue */
     if (!LON_SUCCESS(status = DecodeBufferSize(TSA_OUT_BUF_SIZE, &gp->tsaOutBufSize))) {
         gp->resetOk = FALSE;
-        OsalPrintError(status, "TSAReset: Unable to decode output transaction buffer size");
+        OsalPrintLog(ERROR_LOG, status, "TransactionServicesSublayerReset: Unable to decode output transaction buffer size");
         return status;
     }
     gp->tsaOutBufSize += 4;
     gp->tsaOutBufSize = MAX(gp->tsaOutBufSize, 10);
     if (!LON_SUCCESS(status = DecodeBufferCnt((IzotByte)IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_OUTBUF_CNT), &gp->tsaOutQCnt))) {
         gp->resetOk = FALSE;
-        OsalPrintError(status, "TSAReset: Unable to decode output transaction queue count");
+        OsalPrintLog(ERROR_LOG, status, "TransactionServicesSublayerReset: Unable to decode output transaction queue count");
         return status;
     }
     queueItemSize = gp->tsaOutBufSize + sizeof(TSASendParam);
-    if (!LON_SUCCESS(status = QueueInit(&gp->tsaOutQ, queueItemSize, gp->tsaOutQCnt))) {
+    if (!LON_SUCCESS(status = QueueInit(&gp->tsaOutQ, "transaction services output", queueItemSize, gp->tsaOutQCnt))) {
         gp->resetOk = FALSE;
-        OsalPrintError(status, "TSAReset: Unable to initialize the output transaction queue");
+        OsalPrintLog(ERROR_LOG, status, "TransactionServicesSublayerReset: Unable to initialize the output transaction queue");
         return status;
     }
     
@@ -305,27 +305,27 @@ IzotByte SendBlocked(void)
     gp->tsaOutPriBufSize = gp->tsaOutBufSize;
     if (!LON_SUCCESS(status = DecodeBufferCnt((IzotByte) IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_OUT_PRICNT), &gp->tsaOutPriQCnt))) {
         gp->resetOk = FALSE;
-        OsalPrintError(status, "TSAReset: Unable to decode priority output transaction queue count");
+        OsalPrintLog(ERROR_LOG, status, "TransactionServicesSublayerReset: Unable to decode priority output transaction queue count");
         return status;
     }
     queueItemSize = gp->tsaOutPriBufSize + sizeof(TSASendParam);    
-    if (!LON_SUCCESS(status = QueueInit(&gp->tsaOutPriQ, queueItemSize, gp->tsaOutPriQCnt))) {
+    if (!LON_SUCCESS(status = QueueInit(&gp->tsaOutPriQ, "transaction services priority output", queueItemSize, gp->tsaOutPriQCnt))) {
         gp->resetOk = FALSE;
-        OsalPrintError(status, "TSAReset: Unable to initialize the priority output transaction queue");
+        OsalPrintLog(ERROR_LOG, status, "TransactionServicesSublayerReset: Unable to initialize the priority output transaction queue");
         return status;
     }
     
     /* Allocate and initialize the responses queue */
     if (!LON_SUCCESS(status = DecodeBufferSize(TSA_RESP_BUF_SIZE, &gp->tsaRespBufSize))) {
         gp->resetOk = FALSE;
-        OsalPrintError(status, "TSAReset: Unable to decode response transaction buffer size");
+        OsalPrintLog(ERROR_LOG, status, "TransactionServicesSublayerReset: Unable to decode response transaction buffer size");
         return status;
     }
     gp->tsaRespQCnt = gp->tsaOutQCnt;
     queueItemSize = gp->tsaRespBufSize + sizeof(TSASendParam);
-    if (!LON_SUCCESS(status = QueueInit(&gp->tsaRespQ, queueItemSize, gp->tsaRespQCnt))) {
+    if (!LON_SUCCESS(status = QueueInit(&gp->tsaRespQ, "transaction services response", queueItemSize, gp->tsaRespQCnt))) {
         gp->resetOk = FALSE;
-        OsalPrintError(status, "TSAReset: Unable to initialize the response transaction queue");
+        OsalPrintLog(ERROR_LOG, status, "TransactionServicesSublayerReset: Unable to initialize the response transaction queue");
         return status;
     }
     
@@ -338,27 +338,27 @@ IzotByte SendBlocked(void)
     gp->recvRec = OsalAllocateMemory((size_t) (gp->recvRecCnt * sizeof(ReceiveRecord)));
     if (gp->recvRec == NULL) {
         gp->resetOk = FALSE;
-        OsalPrintError(LonStatusNoMemoryAvailable, "TSAReset: Unable to allocate receive records");
+        OsalPrintLog(ERROR_LOG, LonStatusNoMemoryAvailable, "TransactionServicesSublayerReset: Unable to allocate receive records");
         return status;
     }
     for (i = 0; i < gp->recvRecCnt; i++) {
         uint16_t decodedResponseBufSize;
         if (!LON_SUCCESS(status = DecodeBufferSize(RECV_REC_RESP_SIZE, &decodedResponseBufSize))) {
             gp->resetOk = FALSE;
-            OsalPrintError(LonStatusNoMemoryAvailable, "TSAReset: Unable to decode response buffer size");
+            OsalPrintLog(ERROR_LOG, LonStatusNoMemoryAvailable, "TransactionServicesSublayerReset: Unable to decode response buffer size");
             return status;
         }
         uint16_t decodedReceiveBufSize;
         if (!LON_SUCCESS(status = DecodeBufferSize(RECV_REC_APDU_SIZE, &decodedReceiveBufSize))) {
             gp->resetOk = FALSE;
-            OsalPrintError(LonStatusNoMemoryAvailable, "TSAReset: Unable to decode receive buffer size");
+            OsalPrintLog(ERROR_LOG, LonStatusNoMemoryAvailable, "TransactionServicesSublayerReset: Unable to decode receive buffer size");
             return status;
         }
         gp->recvRec[i].response = OsalAllocateMemory((size_t) decodedResponseBufSize);
         gp->recvRec[i].apdu = OsalAllocateMemory((size_t) decodedReceiveBufSize);
         if (gp->recvRec[i].response == NULL || gp->recvRec[i].apdu == NULL) {
             gp->resetOk = FALSE;
-            OsalPrintError(LonStatusNoMemoryAvailable, "TSAReset: Insufficient space for response");
+            OsalPrintLog(ERROR_LOG, LonStatusNoMemoryAvailable, "TransactionServicesSublayerReset: Insufficient space for response");
             return status;
         }
         gp->recvRec[i].status = UNUSED_RR;
@@ -367,12 +367,12 @@ IzotByte SendBlocked(void)
     /* Initialize the running count for request id assignment */
     gp->reqId = 0;
     
-    OsalPrintDebug(LonStatusNoError, "TSAReset: Transport and session layers initialized");
+    OsalPrintLog(INFO_LOG, LonStatusNoError, "TransactionServicesSublayerReset: Transport and session layers initialized");
     return status;
 }
 
 /*****************************************************************
- Function:  TPSend
+ Function:  TransportLayerSend
  Returns:   None
  Reference: Section 8, Protocol Specification.
  Purpose:   To implement send algorithm for transport layer.
@@ -395,9 +395,9 @@ IzotByte SendBlocked(void)
  there is nothing to do. return.
  Note:
  ******************************************************************/
-void TPSend(void)
+void TransportLayerSend(void)
 {
-    /* Delay TPSend after power-up or external reset. */
+    /* Delay TransportLayerSend after power-up or external reset. */
     if (SendBlocked()) {
         return; /* Do nothing */
     }
@@ -406,7 +406,7 @@ void TPSend(void)
     Priority transaction timer expired event.
     **************************************************/
     if (gp->priXmitRec.status == TRANSPORT_TX && !LonTimerRunning(&gp->priXmitRec.xmitTimer)) {
-        OsalPrintDebug(LonStatusNoError, "TPSend: Priority transaction timer expired");
+        OsalPrintLog(INFO_LOG, LonStatusNoError, "TransportLayerSend: Priority transaction timer expired");
         XmitTimerExpiration(TRANSPORT, TRUE);
         return;
     }
@@ -414,7 +414,7 @@ void TPSend(void)
     Send a new priority message event.
     **************************************************/
     else if (gp->priXmitRec.status == UNUSED_TX && !QueueEmpty(&gp->tsaOutPriQ) && !QueueFull(&gp->nwOutPriQ)) {
-        OsalPrintDebug(LonStatusNoError, "TPSend: Send a new priority message");
+        OsalPrintLog(INFO_LOG, LonStatusNoError, "TransportLayerSend: Send a new priority message");
         SendNewMsg(TRANSPORT, TRUE);
         return;
     }
@@ -422,14 +422,14 @@ void TPSend(void)
     Non-priority transaction timer expired event.
     *************************************************/
     else if (gp->xmitRec.status == TRANSPORT_TX && !LonTimerRunning(&gp->xmitRec.xmitTimer)) {
-        OsalPrintDebug(LonStatusNoError, "TPSend: Non-priority transaction timer expired");
+        OsalPrintLog(INFO_LOG, LonStatusNoError, "TransportLayerSend: Non-priority transaction timer expired");
         XmitTimerExpiration(TRANSPORT, FALSE);
     }
     /***************************************************
     Send a new non-priority message.
     **************************************************/
     else if (gp->xmitRec.status == UNUSED_TX && !QueueEmpty(&gp->tsaOutQ) && !QueueFull(&gp->nwOutQ)) {
-        OsalPrintDebug(LonStatusNoError, "TPSend: Send a new non-priority message");
+        OsalPrintLog(INFO_LOG, LonStatusNoError, "TransportLayerSend: Send a new non-priority message");
         SendNewMsg(TRANSPORT, FALSE);
     } else {
         /* Either there is no work or there is no space. */
@@ -484,9 +484,9 @@ static void TerminateTrans(IzotByte priorityIn)
     xmitRecPtr->status = UNUSED_TX;
     
     if (success) {
-        OsalPrintDebug(LonStatusNoError, "TerminateTrans: Transaction terminated with success");
+        OsalPrintLog(INFO_LOG, LonStatusNoError, "TerminateTrans: Transaction terminated with success");
     } else {
-        OsalPrintDebug(LonStatusNoError, "TerminateTrans: Transaction terminated with failure");
+        OsalPrintLog(INFO_LOG, LonStatusNoError, "TerminateTrans: Transaction terminated with failure");
     }
     SendCompletion(tsaSendParamPtr, success);
     return;
@@ -551,7 +551,7 @@ static void XmitTimerExpiration(Layer layerIn, IzotByte priorityIn)
         xmitRecPtr->retriesLeft--;
         /* Start the transmit timer */
         SetLonTimer(&xmitRecPtr->xmitTimer, xmitRecPtr->xmitTimerValue);
-        OsalPrintError(LonStatusNoBufferAvailable, "XmitTimerExp: Retry failure due to no space in network queue");
+        OsalPrintLog(ERROR_LOG, LonStatusNoBufferAvailable, "XmitTimerExp: Retry failure due to no space in network queue");
         return;
     }
     
@@ -574,20 +574,20 @@ static void XmitTimerExpiration(Layer layerIn, IzotByte priorityIn)
         pduPtr->pduMsgType = UNACK_RPT_MSG;
         memcpy(&pduPtr->data[dataIndex], xmitRecPtr->apdu, xmitRecPtr->apduSize);
         pduSize = xmitRecPtr->apduSize + 1;
-        OsalPrintDebug(LonStatusNoError, "XmitTimerExpiration: Resending repeated packet");
+        OsalPrintLog(INFO_LOG, LonStatusNoError, "XmitTimerExpiration: Resending repeated packet");
     } else if (xmitRecPtr->nwDestAddr.addressMode != AM_MULTICAST) {
         if (layerIn == TRANSPORT) {
             pduPtr->pduMsgType = ACKD_MSG;
-            OsalPrintDebug(LonStatusNoError, "XmitTimerExpiration: Resending acknowledged packet");
+            OsalPrintLog(INFO_LOG, LonStatusNoError, "XmitTimerExpiration: Resending acknowledged packet");
         } else if (tsaSendParamPtr->service == IzotServiceRequest) {
             pduPtr->pduMsgType = REQUEST_MSG;
-            OsalPrintDebug(LonStatusNoError, "XmitTimerExpiration: Resending request packet");
+            OsalPrintLog(INFO_LOG, LonStatusNoError, "XmitTimerExpiration: Resending request packet");
         } else {
             /* Response Messages are retried. Something is wrong. */
             /* Force retriesLeft to 0 so that next time we will
             terminate the transaction. */
             xmitRecPtr->retriesLeft = 0;
-            OsalPrintError(LonStatusTimerExpirationNotExpected, "XmitTimerExpiration: Timer expiration not expected");
+            OsalPrintLog(ERROR_LOG, LonStatusTimerExpirationNotExpected, "XmitTimerExpiration: Timer expiration not expected");
             return;
         }
         memcpy(&pduPtr->data[dataIndex], xmitRecPtr->apdu, xmitRecPtr->apduSize);
@@ -615,7 +615,7 @@ static void XmitTimerExpiration(Layer layerIn, IzotByte priorityIn)
             }
             if (i == -1) {
                 /* There should have been at least one ack. */
-                OsalPrintError(LonStatusInternalError, "XmitTimerExpiration: Invalid code path, at least one ack member expected");
+                OsalPrintLog(ERROR_LOG, LonStatusInternalError, "XmitTimerExpiration: Invalid code path, at least one ack member expected");
                 xmitRecPtr->retriesLeft = 0;
                 return;
             }
@@ -638,7 +638,7 @@ static void XmitTimerExpiration(Layer layerIn, IzotByte priorityIn)
             memcpy(&pduPtr->data[1 + dataIndex + length], xmitRecPtr->apdu, xmitRecPtr->apduSize);
             /* TSPDU = 1 byte header + 1 byte for length + M_LIST. */
             pduSize = xmitRecPtr->apduSize + 2 + length;
-            OsalPrintDebug(LonStatusNoError, "XmitTimerExpiration: Resending reminder packet");
+            OsalPrintLog(INFO_LOG, LonStatusNoError, "XmitTimerExpiration: Resending reminder packet");
         } else {
             /* Length > 2 */
             /* A Pair is sent in this case. First, send the REMINDER
@@ -647,14 +647,14 @@ static void XmitTimerExpiration(Layer layerIn, IzotByte priorityIn)
             So, we need to make sure that the queue has space
             for 2 msgs. If not, return and come back later to
             do this case. */
-            queueSpace = QueueCapacity(nwQPtr) - QueueSize(nwQPtr);
+            queueSpace = QueueCapacity(nwQPtr) - QueueEntries(nwQPtr);
             if (queueSpace < 2) {
                 /* We are losing a retry chance locally due to lack
                 of space in network queue. */
                 xmitRecPtr->retriesLeft--;
                 /* Start the transmit timer. */
                 SetLonTimer(&xmitRecPtr->xmitTimer, xmitRecPtr->xmitTimerValue);
-                OsalPrintError(LonStatusNoBufferAvailable, "XmitTimerExpiration: Retry failure due to no space in network queue");
+                OsalPrintLog(ERROR_LOG, LonStatusNoBufferAvailable, "XmitTimerExpiration: Retry failure due to no space in network queue");
                 return; /* Not enough space in the queue. Come back. */
             }
             /* Send the REMINDER message. */
@@ -741,7 +741,7 @@ static void XmitTimerExpiration(Layer layerIn, IzotByte priorityIn)
             memcpy(&pduPtr->data[dataIndex], xmitRecPtr->apdu, xmitRecPtr->apduSize);
             pduSize = xmitRecPtr->apduSize + 1;
     
-            OsalPrintDebug(LonStatusNoError, "XmitTimerExpiration: Resending reminder/message pair");
+            OsalPrintLog(INFO_LOG, LonStatusNoError, "XmitTimerExpiration: Resending reminder/message pair");
         }
     }
     
@@ -792,7 +792,7 @@ static void XmitTimerExpiration(Layer layerIn, IzotByte priorityIn)
     nwSendParamPtr->pduSize = pduSize + dataIndex;
     
     xmitRecPtr->retriesLeft--;
-    OsalPrintDebug(LonStatusNoError, "XmitTimerExpiration: %d retries left", xmitRecPtr->retriesLeft);
+    OsalPrintLog(INFO_LOG, LonStatusNoError, "XmitTimerExpiration: %d retries left", xmitRecPtr->retriesLeft);
     // Add TSPDU into the queue
     QueueWrite(nwQPtr);
     
@@ -925,14 +925,14 @@ static void SendNewMsg(Layer layerIn, IzotByte priorityIn)
             );
     if (!LON_SUCCESS(status = DecodeRptTimer((IzotByte) IZOT_GET_ATTRIBUTE(tsaSendParamPtr->destAddr.SubnetNode, IZOT_SENDSN_REPEAT_TIMER), &rptTimer))) {
         SendCompletion(tsaSendParamPtr, FALSE);
-        OsalPrintError(status, "SendNewMsg: Invalid repeat timer attribute");
+        OsalPrintLog(ERROR_LOG, status, "SendNewMsg: Invalid repeat timer attribute");
         return;
     }
     retryCount = IZOT_GET_ATTRIBUTE(tsaSendParamPtr->destAddr.SubnetNode, IZOT_SENDSN_RETRY);
 
     if (TSA_AddressConversion(&tsaSendParamPtr->destAddr, &nwDestAddr) != LonStatusNoError) {
         SendCompletion(tsaSendParamPtr, FALSE);
-        OsalPrintError(LonStatusInvalidMessageAddress, "SendNewMsg: Invalid destination address");
+        OsalPrintLog(ERROR_LOG, LonStatusInvalidMessageAddress, "SendNewMsg: Invalid destination address");
         return;
     }
 
@@ -1004,7 +1004,7 @@ static void SendNewMsg(Layer layerIn, IzotByte priorityIn)
         if (xmitRecPtr->destCount == 0) {
             /* If the value is incorrect, set it to 1. We need at least
             one acknowledgement or response. */
-            OsalPrintError(LonStatusInvalidGroupSize, "SendNewMsg: Invalid group size, default assumed");
+            OsalPrintLog(ERROR_LOG, LonStatusInvalidGroupSize, "SendNewMsg: Invalid group size, default assumed");
             xmitRecPtr->destCount = 1;
         }
     } else {
@@ -1030,15 +1030,15 @@ static void SendNewMsg(Layer layerIn, IzotByte priorityIn)
 
     if (tsaSendParamPtr->service == IzotServiceRepeated) {
         pduPtr->pduMsgType = UNACK_RPT_MSG;
-        OsalPrintDebug(LonStatusNoError, "SendNewMsg: Sending a new repeated packet");
+        OsalPrintLog(INFO_LOG, LonStatusNoError, "SendNewMsg: Sending a new repeated packet");
     } else if (layerIn == TRANSPORT) {
         pduPtr->pduMsgType = ACKD_MSG;
-        OsalPrintDebug(LonStatusNoError, "SendNewMsg: Sending a new acknowledged packet");
+        OsalPrintLog(INFO_LOG, LonStatusNoError, "SendNewMsg: Sending a new acknowledged packet");
     } else if (tsaSendParamPtr->service == IzotServiceRequest) {
         pduPtr->pduMsgType = REQUEST_MSG;
-        OsalPrintDebug(LonStatusNoError, "SendNewMsg: Sending a new request packet");
+        OsalPrintLog(INFO_LOG, LonStatusNoError, "SendNewMsg: Sending a new request packet");
     } else {
-        OsalPrintError(LonStatusInvalidMessageService, "SendNewMsg: Invalid message service");
+        OsalPrintLog(ERROR_LOG, LonStatusInvalidMessageService, "SendNewMsg: Invalid message service");
     }
 
     if (xmitRecPtr->version == LsProtocolModeLegacy) {
@@ -1101,14 +1101,14 @@ static void SendNewMsg(Layer layerIn, IzotByte priorityIn)
 }
 
 /*****************************************************************
- Function:  TPReceive
+ Function:  TransportLayerReceive
  Returns:   None
  Reference: None
  Purpose:   To receive and process incoming TPDU's by calling
  apprpriate functions. Also handle receive timers.
  Comments:  None
  ******************************************************************/
-void TPReceive(void)
+void TransportLayerReceive(void)
 {
     TSAReceiveParam *tsaReceiveParamPtr;/* Param in tsaQ. */
     TSPDUPtr pduInPtr; /* Pointer to TPDU received. */
@@ -1119,7 +1119,7 @@ void TPReceive(void)
         if (gp->recvRec[i].status == TRANSPORT_RR) {
             if (LonTimerExpired(&gp->recvRec[i].recvTimer)) {
                 /* Timer expired. See if RR can be released. */
-                OsalPrintDebug(LonStatusNoError, "TPReceive: Receive timer expired");
+                OsalPrintLog(INFO_LOG, LonStatusNoError, "TransportLayerReceive: Receive timer expired");
                 gp->recvRec[i].status = UNUSED_RR; /* Release the RR */
             }
         }
@@ -1140,7 +1140,7 @@ void TPReceive(void)
     }
 
     if (tsaReceiveParamPtr->pduSize < 1) {
-        OsalPrintError(LonStatusInvalidMessageLength, "TPReceive: Invalid packet size");
+        OsalPrintLog(ERROR_LOG, LonStatusInvalidMessageLength, "TransportLayerReceive: Invalid packet size");
         QueueDropHead(&gp->tsaInQ);
         return;
     }
@@ -1166,7 +1166,7 @@ void TPReceive(void)
         return;
     default:
         QueueDropHead(&gp->tsaInQ);
-        OsalPrintError(LonStatusUnknownPdu, "TPReceive: Unknown transaction packet type received");
+        OsalPrintLog(ERROR_LOG, LonStatusUnknownPdu, "TransportLayerReceive: Unknown transaction packet type received");
     }
     return;
 }
@@ -1206,7 +1206,7 @@ static void TPReceiveAck(void)
             == TRANS_NOT_CURRENT) {
         /* Stale ACK. Ignore it. */
         QueueDropHead(&gp->tsaInQ);
-        OsalPrintDebug(LonStatusNoError, "TPReceiveAck: Discarded stale acknowledgement");
+        OsalPrintLog(INFO_LOG, LonStatusNoError, "TPReceiveAck: Discarded stale acknowledgement");
         INCR_STATS(LcsLateAck);
         return;
     }
@@ -1218,7 +1218,7 @@ static void TPReceiveAck(void)
         /* Transmit record is not ours or the domain index for Ack
         and the transaction do not match. */
         QueueDropHead(&gp->tsaInQ);
-        OsalPrintDebug(LonStatusNoError, "TPReceiveAck: Discarded stale acknowledgement");
+        OsalPrintLog(INFO_LOG, LonStatusNoError, "TPReceiveAck: Discarded stale acknowledgement");
         INCR_STATS(LcsLateAck);
         return;
     }
@@ -1233,7 +1233,7 @@ static void TPReceiveAck(void)
         transmit record. */
         /* ACK does not seem to correspond to what we are expecting. */
         QueueDropHead(&gp->tsaInQ);
-        OsalPrintDebug(LonStatusNoError, "TPReceiveAck: Discarded stale acknowledgement");
+        OsalPrintLog(INFO_LOG, LonStatusNoError, "TPReceiveAck: Discarded stale acknowledgement");
         INCR_STATS(LcsLateAck);
         return;
     }
@@ -1246,7 +1246,7 @@ static void TPReceiveAck(void)
         # does not match that of xmitRecord. */
         /* ACK does not seem to correspond to what we are expecting. */
         QueueDropHead(&gp->tsaInQ);
-        OsalPrintDebug(LonStatusNoError, "TPReceiveAck: Discarded stale acknowledgement");
+        OsalPrintLog(INFO_LOG, LonStatusNoError, "TPReceiveAck: Discarded stale acknowledgement");
         INCR_STATS(LcsLateAck);
         return;
     }
@@ -1261,7 +1261,7 @@ static void TPReceiveAck(void)
         /* Subnet broadcast but the ACK's subnet does not match .*/
         /* ACK does not seem to correspond to what we are expecting. */
         QueueDropHead(&gp->tsaInQ);
-        OsalPrintDebug(LonStatusNoError, "TPReceiveAck: Discarded stale acknowledgement");
+        OsalPrintLog(INFO_LOG, LonStatusNoError, "TPReceiveAck: Discarded stale acknowledgement");
         INCR_STATS(LcsLateAck);
         return;
     }
@@ -1281,7 +1281,7 @@ static void TPReceiveAck(void)
         /* Group acknowledgement. */
         if (tsaReceiveParamPtr->srcAddr.ackNode.groupAddr.member > MAX_GROUP_NUMBER) 
         {
-            OsalPrintError(LonStatusInvalidMessageAddress, "TPReceiveAck: Invalid group number");
+            OsalPrintLog(ERROR_LOG, LonStatusInvalidMessageAddress, "TPReceiveAck: Invalid group number");
             break;
         }
         if (!xmitRecPtr->ackReceived[tsaReceiveParamPtr->srcAddr.ackNode.groupAddr.member]) {
@@ -1289,21 +1289,21 @@ static void TPReceiveAck(void)
             xmitRecPtr->ackReceived[tsaReceiveParamPtr->srcAddr.ackNode.groupAddr.member]
                     = TRUE;
             xmitRecPtr->ackCount++;
-            OsalPrintDebug(LonStatusNoError, "TPReceiveAck: Received a new multicast acknowledgement");
+            OsalPrintLog(INFO_LOG, LonStatusNoError, "TPReceiveAck: Received a new multicast acknowledgement");
         } else {
             /* Else, it is a duplicate Ack. Ignore it. */
-            OsalPrintDebug(LonStatusNoError, "TPReceiveAck: Ignored a duplicate multicast acknowledgement");
+            OsalPrintLog(INFO_LOG, LonStatusNoError, "TPReceiveAck: Ignored a duplicate multicast acknowledgement");
         }
         if (xmitRecPtr->destCount == xmitRecPtr->ackCount) {
             TerminateTrans(tsaReceiveParamPtr->priority);
         }
         break;
     default:
-        OsalPrintError(LonStatusBadAddressType, "TPReceiveAck: Invalid address mode in acknowledgement");
+        OsalPrintLog(ERROR_LOG, LonStatusBadAddressType, "TPReceiveAck: Invalid address mode in acknowledgement");
     }
 
     QueueDropHead(&gp->tsaInQ);
-    OsalPrintDebug(LonStatusNoError, "TPReceiveAck: Received acknowledgement; %d total acknowledgements received", xmitRecPtr->ackCount);
+    OsalPrintLog(INFO_LOG, LonStatusNoError, "TPReceiveAck: Received acknowledgement; %d total acknowledgements received", xmitRecPtr->ackCount);
     /* Restart the transmit timer if the transmit record is still active. */
     if (xmitRecPtr->status != UNUSED_TX) {
         SetLonTimer(&xmitRecPtr->xmitTimer, xmitRecPtr->xmitTimerValue);
@@ -1361,7 +1361,7 @@ void prepareNpdu(TSAReceiveParam *tsaReceiveParamPtr, TSPDUPtr pduPtr, IzotByte 
 		break;
 		case UNBOUND:
 		default:
-            OsalPrintError(LonStatusBadAddressType, "prepareNpdu: Invalid address mode");
+            OsalPrintLog(ERROR_LOG, LonStatusBadAddressType, "prepareNpdu: Invalid address mode");
 		break;
 	}
 	memcpy(&pNpdu[j], tsaReceiveParamPtr->srcAddr.dmn.domainId, tsaReceiveParamPtr->srcAddr.dmn.domainLen);
@@ -1433,7 +1433,7 @@ static void SNReceiveResponse(void)
         /* Unsolicited response. Ignore it. */
         QueueDropHead(&gp->tsaInQ);
         INCR_STATS(LcsLateAck);
-        OsalPrintDebug(LonStatusNoError, "SNReceiveResponse: Ignored unsolicited response");
+        OsalPrintLog(INFO_LOG, LonStatusNoError, "SNReceiveResponse: Ignored unsolicited response");
         return;
     }
 
@@ -1445,7 +1445,7 @@ static void SNReceiveResponse(void)
         the response and the transaction record do not match. */
         QueueDropHead(&gp->tsaInQ);
         INCR_STATS(LcsLateAck);
-        OsalPrintDebug(LonStatusNoError, "SNReceiveResponse: Discarded stale response");
+        OsalPrintLog(INFO_LOG, LonStatusNoError, "SNReceiveResponse: Discarded stale response");
         return;
     }
 
@@ -1460,7 +1460,7 @@ static void SNReceiveResponse(void)
         /* Response does not seem to correspond to what we are expecting. */
         QueueDropHead(&gp->tsaInQ);
         INCR_STATS(LcsLateAck);
-        OsalPrintDebug(LonStatusNoError, "SNReceiveResponse: Discarded stale response");
+        OsalPrintLog(INFO_LOG, LonStatusNoError, "SNReceiveResponse: Discarded stale response");
         return;
     }
 
@@ -1473,7 +1473,7 @@ static void SNReceiveResponse(void)
         /* Response does not seem to correspond to what we are expecting. */
         QueueDropHead(&gp->tsaInQ);
         INCR_STATS(LcsLateAck);
-        OsalPrintDebug(LonStatusNoError, "SNReceiveResponse: Discarded stale response");
+        OsalPrintLog(INFO_LOG, LonStatusNoError, "SNReceiveResponse: Discarded stale response");
         return;
     }
 
@@ -1558,30 +1558,30 @@ static void SNReceiveResponse(void)
     case AM_MULTICAST:
         /* Group request message. Check response address mode. */
         if (tsaReceiveParamPtr->srcAddr.addressMode != AM_MULTICAST_ACK) {
-            OsalPrintError(LonStatusInvalidMessageAddress, "SNReceiveResponse: Invalid response to group request message");
+            OsalPrintLog(ERROR_LOG, LonStatusInvalidMessageAddress, "SNReceiveResponse: Invalid response to group request message");
             break;
         }
         if (tsaReceiveParamPtr->srcAddr.ackNode.groupAddr.member > 
         MAX_GROUP_NUMBER) {
-            OsalPrintError(LonStatusInvalidMessageAddress, "SNReceiveResponse: Invalid group number");
+            OsalPrintLog(ERROR_LOG, LonStatusInvalidMessageAddress, "SNReceiveResponse: Invalid group number");
             break;
         }
         if (!xmitRecPtr->ackReceived[tsaReceiveParamPtr->srcAddr.ackNode.groupAddr.member]) {
-            OsalPrintDebug(LonStatusNoError, "SNReceiveResp: Multicast response delivered");
+            OsalPrintLog(INFO_LOG, LonStatusNoError, "SNReceiveResp: Multicast response delivered");
             QueueWrite(&gp->appCeRspInQ);
             xmitRecPtr->ackReceived[tsaReceiveParamPtr->srcAddr.ackNode.groupAddr.member]
                     = TRUE;
             xmitRecPtr->ackCount++;
         } else {
             /* Else, it is a duplicate response. Ignore it */
-            OsalPrintDebug(LonStatusNoError, "SNReceiveResp: Ignored duplicate multicast response");
+            OsalPrintLog(INFO_LOG, LonStatusNoError, "SNReceiveResp: Ignored duplicate multicast response");
         }
         if (xmitRecPtr->destCount == xmitRecPtr->ackCount) {
             TerminateTrans(tsaReceiveParamPtr->priority);
         }
         break;
     default:
-        OsalPrintError(LonStatusInvalidMessageMode, "SNReceiveResponse: Invalid address mode in response");
+        OsalPrintLog(ERROR_LOG, LonStatusInvalidMessageMode, "SNReceiveResponse: Invalid address mode in response");
     }
 
     QueueDropHead(&gp->tsaInQ);
@@ -1642,7 +1642,7 @@ static void ReceiveNewMsg(Layer layerIn)
         if (i == -1) {
             /* Unable to allocate a new RR. */
             INCR_STATS(LcsRxTxFull);
-            OsalPrintError(LonStatusReceiveRecordNotAvailable, "ReceiveNewMsg: Unable to allocate receive record; messsage lost");
+            OsalPrintLog(ERROR_LOG, LonStatusReceiveRecordNotAvailable, "ReceiveNewMsg: Unable to allocate receive record; messsage lost");
             QueueDropHead(&gp->tsaInQ); /* Remove item from queue. */
             return;
         }
@@ -1766,7 +1766,7 @@ static void ReceiveNewMsg(Layer layerIn)
             == AUTHENTICATING) && gp->recvRec[i].needAuth) {
         /* The message needs authentication. Initiate Challenge. */
         /* Or ReInitiate Challenge as the prev one is probably lost. */
-        OsalPrintDebug(LonStatusNoError, "ReceiveNewMsg: Initiating challenge");
+        OsalPrintLog(INFO_LOG, LonStatusNoError, "ReceiveNewMsg: Initiating challenge");
         InitiateChallenge(i);
         return;
     }
@@ -1776,7 +1776,7 @@ static void ReceiveNewMsg(Layer layerIn)
         /* Deliver the message to the application layer. */
         Deliver(i);
     } else {
-        OsalPrintDebug(LonStatusNoError, "ReceiveNewMsg: Received previously delivered message");
+        OsalPrintLog(INFO_LOG, LonStatusNoError, "ReceiveNewMsg: Received previously delivered message");
     }
 
     if (layerIn == TRANSPORT) {
@@ -1790,7 +1790,7 @@ static void ReceiveNewMsg(Layer layerIn)
         /* We already have a resp. Simply send it. */
         SNSendResponse(i, FALSE, FALSE); /* It can't be a null response. */
     } else if (gp->recvRec[i].transState == DONE) {
-        OsalPrintDebug(LonStatusNoError, "ReceiveNewMsg: No action required for received message");
+        OsalPrintLog(INFO_LOG, LonStatusNoError, "ReceiveNewMsg: No action required for received message");
     }
     return;
 }
@@ -1850,7 +1850,7 @@ static void ReceiveRem(Layer layerIn)
     /* Check if the REMINDER msg has an associated RR. */
     if (i == -1 && pduPtr->pduMsgType == REMINDER_MSG) {
         /* No associated RR. Discard this REMINDER msg. */
-        OsalPrintDebug(LonStatusNoError, "ReceiveRem: Discarded reminder message with no associated receive record");
+        OsalPrintLog(INFO_LOG, LonStatusNoError, "ReceiveRem: Discarded reminder message with no associated receive record");
         QueueDropHead(&gp->tsaInQ);
         return;
     }
@@ -1866,7 +1866,7 @@ static void ReceiveRem(Layer layerIn)
         If it is however REM_MSG_MSG, we want to treat it as a
         new message. */
         if (pduPtr->pduMsgType == REMINDER_MSG) {
-            OsalPrintDebug(LonStatusNoError, "ReceiveRem: Dropped reminder message with mismatched receive record");
+            OsalPrintLog(INFO_LOG, LonStatusNoError, "ReceiveRem: Dropped reminder message with mismatched receive record");
             QueueDropHead(&gp->tsaInQ);
             return;
         }
@@ -1886,7 +1886,7 @@ static void ReceiveRem(Layer layerIn)
             /* We should not have gotton this REMINDER as the original
             message was IzotServiceRepeated. So, ignore this message. */
             QueueDropHead(&gp->tsaInQ);
-            OsalPrintDebug(LonStatusNoError, "ReceiveRem: Ignored repeated message without previous original message");
+            OsalPrintLog(INFO_LOG, LonStatusNoError, "ReceiveRem: Ignored repeated message without previous original message");
             return;
         }
         /* Treat REM_MSG_MSG as new one. Fack this by setting i to -1. */
@@ -1903,7 +1903,7 @@ static void ReceiveRem(Layer layerIn)
             Strange! Ignore this msg too!
             Network layer should not have delivered such msg
             to upper layers. */
-            OsalPrintDebug(LonStatusNoError, "ReceiveRem: Ignored unexpected group message; not a group member");
+            OsalPrintLog(INFO_LOG, LonStatusNoError, "ReceiveRem: Ignored unexpected group message; not a group member");
             QueueDropHead(&gp->tsaInQ);
             return;
         }
@@ -1926,7 +1926,7 @@ static void ReceiveRem(Layer layerIn)
                             || gp->recvRec[i].transState == AUTHENTICATING)) {
                 /* Need authentication. Either a new msg or prev challenge
                 was lost. */
-                OsalPrintDebug(LonStatusNoError, "ReceiveRem: Initiating authentication challenge");
+                OsalPrintLog(INFO_LOG, LonStatusNoError, "ReceiveRem: Initiating authentication challenge");
                 InitiateChallenge(i);
                 QueueDropHead(&gp->tsaInQ);
                 return;
@@ -1948,14 +1948,14 @@ static void ReceiveRem(Layer layerIn)
                     SNSendResponse(i, FALSE, FALSE); /* can't be null resp. */
                 } else {
                     /* We are still waiting for a response. */
-                    OsalPrintDebug(LonStatusNoError, "ReceiveRem: No response yet or null response");
+                    OsalPrintLog(INFO_LOG, LonStatusNoError, "ReceiveRem: No response yet or null response");
                 }
             } else {
                 /* We are still waiting for resp & so can't respond
                 or in DONE state indicating server already received
                 the ack or response. */
                 QueueDropHead(&gp->tsaInQ);
-                OsalPrintDebug(LonStatusNoError, "ReceiveRem: Cannot respond or no need to respond");
+                OsalPrintLog(INFO_LOG, LonStatusNoError, "ReceiveRem: Cannot respond or no need to respond");
             }
         } else {
             /* We are not asked to acknowledege or respond. Ignore msg. */
@@ -1965,7 +1965,7 @@ static void ReceiveRem(Layer layerIn)
                 gp->recvRec[i].transState = DONE;
             }
             QueueDropHead(&gp->tsaInQ);
-            OsalPrintDebug(LonStatusNoError, "ReceiveRem: Ignored message due to no request for acknowledgement or response");
+            OsalPrintLog(INFO_LOG, LonStatusNoError, "ReceiveRem: Ignored message due to no request for acknowledgement or response");
         }
         return;
     }
@@ -2017,7 +2017,7 @@ static void ReceiveRem(Layer layerIn)
     /* Now, we have a RR for this message. */
     if (gp->recvRec[i].needAuth) {
         /* The message needs authentication. Initiate authentication challenge. */
-        OsalPrintDebug(LonStatusNoError, "ReceiveRem: Initiating authentication challenge");
+        OsalPrintLog(INFO_LOG, LonStatusNoError, "ReceiveRem: Initiating authentication challenge");
         InitiateChallenge(i);
         return;
     }
@@ -2095,7 +2095,7 @@ static void TPSendAck(IzotUbits16 rrIndexIn)
         if (!IsGroupMember(destAddr.dmn.domainIndex,
                 destAddr.addr.addr2b.groupAddr.group.GroupId,
                 &destAddr.addr.addr2b.groupAddr.member)) {
-            OsalPrintDebug(LonStatusNoError, "SendACKTPDU: Message acknowledged for a non-existing group");
+            OsalPrintLog(INFO_LOG, LonStatusNoError, "SendACKTPDU: Message acknowledged for a non-existing group");
             return;
         }
     } else {
@@ -2110,7 +2110,7 @@ static void TPSendAck(IzotUbits16 rrIndexIn)
     nwSendParamPtr->deltaBL = 0;
     nwSendParamPtr->altPath = gp->recvRec[rrIndexIn].altPath | ALT_CHANNEL_LOCK;
     nwSendParamPtr->pduSize = 1 + dataIndex;
-    OsalPrintDebug(LonStatusNoError, "TPSendAck: Sending an acknowledgment");
+    OsalPrintLog(INFO_LOG, LonStatusNoError, "TPSendAck: Sending an acknowledgment");
     QueueWrite(nwQueuePtr);
 }
 
@@ -2149,13 +2149,13 @@ static void SNSendResponse(IzotUbits16 rrIndexIn, IzotByte nullResponse,
 
     if (gp->recvRec[rrIndexIn].transState != RESPONDED
             && gp->recvRec[rrIndexIn].transState != DONE) {
-        OsalPrintError(LonStatusTransactionFailure, "SNSendResponse: Function called without at least one response");
+        OsalPrintLog(ERROR_LOG, LonStatusTransactionFailure, "SNSendResponse: Function called without at least one response");
         return;
     }
 
     if (nullResponse) {
         /* Set state to done and do not send the response. */
-        OsalPrintDebug(LonStatusNoError, "SendResponse: Nothing sent for null response");
+        OsalPrintLog(INFO_LOG, LonStatusNoError, "SendResponse: Nothing sent for null response");
         gp->recvRec[rrIndexIn].transState = DONE;
         return;
     }
@@ -2164,7 +2164,7 @@ static void SNSendResponse(IzotUbits16 rrIndexIn, IzotByte nullResponse,
     pduPtr = (TSPDUPtr) (nwSendParamPtr + 1);
 
     if (gp->nwOutBufSize < gp->recvRec[rrIndexIn].rspSize + 1) {
-        OsalPrintError(LonStatusBufferSizeTooSmall, "SNSendResponse: Network buffer too small for response");
+        OsalPrintLog(ERROR_LOG, LonStatusBufferSizeTooSmall, "SNSendResponse: Network buffer too small for response");
         return;
     }
     pduPtr->auth = FALSE; /* Responses are not authenticated. */
@@ -2182,7 +2182,7 @@ static void SNSendResponse(IzotUbits16 rrIndexIn, IzotByte nullResponse,
     /* Copy the existing response from RR */
     uint16_t responseSize;
     if (!LON_SUCCESS(status = DecodeBufferSize(TSA_RESP_BUF_SIZE, &responseSize))) {
-        OsalPrintError(status, "SNSendResponse: Unable to decode response buffer size");
+        OsalPrintLog(ERROR_LOG, status, "SNSendResponse: Unable to decode response buffer size");
         return;
     }
     if (gp->recvRec[rrIndexIn].rspSize <= responseSize) {
@@ -2202,7 +2202,7 @@ static void SNSendResponse(IzotUbits16 rrIndexIn, IzotByte nullResponse,
         memcpy(&pduPtr->data[dataIndex], gp->recvRec[rrIndexIn].response,
                 gp->recvRec[rrIndexIn].rspSize);
     } else {
-        OsalPrintDebug(LonStatusNoError, "SNSendResponse: Discarded a long response");
+        OsalPrintLog(INFO_LOG, LonStatusNoError, "SNSendResponse: Discarded a long response");
         return;
     }
 
@@ -2226,7 +2226,7 @@ static void SNSendResponse(IzotUbits16 rrIndexIn, IzotByte nullResponse,
         if (!IsGroupMember(destAddr.dmn.domainIndex,
                 destAddr.addr.addr2b.groupAddr.group.GroupId,
                 &destAddr.addr.addr2b.groupAddr.member)) {
-            OsalPrintDebug(LonStatusNoError, "SNSendResponse: Response for a non-existing group");
+            OsalPrintLog(INFO_LOG, LonStatusNoError, "SNSendResponse: Response for a non-existing group");
             return;
         }
     } else {
@@ -2242,7 +2242,7 @@ static void SNSendResponse(IzotUbits16 rrIndexIn, IzotByte nullResponse,
     nwSendParamPtr->altPath = gp->recvRec[rrIndexIn].altPath | ALT_CHANNEL_LOCK;
     nwSendParamPtr->pduSize = gp->recvRec[rrIndexIn].rspSize + dataIndex + 1;
 
-    OsalPrintDebug(LonStatusNoError, "SNSendResponse: Sending a response");
+    OsalPrintLog(INFO_LOG, LonStatusNoError, "SNSendResponse: Sending a response");
     QueueWrite(nwQueuePtr);
 }
 
@@ -2271,7 +2271,7 @@ static void Deliver(IzotUbits16 rrIndexIn)
         sequence from a given source node. So, it is better to drop the
         message and let the retry mechanism take care of redelivery. */
         INCR_STATS(LcsLost);
-        OsalPrintError(LonStatusNoBufferAvailable, "Deliver: No buffer available to send the message");
+        OsalPrintLog(ERROR_LOG, LonStatusNoBufferAvailable, "Deliver: No buffer available to send the message");
         return;
     }
 
@@ -2293,7 +2293,7 @@ static void Deliver(IzotUbits16 rrIndexIn)
         /* We can never deliver this APDU. So, make it look like
         it was delivered so that it can be discarded. We don't
         want to send any ACK or response for this message. */
-        OsalPrintError(LonStatusWritePastEndOfApplBuffer, 
+        OsalPrintLog(ERROR_LOG, LonStatusWritePastEndOfApplBuffer, 
                 "Deliver: Packet size (%02X) too big for application buffer (%02X); dropping packet",
                 gp->recvRec[i].apduSize, gp->appInBufSize);
         return;
@@ -2302,7 +2302,7 @@ static void Deliver(IzotUbits16 rrIndexIn)
     memcpy(apduInPtr, gp->recvRec[i].apdu, gp->recvRec[i].apduSize);
     QueueWrite(&gp->appInQ);
     gp->recvRec[i].transState = DELIVERED;
-    OsalPrintDebug(LonStatusNoError, "Deliver: Packet delivered to the application layer");
+    OsalPrintLog(INFO_LOG, LonStatusNoError, "Deliver: Packet delivered to the application layer");
 }
 
 /*****************************************************************
@@ -2421,7 +2421,7 @@ static IzotUbits16 ComputeRecvTimerValue(AddrMode addrModeIn,
                 if (!LON_SUCCESS(status = DecodeRcvTimer(
                         (IzotByte) IZOT_GET_ATTRIBUTE(eep->addrTable[i].Group, 
                                     IZOT_ADDRESS_GROUP_RECEIVE_TIMER), &temp))) {
-                    OsalPrintError(status, "ComputeRecvTimerValue: Unable to decode receive timer");
+                    OsalPrintLog(ERROR_LOG, status, "ComputeRecvTimerValue: Unable to decode receive timer");
                     return 0;
                 }
                 /* Using the maximum receive timer for the group is not required.  It
@@ -2438,14 +2438,14 @@ static IzotUbits16 ComputeRecvTimerValue(AddrMode addrModeIn,
     /* All other messages use non-group timer value. */
     if (!LON_SUCCESS(status = DecodeRcvTimer((IzotByte) IZOT_GET_ATTRIBUTE(
             eep->configData, IZOT_CONFIG_NONGRPRCV), &temp))) {
-        OsalPrintError(status, "ComputeRecvTimerValue: Unable to decode non-group receive timer");
+        OsalPrintLog(ERROR_LOG, status, "ComputeRecvTimerValue: Unable to decode non-group receive timer");
         return 0;
     }
     return (temp);
 }
 
 /*****************************************************************
- Function:  SNSend
+ Function:  SessionLayerSend
  Returns:   None
  Reference: Section 8, Protocol Spec.
  Purpose:   To implement Send algorithm for the session layer.
@@ -2470,12 +2470,12 @@ static IzotUbits16 ComputeRecvTimerValue(AddrMode addrModeIn,
  nothing to do. return.
  Note:
  ******************************************************************/
-void SNSend(void) 
+void SessionLayerSend(void) 
 {
     TSASendParam *tsaSendParamPtr;
     IzotUbits16 i;
 
-    /* Delay SNSend after power-up or external reset. */
+    /* Delay SessionLayerSend after power-up or external reset. */
     if (SendBlocked()) {
         return; /* Do nothing */
     }
@@ -2496,7 +2496,7 @@ void SNSend(void)
             /* Throw away this message. Only responses are
             allowed in this queue. */
             QueueDropHead(&gp->tsaRespQ);
-            OsalPrintDebug(LonStatusNoError, "SNSend: Non-response message discarded from response queue");
+            OsalPrintLog(INFO_LOG, LonStatusNoError, "SessionLayerSend: Non-response message discarded from response queue");
             return;
         }
 
@@ -2505,7 +2505,7 @@ void SNSend(void)
             /* Stale or duplicate response. Ignore it. */
             QueueDropHead(&gp->tsaRespQ);
             INCR_STATS(LcsLateAck);
-            OsalPrintDebug(LonStatusNoError, "SNSend: Stale or duplicate response discarded");
+            OsalPrintLog(INFO_LOG, LonStatusNoError, "SessionLayerSend: Stale or duplicate response discarded");
             return;
         }
         /* Copy the response to the receive record and send response. */
@@ -2527,7 +2527,7 @@ void SNSend(void)
     **************************************************/
     if (gp->priXmitRec.status == SESSION_TX && !LonTimerRunning(
             &gp->priXmitRec.xmitTimer)) {
-        OsalPrintDebug(LonStatusNoError, "SNSend: Priority transmit timer expired");
+        OsalPrintLog(INFO_LOG, LonStatusNoError, "SessionLayerSend: Priority transmit timer expired");
         XmitTimerExpiration(SESSION, TRUE);
         return;
     }
@@ -2536,7 +2536,7 @@ void SNSend(void)
     **************************************************/
     else if (gp->priXmitRec.status == UNUSED_TX && !QueueEmpty(&gp->tsaOutPriQ)
             && !QueueFull(&gp->nwOutPriQ)) {
-        OsalPrintDebug(LonStatusNoError, "SNSend: Send a new priority message");
+        OsalPrintLog(INFO_LOG, LonStatusNoError, "SessionLayerSend: Send a new priority message");
         SendNewMsg(SESSION, TRUE);
         return;
     }
@@ -2545,7 +2545,7 @@ void SNSend(void)
     *************************************************/
     else if (gp->xmitRec.status == SESSION_TX && !LonTimerRunning(
             &gp->xmitRec.xmitTimer)) {
-        OsalPrintDebug(LonStatusNoError, "SNSend: Non-priority timer expired");
+        OsalPrintLog(INFO_LOG, LonStatusNoError, "SessionLayerSend: Non-priority timer expired");
         XmitTimerExpiration(SESSION, FALSE);
     }
     /***************************************************
@@ -2553,7 +2553,7 @@ void SNSend(void)
     **************************************************/
     else if (gp->xmitRec.status == UNUSED_TX && !QueueEmpty(&gp->tsaOutQ)
             && !QueueFull(&gp->nwOutQ)) {
-        OsalPrintDebug(LonStatusNoError, "SNSend: Send a new non-priority message");
+        OsalPrintLog(INFO_LOG, LonStatusNoError, "SessionLayerSend: Send a new non-priority message");
         SendNewMsg(SESSION, FALSE);
     } else {
         /* Either there is no work or there is no space. */
@@ -2564,13 +2564,13 @@ void SNSend(void)
 }
 
 /*****************************************************************
- Function:  SNReceive
+ Function:  SessionLayerReceive
  Returns:   None
  Reference: None
  Purpose:   To receive and process incoming SPDU's.
  Comments:  None
  ******************************************************************/
-void SNReceive(void) 
+void SessionLayerReceive(void) 
 {
     TSAReceiveParam *tsaReceiveParamPtr;/* Param in tsa input queue.  */
     TSPDUPtr spduInPtr; /* Pointer to SPDU received. */
@@ -2581,7 +2581,7 @@ void SNReceive(void)
         if (gp->recvRec[i].status == SESSION_RR) {
             if (LonTimerExpired(&gp->recvRec[i].recvTimer)) {
                 /* Timer expired. Release the receive record. */
-                OsalPrintDebug(LonStatusNoError, "SNReceive: Receive timer expired");
+                OsalPrintLog(INFO_LOG, LonStatusNoError, "SessionLayerReceive: Receive timer expired");
                 gp->recvRec[i].status = UNUSED_RR; /* Release the RR */
             }
         }
@@ -2598,13 +2598,13 @@ void SNReceive(void)
 
     /* Check if the PDU is for session layer. If not, we are done. */
     if (tsaReceiveParamPtr->pduType != SPDU_TYPE) {
-        OsalPrintDebug(LonStatusNoError, "SNReceive: Non-session layer packet discarded from session layer");
+        OsalPrintLog(INFO_LOG, LonStatusNoError, "SessionLayerReceive: Non-session layer packet discarded from session layer");
         return;
     }
 
     if (tsaReceiveParamPtr->pduSize < 1) {
         QueueDropHead(&gp->tsaInQ);
-        OsalPrintDebug(LonStatusInvalidMessageLength, "SNReceive: Invalid packet size");
+        OsalPrintLog(INFO_LOG, LonStatusInvalidMessageLength, "SessionLayerReceive: Invalid packet size");
         return;
     }
 
@@ -2628,8 +2628,8 @@ void SNReceive(void)
         return;
     default:
         QueueDropHead(&gp->tsaInQ);
-        OsalPrintError(LonStatusUnknownPdu, 
-                "SNReceive: Dropped received packet with unknown session packet type (%02X)",
+        OsalPrintLog(ERROR_LOG, LonStatusUnknownPdu, 
+                "SessionLayerReceive: Dropped received packet with unknown session packet type (%02X)",
                 spduInPtr->pduMsgType);
     }
 
@@ -2692,7 +2692,7 @@ void AuthReceive(void)
     process accordingly. */
     if (pduInPtr->pduMsgType == CHALLENGE_MSG || pduInPtr->pduMsgType
             == CHALLENGE_OMA_MSG) {
-        OsalPrintDebug(LonStatusNoError, "AuthReceive: Send reply to authentication challenge");
+        OsalPrintLog(INFO_LOG, LonStatusNoError, "AuthReceive: Send reply to authentication challenge");
         LCS_LogRxStat(tsaReceiveParamPtr->altPath, RX_SOLICITED);
         SendReplyToChallenge((IzotByte) (pduInPtr->pduMsgType == CHALLENGE_OMA_MSG));
     } else if (pduInPtr->pduMsgType == REPLY_MSG || pduInPtr->pduMsgType
@@ -2702,7 +2702,7 @@ void AuthReceive(void)
         ProcessReply((IzotByte) (pduInPtr->pduMsgType == REPLY_OMA_MSG));
     } else {
         QueueDropHead(&gp->tsaInQ);
-        OsalPrintError(LonStatusUnknownPdu, "AuthReceive: Dropped packet with unknown authentication type (%02X)", pduInPtr->pduMsgType);
+        OsalPrintLog(ERROR_LOG, LonStatusUnknownPdu, "AuthReceive: Dropped packet with unknown authentication type (%02X)", pduInPtr->pduMsgType);
         return;
     }
 }
@@ -2789,7 +2789,7 @@ static void InitiateChallenge(IzotUbits16 rrIndexIn)
         if (!IsGroupMember(gp->recvRec[rrIndexIn].srcAddr.dmn.domainIndex,
                 gp->recvRec[rrIndexIn].srcAddr.group.GroupId,
                 &nwSendParamPtr->destAddr.addr.addr2b.groupAddr.member)) {
-            OsalPrintError(LonStatusException, "InitiateChallenge: Ignored invalid challenge request");
+            OsalPrintLog(ERROR_LOG, LonStatusException, "InitiateChallenge: Ignored invalid challenge request");
             return; /* Don't challenge. This case should not happen. */
         }
     } else {
@@ -2803,7 +2803,7 @@ static void InitiateChallenge(IzotUbits16 rrIndexIn)
     nwSendParamPtr->altPath = gp->recvRec[rrIndexIn].altPath | ALT_CHANNEL_LOCK;
     gp->recvRec[rrIndexIn].transState = AUTHENTICATING;
     QueueWrite(nwQueuePtr);
-    OsalPrintDebug(LonStatusNoError, "InitiateChallenge: Sending an authentication challenge");
+    OsalPrintLog(INFO_LOG, LonStatusNoError, "InitiateChallenge: Sending an authentication challenge");
     return;
 }
 
@@ -3020,7 +3020,7 @@ static void SendReplyToChallenge(IzotByte useOma)
     nwSendParamPtr->altPath = tsaReceiveParamPtr->altPath | ALT_CHANNEL_LOCK;
     QueueWrite(nwQueuePtr);
     QueueDropHead(&gp->tsaInQ);
-    OsalPrintDebug(LonStatusNoError, "SendReply: Sending an authentication challenge reply message");
+    OsalPrintLog(INFO_LOG, LonStatusNoError, "SendReply: Sending an authentication challenge reply message");
     /* Restart the transmit timer. */
     SetLonTimer(&xmitRecPtr->xmitTimer, xmitRecPtr->xmitTimerValue);
     return;
@@ -3102,14 +3102,14 @@ static void ProcessReply(IzotByte useOma)
     if (pduInPtr->fmt == 1 && pduInPtr->data[dataIndex + 8] != 
     gp->recvRec[i].srcAddr.group.GroupId) {
         /* Group in AuthPDU does not match one in RR. */
-        OsalPrintDebug(LonStatusInvalidMessageAddress, "ProcessReply: Ignoring reply with invalid group");
+        OsalPrintLog(INFO_LOG, LonStatusInvalidMessageAddress, "ProcessReply: Ignoring reply with invalid group");
         QueueDropHead(&gp->tsaInQ);
         return;
     }
 
     if (transNum != gp->recvRec[i].transNum) {
         /* Transaction Number does not match. Ignore reply. */
-        OsalPrintDebug(LonStatusTransactionFailure, "ProcessReply: Ignoring reply with invalid transaction number");
+        OsalPrintLog(INFO_LOG, LonStatusTransactionFailure, "ProcessReply: Ignoring reply with invalid transaction number");
         QueueDropHead(&gp->tsaInQ);
         return;
     }
@@ -3143,10 +3143,10 @@ static void ProcessReply(IzotByte useOma)
 
     if (memcmp(encryptValue, cryptoBytes, 8) == 0) {
         /* Matches */
-        OsalPrintDebug(LonStatusNoError, "ProcessReply: Authentication challenge reply matches");
+        OsalPrintLog(INFO_LOG, LonStatusNoError, "ProcessReply: Authentication challenge reply matches");
         gp->recvRec[i].auth = TRUE;
     } else {
-        OsalPrintError(LonStatusAuthenticationMismatch, "ProcessReply: Authentication failed for message from domain %d", domainIndex);
+        OsalPrintLog(ERROR_LOG, LonStatusAuthenticationMismatch, "ProcessReply: Authentication failed for message from domain %d", domainIndex);
         gp->recvRec[i].auth = FALSE;
     }
     gp->recvRec[i].transState = AUTHENTICATED;

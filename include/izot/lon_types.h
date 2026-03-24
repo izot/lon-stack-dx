@@ -1,7 +1,7 @@
 /*
  * lon_types.h
  *
- * Copyright (c) 2023-2025 EnOcean
+ * Copyright (c) 2023-2026 EnOcean
  * SPDX-License-Identifier: MIT
  * See LICENSE file for details.
  * 
@@ -229,7 +229,7 @@ typedef enum {
 	// Add any platform and application-specific system error codes 
 	// with values between 513 (0x201) and 639 (0x27F), which will be 
 	// reported as values between 1 and 127 (0x7F) by the Query Status 
-	// network management command.
+	// network management command
 	LonStatusCustomSystemCodeStart			= 512,
 	// Add custom system error codes here
 	LonStatusCustomSystemCodeEnd			= 639,
@@ -265,7 +265,7 @@ typedef enum {
 #define IZOT_SET_ATTRIBUTE(var, n, value)    ((var).n##_FIELD = (((var).n##_FIELD) & ~n##_MASK) | ((((value) << n##_SHIFT)) & n##_MASK))
 #define IZOT_SET_ATTRIBUTE_P(var, n, value)  ((var)->n##_FIELD = (((var)->n##_FIELD) & ~n##_MASK) | ((((value) << n##_SHIFT)) & n##_MASK))
 
-// Maximum length of the domain identifier, in bytes.
+// Maximum length of the domain identifier, in bytes
 // The domain identifier can be zero, one, three, or
 // IZOT_DOMAIN_ID_MAX_LENGTH (6) bytes long.  Space for the largest possible
 // identifier is allocated in various structures and message types. See
@@ -284,15 +284,18 @@ typedef enum {
 // Length of the location identifier, in bytes
 #define IZOT_LOCATION_LENGTH     6
 
-// Length of the node's unique identifier, in bytes.
-// The Unique ID is also known as the Neuron ID or MAC ID,
+// Length of the node's unique identifier, in bytes;
+// the Unique ID is also known as the Neuron ID or MAC ID,
 #define IZOT_UNIQUE_ID_LENGTH    6
 
-// Number of communication control bytes.
-#define IZOT_COMMUNICATIONS_PARAMETER_LENGTH     7
+// Number of communication control bytes
+#define IZOT_COMMUNICATIONS_PARAMETER_LENGTH 7
 
-// Parameters for single-ended and special-purpose mode transceivers.
-// See <IzotDirectModeTransceiver> for direct-mode transceiver parameters.
+// Custom channel type ID; see stdxcvr.xml for all channel types
+#define IZOT_CUSTOM_CHANNEL_TYPE_ID 30
+
+// Parameters for single-ended and special-purpose mode transceivers;
+// see <IzotDirectModeTransceiver> for direct-mode transceiver parameters
 typedef IzotByte IzotTransceiverParameters[IZOT_COMMUNICATIONS_PARAMETER_LENGTH];
 
 // Holds the unique ID
@@ -510,7 +513,10 @@ typedef IZOT_ENUM_BEGIN(IzotServiceLedPhysicalState) {
 /* Set the size of the array to log error messages from the LON Stack.
    The error messages wrap around, if there are too many errors.
    Errors seldom happen. So, there is no need for this to be too large. */
+#if 0
+// TBD: delete
 #define ERROR_MSG_SIZE  1000   /* 20 messages each with 50 chars        */
+#endif
 
 /* Flex domain indicates that the message was received in flex domain when
    domain index is 2 */
@@ -552,6 +558,15 @@ typedef IZOT_ENUM_BEGIN(IzotServiceLedPhysicalState) {
 // Maximum size of message on the wire (might be over sized a byte or two for safety)
 #define MAX_PDU_SIZE (MAX_DATA_SIZE+21)
 
+// Maximum LON MAC layer message size (bytes) for non-expanded non-extended
+// and extended messages,and expanded non-extended and extended messages with
+// framesync byte-stuffing; the LON MAC layer can carry ISO/IEC 14908-1
+// payloads up to 228 bytes, or UDP payloads up to 1280 bytes
+#define MAX_LON_MSG_NON_EX_LEN		240
+#define MAX_EXP_LON_MSG_NON_EX_LEN	(2*MAX_LON_MSG_NON_EX_LEN+4)
+#define MAX_LON_MSG_EX_LEN			1280
+#define MAX_EXP_LON_MSG_EX_LEN		(2*MAX_LON_MSG_EX_LEN+4)
+
 #define NUM_ADDR_TBL_ENTRIES   254     /* # of address table entries; maximum supported value is 255 */
 
 #define RECEIVE_TRANS_COUNT    16      /* Can be > 16 for Ref. Impl */
@@ -575,8 +590,11 @@ typedef IZOT_ENUM_BEGIN(IzotServiceLedPhysicalState) {
     does not use such an array.  For example, if the OsalAllocateMemory()
     implementation uses malloc(), this constant is not used.
 *******************************************************************************/
+#if 0
+// TBD: make this conditional based on malloc support in OSAL
 #ifndef MALLOC_SIZE
 #define MALLOC_SIZE     10050
+#endif
 #endif
 
 // LON/IP constants
@@ -875,9 +893,9 @@ typedef IZOT_ENUM_BEGIN(IzotReceiveDestinationAddressFormat) {
 #define IZOT_RECEIVEADDRESS_FORMAT_FIELD  DomainFormat
 
 typedef IZOT_STRUCT_BEGIN(IzotReceiveAddress) {
-    IzotByte  DomainFormat;   /* Contains domain, flex domain, format. Use IZOT_RECEIVEADDRESS_* macros to access data. */
-    IzotReceiveSubnetNode    Source;
-    IzotReceiveDestination   Destination;
+    IzotByte                DomainFormat;   /* Contains domain, flex domain, format. Use IZOT_RECEIVEADDRESS_* macros to access data. */
+    IzotReceiveSubnetNode   Source;
+    IzotReceiveDestination  Destination;
 } IZOT_STRUCT_END(IzotReceiveAddress);
 
 // Source address of a response message
@@ -1706,6 +1724,10 @@ typedef IZOT_ENUM_BEGIN(LonNiCommand) {
     LonNiResponseQueue      = 0x06,     // Response message & completion event queue
     LonNiIncomingQueue      = 0x08,     // Received message queue
 	LonNiCommandMask		= 0x10,     // LON network interface command bit--used by driver
+    LonNiApplicationData    = 0x10,     // Application data
+    LonNiResponseStatus     = 0x11,     // Response/status from the NI to host
+    LonNiNetworkMgmtCmd     = 0x12,     // Network management command
+    LonNiDiagnosticData		= 0x13,     // Diagnostic data used for debugging, testing, and statistics
 	LonNiResponseCmd		= 0x16,     // Used by stack L2
 	LonNiIncomingCmd		= 0x18,     // Incoming command--used by driver for Wink
 	LonNiIncomingL2Cmd		= 0x1A,     // Used by stack L2
@@ -2196,18 +2218,28 @@ typedef IZOT_STRUCT_BEGIN(IzotNmUpdateDomainResponse) {
 
 // LON Service message structure
 typedef IZOT_STRUCT_BEGIN(IzotServiceMsg) {
-    IzotByte	    neuron_id[IZOT_UNIQUE_ID_LENGTH];
-    IzotByte	    id_string[IZOT_PROGRAM_ID_LENGTH];
+    IzotByte    unique_id[IZOT_UNIQUE_ID_LENGTH];
+    IzotByte    id_string[IZOT_PROGRAM_ID_LENGTH];
 } IZOT_STRUCT_END(IzotServiceMsg);
+
+// LON network interface status command (LonNiStatusCmd) response message structure
+typedef IZOT_STRUCT_BEGIN(IzotLonInterfaceStatusResponse) {
+    IzotByte    model_id;       // LON interface model ID; 30 (0x1E) for U60 FT and
+                                // U10 Rev C (MIP/U50)
+    IzotByte    fw_version;     // LON interface firmware version; encoded as (Value / 10). 
+                                // Example: 0xA0 = 160, interpreted as version 16.0
+    IzotByte    layer_mode;     // LON interface layer mode; use LonUsbInterfaceMode values
+    IzotByte    status;         // LON interface status; 0 is ready
+} IZOT_STRUCT_END(IzotLonInterfaceStatusResponse);
 
 // LON message service types
 typedef IZOT_ENUM_BEGIN(IzotServiceType)
 {
-    IzotServiceAcknowledged       = 0,    /* ACKD         */
-    IzotServiceRepeated           = 1,    /* UNACKD_RPT   */
-    IzotServiceUnacknowledged     = 2,    /* UNACKD       */
-    IzotServiceRequest            = 3,    /* REQUEST      */
-	IzotServiceResponse           = 4     /* RESPONSE     */ /* Session Layer */
+    IzotServiceAcknowledged     = 0,    /* ACKD         */
+    IzotServiceRepeated         = 1,    /* UNACKD_RPT   */
+    IzotServiceUnacknowledged   = 2,    /* UNACKD       */
+    IzotServiceRequest          = 3,    /* REQUEST      */
+	IzotServiceResponse         = 4     /* RESPONSE     */ /* Session Layer */
 } IZOT_ENUM_END(IzotServiceType);
 
 /*****************************************************************
@@ -2270,7 +2302,7 @@ typedef IZOT_STRUCT_BEGIN(IzotStackInterfaceData) {
                                        recognize the version, the structure
                                        will be rejected.  The current version is
                                        IZOT_STACK_INTERFACE_CURRENT_VERSION. */
-    uint32_t Signature;             /* 32-bit unique numerical application
+    uint32_t AppSignature;          /* 32-bit unique numerical application
                                        identifier. */
     IzotProgramId ProgramId;        /* Program ID string (array of 8 bytes) */
     uint16_t StaticDatapoints;      /* Number of static NVs */
@@ -3247,12 +3279,16 @@ typedef void (*IzotisiTickFunction)(void);
 
 // Queue-entry structure
 typedef struct {
-    IzotUbits16 queueCnt;   /* Max number of items in queue. i.e capacity */
-    IzotUbits16 queueSize;  /* Number of items currently in queue         */
-    IzotUbits16 itemSize;   /* Number of bytes for each item in queue     */
-    IzotByte *head;         /* Pointer to the head item of the queue      */
-    IzotByte *tail;         /* Pointer to the tail item of the queue      */
-    IzotByte *data;         /* Array of items -- Allocated during Init    */
+    char *queueName;            // Name of the queue (for debugging)
+    IzotUbits16 queueCapacity;  // Max number of entries in queue
+    IzotUbits16 queueEntries;   // Number of entries currently in queue
+    IzotUbits16 entrySize;      // Number of bytes for each entry in queue
+    IzotBool emptyCountReports; // Number of times the empty condition has been reported
+    IzotByte *head;             // Pointer to the head entry of the queue
+    int headIndex;              // Index of the head entry in the data array for debugging
+    IzotByte *tail;             // Pointer to the tail entry of the queue
+    int tailIndex;              // Index of the tail entry in the data array for debugging
+    IzotByte *data;             // Array of entries -- allocated during initialization
 } Queue;
 
 // LON timer structure

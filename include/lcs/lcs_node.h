@@ -488,7 +488,7 @@ typedef struct
 
 /* SNVT data structures */
 
-/* See comment in app.c in APPReset and AddNV for a description */
+/* See comment in app.c in AppLayerReset and AddNV for a description */
 /* of how the SNVT area is layed out and managed.               */
 
 typedef struct __attribute__((__packed__))
@@ -568,11 +568,14 @@ typedef struct
 	/* Track if this stack is initialized */
 	IzotBool        initialized;
 
+#if 0
+// TBD: make this conditional based on malloc support in OSAL
     /* Number of bytes used so far */
     IzotUbits16     mallocUsedSize;
 
     /* Array of storage space for dynamic allocation of buffers etc */
     IzotByte        mallocStorage[MALLOC_SIZE];
+#endif
 
     /* Variables for Transaction Control Sublayer */
     TransCtrlRecord priTransCtrlRec;
@@ -837,15 +840,14 @@ typedef struct
     IzotDomain          domainTable[MAX_DOMAINS];
     IzotAddress         addrTable[NUM_ADDR_TBL_ENTRIES];
     IzotDatapointConfig nvConfigTable[NV_TABLE_SIZE];
-    IzotAliasConfig     nvAliasTable[NV_ALIAS_TABLE_SIZE];
-    /* Checksum for config structure */
-    IzotByte            configCheckSum; /* Exclusive or of successive bytes in
-                             config structure */
+    IzotAliasConfig     nvAliasTable[NV_ALIAS_TABLE_SIZE];  // Checksum for config structure
+    IzotByte            configCheckSum;                     // Exclusive or of successive
+                                                            // bytes in config structure
     LonStatusCode       errorLog;
 	Dimensions          dimensions;
 	IzotByte            nvInitCount;
 	IzotByte            nodeState;
-	uint32_t            signature;
+	uint32_t            appSignature;
 } EEPROM;
 
 #pragma pack(pop)
@@ -919,7 +921,7 @@ void     UpdateAlias(IzotAliasConfig *aliasStructInp, IzotUbits16 indexIn);
 IzotUbits16 AliasTableIndex(char varNameIn[]);
 LonStatusCode NodeReset(IzotByte firstReset);
 void	 NodeReset_wrapper(void);
-LonStatusCode   InitEEPROM(uint32_t signature);
+LonStatusCode   InitEEPROM(uint32_t app_signature);
 IzotByte CheckSum8(void *data, IzotUbits16 lengthIn);
 IzotByte ComputeConfigCheckSum(void);
 IzotBits16 GetPrimaryIndex(IzotBits16 nvIndexIn);

@@ -1,7 +1,7 @@
 /*
  * isi_persistence.c
  *
- * Copyright (c) 2005-2025 EnOcean
+ * Copyright (c) 2005-2026 EnOcean
  * SPDX-License-Identifier: MIT
  * See LICENSE file for details.
  * 
@@ -197,7 +197,7 @@ void savePersistentData(IzotPersistentSegType persistent_seg_type)
 	
     hdr.version = CURR_VERSION;
     hdr.length = 0;
-	hdr.signature = ISI_IMAGE_SIGNATURE0;
+	hdr.isiSignature = ISI_IMAGE_SIGNATURE0;
     hdr.checksum = 0;
     hdr.appSignature = IzotGetAppSignature();
     _IsiAPIDebug("savePersistentData - for persistent_seg_type=%d\n", persistent_seg_type); 
@@ -254,7 +254,7 @@ LtPersistenceLossReason restorePersistentData(IzotPersistentSegType persistent_s
 	if (returnedSegType != IzotPersistentSegUnassigned) {
 		if (IzotPersistentSegRead(returnedSegType, 0, sizeof(hdr), &hdr) != 0) {
 			reason = LT_CORRUPTION;
-		} else if (hdr.signature != ISI_IMAGE_SIGNATURE0) {
+		} else if (hdr.isiSignature != ISI_IMAGE_SIGNATURE0) {
 			reason = LT_SIGNATURE_MISMATCH;
 		} else if (hdr.appSignature != IzotGetAppSignature()) {
 			reason = LT_SIGNATURE_MISMATCH;
