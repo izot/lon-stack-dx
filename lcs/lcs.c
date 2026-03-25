@@ -70,7 +70,7 @@ LonStatusCode LCS_Init(IzotResetCause cause)
     UnlockWiFiDevice();
 #endif  // LINK_IS(WIFI)
 
-    // First init EEPROM based on custom.h, custom.c and default
+    // Initialize EEPROM based on custom.h, custom.c and default
     // values for several variables
     for (stackNum = 0; stackNum < NUM_STACKS; stackNum++) {
         eep = &eeprom[stackNum];

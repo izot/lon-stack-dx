@@ -376,7 +376,7 @@ IzotBool IzotStorageSegIsInvalid(const IzotPersistentSegType persistent_seg_type
     // Optionally print the result; neither value is an error condition since a
     // storage data segment is always invalid on first use
     if (invalid_segment) {
-        OsalPrintLog(ERROR_LOG, LonStatusNoError, "IzotStorageSegIsInvalid: %s is invalid or uninitialized (%X transaction signature, %X validity)", 
+        OsalPrintLog(INFO_LOG, LonStatusNoError, "IzotStorageSegIsInvalid: %s is invalid or uninitialized (%X transaction signature, %X validity)", 
                 IzotPersistentGetSegName(persistent_seg_type), transaction_record.tx_signature, transaction_record.tx_state);  
     } else {
         OsalPrintLog(INFO_LOG, LonStatusNoError, "IzotStorageSegIsInvalid: %s is valid", 

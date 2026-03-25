@@ -341,13 +341,14 @@ typedef struct LonNiExtendedFrame {
 // LON USB frame header type enumeration
 typedef enum {
 	FRAME_SYNC_ONLY,
-	FRAME_CODE_PACKET
+	FRAME_CODE_PACKET,
+	FRAME_INVALID_TYPE = 0xFFFFFFFF		// Unused constant forcing a 4-byte wide enum
+										// to prevent a compilation error on an STM32	
 } LonUsbFrameHeaderType;
 
 // LON USB frame codes -- must match the MIP/U50 implementation
-// The frame command values are in the lower 4 bits of the frame command
-// byte for MIP/U50; for MIP/U61, the frame code byte is always 0 and the
-//command is determined by the parameter byte
+// The frame code values are in the lower 4 bits of the frame command
+// byte for MIP/U50; for MIP/U61, the frame command byte is always 0
 typedef enum {
 	NULL_FRAME_CMD			= 0,
 	FAIL_FRAME_CMD			= 1,
@@ -419,17 +420,23 @@ typedef enum {
 } LonUsbIfaceType;
 
 // LON USB interface model enumeration
-typedef enum {
-	U10_FT_AB,
-	U10_FT_C,
-	U20_PL,
-	U60_FT,
-	U60_TP_1250,
-	U70_PL,
-	RF_900
-} LonUsbIfaceModel;
-
-#define MAX_IFACE_MODELS 6
+#if LINK_IS(USB)
+	typedef enum {
+		U60_FT
+	} LonUsbIfaceModel;
+	#define MAX_IFACE_MODELS 1
+#else
+	typedef enum {
+		U10_FT_AB,
+		U10_FT_C,
+		U20_PL,
+		U60_FT,
+		U60_TP_1250,
+		U70_PL,
+		RF_900
+	} LonUsbIfaceModel;
+	#define MAX_IFACE_MODELS 6
+#endif // LINK_IS(USB)
 
 // LON USB link-layer interface configuration structure
 typedef struct LonUsbIfaceConfig {
@@ -452,23 +459,30 @@ typedef struct LonUsbIfaceConfig {
 #else
 #define LON_USB_LDISC_MIP_U50  -1
 #define LON_USB_LDISC_MIP_U61  -1
-#endif
+#endif	// OS_IS(LINUX_KERNEL)
 
 // LON USB interface configurations indexed by LonUsbIfaceModel
-static LonUsbIfaceConfig lon_usb_iface_configs[] = {
-	// U10 FT Rev A/B
-	{LON_USB_INTERFACE_U61, LON_USB_LDISC_MIP_U61, FRAME_SYNC_ONLY, false, false, false},
-	// U10 FT Rev C
-	{LON_USB_INTERFACE_U50, LON_USB_LDISC_MIP_U50, FRAME_CODE_PACKET, true, true, true},
-	// U20 PL
-	{LON_USB_INTERFACE_U61, LON_USB_LDISC_MIP_U61, FRAME_SYNC_ONLY, false, false, false},
-	// U60 FT
-	{LON_USB_INTERFACE_U50, LON_USB_LDISC_MIP_U50, FRAME_CODE_PACKET, true, true, true},
-	// U60 TP-1250
-	{LON_USB_INTERFACE_U61, LON_USB_LDISC_MIP_U61, FRAME_SYNC_ONLY, false, false, false},
-	// U70 PL
-	{LON_USB_INTERFACE_U61, LON_USB_LDISC_MIP_U61, FRAME_SYNC_ONLY, false, false, false}
-};
+#if LINK_IS(USB)
+	__attribute__((used)) static LonUsbIfaceConfig lon_usb_iface_configs[] = {
+		// U60 FT and U10 FT Rev C
+		{LON_USB_INTERFACE_U50, LON_USB_LDISC_MIP_U50, FRAME_CODE_PACKET, true, true, true}
+	};
+#else
+	static LonUsbIfaceConfig lon_usb_iface_configs[] = {
+		// U10 FT Rev A/B
+		{LON_USB_INTERFACE_U61, LON_USB_LDISC_MIP_U61, FRAME_SYNC_ONLY, false, false, false},
+		// U10 FT Rev C
+		{LON_USB_INTERFACE_U50, LON_USB_LDISC_MIP_U50, FRAME_CODE_PACKET, true, true, true},
+		// U20 PL
+		{LON_USB_INTERFACE_U61, LON_USB_LDISC_MIP_U61, FRAME_SYNC_ONLY, false, false, false},
+		// U60 FT
+		{LON_USB_INTERFACE_U50, LON_USB_LDISC_MIP_U50, FRAME_CODE_PACKET, true, true, true},
+		// U60 TP-1250
+		{LON_USB_INTERFACE_U61, LON_USB_LDISC_MIP_U61, FRAME_SYNC_ONLY, false, false, false},
+		// U70 PL
+		{LON_USB_INTERFACE_U61, LON_USB_LDISC_MIP_U61, FRAME_SYNC_ONLY, false, false, false}
+	};
+#endif // LINK_IS(USB)
 
 // LON USB link state structure
 typedef struct LonUsbLinkState {
@@ -636,6 +650,15 @@ LonStatusCode ProcessDownlinkRequests(int iface_index);
 LonStatusCode OpenLonUsbLink(char *lon_dev_name, char *usb_dev_name,
 					int *iface_index, LonUsbInterfaceMode configured_iface_mode,
 					LonUsbIfaceModel lon_usb_iface_model);
+
+/*
+ * Checks if the LON USB link is ready.
+ * Parameters:
+ *   iface_index: LON interface index returned by OpenLonUsbLink()
+ * Returns:
+ *   true if the interface is ready; false otherwise
+ */
+bool LonUsbLinkReady(int iface_index);
 
 /*
  * Writes a downlink message to the LON USB interface.

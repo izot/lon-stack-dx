@@ -253,7 +253,7 @@ LonStatusCode ManualServiceRequestMessage(void);
 extern LonStatusCode AppInit(void);             /* Application initialization      */
 void DoApp(IzotBool isOnline);      /* Application processing          */
 void LCS_RegisterClearStatsCallback(void (*cb)(void));
-extern void setMem(const unsigned addr, const unsigned size);
+extern void ConfigureDmfWindow(const unsigned addr, const unsigned size);
 extern void RecomputeChecksum(void);
 
 /*

@@ -464,7 +464,7 @@ LonStatusCode NodeReset(IzotByte firstReset)
     }
     gp->resetNode        = FALSE;
     
-    IzotReset(NULL);
+    IzotReset();
     OsalPrintLog(INFO_LOG, status, "NodeReset: Completed LON application reset");
     return status;
 }
@@ -962,19 +962,21 @@ void DoApp(IzotBool isOnline)
     MsgIn* msg_in = NULL;
     RespIn* rsp_in = NULL;
     
-    if (MsgReceive(&msg_in)) {
-        if (!IzotFilterMsgArrived(&msg_in->addr, (IzotCorrelator)&msg_in->reqId, 0, msg_in->service, 
-        msg_in->authenticated, msg_in->code, msg_in->data, msg_in->len)) {
-            IzotMsgArrived(&msg_in->addr, (IzotCorrelator)&msg_in->reqId, 0, msg_in->service, msg_in->authenticated, 
-            msg_in->code, msg_in->data, msg_in->len); 
+    if (isOnline) {
+        if (MsgReceive(&msg_in)) {
+            if (!IzotFilterMsgArrived(&msg_in->addr, (IzotCorrelator)&msg_in->reqId, 0, msg_in->service, 
+            msg_in->authenticated, msg_in->code, msg_in->data, msg_in->len)) {
+                IzotMsgArrived(&msg_in->addr, (IzotCorrelator)&msg_in->reqId, 0, msg_in->service, msg_in->authenticated, 
+                msg_in->code, msg_in->data, msg_in->len); 
+            }
+            MsgFree();
         }
-        MsgFree();
-    }
-    if (RespReceive(&rsp_in)) {
-        if (!IzotFilterResponseArrived(&rsp_in->addr, rsp_in->tag, rsp_in->code, rsp_in->data, rsp_in->len)) {
-            IzotResponseArrived(&rsp_in->addr, rsp_in->tag, rsp_in->code, rsp_in->data, rsp_in->len);
+        if (RespReceive(&rsp_in)) {
+            if (!IzotFilterResponseArrived(&rsp_in->addr, rsp_in->tag, rsp_in->code, rsp_in->data, rsp_in->len)) {
+                IzotResponseArrived(&rsp_in->addr, rsp_in->tag, rsp_in->code, rsp_in->data, rsp_in->len);
+            }
+            RespFree();
         }
-        RespFree();
     }
 }
 

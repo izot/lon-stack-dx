@@ -27,6 +27,16 @@
     #include <unistd.h>
 #endif
 
+#if OS_IS(FREERTOS)
+extern void DEBUG_LonStackInfo(const char *format, ...);
+
+#ifdef LONSTACK_USE_DEBUG_MENU
+#define DEBUG_LonStkInfo(S, ...)						DEBUG_LonStackInfo			(S,  ##__VA_ARGS__)
+#else
+#define DEBUG_LonStkInfo(S, ...)
+#endif
+#endif // OS_IS(FREERTOS)
+
 /*****************************************************************
  * Section: Semaphore Lock Management Function Definitions
  *****************************************************************/
@@ -345,7 +355,7 @@ LonStatusCode OsalSleep(unsigned int msecs)
 #elif OS_IS(LINUX_KERNEL)
     msleep(msecs);          // Sleeps for the given number of milliseconds
 #elif OS_IS(FREERTOS)
-    vTaskDelay(pdMS_TO_TICKS(msecs)); // Uses the FreeRTOS tick conversion macro
+    os_thread_sleep(os_msec_to_ticks(msecs)); // Uses the FreeRTOS tick conversion macro
 #elif PLATFORM_IS(RPI) || PLATFORM_IS(RPI_PICO)
     delay(msecs);
 #else
@@ -418,14 +428,22 @@ void OsalFreeMemory(void *buf)
   *  If status_code is no LonStatusNoError, the message is prefixed with
   *  "Error <status_code>: ", otherwise it is prefixed with "Info: ".
   */
- static void OsalFormatErrorString(char *buffer, size_t buffer_len, LonStatusCode status_code, const char *status_string, va_list args)
+static void OsalFormatErrorString(char *buffer, size_t buffer_len, LonStatusCode status_code, const char *status_string, va_list args)
 {
+#if OS_IS(LINUX)
     uint32_t time = OsalGetTickCount()*1000/OsalGetTicksPerSecond();
     if (status_code == LonStatusNoError) {
         snprintf(buffer, buffer_len, "%s.%.3d Info: ", OsalGetDateTimeString(), time % 1000);
     } else {
         snprintf(buffer, buffer_len, "%s.%.3d Error %d: ", OsalGetDateTimeString(), time % 1000, status_code);
     }
+#else
+    if (status_code == LonStatusNoError) {
+        snprintf(buffer, buffer_len, "Info: ");
+    } else {
+        snprintf(buffer, buffer_len, "Error %d: ", status_code);
+    }
+#endif
     vsnprintf(buffer + strlen(buffer), buffer_len - strlen(buffer), status_string, args);
 }
 
@@ -455,6 +473,39 @@ unsigned int OsalGetLogCategories(void)
     return log_categories;
 }
 
+/*
+ * Prints a system call error message with optional message code and text.
+ * Parameters:
+ *   status_code: Error code to include in message, or LonStatusNoError for none
+ *   status_string: printf-style format string for message
+ *   ...: Variable arguments for format string
+ * Returns:
+ *   None
+ * Notes:
+ *   If status_code is >= 0, the message is prefixed with "Error <status_code>: ".
+ *   If errno is set, the string from strerror(errno) is appended to the 
+ *   message.  This function is intended for reporting system call errors.
+ */
+void OsalPrintSysError(LonStatusCode status_code, char *status_string, ...)
+{
+    if ((OsalGetLogCategories() & ERROR_LOG) != ERROR_LOG)
+        return;
+
+    char formatted[OSAL_ERROR_STRING_MAXLEN];
+    va_list args;
+    va_start(args, status_string);
+    OsalFormatErrorString(formatted, sizeof(formatted), status_code, status_string, args);
+    va_end(args);
+
+#if OS_IS(LINUX)
+    fprintf(stderr, "%s (strerror(errno))\n", formatted, strerror(errno));
+#elif OS_IS(FREERTOS)
+    DEBUG_LonStkInfo("%s\n", formatted);
+#else
+    // Implement as needed
+    #pragma message("Implement OS-dependent definition of OsalPrintSysError()")
+#endif
+}
 /*
  * Prints a log message with optional message code and text if the
  *   specified log category is enabled.
@@ -490,7 +541,7 @@ void OsalPrintLog(LogCategory category, LonStatusCode status_code, const char *s
 #if OS_IS(LINUX)
     fprintf(stderr, "%s\n", formatted);
 #elif OS_IS(FREERTOS)
-    printf("%s\n", formatted);
+    DEBUG_LonStkInfo("%s\n", formatted);
 #else
     // Implement as needed
     #pragma message("Implement OS-dependent definition of OsalPrintLog()")

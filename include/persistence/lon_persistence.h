@@ -143,10 +143,10 @@ extern void IzotPersistentSegClose(const IzotPersistentSegType persistent_seg_ty
 extern LonStatusCode IzotPersistentSegExitTransaction(const IzotPersistentSegType persistent_seg_type);
 
 /*
- *  Event: IzotPersistentSegIsInTransaction
+ *  Event: IzotPersistentSegIsInvalid
  *  Calls the registered callback of <IzotStorageSegIsInvalid>.
  */
-extern IzotBool IzotPersistentSegIsInTransaction(const IzotPersistentSegType persistent_seg_type);
+extern IzotBool IzotPersistentSegIsInvalid(const IzotPersistentSegType persistent_seg_type);
 
 /*
  *  Event: IzotPersistentSegOpenForRead

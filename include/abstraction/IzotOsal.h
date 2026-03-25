@@ -51,8 +51,10 @@ extern "C"
 #include <sys/time.h>
 #include <fcntl.h>
 #include <errno.h>
+#if !PROCESSOR_IS(STM32)
 #include <sys/ioctl.h>
 #include <termios.h>
+#endif  // !PROCESSOR_IS(STM32)
 #endif  // OS_IS(LINUX) || OS_IS(FREERTOS)
 
 // Maximum number of milliseconds for OsalSleep()

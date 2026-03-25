@@ -274,20 +274,6 @@ IZOT_EXTERNAL_FN LonStatusCode IzotSendResponse(
     const IzotByte* const pData,
     const unsigned length);
 
-/*
- * Releases a request correlator without sending a response.
- * Parameters:
- *   correlator: The correlator, obtained from IzotMsgArrived()
- * Returns:
- *   LonStatusNoError on success, or <LonStatusCode> error code on failure.
- * Notes:
- *   This function is called to release a correlator obtained from
- *   IzotMsgArrived() without sending a response.  The application must either
- *   send a response to every message with a service type of request, or release
- *   the correlator, but not both.
- */
-IZOT_EXTERNAL_FN LonStatusCode IzotReleaseCorrelator(const IzotCorrelator correlator);
-
 /*****************************************************************
  * Section: LON Stack Extended API Declarations
  *****************************************************************/
@@ -910,23 +896,18 @@ unsigned IzotGetCurrentDatapointSize(const unsigned index);
 /*
  * Handles the IzotReset event.
  * Parameters:
- *   pResetNotification - Pointer to a <IzotResetNotification> structure with
- *              capabilities and identifying data or NULL
+ *   None
  * Returns:
  *   None
  * Notes:
  *   The IzotReset event occurs when the LON protocol stack has been reset.
- *   The pointer to <IzotResetNotification> is provided for call compatibility
- *   with the ShortStack LonTalk Compact API.  For LON Stack, the value of
- *   pResetNotification is always NULL.
- *
- *   Whenever the LON Stack DX device has been reset, the mode of the device is changed
- *   to *online*, but no IzotOnline() event is generated.
+ *   Whenever the LON Stack DX device has been reset, the mode of the device
+ *   is changed to *online*, but no IzotOnline() event is generated.
  *
  *   Resetting the LON Stack DX device only affects the LON stack and does not
  *   cause a processor or application software reset.
  */
-IZOT_EXTERNAL_FN void IzotReset(const IzotResetNotification* const pResetNotification);
+IZOT_EXTERNAL_FN void IzotReset(void);
 
 /*
  * Handles the IzotWink event.
@@ -1069,9 +1050,6 @@ void IzotDatapointUpdateCompleted(const unsigned index, const IzotBool success);
  *
  *    If the message is a request message, then the function must deliver a
  *    response using <IzotSendResponse> passing the provided *correlator*.
- *    Alternatively, if for any reason the application chooses not to respond to
- *    a request, it must explicitly release the correlator by calling
- *    <IzotReleaseCorrelator>.
  *
  *    Application messages are always delivered to the application, regardless
  *    of whether the message passed authentication or not. It is up to the
@@ -1252,7 +1230,9 @@ IZOT_EXTERNAL_FN IzotBool IzotFilterMsgCompleted(const unsigned tag, const IzotB
  *   files, CP value files, user-defined files, and possibly other data. The
  *   address space for this command is limited to a 64 KB address space.
  */
+#if LON_DMF_ENABLED
 LonStatusCode IzotMemoryRead(const unsigned address, const unsigned size, void* const pData);
+#endif
 
 /* 
  * Updates memory in the LON Stack device's memory space.
@@ -1272,7 +1252,9 @@ LonStatusCode IzotMemoryRead(const unsigned address, const unsigned size, void* 
  *   calls the IzotPersistentDataHasBeenUpdated> function to schedule
  *   an update whenever this callback returns *LonStatusNoError*.
  */
+#if LON_DMF_ENABLED
 LonStatusCode IzotMemoryWrite(const unsigned address, const unsigned size, const void* const pData);
+#endif
 
 /*
  * Handles the IzotPersistentSegOpenForRead event.
@@ -1339,7 +1321,7 @@ LonStatusCode IzotPersistentSegWrite(const IzotPersistentSegType persistent_seg_
         const void* const pData);
 
 /*
- * Handles the IzotPersistentSegIsInTransaction event.
+ * Handles the IzotPersistentSegIsInvalid event.
  * Parameters:
  *   persistent_seg_type: The type of persistent segment to check if in transaction
  * Returns:
@@ -1347,7 +1329,7 @@ LonStatusCode IzotPersistentSegWrite(const IzotPersistentSegType persistent_seg_
  * Notes:
  *   Calls the registered callback for IzotStorageSegIsInvalid().
  */
-IzotBool IzotPersistentSegIsInTransaction(const IzotPersistentSegType persistent_seg_type);
+IzotBool IzotPersistentSegIsInvalid(const IzotPersistentSegType persistent_seg_type);
 
 /*
  * Handles the IzotPersistentSegEnterTransaction event.
@@ -1579,13 +1561,13 @@ IZOT_EXTERNAL_FN LonStatusCode IzotFlashSegReadRegistrar(IzotPersistentSegReadFu
 IZOT_EXTERNAL_FN LonStatusCode IzotFlashSegWriteRegistrar(IzotPersistentSegWriteFunction handler);
 
 /*
- * Registers an IzotStorageSegIsInTransaction() event handler.
+ * Registers an IzotStorageSegIsInvalid() event handler.
  * Parameters:
- *   handler: Pointer to the IzotPersistentSegIsInTransactionFunction to register
+ *   handler: Pointer to the IzotPersistentSegIsInvalidFunction to register
  * Returns:
  *   LonStatusNoError if successful, otherwise a <LonStatusCode> error code.
  */
-IZOT_EXTERNAL_FN LonStatusCode IzotFlashSegIsInTransactionRegistrar(IzotPersistentSegIsInTransactionFunction handler);
+IZOT_EXTERNAL_FN LonStatusCode IzotFlashSegIsInvalidRegistrar(IzotPersistentSegIsInvalidFunction handler);
 
 /*
  * Registers an IzotStorageStartSegUpdate() event handler.

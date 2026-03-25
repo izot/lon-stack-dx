@@ -139,6 +139,7 @@
 #define PROCESSOR_ID_X64        3   // 64-bit x64
 #define PROCESSOR_ID_X86        4   // 32-bit x86
 #define PROCESSOR_ID_MC200      5   // Marvell MC200 ARM Cortex M3
+#define PROCESSOR_ID_STM32      6   // STMicroelectronics STM32 ARM Cortex
 
 // Product IDs -- default is unspecified
 #define PRODUCT_ID_NA           0   // Product not specified

@@ -81,22 +81,26 @@ static unsigned DmfWindowSize;
  *****************************************************************/
 
 /*******************************************************************************
- Function:  inRange
+ Function:  InDmfWindow
  Purpose:   To check the address within the DMF window range.
  Comments:  None.
  *******************************************************************************/
-static int inRange(unsigned addr, unsigned size) 
+static int InDmfWindow(unsigned addr, unsigned size) 
 {
+#if LON_DMF_ENABLED
     return (addr >= DmfWindowAddress && 
     addr + size <= DmfWindowAddress + DmfWindowSize);
+#else
+    return FALSE;
+#endif  /* LON_DMF_ENABLED */
 }
 
 /*******************************************************************************
- Function:  setMem
+ Function:  ConfigureDmfWindow
  Purpose:   To set the DMF window address and size.
  Comments:  None.
  *******************************************************************************/
-void setMem(const unsigned addr, const unsigned size) 
+void ConfigureDmfWindow(const unsigned addr, const unsigned size) 
 {
     DmfWindowAddress = addr;
     DmfWindowSize = size;
@@ -1861,7 +1865,8 @@ void HandleNMReadMemory(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
 
     switch (apduPtr->data[0]) {
     case ABSOLUTE_MEM_ADDR:
-        if (inRange(offset, apduPtr->data[3])) {
+#if LON_DMF_ENABLED
+        if (InDmfWindow(offset, apduPtr->data[3])) {
             if (IzotMemoryRead(offset, apduPtr->data[3], apduRespPtr->data)) {
                 tsaSendParamPtr->apduSize = 1;
                 apduRespPtr->code.allBits = NM_resp_failure | NM_READ_MEMORY;
@@ -1869,11 +1874,14 @@ void HandleNMReadMemory(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
             QueueWrite(tsaOutQPtr);
             return;
         } else {
+#endif
             memp = (char *) nmp;
             if (offset >= 0xF000) {
                 memp = (char *) eep - 0xF000;
             }
+#if LON_DMF_ENABLED
         }
+#endif
         break;
     case READ_ONLY_RELATIVE:
     default:
@@ -1886,7 +1894,7 @@ void HandleNMReadMemory(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
         memp = (char *) &(nmp->stats);
         break;
 
-#if    ENABLE_STACKTRACE
+#if ENABLE_STACKTRACE
         case DBG_RELATIVE:
         memp = (char *)STK_GetSnapshot();
         break;
@@ -1987,7 +1995,8 @@ void HandleNMWriteMemory(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
 
     switch (pr->mode) {
     case ABSOLUTE_MEM_ADDR:
-        if (inRange(offset, pr->count)) {
+#if LON_DMF_ENABLED
+        if (InDmfWindow(offset, pr->count)) {
             if (LON_SUCCESS(IzotMemoryWrite(offset, pr->count, pr->data))) {
                 IzotPersistentSegSetCommitFlag(IzotPersistentSegNodeDefinition);
                 IzotPersistentDataHasBeenUpdated();
@@ -2004,12 +2013,15 @@ void HandleNMWriteMemory(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
             }
             return;
         } else {
+#endif
             memp = (char *) nmp;
             if (offset >= 0xF000) {
                 memp = (char *) eep;
                 offset -= 0xF000;
             }
+#if LON_DMF_ENABLED
         }
+#endif
         break;
     case CONFIG_RELATIVE:
         memp = (char *) &(eep->configData);
@@ -2021,7 +2033,7 @@ void HandleNMWriteMemory(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
         memp = (char *) &(eep->readOnlyData);
         break;
     default:
-        /* Invalid Mode */
+        // Invalid mode
         NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageMode, appReceiveParamPtr, apduPtr);
         return;
     }

@@ -494,6 +494,22 @@ static LonStatusCode SetNiLayerMode(int iface_index, LonUsbInterfaceMode iface_m
 	return status;
 }
 
+/*
+ * Checks if the LON USB link is ready.
+ * Parameters:
+ *   iface_index: LON interface index returned by OpenLonUsbLink()
+ * Returns:
+ *   true if the interface is ready; false otherwise
+ */
+bool LonUsbLinkReady(int iface_index)
+{
+	LonUsbLinkState *state = GetIfaceState(iface_index);
+	if (state == NULL || state->shutdown) {
+		return false;
+	}
+	return state->ready;
+}
+
 /*****************************************************************
  * Section: Downlink Function Definitions
  *****************************************************************/
@@ -874,17 +890,17 @@ static LonStatusCode ProcessNextDownlinkMessage(int iface_index)
     LonNiCommand cmd = state->downlink_buffer.usb_ni_data_frame.ni_command; // Extracted early
 	OsalPrintLog(PACKET_TRACE_LOG, status, "ProcessNextDownlinkMessage: Processing downlink message for interface %d, command 0x%02X, short PDU length %d, current downlink state %s",
 			iface_index, cmd, short_pdu_length, downlink_state_names[state->downlink_state]);
-    // Exclude Layer Mode commands (0xD0 for L5, 0xD1 for L2) so they fall 
-    // through to the WriteDownlinkMessage function as full frames.
     if ((state->lon_usb_iface_type == LON_USB_INTERFACE_U50) && 
 	        (short_pdu_length == 1) && 
     	    (cmd != LonNiSetL5ModeCmd) && (cmd != LonNiSetL2ModeCmd)) {
-        // Process local NI command (PDU size of 1 means there is no payload)
+        // Process local NI command that is not a layer mode change;
+		// PDU size of 1 means there is no payload
         ResetDownlinkState(iface_index);
         WriteDownlinkLocalNiCmd(iface_index);
         return status;
     }
-    // Handle a standard message or a layer mode change command
+    // Handle a standard message, local NI command with parameter(s),
+	// or a layer mode change command
     uint8_t *pdu = state->downlink_buffer.usb_ni_data_frame.pdu;
     status = WriteDownlinkMessage(iface_index);
     if (!LON_SUCCESS(status)) {

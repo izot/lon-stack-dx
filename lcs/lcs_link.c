@@ -317,7 +317,7 @@ void LinkLayerUsbSend(void)
     // Send the LPDU to all open LON network interface downlink queues
 	for (niIndex=0; niIndex<NUM_LON_NI; niIndex++) {
         // Send pending downlink requests from the link layer output queue to NI downlink queue niIndex
-        if (lonNi[niIndex].linkOpened) {
+        if (lonNi[niIndex].linkOpened && LonUsbLinkReady(lonNi[niIndex].iface_index)) {
 		    WriteLonUsbMsg(niIndex, &sicb);
         }
  	}

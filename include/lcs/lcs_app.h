@@ -62,20 +62,20 @@
  *                            (implicit or explicit) are queued and then sent to 
  *                            lower layers by the AppLayerSend() function.
  *
- *          AppLayerReset():       Handles the application layer reset operations. 
+ *          AppLayerReset():  Handles the application layer reset operations. 
  *                            Allocates memory for all queue structures used 
  *                            by the application. Also, performs initialization
  *                            required after each reset.
  *
- *          AppLayerInit():        Handles initialization required only during initial
+ *          AppLayerInit():   Handles initialization required only during initial
  *                            power up.
  *
  *          AddNV():          Handles network variable declarations in the application
  *                            program. This function is normally called during power up
  *                            to register all network variables in application program.
- *                            This is done using the function AppInit(). Note that AppLayerInit()
- *                            is application layer function whereas AppInit() is application
- *                            program function.
+ *                            This is done using the function AppInit(). AppLayerInit()
+ *                            is an application layer function whereas AppInit() is an
+ *                            application program function.
  *
  *          The functions in this file also support the API interface used by application
  *          programs such as msg_send(), resp_send(), and propagate().
