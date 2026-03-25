@@ -3280,13 +3280,13 @@ typedef struct {
 
 // LON timer structure
 typedef struct __attribute__ ((packed)) {
-	IzotUbits32	expiration;		// Time to expire
-	IzotUbits32	repeatTimeout;  // Repeat timeout on expiration (0 means not repeating)
+	uint32_t expiration;		// Time to expire
+	uint32_t repeatTimeout;     // Repeat timeout on expiration (0 means not repeating)
 } LonTimer;
 
 // Stopwatch structure
 typedef struct {
-	IzotUbits32	start;			// Time stopwatch started
+	uint32_t start;			    // Time stopwatch started
 } LonWatch;
 
 #endif /* _LON_TYPES_H */

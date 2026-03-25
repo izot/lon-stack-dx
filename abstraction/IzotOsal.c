@@ -431,11 +431,16 @@ void OsalFreeMemory(void *buf)
 static void OsalFormatErrorString(char *buffer, size_t buffer_len, LonStatusCode status_code, const char *status_string, va_list args)
 {
 #if OS_IS(LINUX)
-    uint32_t time = OsalGetTickCount()*1000/OsalGetTicksPerSecond();
+    struct timespec ts;
+    clock_gettime(CLOCK_REALTIME, &ts);
+    char datetime[20];
+    strftime(datetime, sizeof(datetime), "%Y-%m-%d %H:%M:%S", localtime(&ts.tv_sec));
+    long milliseconds = ts.tv_nsec / 1000000;
+
     if (status_code == LonStatusNoError) {
-        snprintf(buffer, buffer_len, "%s.%.3d Info: ", OsalGetDateTimeString(), time % 1000);
+        snprintf(buffer, buffer_len, "%s.%.3ld Info: ", datetime, milliseconds);
     } else {
-        snprintf(buffer, buffer_len, "%s.%.3d Error %d: ", OsalGetDateTimeString(), time % 1000, status_code);
+        snprintf(buffer, buffer_len, "%s.%.3ld Error %d: ", datetime, milliseconds, status_code);
     }
 #else
     if (status_code == LonStatusNoError) {

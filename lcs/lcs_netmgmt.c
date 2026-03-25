@@ -128,20 +128,25 @@ void RecomputeChecksum(void)
  program can determine whether the message was sent or not.
  *******************************************************************************/
 LonStatusCode ManualServiceRequestMessage(void) {
+    LonStatusCode status = LonStatusNoError;
     NWSendParam *nwSendParamPtr;
     APDU *apduRespPtr;
 
     if (QueueFull(&gp->nwOutQ)) {
-        OsalPrintLog(ERROR_LOG, LonStatusNoBufferAvailable, "No room for service request message in network layer queue");
-        return (LonStatusNoBufferAvailable); /* Can't send it now. Try later. */
+        status = LonStatusNoBufferAvailable;
+        OsalPrintLog(ERROR_LOG, status, "ManualServiceRequestMessage: No room for Service request message in network layer queue");
+        return status; // Can't send it now; try later
     }
 
-    /* Send unack domain wide broadcast message. */
+    // Send unacked domain-wide broadcast message
+    OsalPrintLog(INFO_LOG, status, "ManualServiceRequestMessage: Send Service message");
     nwSendParamPtr = QueueTail(&gp->nwOutQ);
     nwSendParamPtr->pduSize = 
                             1 + IZOT_UNIQUE_ID_LENGTH + IZOT_PROGRAM_ID_LENGTH;
     if (nwSendParamPtr->pduSize > gp->nwOutBufSize) {
-        return (LonStatusInvalidBufferLength); /* Do not have sufficient space to send the message. */
+        status = LonStatusInvalidBufferLength;
+        OsalPrintLog(ERROR_LOG, status, "ManualServiceRequestMessage: Do not have sufficient space to send the message");
+        return status; /* Do not have sufficient space to send the message. */
     }
     apduRespPtr = (APDU *) (nwSendParamPtr + 1);
     apduRespPtr->code.allBits = 0x7F; /* Manual Service Request. */

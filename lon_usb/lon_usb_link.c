@@ -2020,12 +2020,12 @@ static LonStatusCode CheckUplinkCompleted(int iface_index, bool *completed)
  * Returns:
  *   LonStatusNoError on success; LonStatusCode error code if unsuccessful
  * Notes:
- *  Called by CheckUplinkCompleted() which is called via ReadLonUsbMsg()
- *  parsing.  If the have_uid flag is set and the message is a read unique ID
- *  memory response, the unique ID is copied to the LON interface state.
- *  If the wait_for_uid flag is set and the message is not a read unique ID
- *  memory response, the message is dropped. Otherwise the message is queued 
- *  for upstream processing.
+ *   Called by CheckUplinkCompleted() which is called via ReadLonUsbMsg()
+ *   parsing.  If the have_uid flag is set and the message is a read unique ID
+ *   memory response, the unique ID is copied to the LON interface state.
+ *   If the wait_for_uid flag is set and the message is not a read unique ID
+ *   memory response, the message is dropped. Otherwise the message is queued 
+ *   for upstream processing.
  */
 static LonStatusCode QueueUplinkMessage(int iface_index, LonDataFrame *msg)
 {

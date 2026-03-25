@@ -305,8 +305,12 @@ IZOT_EXTERNAL_FN LonStatusCode IzotPropagateByIndex(signed index)
  */
 IZOT_EXTERNAL_FN LonStatusCode IzotSendServiceMessage(void)
 {
-    LonStatusCode status;
+    LonStatusCode status = LonStatusNoError;
+    OsalPrintLog(INFO_LOG, status, "IzotSendServiceMessage: Send Service message");
     status = ManualServiceRequestMessage();
+    if (!LON_SUCCESS(status)) {
+        OsalPrintLog(ERROR_LOG, status, "IzotSendServiceMessage: Failed to send Service message");
+    }
     return status;
 }
 
@@ -348,20 +352,23 @@ IZOT_EXTERNAL_FN LonStatusCode IzotSendMsg(
         const IzotByte code,
         const IzotByte* const pData, const unsigned length)
 {
+    LonStatusCode status = LonStatusNoError;
     gp->msgOut.priorityOn     = priority;
     gp->msgOut.tag            = (MsgTag) tag;
     gp->msgOut.len            = length;
     gp->msgOut.code           = code;
     if(length > 255) {
-        MsgCompletes(LonStatusInvalidMessageLength, gp->msgOut.tag);
-        return LonStatusInvalidMessageLength;
+        status = LonStatusInvalidMessageLength;
+        OsalPrintLog(ERROR_LOG, status, "IzotSendMsg: Invalid message length");
+        MsgCompletes(status, gp->msgOut.tag);
+        return status;
     }
     memcpy(gp->msgOut.data, (void *) pData, length);
     gp->msgOut.authenticated  = authenticated;
     gp->msgOut.service        = (IzotServiceType) serviceType;
     memcpy(&gp->msgOut.addr, (IzotSendAddress *) pDestAddr, sizeof(*pDestAddr));
     MsgSend();
-    return LonStatusNoError;
+    return status;
 }
 
 /*

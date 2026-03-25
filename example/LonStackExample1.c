@@ -207,12 +207,6 @@ void main() {
     // Set up Example1
     status = SetUpExample1();
 
-    // Send a Service message to indicate that the node has started
-    // This is not required, but is useful for testing purposes
-    if (LON_SUCCESS(status)) {
-        IzotSendServiceMessage();
-    }
-
     // Main loop
     while (LON_SUCCESS(status)) {
         // Execute one pass of the LON Stack event pump
@@ -258,40 +252,64 @@ LonStatusCode SetUpExample1(void)
  *   None
  * Returns:
  *   LonStatusNoError if successful, otherwise a LonStatusCode error code.
+ * Notes:
+ *   On startup, send INITIAL_SERVICE_COUNT Service messages to indicate that
+ *   the LON application has started; this is not required, but is useful for
+ *   testing purposes.  Set INITIAL_SERVICE_COUNT to 0 to skip sending these
+ *   messages.
  */
+#define INITIAL_SERVICE_COUNT 5
 LonStatusCode LoopExample1(void)
 {
     LonStatusCode status = LonStatusNoError;
+    static unsigned service_count = INITIAL_SERVICE_COUNT;
 
     // LON Stack event pump
-    status = IzotEventPump();
+    if (!LON_SUCCESS(status = IzotEventPump())) {
+        OsalPrintLog(ERROR_LOG, status, "LoopExample1: LON stack failure");
+        return status;
+    }
 
-    // ToDo -- add application-specific event-handlers here, or in separate tasks if available.
-    // Keep these handlers under min(10, ((InputBufferCount - 1) * 1000) / MaxPacketRate) milliseconds.
-
+    // ToDo -- add application-specific event-handlers here, or in separate
+    // tasks if available on the target platform; keep these handlers under
+    // min(10, ((InputBufferCount - 1) * 1000) / MaxPacketRate) milliseconds
     if (LonTimerExpired(&HeartbeatTimer)) {
+        if (service_count > 0) {
+            OsalPrintLog(INFO_LOG, status, "LoopExample1: Send Service message, attempt number %u", INITIAL_SERVICE_COUNT - service_count + 1);
+            if (!LON_SUCCESS(IzotSendServiceMessage())) {
+                OsalPrintLog(ERROR_LOG, status, "LoopExample1: Failed to send initial service message");
+                return status;
+            }
+            service_count--;
+        }
+
         // Send heartbeats
         uint16_t value;
-
         value = IZOT_GET_UNSIGNED_WORD(*(SNVT_flow_p*) flow1OutDef.PValue) + 100;
         IZOT_SET_UNSIGNED_WORD(*(SNVT_flow_p*) flow1OutDef.PValue, value);
-        IzotPropagateByIndex(flow1OutDef.NvIndex);
-
+        if (!LON_SUCCESS(IzotPropagateByIndex(flow1OutDef.NvIndex))) {
+            OsalPrintLog(ERROR_LOG, status, "LoopExample1: Failed to propagate flow1Out");
+        }
         // TBD -- increment flow2Out
-        IzotPropagateByIndex(flow2OutDef.NvIndex);
-
+        if (!LON_SUCCESS(IzotPropagateByIndex(flow2OutDef.NvIndex))) {
+            OsalPrintLog(ERROR_LOG, status, "LoopExample1: Failed to propagate flow2Out");
+        }
         value = IZOT_GET_UNSIGNED_WORD(*(SNVT_temp_p*) temp1OutDef.PValue) + 100;
         IZOT_SET_UNSIGNED_WORD(*(SNVT_temp_p*) temp1OutDef.PValue, value);
-        IzotPropagateByIndex(temp1OutDef.NvIndex);
-
+        if (!LON_SUCCESS(IzotPropagateByIndex(temp1OutDef.NvIndex))) {
+            OsalPrintLog(ERROR_LOG, status, "LoopExample1: Failed to propagate temp1Out");
+        }
         // TBD -- increment temp2Out
-        IzotPropagateByIndex(temp2OutDef.NvIndex);
+        if (!LON_SUCCESS(IzotPropagateByIndex(temp2OutDef.NvIndex))) {
+            OsalPrintLog(ERROR_LOG, status, "LoopExample1: Failed to propagate temp2Out");
+        }
     }
+
     return status;
 }
 
 /*
- * Sets up a simple single address table for Example 1.
+ * Set up a simple single address table for Example 1.
  * Parameters:
  *   None
  * Returns:
@@ -530,9 +548,7 @@ void Temp2InUpdateOccurred(const unsigned index, const IzotReceiveAddress* const
  */
 void SetHeartbeatTimer(void)
 {
-    IzotUbits32 heartbeatInterval = (heartbeatIn.second * 1000) + (IZOT_GET_UNSIGNED_WORD(heartbeatIn.millisecond));
+    uint32_t heartbeatInterval = ((uint32_t)heartbeatIn.second * 1000) + (IZOT_GET_UNSIGNED_WORD(heartbeatIn.millisecond));
 
     SetLonRepeatTimer(&HeartbeatTimer, heartbeatInterval, heartbeatInterval);
 }
-
-

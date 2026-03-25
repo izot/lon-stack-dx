@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.21)
 
 project(lon_stack_dx
-    VERSION 4.0.1
+    VERSION 4.0.2
     DESCRIPTION "LON Stack DX for LON/IP and U10/U60 LON FT-compatible USB interfaces"
     LANGUAGES C
 )
@@ -121,12 +121,11 @@ target_link_libraries(lon_stack_dx PUBLIC Threads::Threads)
 target_compile_definitions(lon_stack_dx
     PRIVATE
     OS_ID=OS_ID_LINUX
+    PROCESSOR_ID=PROCESSOR_ID_ARM64
     LINK_ID=LINK_ID_USB
     PROTOCOL_ID=PROTOCOL_ID_LON_NATIVE
     ISI_ID=ISI_ID_NO_ISI
     INITIAL_LOG_CATEGORIES=LOG_PACKET_TRACE
-    MAX_UID_RETRIES=4
-    MAX_STATUS_RETRIES=4
     MAX_IFACE_STATES=1
 )
 
