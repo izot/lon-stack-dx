@@ -120,8 +120,9 @@ typedef struct __attribute__ ((packed)) {
 	IzotByte domainId[IZOT_DOMAIN_ID_MAX_LENGTH];
 } Domain;
 
-// LON LPDU offsets
-#define MSG_CODE_OFFSET		14		// Message code offset in LPDU assuming EXP ADDR is ON
+// LON LPDU offsets assuming explicit addressing (EXP ADDR) is on
+#define UNICAST_MSG_CODE_OFFSET		14		// Offset for unicast addressing mode
+#define BROADCAST_MSG_CODE_OFFSET	 5		// Offset for broadcast addressing mode
 
 /*******************************************************************************
    DestinationAddress is used to indicate network layer which address

@@ -10,7 +10,12 @@
  */
 
 #include "izot/IzotApi.h"
+#if LINK_IS(ETHERNET) || LINK_IS(WIFI)
 #include "lon_udp/ipv4_to_lon_udp.h"
+#endif
+#if LINK_IS(USB)
+#include "lon_usb/lon_usb_link.h"
+#endif
 
 #ifdef  __cplusplus
 extern "C" {
@@ -165,23 +170,34 @@ IZOT_EXTERNAL_FN void IzotSleep(unsigned int ticks)
 /*
  * Gets the registered device unique ID (Neuron or MAC ID).
  * Parameters:
+ *   stackNum: The stack number for which to get the unique ID
  *   uId: Pointer to the the unique ID
  * Returns:
  *   LonStatusNoError on success, or <LonStatusCode> error code on failure.
  * Notes:
- *   The unique ID is a unique 48-bit identifier for a LON device.  
- *   The unique ID may be a LON Neuron ID or an IEEE MAC ID.
+ *   If multiple network interfaces are supported, the unique ID of the
+ *   first interface will be returned.  The unique ID is a unique 48-bit
+ *   identifier for a LON device.  It may be a LON Neuron ID for a classic
+ *   LON device or an IEEE MAC ID for a LON/IP device.  LON devices based
+ *   on a Series 6000 Smart Transceiver or Neuron Chip are LON/IP devices
+ *   and have a MAC ID as their unique ID.  LON devices based on a Series
+ *   5000 Smart Transceiver or Neuron Chip are classic LON devices and have
+ *   a Neuron ID as their unique ID.
  */
-IZOT_EXTERNAL_FN LonStatusCode IzotGetUniqueId(IzotUniqueId* const uId)
+IZOT_EXTERNAL_FN LonStatusCode IzotGetUniqueId(int stackNum, IzotUniqueId* const uId)
 {
-    LonStatusCode status = LonStatusNoError;
-    unsigned char mac[6] = {0};
+    LonStatusCode status = LonStatusDeviceUniqueIdNotAvailable;
+    IzotUniqueId uid = {0};
 
-    if (!LON_SUCCESS(HalGetMacAddress(mac))) {
-        status = LonStatusDeviceUniqeIdNotAvailable;
-    } else {
-        memcpy(uId, &mac[0], 6);
+#if LINK_IS(ETHERNET) || LINK_IS(WIFI)
+    if (LON_SUCCESS(status = HalGetMacAddress(uid))) {
+        memcpy(uId, &uid, IZOT_UNIQUE_ID_LENGTH);
     }
+#elif LINK_IS(USB)
+    if (LON_SUCCESS(status = LinkLayerReadUsbUid(stackNum, uid))) {
+        memcpy(uId, &uid, IZOT_UNIQUE_ID_LENGTH);
+    }
+#endif // LINK_IS(ETHERNET) || LINK_IS(WIFI) || LINK_IS(USB)
     return status;
 }
 

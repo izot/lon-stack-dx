@@ -126,7 +126,7 @@ LonStatusCode LCS_Service()
         snvt_capability_info = &capability_info;
         si_header_ext = &header_ext;
         
-		// Check if the node needs to be reset.
+		// Check if the device needs to be reset
 		if (gp->resetNode) {
 			gp->resetOk = TRUE;
 			status = NodeReset(FALSE);
@@ -167,6 +167,26 @@ LonStatusCode LCS_Service()
 		SessionLayerReceive();
 		AppLayerReceive();
 
+		// Get the stack unique ID if not already done
+		if (!gp->uniqueIdAvailable) {
+			IzotUniqueId uniqueId = {0};
+			status = IzotGetUniqueId(stackNum, &uniqueId);
+			if (LON_SUCCESS(status)) {
+				memcpy(eep->readOnlyData.UniqueNodeId, &uniqueId, IZOT_UNIQUE_ID_LENGTH);
+				gp->uniqueIdAvailable = true;
+				OsalPrintLog(INFO_LOG, LonStatusNoError, 
+						"LCS_Service: LON Stack unique ID set to %2.2X%2.2X:%2.2X%2.2X:%2.2X%2.2X",
+						uniqueId[0], uniqueId[1], uniqueId[2],
+						uniqueId[3], uniqueId[4], uniqueId[5]);
+			} else if (status == LonStatusLniUniqueIdNotAvailable) {
+				// Unique ID not available yet; try again later
+				status = LonStatusNoError; // Don't treat as error since it may be transient
+			} else {
+				OsalPrintLog(ERROR_LOG, status, "LCS_Service: Failed to get Unique ID for stack %d", stackNum);
+				return status;
+			}
+		}
+
 		// Flash Service LED if needed
 		if (LonTimerExpired(&gp->ledTimer)) {
 			if (IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NODE_STATE) == IzotApplicationUnconfig) {
@@ -181,7 +201,6 @@ LonStatusCode LCS_Service()
                 gp->serviceLedState = SERVICE_ON;
                 gp->serviceLedPhysical = SERVICE_LED_ON;
             }
-            
 			if (gp->prevServiceLedState != gp->serviceLedState || gp->preServiceLedPhysical != gp->serviceLedPhysical) {
                 IzotServiceLedStatus(gp->serviceLedState, gp->serviceLedPhysical);
 				gp->prevServiceLedState = gp->serviceLedState;

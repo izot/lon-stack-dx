@@ -94,9 +94,9 @@ void LKGetXcvrParams(int niIndex, XcvrParam *p);
  * Parameters:
  *   None
  * Returns:
- *   LonStatusNoError if successful, LonStatusCode error code otherwise.
+ *   LonStatusNoError if successful, LonStatusCode error code otherwise
  * Notes:
- *   Sets gp->resetOk to FALSE if unable to reset properly.
+ *   Sets gp->resetOk to false if unable to reset properly.
  *   For a MIP LON link, the input queue is also used by the physical
  *   layer and is not a regular queue.  Each item in the queue has the
  *   following form:
@@ -155,7 +155,6 @@ LonStatusCode LinkLayerReset(void)
         return status;
     }
     queueItemSize    = gp->lkOutBufSize + sizeof(LKSendParam);
-
     status = QueueInit(&gp->lkOutQ, "link layer output", queueItemSize, gp->lkOutQCnt);
     if (status != LonStatusNoError) {
         OsalPrintLog(ERROR_LOG, status, "LinkLayerReset: Unable to initialize the output queue");
@@ -171,7 +170,6 @@ LonStatusCode LinkLayerReset(void)
         return status;
     }
     queueItemSize = gp->lkOutPriBufSize + sizeof(LKSendParam);
-
     if (!LON_SUCCESS(status = QueueInit(&gp->lkOutPriQ, "link layer priority output", queueItemSize, gp->lkOutPriQCnt))) {
         OsalPrintLog(ERROR_LOG, status, "LinkLayerReset: Unable to initialize the priority output queue");
         gp->resetOk = FALSE;
@@ -179,6 +177,7 @@ LonStatusCode LinkLayerReset(void)
     }
     OsalPrintLog(INFO_LOG, LonStatusNoError, "LinkLayerReset: Link layer queues initialized");
 
+    // Open the LON interfaces and get PL transceiver parameters for any power line interfaces
 	for (int niIndex=0; niIndex<NUM_LON_NI; niIndex++) {
 		int iface_index;
 
@@ -194,13 +193,11 @@ LonStatusCode LinkLayerReset(void)
 		}
 		lonNi[niIndex].linkOpened = true;
         OsalPrintLog(INFO_LOG, LonStatusNoError, "LinkLayerReset: LON link %s opened", lonNi[niIndex].lon_dev_name);
-
          // If this is a power line interface, get its Unique ID
          // TBD: review power line initialization and move to later in the startup process
 		if (lonNi[niIndex].isPowerLine) {
             anyPowerLineNi = true;
 			bool requestUid = true;
-	
 			// Get the device Unique ID (Neuron ID or MAC ID) from the LON
             // network interface on every boot.  If this doesn't work, reset
             // and try again
@@ -227,14 +224,11 @@ LonStatusCode LinkLayerReset(void)
             LKFetchXcvrPl(niIndex);
 		}
 	}
-
     gp->resetOk = TRUE;
-
     if (anyPowerLineNi) {
  	    // Start a timer to periodically fetch LON PL transceiver parameters
 	    SetLonRepeatTimer(&lonLinkXcvrPlFetchTimer, XCVR_PARAM_FETCH_INTERVAL, XCVR_PARAM_FETCH_INTERVAL);
     }
-	
     return status;
 }
 
@@ -260,7 +254,6 @@ void LinkLayerUsbSend(void)
     bool             priority;
 	LonDataFrame     sicb;
 	int				 niIndex;
-
 	static OsalTickCount last_report_time = 0;
 	if (OsalGetTickCount() - last_report_time > 1000) {
 		last_report_time = OsalGetTickCount();
@@ -271,7 +264,7 @@ void LinkLayerUsbSend(void)
         }
 	}
 
-    // Fetch the PL transceiver parameters for each power line LON NI
+    // Fetch the PL transceiver parameters for each power line LON interface
     fetchTimerExpired = LonTimerExpired(&lonLinkXcvrPlFetchTimer);
     for (niIndex=0; niIndex<NUM_LON_NI; niIndex++) {
         if (lonNi[niIndex].isPowerLine && lonNi[niIndex].fetchXcvrParams && fetchTimerExpired) {
@@ -295,7 +288,7 @@ void LinkLayerUsbSend(void)
     }
 
 	lkSendParamPtr = QueuePeek(lkSendQueuePtr);
-    // TBD: this assumes that the NPDU is located in the buffer immediately
+    // TODO: this assumes that the NPDU is located in the buffer immediately
     // following the first byte of the LKSendParam structure in the queue item;
     // consider changing to have the first entry in the buffer be the size of
     // the NPDU and then the NPDU itself
@@ -303,40 +296,35 @@ void LinkLayerUsbSend(void)
 
 	sicb.ni_command = LonNiNetworkMgmtCmd;
 	sicb.short_pdu_length = lkSendParamPtr->pduSize+1;
-
 	lpduHeaderPtr = (LPDUHeader *)sicb.pdu;
 	lpduHeaderPtr->priority = priority;
 	lpduHeaderPtr->altPath = lkSendParamPtr->altPath;
 	lpduHeaderPtr->deltaBL = lkSendParamPtr->deltaBL;
-
 	// Copy the NPDU
 	if (lkSendParamPtr->pduSize <= sizeof(sicb.pdu)) {
 		memcpy(&sicb.pdu[1], npduPtr, lkSendParamPtr->pduSize);
 	}
-	
-    // Send the LPDU to all open LON network interface downlink queues
+    // Send the LPDU to all open LON interface downlink queues
 	for (niIndex=0; niIndex<NUM_LON_NI; niIndex++) {
         // Send pending downlink requests from the link layer output queue to NI downlink queue niIndex
         if (lonNi[niIndex].linkOpened && LonUsbLinkReady(lonNi[niIndex].iface_index)) {
 		    WriteLonUsbMsg(niIndex, &sicb);
         }
  	}
-
     // Remove the LPDU from the link layer output queue
 	QueueDropHead(lkSendQueuePtr);
-
     return;
 }
 
 /*
- * Receives an LPDU from a LON network interface, extracts the NPDU, and transfers
+ * Receives an LPDU from a LON interface, extracts the NPDU, and transfers
  * the NPDU to the network layer.
  * Parameters:
  *   None
  * Returns:
  *   None
  * Notes:
- *   The LON network interface is typically a U10 or U60 LON USB interface.
+ *   The LON interface is typically a U10 or U60 LON USB interface.
  *   Each item of the queue gp->lkInQ has the following form:
  *     flag pduSize LPDU
  *       flag is 1 byte long
@@ -362,12 +350,10 @@ void LinkLayerUsbReceive(void)
 			break;
 		}
 	}
-	
 	if (niIndex == NUM_LON_NI) {
 	  	// No packets to process
 	  	return;
 	}
-
 	if (lonNi[niIndex].isPowerLine && sicb.ni_command == LonNiResponseCmd 
             && (sicb.pdu[0]&0x0F) == LNM_TAG 
             && sicb.pdu[14] == (ND_resp_success|ND_QUERY_XCVR)) {
@@ -377,7 +363,6 @@ void LinkLayerUsbReceive(void)
                 sizeof(lonNi[niIndex].xcvrParams.data));
 		return;
 	}
-
     if (lonNi[niIndex].isPowerLine) {
         lpduSize 	  =	sicb.short_pdu_length-3;	// Subtract 2 for register info and 1 for zero crossing info
         lpduHeaderPtr = (LPDUHeader*)&sicb.pdu[1];	// Offset is 1 because of zero crossing info
@@ -385,51 +370,42 @@ void LinkLayerUsbReceive(void)
         lpduSize      =	sicb.short_pdu_length;
         lpduHeaderPtr = (LPDUHeader*)&sicb.pdu[0];
     }
-	
-	// Throw away layer 2 mode 2 packets that are smaller than 8 bytes long;
-    // layer 2 mode 2 network interfaces report CRC errors as a packet with
-    // a short length
-	if (sicb.ni_command == LonNiIncomingL2Mode2Cmd && lpduSize < 8 ||
-		(sicb.ni_command&0xF0) == (LonNiError&0xF0)) {
+	if (sicb.ni_command == LonNiIncomingL2Mode2Cmd && lpduSize < 8 
+            || (sicb.ni_command & 0xF0) == (LonNiError & 0xF0)) {
+        // Ignore error packets; for power line interfaces, CRC errors are
+        // reported as a packet with a short length
 	  	INCR_STATS(LcsTxError);
 		return;
-	} else if (sicb.ni_command != LonNiIncomingL2Mode2Cmd) {
-	    if (lonNi[niIndex].isPowerLine && (sicb.ni_command == LonNiResetDeviceCmd
-                || sicb.ni_command == LonNiIncomingL2Cmd || sicb.ni_command == LonNiIncomingL2Mode1Cmd)) {
-		  	// Phase setting was lost
-			lonNi[niIndex].setPlPhase = true;
-		}
-	  	return;
-	}
-
-    if (lonNi[niIndex].isPowerLine) {
+    } else if (lonNi[niIndex].isPowerLine) {
+        // Process packet received from a power line interface
+        if (sicb.ni_command != LonNiIncomingL2Mode2Cmd) {
+            if (sicb.ni_command == LonNiResetDeviceCmd
+                    || sicb.ni_command == LonNiIncomingL2Cmd
+                    || sicb.ni_command == LonNiIncomingL2Mode1Cmd) {
+                // Phase setting was lost
+                lonNi[niIndex].setPlPhase = true;
+            }
+            // Ignore packet from a power line interface that is not a layer 2 message
+            INCR_STATS(LcsMissed);
+	  	    return;
+	    }
         // Fill in the packet specific register info for a PL network interface
 	    tempPtr = &sicb.pdu[sicb.short_pdu_length-2];
 	    lonNi[niIndex].xcvrParams.data[2] = *tempPtr++;
 	    lonNi[niIndex].xcvrParams.data[3] = lonNi[niIndex].xcvrParams.data[4] = *tempPtr;
+    } else if (sicb.ni_command != LonNiIncomingL2Cmd) {
+        // Ignore packet from a non-power line interface that is not a layer 2 message
+        INCR_STATS(LcsMissed);
+        return;
     }
-		
-    // CRC check was performed by the LON network interface;
+    // CRC check was performed by the LON interface;
     // increment the valid packet received count
     INCR_STATS(LcsL2Rx);
-
-    // Check if the packet is for us
-    if (sicb.ni_command != LonNiIncomingL2Mode2Cmd || sicb.pdu[0] != LonNiLocalNetMgmtCmd) {
-        INCR_STATS(LcsMissed);
-        return;
-    }
-
-    // Check if the packet is too small
-    if (lpduSize < 8) {
-        INCR_STATS(LcsRxError);
-        return;
-    }
-    
     if (QueueFull(&gp->nwInQ)) {
-        // Queue is full--lose this packet
+        // Network layer input queue is full--lose this packet
         INCR_STATS(LcsMissed);
     } else {
-        // Queue entry available--receive the packet
+        // Network layer input queue entry available--receive the packet
         nwReceiveParamPtr = QueueTail(&gp->nwInQ);
         npduPtr           = (uint8_t *)(nwReceiveParamPtr + 1);
 
@@ -437,7 +413,7 @@ void LinkLayerUsbReceive(void)
         nwReceiveParamPtr->altPath  = lpduHeaderPtr->altPath;
         tempPtr = (uint8_t *)((char *)lpduHeaderPtr + 1);
         nwReceiveParamPtr->pduSize  = lpduSize - 3;
-        // The following line has been commented out because
+        // TODO: The following line has been commented out because
         // there is no xcvrParams field in NWReceiveParam and
         // transceiver parameters are only fetched for a PL
         // network interface
@@ -459,8 +435,29 @@ void LinkLayerUsbReceive(void)
             (gp->lkInQ + gp->lkInBufSize * gp->lkInQCnt)) {
         gp->lkInQHeadPtr = gp->lkInQ; // Wrap around
     }
-	
     return;
+}
+
+/*
+ * Reads the Unique ID (Neuron ID or MAC ID) from a LON USB network interface.
+ * Parameters:
+ *   niIndex: The index of the LON network interface to read the Unique ID from
+ *   uidBuf: Buffer to receive the Unique ID
+ * Returns:
+ *   LonStatusNoError if successful, LonStatusCode error code otherwise
+ * Notes:
+ *   This function is called by IzotGetUniqueId() to get the Unique ID from a LON
+ *   USB network interface.
+ */
+LonStatusCode LinkLayerReadUsbUid(int niIndex, IzotUniqueId *uidBuf)
+{
+    if (niIndex < 0 || niIndex >= NUM_LON_NI) {
+        return LonStatusInvalidParameter;
+    }
+    if (!lonNi[niIndex].linkOpened) {
+        return LonStatusNotOpen;
+    }
+    return ReadUsbNiUid(lonNi[niIndex].iface_index, uidBuf);
 }
 
 /*
@@ -478,7 +475,6 @@ void CRC16(uint8_t bufInOut[], IzotUbits16 sizeIn)
     IzotUbits16 crc = 0xffff;
     IzotUbits16 i,j;
     unsigned char byte, crcbit, databit;
-
     for (i = 0; i < sizeIn; i++) {
         byte = bufInOut[i];
         for (j = 0; j < 8; j++) {
@@ -498,9 +494,9 @@ void CRC16(uint8_t bufInOut[], IzotUbits16 sizeIn)
 }
 
 /*
- * Gets a pointer to the transceiver parameters for the specified LON network interface.
+ * Gets a pointer to the transceiver parameters for the specified LON interface.
  * Parameters:
- *   index: The index of the LON network interface
+ *   index: The index of the LON interface
  *   p: Pointer to an XcvrParam structure to receive the parameters
  * Returns:
  *   None
@@ -511,16 +507,16 @@ void LKGetXcvrParams(int niIndex, XcvrParam *p)
 }
 
 /*
- * Fetches transceiver parameters from the specified LON PL network interface.
+ * Fetches transceiver parameters from the specified LON PL interface.
  * Parameters:
- *   index: The index of the LON network interface
+ *   index: The index of the LON interface
  * Returns:
  *   None
  * Notes:
- *  This function is called periodically to fetch the transceiver parameters
- *  from a LON PL network interface.  It is also called once during
- *  initialization of a LON PL network interface to kick off the process.
- *  The function just returns if there is no LON PL network interface.
+ *   This function is called periodically to fetch the transceiver parameters
+ *   from a LON PL interface.  It is also called once during initialization
+ *   of a LON PL interface to kick off the process.  The function just returns
+ *   if there is no LON PL interface.
  */
 void LKFetchXcvrPl(int index)
 {

@@ -11,146 +11,233 @@
  */
 
 #include "lcs/lcs_timer.h"
+#include "izot/iap_types.h"
 
-/*****************************************************************
-Function:  SetLonTimer
-Returns:   None
-Purpose:   Sets a timer value to a given value in milliseconds.
-Comments:  Sets the timer to the specified value. The interval
-		   can be up to about 24 days.  Set the value to 0 to stop 
-		   the current time interval, but does not terminate a
-		   repeating timer.  Use SetLonRepeatTimer() to stop
-		   any repeats.
-******************************************************************/
-void SetLonTimer(LonTimer *timerOut, uint32_t initValueIn)
+/*
+ * Starts a one-shot timer.
+ * Parameters:
+ *   timer: Pointer to the timer to set
+ *   duration: Initial timer duration in milliseconds; set to 0
+ *       	   to stop the current time interval
+ * Returns:
+ *   None
+ * Notes:
+ *   The interval can be up to about 24 days.  Setting the value to 0
+ *   stops the current time interval, but does not terminate a repeating
+ *   timer.  Use SetLonRepeatTimer() to stop any repeats.
+ */
+void SetLonTimer(LonTimer *timer, uint32_t duration)
 {
-	if (initValueIn) {
-		// Limit duration
-		initValueIn = min(initValueIn, LON_TIMER_MAX_DURATION);
-    	timerOut->repeatTimeout = 0;
-    	timerOut->expiration = OsalGetTickCount() + initValueIn;
+	if (timer) {
+		if (duration) {
+			// Limit duration
+			duration = min(duration, LON_TIMER_MAX_DURATION);
+			timer->repeatTimeout = 0;
+			timer->expiration = OsalGetTickCount() + duration;
 
-		if (timerOut->expiration == 0) {
-			// Zero signals that a timer is not running so disallow it
-			timerOut->expiration = 1;
+			if (timer->expiration == 0) {
+				// Zero signals that a timer is not running so disallow it
+				timer->expiration = 1;
+			}
+		} else {
+			timer->expiration = 0;
 		}
-	} else {
-		timerOut->expiration = 0;
 	}
 }
 
-/*****************************************************************
-Function:  SetLonRepeatTimer
-Returns:   None
-Purpose:   Sets a repeating timer value to an initial value for
-		   the first interval in milliseconds and repeating at the 
-		   a repeat interval specified in milliseconds.
-Comments:  The intervals can be up to about 24 days.  Set both 
-		   values to 0 to stop the current time interval and any 
-		   repeats.
-******************************************************************/
-void SetLonRepeatTimer(LonTimer *timerOut, uint32_t initValueIn, uint32_t repeatValueIn)
+/*
+ * Starts a repeating timer.
+ * Parameters:
+ *   timer: Pointer to the timer to set
+ *   first_duration: First interval timer duration in milliseconds
+ *   repeat_duration: Duration in milliseconds for repeated intervals
+ * Returns:
+ *   None
+ * Notes:
+ *   The intervals can be up to about 24 days.  Set both values to 0
+ *   to stop the current time interval and any repeats.  Both intervals
+ *   are limited to about 24 days.
+ */
+void SetLonRepeatTimer(LonTimer *timer, uint32_t first_duration, uint32_t repeat_duration)
 {
-    // Limit durations
-    initValueIn = min(initValueIn, LON_TIMER_MAX_DURATION);
-	repeatValueIn = min(repeatValueIn, LON_TIMER_MAX_DURATION);
+	if (timer) {
+		// Limit durations
+		first_duration = min(first_duration, LON_TIMER_MAX_DURATION);
+		repeat_duration = min(repeat_duration, LON_TIMER_MAX_DURATION);
 
-	SetLonTimer(timerOut, initValueIn);
-   	timerOut->repeatTimeout = repeatValueIn;
+		SetLonTimer(timer, first_duration);
+		timer->repeatTimeout = repeat_duration;
+	}
 }
 
-/*****************************************************************
-Function:  LonTimerExpired
-Returns:   TRUE if the timer has expired. FALSE if the timer has
-           not expired or it has expired but has already been
-           reported as expired.
-Reference: None
-Purpose:   To update given timer and test if it expired.
-Comments:  V1 used TMR_Expired().
-******************************************************************/
-bool LonTimerExpired(LonTimer *timerInOut)
+/*
+ * Checks if a timer has expired since the last time it was started.
+ * Parameters:
+ *   timer: Pointer to the timer to check
+ * Returns:
+ *   true if the timer has expired since the last time it was started;
+ *   false if it has expired or has already been reported as expired.
+ * Notes:
+ *   Unlike LonTimerRunning(), this function returns true only once after
+ *   each expiration.
+ */
+bool LonTimerExpired(LonTimer *timer)
 {
-	int32_t delta = (int32_t) (timerInOut->expiration - OsalGetTickCount());
-	bool isExpired = timerInOut->expiration && delta <= 0;
+	if (!timer || !timer->expiration) {
+		return false;
+	}
+	int32_t delta = (int32_t) (timer->expiration - OsalGetTickCount());
+	bool isExpired = timer->expiration && delta <= 0;
 	if (isExpired) {
-		timerInOut->expiration = 0;
-		if (timerInOut->repeatTimeout) {
-			uint32_t t = timerInOut->repeatTimeout;
+		timer->expiration = 0;
+		if (timer->repeatTimeout) {
+			uint32_t t = timer->repeatTimeout;
 			if ((int32_t) (t + delta) < 0) {
 				// Cap the adjustment at 0
 				delta = 0;
 			}
-			SetLonTimer(timerInOut, t + delta);
-			timerInOut->repeatTimeout = t;
+			SetLonTimer(timer, t + delta);
+			timer->repeatTimeout = t;
 		}
 	}
     return isExpired;
 }
 
-/*****************************************************************
-Function:  LonTimerRunning
-Returns:   TRUE if the timer is still running.
-Purpose:   Check if a timer is still running.  Returns true only
-           if the timer was ever started and has not expired yet.  
-           Different from LonTimerExpired() in that it will return 
-		   true once timer expires whereas LonTimerExpired() only 
-		   returns true once.
-Comments:  V1 used TMR_Running().
-******************************************************************/
-bool LonTimerRunning(LonTimer *timerInOut)
+/*
+ * Checks if a timer is currently running.
+ * Parameters:
+ *   timer: Pointer to the timer to check
+ * Returns:
+ *   true if the timer is currently running
+ * Notes:
+ *   Returns true if the timer has not expired since the last
+ *   time it was started.  This function is different from
+ *   LonTimerExpired() in that it will return true as long
+ *   as the timer is running, whereas LonTimerExpired() only
+ *   returns true once after each expiration.
+ */
+bool LonTimerRunning(LonTimer *timer)
 {
-	return timerInOut->expiration && !LonTimerExpired(timerInOut);
+	return timer && timer->expiration && ((int32_t) (timer->expiration - OsalGetTickCount()) > 0);
 }
 
-/*****************************************************************
-Function:  LonTimerRemaining
-Returns:   Number of milliseconds left on the timer.
-Purpose:   Return the number of milliseconds left on a timer, or
-		   return 0 if the timer is not running or expired.
-******************************************************************/
-uint32_t LonTimerRemaining(LonTimer *timerInOut)
+/*
+ * Checks time remaining for a timer.
+ * Parameters:
+ *   timer: Pointer to the timer to check
+ * Returns:
+ *   Number of milliseconds remaining until the timer expires, or 0 if
+ *   the timer is not running or has expired
+ */
+uint32_t LonTimerRemaining(LonTimer *timer)
 {
 	uint32_t remaining = 0;
 
-	if (LonTimerRunning(timerInOut)) {
-		remaining = timerInOut->expiration - OsalGetTickCount();
+	if (timer && LonTimerRunning(timer)) {
+		remaining = timer->expiration - OsalGetTickCount();
 	}
 	return remaining;
 }
 
-/*****************************************************************
-Function:  StartLonWatch
-Returns:   None.
-Purpose:   Start a stopwatch.
-******************************************************************/
+/*
+ * Starts a stopwatch.
+ * Parameters:
+ *   watch: Pointer to the stopwatch to start
+ * Returns:
+ *   None
+ */
 void StartLonWatch(LonWatch *watch)
 {
-	watch->start = OsalGetTickCount();
+	if (watch) {
+		watch->start = OsalGetTickCount();
+	}
 }
 
-/*****************************************************************
-Function:  StopLonWatch
-Returns:   None.
-Purpose:   Stop a stopwatch.
-******************************************************************/
+/*
+ * Stops a stopwatch.
+ * Parameters:
+ *   watch: Pointer to the stopwatch to stop
+ * Returns:
+ *   None
+ */
 void StopLonWatch(LonWatch *watch)
 {
-	watch->start = 0;
+	if (watch) {
+		watch->start = 0;
+	}
 }
 
-/*****************************************************************
-Function:  LonWatchElapsed
-Returns:   Number of milliseconds since the watch was started.
-Purpose:   Return the number of milliseconds since StartLonWatch()
-		   was called.
-******************************************************************/
+/*
+ * Read the elapsed time on a stopwatch in milliseconds.
+ * Parameters:
+ *   watch: Pointer to the stopwatch to read
+ * Returns:
+ *   Number of milliseconds since the stopwatch was started with
+ *   StartLonWatch(), or 0 if the stopwatch is not running
+ */
 uint32_t LonWatchElapsed(LonWatch *watch)
 {
 	uint32_t duration = 0;
-	if (watch->start) {
+	if (watch && watch->start) {
 		duration = OsalGetTickCount() - watch->start;
 	}
-
 	return duration;
 }
 
+/*
+ * Converts an IAP SNVT_elapsed_tm value to milliseconds.
+ * Parameters:
+ *   elapsed_time: Pointer to the SNVT_elapsed_tm value to convert
+ * Returns:
+ *   The equivalent duration in milliseconds, or 0 if the input pointer is NULL.
+ * Notes:
+ *   The maximum representable duration is limited to one half of the full
+ *   unsigned 32-bit range, which is approximately 49.7 days.  Any input
+ *   exceeding this duration is capped at LON_TIMER_MAX_DURATION 
+ *   milliseconds which is about 24 days.  The function also checks for
+ *   potential overflow when calculating the total duration and caps at
+ *   LON_TIMER_MAX_DURATION if an overflow would occur.  If the input value
+ *   is invalid (e.g., day field is 0xFFFF), the function= returns
+ *   LON_TIMER_MAX_DURATION.
+ */
+uint32_t ElapsedTimeToMs(const SNVT_elapsed_tm *elapsed_time)
+{
+	if (elapsed_time == NULL) {
+		return 0;
+	}
+	uint16_t days = IZOT_GET_UNSIGNED_WORD(elapsed_time->day);
+	if (days == 0xFFFF) {
+		// Invalid value, return maximum duration
+		return LON_TIMER_MAX_DURATION;
+	}
+	if (days >= 50) {
+		// Cap at maximum duration
+		return LON_TIMER_MAX_DURATION;
+	}
+	uint32_t total_ms = days * 864000000UL; // 24 hours/day * 60 minutes/hour * 60 seconds/minute * 1000 ms/second
+	uint32_t hours_ms = (uint32_t)elapsed_time->hour * 3600000UL; // 60 minutes/hour * 60 seconds/minute * 1000 ms/second
+	if (total_ms > LON_TIMER_MAX_DURATION - hours_ms) {
+		// Cap at maximum duration
+		return LON_TIMER_MAX_DURATION;
+	}
+	total_ms += hours_ms;
+	uint32_t minutes_ms = (uint32_t)elapsed_time->minute * 60000UL; // 60 seconds/minute * 1000 ms/second
+	if (total_ms > LON_TIMER_MAX_DURATION - minutes_ms) {
+		// Cap at maximum duration
+		return LON_TIMER_MAX_DURATION;
+	}
+	total_ms += minutes_ms;
+	uint32_t seconds_ms = (uint32_t)elapsed_time->second * 1000UL; // 1000 ms/second
+	if (total_ms > LON_TIMER_MAX_DURATION - seconds_ms) {
+		// Cap at maximum duration
+		return LON_TIMER_MAX_DURATION;
+	}
+	total_ms += seconds_ms;
+	uint32_t milliseconds = IZOT_GET_UNSIGNED_WORD(elapsed_time->millisecond);
+	if (total_ms > LON_TIMER_MAX_DURATION - milliseconds) {
+		// Cap at maximum duration
+		return LON_TIMER_MAX_DURATION;
+	}
+	total_ms += milliseconds;
+	return total_ms;
+}

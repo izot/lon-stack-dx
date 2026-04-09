@@ -132,7 +132,7 @@ typedef enum {
 
     // LON stack-related codes
 	LonStatusLlpVersionNotAvailable    		= 95,   // Link-layer protocol version information not available
-	LonStatusDeviceUniqeIdNotAvailable		= 96,   // Device unique ID (Neuron or MAC ID) unavailable
+	LonStatusDeviceUniqueIdNotAvailable		= 96,   // Device unique ID (Neuron or MAC ID) unavailable
 	LonStatusdDeviceUriInvalid				= 97, 	// LON stack device URI is invalid
 	LonStatusStackNotInitialized			= 98,   // LON stack not initialized
 	LonStatusStackInitializationFailure		= 99,   // LON stack initialization failed

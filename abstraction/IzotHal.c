@@ -685,6 +685,13 @@ LonStatusCode HalOpenUsb(const char *usb_dev_name, int ldisc, int *usb_fd_out)
     tio.c_cflag &= ~PARENB;       // no parity
     tio.c_cflag &= ~CSTOPB;       // 1 stop bit
     tio.c_cflag &= ~CRTSCTS;      // no HW flow control
+    // Belt-and-suspenders: ensure all echo flags are off.
+    // cfmakeraw() should clear these, but some implementations
+    // or CDC-ACM driver re-enumeration can leave them set, which
+    // causes the tty layer to feed received bytes back to the
+    // device; the device may then echo them back, producing
+    // duplicate reads of the same frame.
+    tio.c_lflag &= ~(ECHO | ECHOE | ECHOK | ECHONL);
     // Set a commonly used speed; for CDC-ACM many devices still expect it
     cfsetispeed(&tio, B115200);
     cfsetospeed(&tio, B115200);
@@ -697,7 +704,8 @@ LonStatusCode HalOpenUsb(const char *usb_dev_name, int ldisc, int *usb_fd_out)
                 usb_dev_name, strerror(errno), errno);
         return status;
     }
-    // Flush any pending I/O
+    // Flush any data that arrived between open() and tcsetattr()
+    // to prevent stale bytes from appearing on the first read
     tcflush(*usb_fd_out, TCIOFLUSH);
     // Assert DTR/RTS in case the interface requires it to exit reset
     int mflags = 0;
@@ -909,6 +917,7 @@ LonStatusCode HalReadUsb(int usb_fd, void *buf, size_t len, ssize_t *bytes_read)
  *   For a Linux host, the IP interface name is defined in the 'iface'
  *   global.  The name is host-dependent and must match the name for
  *   the host.
+ *   TODO: add implementation for USB and MIP interfaces
  */ 
 LonStatusCode HalGetMacAddress(unsigned char *mac)
 {
@@ -921,7 +930,7 @@ LonStatusCode HalGetMacAddress(unsigned char *mac)
     fd = socket(AF_INET, SOCK_DGRAM, 0);
     if (fd == -1) {
         // Socket error
-        return LonStatusDeviceUniqeIdNotAvailable;
+        return LonStatusDeviceUniqueIdNotAvailable;
     }
 
     memset(&ifr, 0, sizeof(ifr));
@@ -931,7 +940,7 @@ LonStatusCode HalGetMacAddress(unsigned char *mac)
     // Linux uses SIOCGIFHWADDR
     if (ioctl(fd, SIOCGIFHWADDR, &ifr) == -1) {
         close(fd);
-        return LonStatusDeviceUniqeIdNotAvailable;
+        return LonStatusDeviceUniqueIdNotAvailable;
     }
     memcpy(mac, ifr.ifr_hwaddr.sa_data, 6);
 #elif defined(__APPLE__) || defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)

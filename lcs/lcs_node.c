@@ -562,7 +562,7 @@ LonStatusCode InitEEPROM(uint32_t app_signature)
         // First set stuff from the custom.c values.
         IZOT_SET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_TWO_DOMAINS, cp->twoDomains);
         IZOT_SET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_ADDRESS_CNT ,cp->addressCnt);
-        IzotGetUniqueId(&eep->readOnlyData.UniqueNodeId);
+        IzotGetUniqueId(0, &eep->readOnlyData.UniqueNodeId);
         memcpy(eep->readOnlyData.ProgramId, cp->progId, IZOT_PROGRAM_ID_LENGTH);
         
         /* Init remainder based on custom.h and default values */

@@ -43,7 +43,7 @@ static const IzotStackInterfaceData LonStackInterface = {
    15,                          // Number of address table entries (0 -- 4096)
    3,                           // Number of alias table entries (0 -- 8192)
    0,                           // Number of bindable message tags (0 -- 4096)
-   "Custom",                    // Device self-documentation (SD) string
+   "LON Stack Example 1",       // Device self-documentation (SD) string
    10,                          // Average number of bytes to reserve for
                                 // dynamic NV SD data
    siDataBuffer,                // Pointer to self-identification (SI) data
@@ -89,7 +89,7 @@ static const IzotControlData LonStackControlData = {
  * Section: Network Variable Definitions
  *****************************************************************/
 // SNVT_elapsed_tm heartbeatIn -- Heartbeat Interval Input NV; default to 2 seconds
-SNVT_elapsed_tm heartbeatIn = {{0, 0}, 0, 0, 2, {0, 0}};
+SNVT_elapsed_tm heartbeatIn = {{0, 0}, 0, 0, 3, {0, 0}};
 #define HEARTBEAT_IN_ADDRESS 0
 #define HEARTBEAT_IN_SELECTOR 0
 IzotDatapointDefinition heartbeatInDef; // Used to create definition and get NV index.  Copied into NV config table.
@@ -98,7 +98,7 @@ const char* heartbeatInName = "heartbeatIn";
 const char* heartbeatInSD = "Heartbeat Interval Input";
 
 // SNVT_flow_p flow1In -- Flow 1 Input NV
-SNVT_flow_p flow1In;
+SNVT_flow_p flow1In = {0, 0};
 #define FLOW1_IN_ADDRESS 0
 #define FLOW1_IN_SELECTOR 1
 IzotDatapointDefinition flow1InDef;    // Used to create definition and get NV index.  Copied into NV config table.
@@ -281,27 +281,27 @@ LonStatusCode LoopExample1(void)
                 return status;
             }
             service_count--;
-        }
-
-        // Send heartbeats
-        uint16_t value;
-        value = IZOT_GET_UNSIGNED_WORD(*(SNVT_flow_p*) flow1OutDef.PValue) + 100;
-        IZOT_SET_UNSIGNED_WORD(*(SNVT_flow_p*) flow1OutDef.PValue, value);
-        if (!LON_SUCCESS(IzotPropagateByIndex(flow1OutDef.NvIndex))) {
-            OsalPrintLog(ERROR_LOG, status, "LoopExample1: Failed to propagate flow1Out");
-        }
-        // TBD -- increment flow2Out
-        if (!LON_SUCCESS(IzotPropagateByIndex(flow2OutDef.NvIndex))) {
-            OsalPrintLog(ERROR_LOG, status, "LoopExample1: Failed to propagate flow2Out");
-        }
-        value = IZOT_GET_UNSIGNED_WORD(*(SNVT_temp_p*) temp1OutDef.PValue) + 100;
-        IZOT_SET_UNSIGNED_WORD(*(SNVT_temp_p*) temp1OutDef.PValue, value);
-        if (!LON_SUCCESS(IzotPropagateByIndex(temp1OutDef.NvIndex))) {
-            OsalPrintLog(ERROR_LOG, status, "LoopExample1: Failed to propagate temp1Out");
-        }
-        // TBD -- increment temp2Out
-        if (!LON_SUCCESS(IzotPropagateByIndex(temp2OutDef.NvIndex))) {
-            OsalPrintLog(ERROR_LOG, status, "LoopExample1: Failed to propagate temp2Out");
+        } else if (ElapsedTimeToMs(&heartbeatIn) > 0) {
+            // Send heartbeats
+            uint16_t value;
+            value = IZOT_GET_UNSIGNED_WORD(*(SNVT_flow_p*) flow1OutDef.PValue) + 100;
+            IZOT_SET_UNSIGNED_WORD(*(SNVT_flow_p*) flow1OutDef.PValue, value);
+            if (!LON_SUCCESS(IzotPropagateByIndex(flow1OutDef.NvIndex))) {
+                OsalPrintLog(ERROR_LOG, status, "LoopExample1: Failed to propagate flow1Out");
+            }
+            // TBD -- increment flow2Out
+            if (!LON_SUCCESS(IzotPropagateByIndex(flow2OutDef.NvIndex))) {
+                OsalPrintLog(ERROR_LOG, status, "LoopExample1: Failed to propagate flow2Out");
+            }
+            value = IZOT_GET_UNSIGNED_WORD(*(SNVT_temp_p*) temp1OutDef.PValue) + 100;
+            IZOT_SET_UNSIGNED_WORD(*(SNVT_temp_p*) temp1OutDef.PValue, value);
+            if (!LON_SUCCESS(IzotPropagateByIndex(temp1OutDef.NvIndex))) {
+                OsalPrintLog(ERROR_LOG, status, "LoopExample1: Failed to propagate temp1Out");
+            }
+            // TBD -- increment temp2Out
+            if (!LON_SUCCESS(IzotPropagateByIndex(temp2OutDef.NvIndex))) {
+                OsalPrintLog(ERROR_LOG, status, "LoopExample1: Failed to propagate temp2Out");
+            }
         }
     }
 

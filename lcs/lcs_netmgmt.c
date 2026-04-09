@@ -146,17 +146,17 @@ LonStatusCode ManualServiceRequestMessage(void) {
     if (nwSendParamPtr->pduSize > gp->nwOutBufSize) {
         status = LonStatusInvalidBufferLength;
         OsalPrintLog(ERROR_LOG, status, "ManualServiceRequestMessage: Do not have sufficient space to send the message");
-        return status; /* Do not have sufficient space to send the message. */
+        return status; /* Do not have sufficient space to send the message */
     }
     apduRespPtr = (APDU *) (nwSendParamPtr + 1);
-    apduRespPtr->code.allBits = 0x7F; /* Manual Service Request. */
+    apduRespPtr->code.allBits = 0x7F; /* Manual Service Request */
     nwSendParamPtr->destAddr.dmn.domainIndex = FLEX_DOMAIN;
     nwSendParamPtr->destAddr.dmn.domainLen = 0;
     nwSendParamPtr->pduType = APDU_TYPE;
     nwSendParamPtr->destAddr.addressMode = AM_BROADCAST;
-    nwSendParamPtr->destAddr.addr.addr0.SubnetId = 0; /* Domain wide broadcast. */
+    nwSendParamPtr->destAddr.addr.addr0.SubnetId = 0; /* Domain wide broadcast */
     nwSendParamPtr->deltaBL = 0;
-    nwSendParamPtr->altPath = 0; /* don't use alternate path. */
+    nwSendParamPtr->altPath = 0; /* Don't use alternate path */
     nwSendParamPtr->tag = MANUAL_SERVICE_REQ_TAG_VALUE;
     nwSendParamPtr->version = 0;
 

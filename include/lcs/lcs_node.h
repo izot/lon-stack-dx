@@ -787,38 +787,42 @@ typedef struct
     IzotBits16     nvArrayIndex;
     IzotReceiveAddress	nvInAddr;
 
-    /* Flag to indicate scheduler whether reset is needed or not */
+    /* Unique ID availability flag */
+    IzotByte uniqueIdAvailable; /* TRUE ==> unique ID is available */
+
+    /* Reset required flag for the scheduler */
     IzotByte resetNode; /* TRUE ==> reset needed */
 
-    /* To Check if reset was successful */
+    /* Reset success flag */
     IzotByte resetOk;
 
-    /* To Check if the manual service request button was pressed or not */
+    /* Manual Service request button state */
     IzotByte manualServiceRequest;
 
+    /* Service LED state */
     IzotByte serviceLedPhysical;
     IzotByte preServiceLedPhysical;
-    
     IzotByte serviceLedState;
     IzotByte prevServiceLedState;
 
-    /* Represents the mode for the application program in configured state. */
-    IzotByte appPgmMode;  /* Possible Values: OFF_LINE OFF_LINE NOT_RUNNING */
+    /* Application program mode in the configured state */
+    IzotByte appPgmMode;  /* Possible values: OFF_LINE OFF_LINE NOT_RUNNING */
 
-    /* For Msg Tag assignments */
+    /* Message tag assignments */
     IzotUbits16 nextBindableMsgTag;
     IzotUbits16 nextNonbindableMsgTag;
 
-	LonTimer ledTimer;		/* Timer for flashing the Service LED */
-    LonTimer checksumTimer;	/* Timer for configuration checksum verification */
+    /* Timers */
+	LonTimer ledTimer;		/* Service LED flashing timer */
+    LonTimer checksumTimer;	/* Configuration checksum verification timer */
 
+#ifdef ENABLE_PROXY_REPEATING
+    /* Proxy repeating buffer wait timer */
 	LonTimer proxyBufferWait;
+#endif
 
-//	ErrorSim errorSim[2][2];		// One for each channel (primary, alternate) and frequency (0 primary, 1 secondary)
-
-//	LcsBlockingMode blockingMode;
-
-	NvmMisc nvm;					// NVM miscellaneous
+    /* Miscellaneous non-volatile data */
+	NvmMisc nvm;
 
 	void (*clearStatsCallback)(void);
 } ProtocolStackData;
@@ -948,7 +952,6 @@ IzotByte izot_get_device_state(void);
 IzotByte izot_get_service_pin_mode(void);
 uint8_t	 izot_get_device_mode(void);
 
-extern LonStatusCode IzotGetUniqueId(IzotUniqueId* const pId);
 extern void IzotMsgArrived(const IzotReceiveAddress* const pAddress,
                    const IzotCorrelator correlator,
                    const IzotBool priority,

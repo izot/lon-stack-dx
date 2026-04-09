@@ -72,7 +72,7 @@ static const LonUsbConfig default_lon_usb_config = {
 
 // LON network diagnostic message used by the driver
 static const LonDataFrame MsgReportStatus[] = {LonNiLocalNetMgmtCmd,	// Network interface command
-		MSG_CODE_OFFSET+(1),	// 15 PDU length
+		UNICAST_MSG_CODE_OFFSET+(1),	// 15 PDU length
 		0x6F,					// 0 msg_type, 3 st (request), 0 auth, 15 tag (private)
 		0x08,					// 0 priority, 0 path, 0 2-bit cmpl_code, 1 addr_mode, 0 alt_path, 0 pool, 0 response
 		(1),					// 1 message length
@@ -87,7 +87,7 @@ static const LonDataFrame MsgModeL2[]	= {LonNiLayerModeCmd, 1, 1};
 static const LonDataFrame MsgModeL5[]	= {LonNiLayerModeCmd, 1, 0};
 static const LonDataFrame MsgStatus[]	= {LonNiStatusCmd, 0};
 static const LonDataFrame MsgUniqueId[]	= {LonNiLocalNetMgmtCmd,	// Network interface command (0x22)
-		MSG_CODE_OFFSET+(5),	// 19 PDU length
+		UNICAST_MSG_CODE_OFFSET+(5),	// 19 PDU length
 		0x70,					// 0 msg_type, 3 2-bit st (request), 1 auth, 0 4-bit tag
 		0x00,					// 0 priority, 0 path, 0 2-bit cmpl_code, 0 addr_mode, 0 alt_path, 0 pool, 0 response
 		(5),					// 5 message length
@@ -112,7 +112,7 @@ static LonUsbLinkState iface_state[MAX_IFACE_STATES];
 // LON USB link management
 static LonStatusCode StartLonUsbLink(int iface_index, LonUsbInterfaceMode configured_iface_mode);
 static LonStatusCode ResetUplinkState(int iface_index);
-static LonStatusCode RequestNiUid(int iface_index);
+static LonStatusCode RequestUsbNiUid(int iface_index);
 static LonStatusCode SetNiLayerMode(int iface_index, LonUsbInterfaceMode iface_mode);
 
 // LON downlink processing
@@ -137,8 +137,8 @@ static LonStatusCode ProcessUplinkBytes(int iface_index, uint8_t *chunk, size_t 
 static LonStatusCode ProcessUplinkCodePacket(int iface_index);
 static LonStatusCode ClearUplinkTransaction(int iface_index);
 static LonStatusCode CheckUplinkCompleted(int iface_index, bool *completed);
-static LonStatusCode QueueUplinkMessage(int iface_index, LonDataFrame *msg);
-static size_t TotalMessageLength(const LonDataFrame *msg);
+static LonStatusCode ProcessUplinkMessage(int iface_index);
+static size_t TotalMessageLength(const LonNiFrame *msg);
 
 // Interface state array management
 static LonStatusCode InitIfaceStates(void);
@@ -157,7 +157,7 @@ static bool IsDownlinkQueueEmpty(int iface_index);
 // Uplink queue management
 static LonStatusCode PeekUplinkBuffer(int iface_index, LonUsbQueueBuffer *dst);
 static LonStatusCode ReadUplinkBuffer(int iface_index, LonUsbQueueBuffer *dst);
-static LonStatusCode QueueUplinkBuffer(int iface_index, LonUsbQueueBuffer *src);
+static LonStatusCode QueueUplinkBuffer(int iface_index);
 static size_t GetUplinkBufferCount(int iface_index);
 static bool IsUplinkQueueEmpty(int iface_index);
 
@@ -227,6 +227,11 @@ LonStatusCode OpenLonUsbLink(char *lon_dev_name, char *usb_dev_name,
 	// Mark state as not ready
 	state->ready = false; // Set to true when interface is ready for use
 	
+	// Capture startup statistics
+	state->lon_stats.last_reset_time = OsalGetTickCount();
+	StartLonWatch(&state->lon_stats.runtime);
+	OsalPrintLog(INFO_LOG, status, "OpenLonUsbLink: Starting LON USB link initialization for %s with USB interface %s in layer %d mode", lon_dev_name, usb_dev_name, configured_iface_mode);
+
 	// Copy LON device name to state and ensure nul-termination
     strncpy(state->lon_dev_name, lon_dev_name, sizeof(state->lon_dev_name) - 1);
     state->lon_dev_name[sizeof(state->lon_dev_name) - 1] = '\0';
@@ -261,6 +266,7 @@ LonStatusCode OpenLonUsbLink(char *lon_dev_name, char *usb_dev_name,
 	}
 	OsalPrintLog(INFO_LOG, status, "OpenLonUsbLink: Opened LON USB interface %s model %d on USB device %s with index %d",
 			state->lon_dev_name, state->lon_usb_iface_model, state->usb_dev_name, *iface_index);
+
 	return status;
 };
 
@@ -372,13 +378,13 @@ static LonStatusCode SendResync(int iface_index)
 }
 
 /*
- * Sends a read memory request for the LON interface unique ID.
+ * Sends a read memory request for the LON USB interface unique ID.
  * Parameters:
  *   iface_index: LON interface index returned by OpenLonUsbLink()
  * Returns:
  *   LonStatusNoError on success; LonStatusCode error code if unsuccessful
  */
-static LonStatusCode RequestNiUid(int iface_index)
+static LonStatusCode RequestUsbNiUid(int iface_index)
 {
 	LonUsbLinkState *state = GetIfaceState(iface_index);
 	if (state == NULL || state->shutdown) {
@@ -388,7 +394,7 @@ static LonStatusCode RequestNiUid(int iface_index)
 	if (state->have_uid) {
 		// Already have the network interface unique ID
 		OsalPrintLog(INFO_LOG, status, 
-				"RequestNiUid: Already have LON interface %d unique ID, no need to request",
+				"RequestUsbNiUid: Already have LON interface %d unique ID, no need to request",
 				iface_index);
 		return status;
 	} else if (state->uid_retries <= 0) {
@@ -396,13 +402,13 @@ static LonStatusCode RequestNiUid(int iface_index)
 		state->uid_retries = 0;
 		state->wait_for_uid = false;
 		OsalPrintLog(ERROR_LOG, LonStatusTimeout, 
-				"RequestNiUid: Failed to read LON interface %d unique ID after %d attempts",
+				"RequestUsbNiUid: Failed to read LON interface %d unique ID after %d attempts",
 				iface_index, MAX_UID_RETRIES);
 		return status;
 	} else {
 		// Request the network interface unique ID with a read memory command
 		OsalPrintLog(INFO_LOG, status,
-				"RequestNiUid: Request LON interface %d unique ID (%d retries left), %s state, %s state", 
+				"RequestUsbNiUid: Request LON interface %d unique ID (%d retries left), %s state, %s state", 
 				iface_index, state->uid_retries, downlink_state_names[state->downlink_state], uplink_state_names[state->uplink_state]);
 		status = WriteLonUsbMsg(iface_index, MsgUniqueId);
 	}
@@ -418,13 +424,37 @@ static LonStatusCode RequestNiUid(int iface_index)
 }
 
 /*
- * Sends a status request for the LON interface.
+ * Reads the LON USB interface unique ID from the state.
+ * Parameters:
+ *   iface_index: LON interface index returned by OpenLonUsbLink()
+ *   uid_buffer: Buffer to receive the unique ID (must be at least 6 bytes)
+ * Returns:
+ *   LonStatusNoError on success; LonStatusCode error code if unsuccessful
+ */
+LonStatusCode ReadUsbNiUid(int iface_index, IzotUniqueId *uid_buffer)
+{
+	LonUsbLinkState *state = GetIfaceState(iface_index);
+	if (state == NULL) {
+		return LonStatusInvalidInterfaceId;
+	}
+	if (!uid_buffer) {
+		return LonStatusInvalidParameter;
+	}
+	if (!state->have_uid) {
+		return LonStatusLniUniqueIdNotAvailable;
+	}
+	memcpy(uid_buffer, state->uid, IZOT_UNIQUE_ID_LENGTH);
+	return LonStatusNoError;
+}
+
+/*
+ * Sends a status request for the LON USB interface.
  * Parameters:
  *   iface_index: LON interface index returned by OpenLonUsbLink()
  * Returns:
  *   LonStatusNoError on success; LonStatusCode error code if unsuccessful
  */
-static LonStatusCode RequestNiStatus(int iface_index)
+static LonStatusCode RequestUsbNiStatus(int iface_index)
 {
 	LonUsbLinkState *state = GetIfaceState(iface_index);
 	if (state == NULL || state->shutdown) {
@@ -434,7 +464,7 @@ static LonStatusCode RequestNiStatus(int iface_index)
 	if (state->have_status) {
 		// Already have the LON interface status
 		OsalPrintLog(INFO_LOG, status, 
-				"RequestNiStatus: Already have LON interface %d status, no need to request",
+				"RequestUsbNiStatus: Already have LON interface %d status, no need to request",
 				iface_index);
 		return status;
 	} else if (state->status_retries <= 0) {
@@ -442,13 +472,13 @@ static LonStatusCode RequestNiStatus(int iface_index)
 		state->status_retries = 0;
 		state->wait_for_status = false;
 		OsalPrintLog(ERROR_LOG, LonStatusTimeout, 
-				"RequestNiStatus: Failed to read LON interface %d status after %d attempts",
+				"RequestUsbNiStatus: Failed to read LON interface %d status after %d attempts",
 				iface_index, MAX_STATUS_RETRIES);
 		return status;
 	} else {
 		// Request the network interface status with a read memory command
 		OsalPrintLog(INFO_LOG, status,
-				"RequestNiStatus: Request LON interface %d status (%d retries left), %s state, %s state", 
+				"RequestUsbNiStatus: Request LON interface %d status (%d retries left), %s state, %s state", 
 				iface_index, state->status_retries, downlink_state_names[state->downlink_state], uplink_state_names[state->uplink_state]);
 		if (!LON_SUCCESS(status = WriteLonUsbMsg(iface_index, MsgStatus))) {
 			return status;
@@ -560,7 +590,7 @@ LonStatusCode ProcessDownlinkRequests(int iface_index)
 	DownlinkState starting_downlink_state = state->downlink_state;
 	static DownlinkState last_downlink_state = DOWNLINK_INVALID;
 	if (state->downlink_state != last_downlink_state) {
-		OsalPrintLog(PACKET_TRACE_LOG, status, "ProcessDownlinkRequests: Interface %d downlink state changed from %s to %s, uplink state %s",
+		OsalPrintLog(PACKET_TRACE_LOG, status, "ProcessDownlinkRequests:\n\n*********************** Interface %d downlink state changed from %s to %s, uplink state %s",
 				iface_index, downlink_state_names[last_downlink_state],
 				downlink_state_names[state->downlink_state], uplink_state_names[state->uplink_state]);
 		last_downlink_state = state->downlink_state;
@@ -664,7 +694,7 @@ LonStatusCode ProcessDownlinkRequests(int iface_index)
 			break;
 		}
 		// Send read memory request for the network interface unique ID
-		if (!LON_SUCCESS(status = RequestNiUid(iface_index))) {
+		if (!LON_SUCCESS(status = RequestUsbNiUid(iface_index))) {
 			OsalPrintLog(ERROR_LOG, status, "ProcessDownlinkRequests: Failed to request LON interface unique ID for interface %d after resync", iface_index);
 			return status;
 		}
@@ -729,7 +759,7 @@ LonStatusCode ProcessDownlinkRequests(int iface_index)
 			break;
 		}
 		// Send MIP status request to the LON interface
-		if (!LON_SUCCESS(status = RequestNiStatus(iface_index))) {
+		if (!LON_SUCCESS(status = RequestUsbNiStatus(iface_index))) {
 			OsalPrintLog(ERROR_LOG, status, "ProcessDownlinkRequests: Failed to request LON interface status for interface %d after resync", iface_index);
 			return status;
 		}
@@ -774,7 +804,8 @@ LonStatusCode ProcessDownlinkRequests(int iface_index)
 		state->ready = true;
 		state->downlink_state = DOWNLINK_IDLE;
 		status = ProcessNextDownlinkMessage(iface_index);
-		OsalPrintLog(INFO_LOG, status, "ProcessDownlinkRequests: Interface %d initialization complete, entering idle state", iface_index);
+		state->lon_stats.startup_time = LonWatchElapsed(&state->lon_stats.runtime);
+		OsalPrintLog(INFO_LOG, status, "ProcessDownlinkRequests: Interface %d initialization completed in %" PRIu32 " ms, entering idle state", iface_index, state->lon_stats.startup_time);
 		break;
 	case DOWNLINK_IDLE:
 		status = ProcessNextDownlinkMessage(iface_index);
@@ -936,7 +967,7 @@ LonStatusCode WriteLonUsbMsg(int iface_index, const LonDataFrame* input_frame)
 		// Build downlink buffer -- the sequence number and checksum
 		// will be updated when the buffer is written to the interface
 		status = CreateFrameHeader(&state->downlink_buffer_staging.frame_header,
-				MSG_FRAME_CMD, 0, 0, true); // TBD: determine if parameter should be 1 for 1 message following
+				MSG_FRAME_CMD, 0, 0, true); // TODO: Determine if parameter should be 1 for 1 message following
 		OsalPrintLog(DETAIL_TRACE_LOG, LonStatusNoError,
 				"WriteLonUsbMsg: Created frame header with frame sync 0x%02X, frame code 0x%02X, parameter 0x%02X, checksum 0x%02X",
 				state->downlink_buffer_staging.frame_header.frame_sync,
@@ -962,7 +993,7 @@ LonStatusCode WriteLonUsbMsg(int iface_index, const LonDataFrame* input_frame)
 					// Copy source to destination extended PDU, excluding length and flag bytes copied above
 					memcpy(&usb_ni_ext_frame->ext_pdu, &input_ext_frame->ext_pdu, ext_length - 3);
 					// Update sizes
-					// TBD: check this calculation; the ext_length includes the ni_command byte and the ext_pdu length, but the ext_pdu in the destination frame does not include the ni_command byte
+					// TODO: Check this calculation; the ext_length includes the ni_command byte and the ext_pdu length, but the ext_pdu in the destination frame does not include the ni_command byte
 					state->downlink_buffer_staging.buf_size = sizeof(LonFrameHeader) + sizeof(LonNiExtendedFrame) - sizeof(usb_ni_ext_frame->ext_pdu) + ext_length;
 					state->downlink_buffer_staging.data_frame_size = state->downlink_buffer_staging.buf_size - sizeof(LonFrameHeader);
 					status = LonStatusNoError;
@@ -986,7 +1017,7 @@ LonStatusCode WriteLonUsbMsg(int iface_index, const LonDataFrame* input_frame)
 					// Set the interface mode used for this link after NI reset
 					state->configured_iface_mode = (input_frame->pdu[0] == 0) ? LON_IFACE_MODE_LAYER5 : LON_IFACE_MODE_LAYER2;
 				} else {
-					// Increment length to include network interface command byte (TBD, or is this checksum?)
+					// Increment length to include network interface command byte (TODO: Is this checksum instead?)
 					usb_ni_data_frame->short_pdu_length = adjusted_short_pdu_length + 1;
 					// Copy network interface command
 					usb_ni_data_frame->ni_command = input_frame->ni_command;
@@ -1401,9 +1432,10 @@ static LonStatusCode StopAckTimer(int iface_index)
 	return LonStatusNoError;
 }
 
-// TBD: verify that length stuffing is correct for extended messages (see the U61 code);
-//      zero out the downlink buffer before use to avoid garbage in unused fields;
-//      verify handling of local NI commands; verify handling of LON protocol V1
+// TODO: Verify that length stuffing is correct for extended messages (see the U61 code)
+// TODO: Zero out the downlink buffer before use to avoid garbage in unused fields
+// TODO: Verify handling of local NI commands
+// TODO: Verify handling of LON protocol V1
 
 /*****************************************************************
  * Section: Uplink Function Definitions
@@ -1421,6 +1453,7 @@ static LonStatusCode StopAckTimer(int iface_index)
  *   Non-blocking; reads available bytes and returns a single message if
  *   available.  If no full message is available, tests for timeout waiting
  *   for the LON interface unique ID (UID) and retries the UID read request.
+ *   TODO: The UID retry may be redundant with the uplink state machine.
  */
 LonStatusCode ReadLonUsbMsg(int iface_index, LonDataFrame *out_msg)
 {
@@ -1512,8 +1545,10 @@ LonStatusCode ReadLonUsbMsg(int iface_index, LonDataFrame *out_msg)
 	if (status != LonStatusNoBufferAvailable) {
 		// Message is available; copy to output buffer
 		memset(out_msg, 0, sizeof(*out_msg));
+		// Field assignment converts from LonNiFrame to LonDataFrame; the PDU is copied separately below
 		out_msg->ni_command = buffer.usb_ni_data_frame.ni_command;
-		// TBD: verify extended message handling.  Note that short_pdu_length includes the command byte
+		// TODO: Verify extended message handling.  short_pdu_length includes the command byte
+		// TODO: Verify the -1 for PDU length; the length sent by the MIP includes the command byte, but the command byte is not included in the PDU field in the output message
 		out_msg->short_pdu_length = buffer.usb_ni_data_frame.short_pdu_length - 1;
 		if (out_msg->short_pdu_length > sizeof(out_msg->pdu)) {
 			out_msg->short_pdu_length = (uint8_t) sizeof(out_msg->pdu);
@@ -1572,10 +1607,9 @@ LonStatusCode ReadLonUsbMsg(int iface_index, LonDataFrame *out_msg)
  *   - Ignore nicbACK (0xC0) and nicbNACK (0xC1) commands
  *   - Use LonNiError (0x30) to process runt packets
  * 
- * TBD:
- *   - See smpCodePacketRxd() in U50Link.c; reviewed through line 900
- *   - Add new uplink_state values for U50_LINK.
- *   - Add line discipline mapping for the U50_LINK and U61_LINK types.
+ * TODO: See smpCodePacketRxd() in U50Link.c; reviewed through line 900
+ * TODO: Add new uplink_state values for U50_LINK
+ * TODO: Add line discipline mapping for the U50_LINK and U61_LINK types
  */
 static LonStatusCode ProcessUplinkBytes(int iface_index, uint8_t *chunk, size_t chunk_size)
 {
@@ -1605,7 +1639,7 @@ static LonStatusCode ProcessUplinkBytes(int iface_index, uint8_t *chunk, size_t 
 				// and stay in UPLINK_IDLE to continue looking for frame sync
 				Increment32(state->lon_stats.uplink.rx_frame_errors);
 				OsalPrintLog(ERROR_LOG, LonStatusFrameError, "ProcessUplinkBytes: First uplink frame error, %02X received 0x7E expected", *chunk);
-				state->uplink_frame_error = TRUE; // TBD: check this
+				state->uplink_frame_error = TRUE; // TODO: Check this
 			}
 			chunk++; chunk_size--;
 			break;
@@ -1654,6 +1688,7 @@ static LonStatusCode ProcessUplinkBytes(int iface_index, uint8_t *chunk, size_t 
 					sizeof(state->uplink_buffer.frame_header))) {
 				// Code packet checksum is invalid; flag frame error and go back to idle
 				state->uplink_frame_error = TRUE;
+				state->downlink_ack_seq_number = NO_ACK_REQUIRED;
 				OsalPrintLog(ERROR_LOG, LonStatusFrameError, "ProcessUplinkBytes: Uplink code packet checksum error");
 				state->uplink_state = UPLINK_IDLE;
 			} else {
@@ -1675,7 +1710,9 @@ static LonStatusCode ProcessUplinkBytes(int iface_index, uint8_t *chunk, size_t 
 			break;
 		case UPLINK_MESSAGE:
 			while (chunk_size) {
-				uint8_t msg_byte = state->uplink_msg[state->uplink_msg_index++] = *chunk++;
+				uint8_t msg_byte 
+						= ((uint8_t *)&state->uplink_buffer.usb_ni_data_frame)[state->uplink_msg_index++] 
+						= *chunk++;
 				chunk_size--;
 				if (msg_byte == FRAME_SYNC) {
 					state->uplink_state = UPLINK_ESCAPED_DATA;
@@ -1700,6 +1737,7 @@ static LonStatusCode ProcessUplinkBytes(int iface_index, uint8_t *chunk, size_t 
 			state->uplink_state = UPLINK_MESSAGE;
 			if (*chunk != FRAME_SYNC) {
 				Increment32(state->lon_stats.uplink.rx_frame_errors);
+				state->downlink_ack_seq_number = NO_ACK_REQUIRED;
 				OsalPrintLog(ERROR_LOG, LonStatusFrameError, "ProcessUplinkBytes: Uplink frame error (data)");
 				if (*chunk == 0) {
 					state->uplink_msg_index = 0;
@@ -1739,7 +1777,6 @@ static LonStatusCode ProcessUplinkCodePacket(int iface_index)
 		state->uplink_seq_number = sequence_number;
 	}
 	if (ack_flag && !cp_fail_or_reject) {
-		state->downlink_ack_seq_number = sequence_number;
 		OsalPrintLog(DETAIL_TRACE_LOG, status, "ProcessUplinkCodePacket: ACK flag set for sequence %d",
 				sequence_number);
 		if (state->downlink_state != DOWNLINK_WAIT_CP_RESPONSE) {
@@ -1752,8 +1789,8 @@ static LonStatusCode ProcessUplinkCodePacket(int iface_index)
 		// Message frame header received; change state to receive message in CheckUplinkCompleted()
 		OsalPrintLog(PACKET_TRACE_LOG, status, "ProcessUplinkCodePacket: Received uplink message frame with sequence %d, ack %d, parameter 0x%02X",
 				sequence_number, ack_flag, parameter);
+		state->downlink_ack_seq_number = sequence_number;
 		if (ack_flag) {
-			state->downlink_ack_seq_number = sequence_number;
 			OsalPrintLog(DETAIL_TRACE_LOG, status, "ProcessUplinkCodePacket: ACK flag set for message with sequence %d",
 					sequence_number);
 		}
@@ -1763,15 +1800,15 @@ static LonStatusCode ProcessUplinkCodePacket(int iface_index)
 		// Short NI command received; process the command
 		OsalPrintLog(PACKET_TRACE_LOG, status, "ProcessUplinkCodePacket: Received uplink short NI command with sequence %d, ack %d, NI command 0x%02X",
 				sequence_number, ack_flag, parameter);
+		state->downlink_ack_seq_number = sequence_number;
 		if (ack_flag) {
-			state->downlink_ack_seq_number = sequence_number;
 			OsalPrintLog(PACKET_TRACE_LOG, status, "ProcessUplinkCodePacket: ACK flag set for short NI command with sequence %d",
 					sequence_number);
 		}
 		if (!state->uplink_duplicate) {
 			if (parameter == LonNiAckCmd || parameter == LonNiNackCmd) {
 				// Downlink ACK not required for these commands
-				// TBD: is "state->downlink_ack_required = false;" required here, or is it sufficient that these commands are not processed as part of an uplink transaction in ClearUplinkTransaction()?
+				// TODO: Is "state->downlink_ack_required = false;" required here, or is it sufficient that these commands are not processed as part of an uplink transaction in ClearUplinkTransaction()?
 				break;
 			}
 			if(parameter == LonNiResetDeviceCmd) {
@@ -1788,8 +1825,7 @@ static LonStatusCode ProcessUplinkCodePacket(int iface_index)
 			} else {
       			state->uplink_buffer.usb_ni_data_frame.short_pdu_length = 1;
 			}
-			if (!LON_SUCCESS(status = QueueUplinkMessage(iface_index,
-					(LonDataFrame *)&state->uplink_buffer.usb_ni_data_frame))) {
+			if (!LON_SUCCESS(status = ProcessUplinkMessage(iface_index))) {
 				OsalPrintLog(ERROR_LOG, status, "ProcessUplinkCodePacket: Failed to queue uplink short NI command 0x%02X",
 						parameter);
 				return status;
@@ -1810,12 +1846,12 @@ static LonStatusCode ProcessUplinkCodePacket(int iface_index)
 				OsalPrintLog(INFO_LOG, status, "ProcessUplinkCodePacket: Reject received from network interface %d downlink reject timer started", iface_index);
 			} else if (OsalGetTickCount() - state->downlink_reject_timer > DOWNLINK_WAIT_TIME) {
 				state->downlink_reject_timer = 0;
-				// Downlink reject timer limit reached; TBD: reset the network interface
+				// Downlink reject timer limit reached; TODO: Reset the network interface
 				status = LonStatusLniWriteFailure;
 				OsalPrintLog(ERROR_LOG, status, "ProcessUplinkCodePacket: Downlink reject timer expired; resetting network interface %d", iface_index);
 				WriteDownlinkCodePacket(iface_index, SHORT_NI_CMD_FRAME_CMD, LonNiResetDeviceCmd);
 			}
-			// TBD: ensure sequence number is cycled for DOWNLINK_WAIT_MSG_ACK
+			// TODO: Ensure sequence number is cycled for DOWNLINK_WAIT_MSG_ACK
 			// because the code packet was accepted
 		} else {
 			// This isn't necessarily an error
@@ -1850,7 +1886,7 @@ static LonStatusCode ProcessUplinkCodePacket(int iface_index)
 	return status;
 }
 
-// TBD: verify message processing in the original LON U60 driver after ProcessUplinkCodePacket()
+// TODO: Verify message processing in the original LON U60 driver after ProcessUplinkCodePacket()
 
 /*
  * Clears any pending uplink transaction for a specified LON USB network interface.
@@ -1896,7 +1932,7 @@ static LonStatusCode ClearUplinkTransaction(int iface_index)
  * Notes:
  *   Called by ReadLonUsbMsg() during incoming byte stream parsing. 
  *   If an uplink message is complete, it is processed and queued for
- *   the LON stack or application using QueueUplinkMessage().  If an
+ *   the LON stack or application using ProcessUplinkMessage().  If an
  *   uplink message is not yet complete, the function returns FALSE.
  *   The message length is determined from the first one or three bytes
  *   of the message, depending on whether the message is an expanded or
@@ -1910,61 +1946,46 @@ static LonStatusCode ClearUplinkTransaction(int iface_index)
 static LonStatusCode CheckUplinkCompleted(int iface_index, bool *completed)
 {
 	*completed = false;
-	LonStatusCode status = LonStatusNoError;
+	LonStatusCode status = LonStatusNoError, uplink_status = LonStatusNoError;
 	LonUsbLinkState *state = GetIfaceState(iface_index);
 	if (state == NULL || state->shutdown) {
 		return LonStatusInvalidInterfaceId;
 	}
-	if (state->uplink_msg_index == 1) {		// Length
-		state->uplink_msg_length = state->uplink_msg[0];
+	if (state->uplink_msg_index == 1) {		// Length is at index 0; cmd is at index 1
+		state->uplink_msg_length = state->uplink_buffer.usb_ni_data_frame.short_pdu_length; // TODO: Verify this is correct and that short_pdu_length is populated at this point in the code; if so, change the condition to check for short_pdu_length instead of index 1 and use the field instead of index 0
 	} else if (state->uplink_msg_length == EXT_LENGTH && state->uplink_msg_index == 3){
-		// Get the extended length; state->uplink_msg[0] is still EXT_LENGTH
-		state->uplink_msg_length = ((state->uplink_msg[1] << 8) | state->uplink_msg[2]);
+		// Get the extended length; ((uint8_t *)&state->uplink_buffer.usb_ni_data_frame)[0] is still EXT_LENGTH
+		state->uplink_msg_length = ntoh16(((LonExtDataFrame *)&state->uplink_buffer.usb_ni_data_frame)->ext_length_be);
 	} else if (state->uplink_msg_index && (state->uplink_msg_index > (state->uplink_msg_length + 1))) {
-		// TBD: verify +1 is correct in the above condition
+		// TODO: Verify +1 is correct in the above condition
 		// Full message received
-		uint8_t cmd;
-		LonDataFrame *msg = (LonDataFrame *)state->uplink_msg;
-		if (state->uplink_msg[0] == EXT_LENGTH){
-			// Re-arrange the first 4 bytes; endian swap the length
-			// Output: [CMD][FF][LHI][LLO][...]
-			cmd = state->uplink_msg[3];
-			state->uplink_msg[1] = EXT_LENGTH;
-			// state->uplink_msg_length--;		// Decrement for cmd; TBD: is this correct?
-			state->uplink_msg[2] = (uint8_t)(state->uplink_msg_length & 0xFF);
-			state->uplink_msg[3] = (uint8_t)(state->uplink_msg_length >> 8);
-			state->uplink_msg[0] = cmd;
-		} else {
-			// Re-arrange the first two bytes (length & cmd)
-			cmd = state->uplink_msg[1];
-			// state->uplink_msg_length--;		// Decrement for cmd; TBD; is this correct?
-			state->uplink_msg[1] = (uint8_t)state->uplink_msg_length;
-			state->uplink_msg[0] = cmd;
-		}
-		// Filter any LonNiDriverCmdMask commands
-		if ((cmd & NI_CMD_MASK) == LonNiDriverCmdMask || cmd == LonNiLayerModeCmd) {
+		uint8_t ni_cmd = state->uplink_buffer.usb_ni_data_frame.ni_command; // TODO: Verify this is correct and that ni_command is populated at this point in the code; if so, use the field instead of index 1
+		if ((ni_cmd & NI_CMD_MASK) == LonNiDriverCmdMask || ni_cmd == LonNiLayerModeCmd) {
+			// Filter LonNiDriverCmdMask commands
 			OsalPrintLog(PACKET_TRACE_LOG, LonStatusNoError,
-					"Processed 0x%02X uplink network interface command", cmd);
-			if (cmd == LonNiLayerModeCmd) {
+					"Processed 0x%02X uplink network interface command", ni_cmd);
+			if (ni_cmd == LonNiLayerModeCmd) {
 				OsalPrintLog(INFO_LOG, LonStatusNoError, 
 						"CheckUplinkCompleted: NI Layer Mode setting received: %d",
-						msg->pdu[0]);
+						state->uplink_buffer.usb_ni_data_frame.pdu[0]);
 			}
 		} else {
 			OsalPrintLog(PACKET_TRACE_LOG, LonStatusNoError, 
 					"CheckUplinkCompleted: Received 0x%02X network interface command with %d bytes",
-					cmd, state->uplink_msg_length);
-			OsalPrintMessage(DETAIL_TRACE_LOG, "CheckUplinkCompleted: ", state->uplink_msg, state->uplink_msg_length + 2);
-			// Process and shrink any LonNiResetDeviceCmd data
-			if (cmd == LonNiResetDeviceCmd) {
-				if (msg->short_pdu_length) {
+					ni_cmd, state->uplink_msg_length);
+			OsalPrintMessage(DETAIL_TRACE_LOG, "CheckUplinkCompleted: ",
+					(uint8_t *)&state->uplink_buffer.usb_ni_data_frame, state->uplink_msg_length + 2);
+			switch(ni_cmd) {
+			case LonNiResetDeviceCmd:
+				// Process and shrink any LonNiResetDeviceCmd data
+				if (state->uplink_buffer.usb_ni_data_frame.short_pdu_length) {
 					char channel_type_name[] = "Custom channel type";
-					state->lon_stats.channel_type_id = msg->pdu[1];
+					state->lon_stats.channel_type_id = state->uplink_buffer.usb_ni_data_frame.pdu[1];
 					if (state->lon_stats.channel_type_id != IZOT_CUSTOM_CHANNEL_TYPE_ID) {
 						snprintf(channel_type_name, sizeof(channel_type_name),
 								"channel type %d", state->lon_stats.channel_type_id);
 					}
-					state->lon_stats.l2_l5_mode = state->current_iface_mode = msg->pdu[0];
+					state->lon_stats.l2_l5_mode = state->current_iface_mode = state->uplink_buffer.usb_ni_data_frame.pdu[0];
 					char lon_ni_layer_mode_name[] = "layer 5";
 					if (state->lon_stats.l2_l5_mode) {
 						strncpy(lon_ni_layer_mode_name, "layer 2", sizeof(lon_ni_layer_mode_name));
@@ -1975,22 +1996,47 @@ static LonStatusCode CheckUplinkCompleted(int iface_index, bool *completed)
 				} else {
 					OsalPrintLog(INFO_LOG, LonStatusNoError, "CheckUplinkCompleted: NI Reset received, no data");
 				}
-				msg->short_pdu_length = 0;
-				state->uplink_msg_length = 1; 	// Adjust length for no data (TBD: check this and correct checksum)
+				state->uplink_buffer.usb_ni_data_frame.short_pdu_length = 0;
+				state->uplink_msg_length = 1; 	// Adjust length for no data (TODO: Check this and correct checksum)
 				if (state->wait_for_reset) {
 					state->wait_for_reset = false;
 					state->have_reset = true;		// Signal reset received to ProcessDownlinkRequests()
 				}
-				// TBD: clear any pending transactions?
-				// TBD: alternate handling if not waiting for reset, for example if reset is unexpected or unsolicited
-			} else if (cmd == LonNiCrcError) {
+				// TODO: Clear any pending transactions?
+				// TODO: Alternate handling if not waiting for reset, for example if reset is unexpected or unsolicited				break;
+			case LonNiCrcError:
+				OsalPrintLog(INFO_LOG, LonStatusNoError, "CheckUplinkCompleted: NI CRC error received");
 				Increment32(state->lon_stats.uplink.rx_crc_errors);
-            } else if (cmd == LonNiIncomingCmd && (msg->short_pdu_length > (3+11)) && (msg->pdu[MSG_CODE_OFFSET] == IzotNmWink)) {
-                // Process any uplink network Wink messages
-				IdentifyLonNi(state->iface_index);
-			}
-			if (cmd == LonNiFlushCompleteCmd) {
+				break;
+			case LonNiIncomingCmd:
+				if (state->uplink_buffer.usb_ni_data_frame.short_pdu_length > (UNICAST_MSG_CODE_OFFSET) 
+						&& state->uplink_buffer.usb_ni_data_frame.pdu[UNICAST_MSG_CODE_OFFSET] 
+						== IzotNmWink) {
+					// Process uplink network Wink message
+					IdentifyLonNi(state->iface_index);
+				}
+				break;
+			case LonNiIncomingL2Cmd:
+				if (state->uplink_buffer.usb_ni_data_frame.short_pdu_length == BROADCAST_MSG_CODE_OFFSET + 18
+						&& state->uplink_buffer.usb_ni_data_frame.pdu[BROADCAST_MSG_CODE_OFFSET]
+						== IzotNmServicePin) {
+					// Log received unique ID message
+					OsalPrintLog(PACKET_TRACE_LOG, LonStatusNoError, 
+							"CheckUplinkCompleted: Received uplink unique ID from %2.2X%2.2X:%2.2X%2.2X:%2.2X%2.2X",
+							state->uplink_buffer.usb_ni_data_frame.pdu[BROADCAST_MSG_CODE_OFFSET + 1],
+							state->uplink_buffer.usb_ni_data_frame.pdu[BROADCAST_MSG_CODE_OFFSET + 2],
+							state->uplink_buffer.usb_ni_data_frame.pdu[BROADCAST_MSG_CODE_OFFSET + 3],
+							state->uplink_buffer.usb_ni_data_frame.pdu[BROADCAST_MSG_CODE_OFFSET + 4],
+							state->uplink_buffer.usb_ni_data_frame.pdu[BROADCAST_MSG_CODE_OFFSET + 5],
+							state->uplink_buffer.usb_ni_data_frame.pdu[BROADCAST_MSG_CODE_OFFSET + 6]);
+				}
+				break;
+			case LonNiFlushCompleteCmd:
 				OsalPrintLog(PACKET_TRACE_LOG, LonStatusNoError, "CheckUplinkCompleted: NI Flush Complete message received");
+				break;
+			default:
+				// Other NI command; no special processing at this time
+				break;
 			}
             // Trashed uplink data can result in 0xFF error value in the len field
             if (((unsigned int)state->uplink_msg_length + 2) > (sizeof(LonDataFrame) + 2)) {
@@ -1999,24 +2045,19 @@ static LonStatusCode CheckUplinkCompleted(int iface_index, bool *completed)
 						state->uplink_msg_length);
             } else {
                 // Queue it
-                if (!LON_SUCCESS(status = QueueUplinkMessage(iface_index, msg))) {
-					return status;
-				}
+                uplink_status = ProcessUplinkMessage(iface_index);
             }
 		}
-		if (!LON_SUCCESS(status = ResetUplinkState(iface_index))) {
-			return status;
-		}
+		status = ResetUplinkState(iface_index);
 		*completed = true;
 	}
-	return status;
+	return !LON_SUCCESS(uplink_status) ? uplink_status : status;
 }
 
 /*
  * Queues an uplink (read) message from the LON USB network interface.
  * Parameters:
  *   iface_index: interface index returned by OpenLonUsbLink()
- *   msg: Pointer to L2Frame structure containing uplink message
  * Returns:
  *   LonStatusNoError on success; LonStatusCode error code if unsuccessful
  * Notes:
@@ -2027,29 +2068,33 @@ static LonStatusCode CheckUplinkCompleted(int iface_index, bool *completed)
  *   memory response, the message is dropped. Otherwise the message is queued 
  *   for upstream processing.
  */
-static LonStatusCode QueueUplinkMessage(int iface_index, LonDataFrame *msg)
+// TODO: Fill in the addition fields for uplink_buffer
+static LonStatusCode ProcessUplinkMessage(int iface_index)
 {
 	LonStatusCode status = LonStatusNoError;
 	LonUsbLinkState *state = GetIfaceState(iface_index);
 	if (state == NULL || state->shutdown) {
 		return LonStatusInvalidInterfaceId;
 	}
-    size_t copy_length = TotalMessageLength(msg) + 1;
+    size_t copy_length = TotalMessageLength(&state->uplink_buffer.usb_ni_data_frame) + 1;
+	uint8_t *buf = (uint8_t *)&state->uplink_buffer.usb_ni_data_frame;
     if (state->wait_for_uid) {
-        uint8_t *buf = (uint8_t *)msg;
 		// Test for a read memory response to the unique ID read request
 		// by testing for a message length greater than or equal to 23 bytes
-		// (including NI command but not length) and then checking for 0x16
-		// 0x16 at byte 0 and 0x2D read memory response command at byte 16
-		if (copy_length >= 23 && buf[0] == 0x16 && buf[16] == 0x2d) { 
+		// (including NI command but not length) and then checking for
+		// LonNiResponseCmd at byte 1 and 0x2D read memory response command
+		// at byte 16
+		if (copy_length >= 23 
+				&& state->uplink_buffer.usb_ni_data_frame.ni_command == LonNiResponseCmd 
+				&& state->uplink_buffer.usb_ni_data_frame.pdu[14] == (IzotNmReadMemory & (IZOT_NM_OPCODE_MASK | IZOT_NM_RESPONSE_SUCCESS))) { 
 			int i;
 			for (i=0; i < 6; i++) {
-				state->uid[i] = buf[i+17];
+				state->uid[i] = state->uplink_buffer.usb_ni_data_frame.pdu[i+15]; // TODO: Verify the correct offset for the UID bytes in the message
 			}
 			state->wait_for_uid = false;
             state->have_uid = true;
 			OsalPrintLog(INFO_LOG, LonStatusNoError, 
-					"QueueUplinkMessage:LON interface %d unique ID %2.2X:%2.2X:%2.2X:%2.2X:%2.2X:%2.2X",
+					"ProcessUplinkMessage:LON interface %d unique ID %2.2X%2.2X:%2.2X%2.2X:%2.2X%2.2X",
 					state->iface_index,
                 	state->uid[0], state->uid[1], state->uid[2],
                 	state->uid[3], state->uid[4], state->uid[5]);
@@ -2058,10 +2103,10 @@ static LonStatusCode QueueUplinkMessage(int iface_index, LonDataFrame *msg)
 		// Test for a request response to a MIP status request by testing
 		// for a message length greater than or equal to 6 bytes (including
 		// NI command but not length) and then checking for the 0xE0 response
-		// code at byte 0 and 0x05 PDU length at byte 1
-		uint8_t *buf = (uint8_t *)msg;
-		if (copy_length >= 6 && buf[0] == 0xE0 && buf[1] == 5) { 
-			IzotLonInterfaceStatusResponse *response = (IzotLonInterfaceStatusResponse *)&buf[2];
+		// code at byte 1 and 0x05 PDU length at byte 1
+		// TODO: Replace buf with direct access to uplink_buffer fields and verify the correct offsets for the response code and length fields in the message
+		if (copy_length >= 6 && state->uplink_buffer.usb_ni_data_frame.ni_command == 0xE0 && state->uplink_buffer.usb_ni_data_frame.short_pdu_length == 5) { 
+			IzotLonInterfaceStatusResponse *response = (IzotLonInterfaceStatusResponse *)&state->uplink_buffer.usb_ni_data_frame.pdu[0];
 			state->wait_for_status = false;
             state->have_status = true;
 			state->lon_stats.l2_l5_mode = state->current_iface_mode = response->layer_mode;
@@ -2069,7 +2114,7 @@ static LonStatusCode QueueUplinkMessage(int iface_index, LonDataFrame *msg)
 			state->lon_stats.ni_fw_version = response->fw_version;
 			state->lon_stats.ni_status = response->status;
 			OsalPrintLog(INFO_LOG, LonStatusNoError, 
-					"QueueUplinkMessage:LON interface index %d, model %d, firmware version %d.%d, layer %d mode, status %d",
+					"ProcessUplinkMessage:LON interface index %d, model %d, firmware version %d.%d, layer %d mode, status %d",
 					state->iface_index, response->model_id,
 					response->fw_version / 10, response->fw_version % 10,
 					response->layer_mode ? 2 : 5, response->status);
@@ -2077,9 +2122,9 @@ static LonStatusCode QueueUplinkMessage(int iface_index, LonDataFrame *msg)
 	} else {
 		Increment32(state->lon_stats.uplink.packets_received);
 		Add32(state->lon_stats.uplink.bytes_received, copy_length);
-        status = QueueUplinkBuffer(iface_index, (LonUsbQueueBuffer *)msg);
-		OsalPrintLog(DETAIL_TRACE_LOG, status, "QueueUplinkMessage: Queued uplink message with %d bytes", copy_length);
-		OsalPrintMessage(DETAIL_TRACE_LOG, "QueueUplinkMessage: ", (const uint8_t *)msg, copy_length);
+        status = QueueUplinkBuffer(iface_index);
+		OsalPrintLog(DETAIL_TRACE_LOG, status, "ProcessUplinkMessage: Queued uplink message with %d bytes", copy_length);
+		OsalPrintMessage(DETAIL_TRACE_LOG, "ProcessUplinkMessage: ", (const uint8_t *)&state->uplink_buffer.usb_ni_data_frame, copy_length);
     }
 	return status;
 }
@@ -2092,18 +2137,18 @@ static LonStatusCode QueueUplinkMessage(int iface_index, LonDataFrame *msg)
  * Returns:
  *   Total message length including length fields; 0 if msg is NULL
  * Notes:
- *   Called by QueueUplinkMessage() to determine the total length of
+ *   Called by ProcessUplinkMessage() to determine the total length of
  *   an uplink message for statistics and processing.
  */
-static size_t TotalMessageLength(const LonDataFrame *msg)
+static size_t TotalMessageLength(const LonNiFrame *msg)
 {
 	if (!msg) {
 		return 0;
 	} else if (msg->short_pdu_length < EXT_LENGTH) {
 		return msg->short_pdu_length + 1;  // +1 for length byte
 	} else {
-		const LonExtDataFrame *ext_msg = (const LonExtDataFrame *)msg;
-		return EndianSwap16(ext_msg->ext_length_be) + 1 + 2;	
+		const LonNiExtendedFrame *ext_msg = (const LonNiExtendedFrame *)msg;
+		return ntoh16(ext_msg->ext_length_be) + 1 + 2;	
 				// +1 for length byte, +2 for extended length bytes
 	}
 }
@@ -2205,8 +2250,8 @@ static LonStatusCode InitIfaceStates(void)
 		state->have_reset = false;					// Set to true when a reset command is received in CheckUplinkCompleted()
 		state->wait_for_null = false;				// Set to true in OpenLonUsbLink() while waiting for an uplink null frame
 		state->have_null = false;					// Set to true when a null frame is received in CheckUplinkCompleted()
-		state->wait_for_uid = false;				// Set to true in RequestNiUid()
-		state->have_uid = false;					// Set to true when UID is received in QueueUplinkMessage()
+		state->wait_for_uid = false;				// Set to true in RequestUsbNiUid()
+		state->have_uid = false;					// Set to true when UID is received in ProcessUplinkMessage()
 		state->wait_for_status = false;				// Set to true in OpenLonUsbLink() while waiting for an uplink status response
 		state->have_status = false;					// Set to true when a status response is received in CheckUplinkCompleted()
 		state->ready = false;						// Set to true when interface is ready for use
@@ -2587,24 +2632,19 @@ static LonStatusCode FlushUplinkQueue(int iface_index, MessagePriorityLevel prio
  * Appends a copy of src to the end of the uplink queue.
  * Parameters:
  *   iface_index: interface index returned by OpenLonUsbLink()
- *   src: pointer to LonUsbQueueBuffer containing the data to append
  * Returns:
  *   LonStatusNoError on success; LonStatusCode error code if unsuccessful
  */
-static LonStatusCode QueueUplinkBuffer(int iface_index, LonUsbQueueBuffer *src) {
+static LonStatusCode QueueUplinkBuffer(int iface_index) {
     LonUsbLinkState *state = GetIfaceState(iface_index);
 	if (state == NULL) {
 		return LonStatusInvalidInterfaceId;
-	}
-	if (!src) {
-		OsalPrintLog(ERROR_LOG, LonStatusInvalidParameter, "QueueDownlinkBuffer: NULL src for interface %d", iface_index);
-		return LonStatusInvalidParameter;
 	}
 	Queue *queue;
 	LonUsbQueueBuffer *tail;
 	LonStatusCode status = LonStatusNoError;
 	OsalLockMutex(&state->queue_lock);
-	if (src->priority == HIGH_PRIORITY) {
+	if (state->uplink_buffer.priority == HIGH_PRIORITY) {
 		queue = &state->lon_usb_uplink_priority_queue;
 	} else {
 		queue = &state->lon_usb_uplink_normal_queue;
@@ -2613,10 +2653,10 @@ static LonStatusCode QueueUplinkBuffer(int iface_index, LonUsbQueueBuffer *src) 
 	if (!tail) {
 		// Invalid queue
 		status = LonStatusInvalidParameter;
-		OsalPrintLog(ERROR_LOG, status, "QueueDownlinkBuffer: Invalid downlink queue for interface %d", iface_index);
+		OsalPrintLog(ERROR_LOG, status, "QueueUplinkBuffer: Invalid uplink queue for interface %d", iface_index);
 	} else {
 		// Append the new entry to the queue
-		memcpy(tail, src, sizeof(LonUsbQueueBuffer));
+		memcpy(tail, &state->uplink_buffer, sizeof(LonUsbQueueBuffer));
 		QueueWrite(queue);
 	}
 	OsalUnlockMutex(&state->queue_lock);
