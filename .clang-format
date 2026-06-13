@@ -1,0 +1,17 @@
+BasedOnStyle: LLVM
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+BreakBeforeBraces: Linux
+IndentPPDirectives: None
+ColumnLimit: 90
+ContinuationIndentWidth: 8
+InsertBraces: true
+ReflowComments: false
+AlignTrailingComments: true
+SpacesBeforeTrailingComments: 2
+BinPackParameters: true
+BinPackArguments: true
+AlignAfterOpenBracket: DontAlign
+AllowAllParametersOfDeclarationOnNextLine: false
+AllowAllArgumentsOnNextLine: false
