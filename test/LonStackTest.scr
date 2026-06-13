@@ -27,6 +27,9 @@
 L
 # Send Service Pin message
 P
+# Send Wink command
+W
+1
 # Go to device 1
 G
 1
