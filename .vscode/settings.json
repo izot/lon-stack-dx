@@ -4,8 +4,10 @@
     "cmake.buildPreset": "arm64-cross",
     "cmake.buildTarget": "lon_stack_example1",
     "cmake.buildDirectory": "${workspaceFolder}/build/arm64",
-    "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
-    "C_Cpp.default.compileCommands": "${workspaceFolder}/build/arm64/compile_commands.json",
+    "C_Cpp.intelliSenseEngine": "disabled",
+    "clangd.arguments": [
+        "--compile-commands-dir=${workspaceFolder}/build/arm64"
+    ],
     "files.associations": {
         "iap_types.h": "c",
         "ipv4_to_lon_udp.h": "c",
