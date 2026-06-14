@@ -1,6 +1,23 @@
 # Ignore local AI assistant guidance (keep private/local)
 .github/copilot-instructions.md
+.gemini-instructions.md
+.claude-instructions.md
 
 # CMake build output
 /build/
 /cmake-build-*/
+
+# Mac configuration files
+.DS_Store
+.idea
+.vscode
+.vscode-server
+.mcp
+.antigravity
+.code-workspace
+.vscode-settings.json
+
+# Local build support
+fix_comments.py
+full_llvm_style.yaml
+last_user_edit.txt
