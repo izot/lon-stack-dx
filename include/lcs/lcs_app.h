@@ -88,27 +88,12 @@
 #ifndef _LCS_APP_H
 #define _LCS_APP_H
 
-/*------------------------------------------------------------------------------
-Section: Includes
-------------------------------------------------------------------------------*/
-#include <string.h>
 #include "izot/IzotPlatform.h"
 #include "izot/lon_types.h"
-#include "abstraction/IzotEndian.h"
 #include "lcs/lcs_api.h"
-#include "lcs/lcs_timer.h"
 #include "lcs/lcs_eia709_1.h"
-#include "lcs/lcs_iup.h"
 #include "lcs/lcs_node.h"
-#include "lcs/lcs_netmgmt.h"
-#include "lcs/lcs_network.h"
-#include "lcs/lcs_proxy.h"
-#include "lcs/lcs_queue.h"
-#include "lcs/lcs_tsa.h"
 
-/*------------------------------------------------------------------------------
-Section: Constant Definitions
-------------------------------------------------------------------------------*/
 
 /*******************************************************************************
 Define tags for use by the application layer for the messages it generates.
@@ -135,36 +120,39 @@ Network variable updates and polls are scheduled sequentially. When the
 completion event for the last tag is received, completion event is
 generated.
 *******************************************************************************/
-#define MANUAL_SERVICE_REQ_TAG_VALUE ((MsgTag) 0xFFFF)
-#define NV_UPDATE_LAST_TAG_VALUE ((MsgTag) 0xE000)
-#define NV_POLL_LAST_TAG_VALUE   ((MsgTag) 0xA000)
+#define MANUAL_SERVICE_REQ_TAG_VALUE ((MsgTag)0xFFFF)
+#define NV_UPDATE_LAST_TAG_VALUE ((MsgTag)0xE000)
+#define NV_POLL_LAST_TAG_VALUE ((MsgTag)0xA000)
 
-#define MANUAL_SERVICE_REQUEST_TAG(tag)  (tag == MANUAL_SERVICE_REQ_TAG_VALUE)
+#define MANUAL_SERVICE_REQUEST_TAG(tag) (tag == MANUAL_SERVICE_REQ_TAG_VALUE)
 
-#define NV_UPDATE_TAG(tag)    ((tag & 0xC000) == 0xC000)
-#define NV_POLL_TAG(tag)      ((tag & 0xC000) == 0x8000)
-#define NV_INDEX_OF_TAG(tag)  (tag & 0x1FFF)
-#define NV_LAST_TAG(tag)      ((tag & 0xA000) == 0xA000)
+#define NV_UPDATE_TAG(tag) ((tag & 0xC000) == 0xC000)
+#define NV_POLL_TAG(tag) ((tag & 0xC000) == 0x8000)
+#define NV_INDEX_OF_TAG(tag) (tag & 0x1FFF)
+#define NV_LAST_TAG(tag) ((tag & 0xA000) == 0xA000)
 
-#define GET_NV_UPDATE_TAG(index)      (0xC000 | index)
-#define GET_NV_POLL_TAG(index)        (0x8000 | index)
+#define GET_NV_UPDATE_TAG(index) (0xC000 | index)
+#define GET_NV_POLL_TAG(index) (0x8000 | index)
 
 /* Explicit application message codes */
-#define APPL_MSG_OFFLINE       0x3F
-#define FOREIGN_FRAME_OFFLINE  0x4F
+#define APPL_MSG_OFFLINE 0x3F
+#define FOREIGN_FRAME_OFFLINE 0x4F
 
-/*------------------------------------------------------------------------------
-Section: Function Prototypes
-------------------------------------------------------------------------------*/
+/*****************************************************************
+ * Section: Function Declarations
+ *****************************************************************/
+
 LonStatusCode AppLayerInit(void);
 LonStatusCode AppLayerReset(void);
 void AppLayerSend(void);
 void AppLayerReceive(void);
 LonStatusCode SendResponse(RequestId reqId, IzotByte code, int len, IzotByte *pData);
 LonStatusCode SendNullResponse(RequestId reqId);
-LonStatusCode AllocSendUnackd(PktCtrl ctrl, MsgTag tag, IzotSendAddress* pSrc, DestinType code, IzotByte data0, int len, IzotByte *pData);
+LonStatusCode AllocSendUnackd(PktCtrl ctrl, MsgTag tag, IzotSendAddress *pSrc,
+        DestinType code, IzotByte data0, int len, IzotByte *pData);
 uint32_t GetSiDataLength(void);
-void IzotPrepareNetworkData(IzotByte *ndi, IzotUbits16 dpIndex, IzotUbits16 dpLen, IzotByte *hdi);
+void IzotPrepareNetworkData(IzotByte *ndi, IzotUbits16 dpIndex, IzotUbits16 dpLen,
+        IzotByte *hdi);
 LonStatusCode IzotNdiToHdi(const IzotByte *ndi, IzotByte *hdi, const IzotByte *ibol);
 
 #endif  // _LCS_APP_H

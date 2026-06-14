@@ -17,14 +17,14 @@
 
 #include "izot/IzotPlatform.h"
 
-#if LINK_IS(MIP)
+#if LINK_IS(SPI_MIP)
 
 #include "lcs/lcs_eia709_1.h" /* needed for IZOT_COMMUNICATIONS_PARAMETER_LENGTH */
 
 /* Length in bytes of Packet buffers for SPM ISR */
 #define PKT_BUF_LEN 255
 
-// Serial Purpose Mode setting
+// Serial Peripheral Mode setting
 typedef enum {
     RUN = 0,   /* The SPI is engaged in transfer */
     STOP,      /* The SPI is stopped usually due to error
@@ -32,7 +32,7 @@ typedef enum {
     OVERWRITE, /* receive new packet before old copied out */
 } SPMMode;
 
-// Serial Purpose Mode state
+// Serial Peripheral Mode state
 typedef enum {
     IDLE = 0,
     RECEIVE,
@@ -220,5 +220,5 @@ void PHYEnableSPMIsr(void);
 void PHYIO(void);
 void PHYIOInit(void);
 
-#endif  // LINK_IS(MIP)
+#endif  // LINK_IS(SPI_MIP)
 #endif  // _PHYSICAL_H

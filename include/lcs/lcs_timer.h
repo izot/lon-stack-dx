@@ -16,9 +16,8 @@
 #include <stddef.h>
 #include <stdbool.h>
 
-#include "izot/IzotPlatform.h"
 #include "izot/lon_types.h"
-#include "lcs/lcs_eia709_1.h"
+#include "izot/iap_types.h"
 
 // Set LON timer maximum duration to 1/2 maximum full range for a 32-bit
 // millisecond timer which is about 24 days

@@ -11,6 +11,7 @@
  */
 
 #include "persistence/storage_persistence.h"
+#include "izot/IzotApi.h"
 
 // Unique value to identify an initialized transaction record
 #define TX_SIGNATURE 0x89ABCDEF
@@ -583,7 +584,7 @@ static LonStatusCode InitSegmentMap(const IzotPersistentSegType persistent_seg_t
     uint8_t erase_value;    // Byte value required for erasing the segment
 
 #if 0
-    // TBD: Remove this code when HAL storage init is reliable
+    // TODO: Remove this code when HAL storage init is reliable
     // Initialize persistent data storage
     if (!LON_SUCCESS(status = HalInitStorage())) {
         OsalPrintLog(ERROR_LOG, status, "InitSegmentMap: Cannot initialize storage for %s", 
@@ -594,7 +595,7 @@ static LonStatusCode InitSegmentMap(const IzotPersistentSegType persistent_seg_t
     // Storage block size is initially 0, and will be updated by this function
     if (storage_block_size == 0) {
 #if 0
-        // TBD: Remove this code when HAL storage init is reliable
+        // TODO: Remove this code when HAL storage init is reliable
         // Open the storage
         if (!LON_SUCCESS(status = HalOpenStorageSegment(persistent_seg_type, IzotPersistentGetSegName(persistent_seg_type)))) {
             // Storage cannot be opened

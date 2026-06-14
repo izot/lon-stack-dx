@@ -8,64 +8,69 @@
  * Title:   IP Connectivity Abstraction Layer
  * Purpose: Defines portable functions and types for communicating
  *          with IP sockets.
- * Notes:   IP sockets are required for LON/IP and are not required
- * 			for native LON.
+ * Notes:   IP sockets are required for LON/UDP (LON/IP implemented with
+ *          UDP/IP sockets) and are not required for native LON or LON/IP
+ *          implemented over other transport mechanisms such as FT or
+ *          TP-1250.
  */
 
+#include "izot/IzotPlatform.h"  // IWYU pragma: keep
+
+#if LINK_IS(UDP)
 #include "abstraction/IzotCal.h"
 #include "lcs/lcs_api.h"
 
 #if PROCESSOR_IS(MC200)
 #include <app_framework.h>
 #include <appln_cb.h>
-#include <wm_net.h>
-#include <wm_os.h>
 #include <board.h>
 #include <mdev_gpio.h>
 #include <mdev_pinmux.h>
-#endif
+#include <wm_net.h>
+#include <wm_os.h>
+#endif  // PROCESSOR_IS(MC200)
 
-#if PROTOCOL_IS(LON_IP)
 #include "lon_udp/ipv4_to_lon_udp.h"
-#endif
 
-#if LINK_IS(WIFI)
-    #define MAX_SSID_LEN      15
-    #define MAX_HOST_NAME_LEN 10
-    #define MAC_ID_LEN        6
-    #define UAP_PASSPHRASE    "TBD"
-#endif  // LINK_IS(WIFI)
+#if PHYSICAL_IS(WIFI)
+#define MAX_SSID_LEN 15
+#define MAX_HOST_NAME_LEN 10
+#define MAC_ID_LEN 6
+#define UAP_PASSPHRASE "TBD"
+#endif  // PHYSICAL_IS(WIFI)
 
 #if PROCESSOR_IS(MC200)
-    #define FTFS_API_VERSION  100
-    #define FTFS_PART_NAME    "ftfs"
+#define FTFS_API_VERSION 100
+#define FTFS_PART_NAME "ftfs"
 #endif  // PLATFORM_IS(FRTOS_ARM_EABI)
 
 /*****************************************************************
  * Section: Globals
  *****************************************************************/
-#if LINK_IS(ETHERNET) || LINK_IS(WIFI)
-IzotByte ownIpAddress[IPV4_ADDRESS_LEN]; 
-                // Buffer to store the IP address
+
+#if LINK_IS(UDP)
+// Buffer to store the IP address
+IzotByte ownIpAddress[IPV4_ADDRESS_LEN];
+// Flag to report IP link connectivity
 IzotBool is_connected;
-                // Flag to report IP link connectivity
 
 static LonTimer linkCheckTimer;
-#endif  // LINK_IS(ETHERNET) || LINK_IS(WIFI)
+#endif  // LINK_IS(UDP)
 
-#if LINK_IS(WIFI) && PROCESSOR_IS(MC200)
-static int        app_udp_socket = -1;
-static int        provisioned;
+#if PHYSICAL_IS(WIFI) && PROCESSOR_IS(MC200)
+static int app_udp_socket = -1;
+static int provisioned;
 static struct fs *fs;
-static char       ssid_uap[MAX_SSID_LEN];
-static char       dhcp_host_name[MAX_HOST_NAME_LEN];
-static uint8_t    connecting = 0;
+static char ssid_uap[MAX_SSID_LEN];
+static char dhcp_host_name[MAX_HOST_NAME_LEN];
+static uint8_t connecting = 0;
 #endif
 
 /*****************************************************************
  * Section: Function Definitions
  *****************************************************************/
- #if PROCESSOR_IS(MC200)
+
+#if PROCESSOR_IS(MC200)
 /*
  * Handles a critical error for the MC200.
  * Parameters:
@@ -79,12 +84,11 @@ void appln_critical_error_handler(void *data)
 {
     while (1)
         ;
-    // do nothing -- stall
+    // Do nothing -- stall
 }
 #endif  // PROCESSOR_IS(MC200)
 
-
-#if LINK_IS(WIFI)
+#if PHYSICAL_IS(WIFI)
 /* 
  * Handles a Wi-Fi initialization completion event.
  * Parameters:
@@ -117,12 +121,12 @@ void appln_critical_error_handler(void *data)
  *     -- Starts mDNS and advertize services
  *     -- Starts HTTP Server
  *     -- Registers WSGI handlers for HTTP server
- */ 
+ */
 static void EventWlanInitDone(void *data)
 {
     int ret;
     unsigned char mac[MAC_ID_LEN];
-    
+
     // Receive provisioning status from data
     provisioned = (int)data;
 
@@ -130,20 +134,20 @@ static void EventWlanInitDone(void *data)
 
     // Limit the number of Wi-Fi Channels to 11
     wifi_sub_band_set_t sb = {
-    .first_chan = 1,
-    .no_of_chan= 11,
-    .max_tx_pwr = 30,
+            .first_chan = 1,
+            .no_of_chan = 11,
+            .max_tx_pwr = 30,
     };
 
-    wifi_domain_param_t *dp = os_mem_alloc(sizeof(wifi_domain_param_t) +
-    										sizeof(wifi_sub_band_set_t));
+    wifi_domain_param_t *dp =
+            os_mem_alloc(sizeof(wifi_domain_param_t) + sizeof(wifi_sub_band_set_t));
 
-	memcpy(dp->country_code, "US\0", COUNTRY_CODE_LEN);
-	dp->no_of_sub_band = 1;
-	memcpy(dp->sub_band, &sb, sizeof(wifi_sub_band_set_t));
+    memcpy(dp->country_code, "US\0", COUNTRY_CODE_LEN);
+    dp->no_of_sub_band = 1;
+    memcpy(dp->sub_band, &sb, sizeof(wifi_sub_band_set_t));
 
-	wifi_uap_set_domain_params(dp);
-	os_mem_free(dp);
+    wifi_uap_set_domain_params(dp);
+    os_mem_free(dp);
 
     // Get the MAC address of the Wi-Fi interface
     if (!LON_SUCCESS(HalGetMacAddress(mac))) {
@@ -156,7 +160,7 @@ static void EventWlanInitDone(void *data)
     snprintf(dhcp_host_name, MAX_HOST_NAME_LEN, "IZOT-%02X%02X", mac[4], mac[5]);
     CAL_Printf("SSID: %s\r\n", ssid_uap);
     CAL_Printf("DHCP host Name: %s\r\n", dhcp_host_name);
-    
+
     if (provisioned) {
         app_sta_start();
     } else {
@@ -168,7 +172,7 @@ static void EventWlanInitDone(void *data)
     if (ret != WM_SUCCESS) {
         CAL_Printf("Failed to start HTTPD\r\n");
     }
-    
+
     ret = sysinfo_init();
     if (ret != WM_SUCCESS) {
         CAL_Printf("Error: psm_cli_init failed\r\n");
@@ -180,10 +184,10 @@ static void EventWlanInitDone(void *data)
     }
 
     ret = wlan_cli_init();
-    if (ret != WM_SUCCESS)
+    if (ret != WM_SUCCESS) {
         CAL_Printf("Error: wlan_cli_init failed\r\n");
+    }
 }
-
 
 /*
  * Handles a micro-AP start-up event.
@@ -194,14 +198,14 @@ static void EventWlanInitDone(void *data)
  * Notes:
  *   If not provisioned, start provisioning on on the micro-AP network,
  *   enable WPS, and announce mDNS service on the micro-AP interface.
- */ 
+ */
 static void EventUapStarted(void *data)
 {
     if (!provisioned) {
         CAL_Printf("Starting provisioning\r\n");
         app_provisioning_start(PROVISIONING_WLANNW);
     }
-    
+
     is_connected = 0;
 }
 
@@ -218,8 +222,7 @@ static void EventNormalConnecting(void *data)
     net_dhcp_hostname_set(dhcp_host_name);
     CAL_Printf("Connecting to provisioned Network\r\n");
 }
-#endif  // LINK_IS(WIFI)
-
+#endif  // PHYSICAL_IS(WIFI)
 
 /*
  * Handles a normal provisioned network connection completion event.
@@ -232,34 +235,34 @@ static void EventNormalConnecting(void *data)
  *   when the station interface is connected to the home access point.
  *   Network dependent services can be started here. These services
  *   can be stopped on disconnection and reset-to-provisioning events.
- */ 
-#if LINK_IS(ETHERNET) || LINK_IS(WIFI) || !IUP_IS(NO_IUP)
+ */
+#if LINK_IS(UDP) || !IUP_IS(NO_IUP)
 static void EventNormalConnected(void *data)
 {
-#if LINK_IS(WIFI) && PROCESSOR_IS(MC200)
+#if PHYSICAL_IS(WIFI) && PROCESSOR_IS(MC200)
     // Stop Micro-AP mode if still ON
     if (is_uap_started()) {
         app_uap_stop();
     }
     app_network_ip_get(ip);
-#endif  // LINK_IS(WIFI) && PROCESSOR_IS(MC200)
+#endif  // PHYSICAL_IS(WIFI) && PROCESSOR_IS(MC200)
 
 #if !IUP_IS(NO_IUP)
     readIupPersistData();
 #endif  // !IUP_IS(NO_IUP)
 
-#if LINK_IS(ETHERNET) || LINK_IS(WIFI)
+#if LINK_IS(UDP)
     is_connected = 1;
     CAL_Printf("Connected\r\n");
 
     // Set current LON/IP address and send announcement
-    SendAnnouncement();
+    SendLonUdpAddrAnnouncement();
 
-    // Set LON address from LON/IP address        
-    SetLsAddressFromIpAddr();
-#endif  // LINK_IS(ETHERNET) || LINK_IS(WIFI)
+    // Set LON address from LON/IP address
+    SetLonVxAddrFromLonUdpAddr();
+#endif  // LINK_IS(UDP)
 }
-#endif  // LINK_IS(ETHERNET) || LINK_IS(WIFI) || !IUP_IS(NO_IUP)
+#endif  // LINK_IS(UDP) || !IUP_IS(NO_IUP)
 
 /*
  * Handles a normal provisioned network disconnection event.
@@ -272,15 +275,14 @@ static void EventNormalConnected(void *data)
  *   when the station interface is diconnected from the home access point.
  *   Network dependent services not required while disconnected can be 
  *   stopped here.
- */ 
-#if LINK_IS(ETHERNET) || LINK_IS(WIFI)
+ */
+#if LINK_IS(UDP)
 static void EventNormalUserDisconnect(void *data)
 {
     is_connected = 0;
     CAL_Printf("Disconnected\r\n");
 }
-#endif  // LINK_IS(ETHERNET) || LINK_IS(WIFI)
-
+#endif  // LINK_IS(UDP)
 
 /*
  * Handles a network link lost event.
@@ -291,15 +293,14 @@ static void EventNormalUserDisconnect(void *data)
  * Notes:
  *   Handle a connection lost event that occurs for Wi-Fi when the
  *   station interface link to the home access point is lost.
- */ 
+ */
 static void EventNormalLinkLost(void *data)
 {
-#if LINK_IS(ETHERNET) || LINK_IS(WIFI)
+#if LINK_IS(UDP)
     is_connected = 0;
     CAL_Printf("Link Lost\r\n");
-#endif  // LINK_IS(ETHERNET) || LINK_IS(WIFI)
+#endif  // LINK_IS(UDP)
 }
-
 
 /*
  * Handles a DHCP address assignment event.
@@ -310,14 +311,10 @@ static void EventNormalLinkLost(void *data)
  * Notes:
  *   Handle a possible IP address change after the DHCP-assigned
  *   address is renewed.
- */ 
-static void EventNormalDHCPRenew(void *data)
-{
-    CAL_Printf("DHCP renew\r\n");
-}
+ */
+static void EventNormalDHCPRenew(void *data) { CAL_Printf("DHCP renew\r\n"); }
 
-
-#if LINK_IS(WIFI) && PROCESSOR_IS(MC200)
+#if PHYSICAL_IS(WIFI) && PROCESSOR_IS(MC200)
 /*
  * Handles a Wi-Fi link provisioning reset event.
  * Parameters:
@@ -336,7 +333,6 @@ static void EventNormalResetProv(void *data)
     is_connected = 0;
 }
 
-
 /*
  * Handles a Wi-Fi link provisioning reset completion event.
  * Parameters:
@@ -349,7 +345,6 @@ static void EventProvDone(void *data)
     app_provisioning_stop();
     CAL_Printf("Provisioning successful\r\n");
 }
-
 
 /*
  * Handles a Wi-Fi client link completion event.
@@ -364,8 +359,7 @@ static void EventProvClientDone(void *data)
     dhcp_server_stop();
 }
 
-#endif  // LINK_IS(WIFI) && PROCESSOR_IS(MC200)
-
+#endif  // PHYSICAL_IS(WIFI) && PROCESSOR_IS(MC200)
 
 /*
  * Handles all network events.
@@ -380,7 +374,7 @@ static void EventProvClientDone(void *data)
  */
 int common_event_handler(int event, void *data)
 {
-#if LINK_IS(WIFI) && PROCESSOR_IS(MC200)
+#if PHYSICAL_IS(WIFI) && PROCESSOR_IS(MC200)
     switch (event) {
     case AF_EVT_WLAN_INIT_DONE:
         EventWlanInitDone(data);
@@ -416,7 +410,7 @@ int common_event_handler(int event, void *data)
         break;
     }
 
-#endif  // LINK_IS(WIFI) && PROCESSOR_IS(MC200)
+#endif  // PHYSICAL_IS(WIFI) && PROCESSOR_IS(MC200)
 
     return 0;
 }
@@ -428,7 +422,7 @@ int common_event_handler(int event, void *data)
  * Returns:
  *  None
  */
-#if LINK_IS(WIFI) && PROCESSOR_IS(MC200)
+#if PHYSICAL_IS(WIFI) && PROCESSOR_IS(MC200)
 static void InitModules()
 {
     int ret;
@@ -437,21 +431,21 @@ static void InitModules()
     ret = cli_init();
     if (ret != WM_SUCCESS) {
         CAL_Printf("Error: cli_init failed\r\n");
-        appln_critical_error_handler((void *) -WM_FAIL);
+        appln_critical_error_handler((void *)-WM_FAIL);
     }
 
     ret = gpio_drv_init();
     if (ret != WM_SUCCESS) {
         CAL_Printf("Error: gpio_drv_init failed\r\n");
-        appln_critical_error_handler((void *) -WM_FAIL);
+        appln_critical_error_handler((void *)-WM_FAIL);
     }
 
     app_sys_register_upgrade_handler();
     app_sys_register_diag_handler();
-    
+
     set_reconnect_iter(5);
 }
-#endif  // LINK_IS(WIFI) && PROCESSOR_IS(MC200)
+#endif  // PHYSICAL_IS(WIFI) && PROCESSOR_IS(MC200)
 
 /*
  * Starts the IP link.
@@ -464,21 +458,21 @@ static void InitModules()
 LonStatusCode CalStart(void)
 {
     LonStatusCode ret = LonStatusNoError;
-    
-#if LINK_IS(ETHERNET) || LINK_IS(WIFI)
+
+#if LINK_IS(UDP)
     InitModules();
     SetLonRepeatTimer(&linkCheckTimer, 1, LINK_CHECK_INTERVAL);
-#endif  // LINK_IS(ETHERNET) || LINK_IS(WIFI)
+#endif  // LINK_IS(UDP)
 
-#if LINK_IS(WIFI) && PROCESSOR_IS(MC200)
+#if PHYSICAL_IS(WIFI) && PROCESSOR_IS(MC200)
     // Start the application framework
     if (app_framework_start(common_event_handler) != WM_SUCCESS) {
         CAL_Printf("Failed to start application framework\r\n");
-        appln_critical_error_handler((void *) -WM_FAIL);
+        appln_critical_error_handler((void *)-WM_FAIL);
     }
-    
+
     CAL_Printf("Waiting for Board to connect\r\n");
-    
+
     while (!is_connected) {
         OsalSleep(100);
         if (is_uap_started() && connecting) {
@@ -486,11 +480,11 @@ LonStatusCode CalStart(void)
         }
     }
     set_reconnect_iter(30);
-#endif  // LINK_IS(WIFI) && PROCESSOR_IS(MC200)
+#endif  // PHYSICAL_IS(WIFI) && PROCESSOR_IS(MC200)
 
-#if LINK_IS(ETHERNET) || LINK_IS(WIFI)
+#if LINK_IS(UDP)
     EventNormalConnected(NULL);
-#endif  // LINK_IS(ETHERNET) || LINK_IS(WIFI)
+#endif  // LINK_IS(UDP)
 
     return ret;
 }
@@ -504,19 +498,18 @@ LonStatusCode CalStart(void)
  */
 IzotBool SetCurrentIP(void)
 {
-#if PROTOCOL_IS(LON_IP)
     IzotUbits32 currentIpAddress = 0;
     static IzotUbits32 lastIpAddress = 0;
     IzotBool ipAddressChanged = FALSE;
 
 #if PLATFORM_IS(FRTOS_ARM_EABI)
     char ip[16];
-    
+
     app_network_ip_get(ip);
     CAL_Printf("Connected to provisioned network with IP address =%s\r\n", ip);
     inet_aton(ip, &currentIpAddress);
-#else   // !PLATFORM_IS(FRTOS_ARM_EABI)
-    #pragma message("Implement code to get the current IP address")
+#else  // !PLATFORM_IS(FRTOS_ARM_EABI)
+#pragma message("Implement code to get the current IP address")
     // currentIpAddress = <Get current IP address>;
     // currentIpAddress = 0xC0A80101;  // 192.168.1.1 for testing
 #endif  // !PLATFORM_IS(FRTOS_ARM_EABI)
@@ -529,13 +522,10 @@ IzotBool SetCurrentIP(void)
     ownIpAddress[3] = (IzotByte)(currentIpAddress >> 24);
 
     if (ipAddressChanged) {
-        CAL_Printf("Source IP set to %d.%d.%d.%d\r\n",ownIpAddress[0],
-                             ownIpAddress[1],ownIpAddress[2],ownIpAddress[3]);
+        CAL_Printf("Source IP set to %d.%d.%d.%d\r\n", ownIpAddress[0], ownIpAddress[1],
+                ownIpAddress[2], ownIpAddress[3]);
     }
     return ipAddressChanged;
-#else   // !PROTOCOL_IS(LON_IP)
-    return FALSE;
-#endif  // !PROTOCOL_IS(LON_IP)
 }
 
 /*
@@ -550,34 +540,33 @@ IzotBool SetCurrentIP(void)
  */
 int InitSocket(int port)
 {
-#if PROTOCOL_IS(LON_IP)
 #if PLATFORM_IS(FRTOS_ARM_EABI)
-    struct sockaddr_in     sinme;
-    
+    struct sockaddr_in sinme;
+
     // Open UDP socket for queue at start-up
     app_udp_socket = net_socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
     if (app_udp_socket < 0) {
         CAL_Printf("Error to create socket due to %d \r\n", app_udp_socket);
         return net_get_sock_error(app_udp_socket);
     }
-    
-    memset((char *) &sinme, 0, sizeof(sinme));
-    
-    sinme.sin_family     = PF_INET;
-    sinme.sin_port       = htons(port);
+
+    memset((char *)&sinme, 0, sizeof(sinme));
+
+    sinme.sin_family = PF_INET;
+    sinme.sin_port = htons(port);
     inet_aton(INADDR_ANY, &sinme.sin_addr);
-    
+
     // Set the timeout for the udp receive socket
     int flags = fcntl(app_udp_socket, F_GETFL, 0);
     if (flags < 0) {
         CAL_Printf("fcntl get failed\r\n");
     }
-    
+
     flags = fcntl(app_udp_socket, F_SETFL, flags | O_NONBLOCK);
     if (flags < 0) {
         CAL_Printf("fcntl set failed\r\n");
     }
-        
+
     // bind the socket
     if (bind(app_udp_socket, (struct sockaddr *)&sinme, sizeof(sinme)) == -1) {
         CAL_Printf("ERROR: Failed to Bind\r\n");
@@ -585,10 +574,10 @@ int InitSocket(int port)
         net_close(app_udp_socket);
         return -1;
     }
-#else   // !PLATFORM_IS(FRTOS_ARM_EABI)
-    #pragma message("Implement code to open priority and non priority sockets and add MAC filter for broadcast messages")
+#else  // !PLATFORM_IS(FRTOS_ARM_EABI)
+#pragma message(                                                                         \
+        "Implement code to open priority and non priority sockets and add MAC filter for broadcast messages")
 #endif  // !PLATFORM_IS(FRTOS_ARM_EABI)
-#endif  // PROTOCOL_IS(LON_IP)
 
     return 0;
 }
@@ -604,33 +593,32 @@ int InitSocket(int port)
  */
 void RemoveIPMembership(uint32_t addr)
 {
-#if PROTOCOL_IS(LON_IP)
 #if PLATFORM_IS(FRTOS_ARM_EABI)
     IzotByte mcast_mac[MLAN_MAC_ADDR_LENGTH];
-    
+
     // Multicast address group structure
-    struct ip_mreq group;   
-    
+    struct ip_mreq group;
+
     // Remove the 'addr' address from the mac filter
     wifi_get_ipv4_multicast_mac(addr, mcast_mac);
     wifi_remove_mcast_filter(mcast_mac);
-    
+
     // Remove membership of 'addr' address
     group.imr_multiaddr.s_addr = htonl(addr);
     group.imr_interface.s_addr = htonl(INADDR_ANY);
-    
+
     // Set the socket option to remove membership
-    if (setsockopt(app_udp_socket, IPPROTO_IP, IP_DROP_MEMBERSHIP, 
-    (char *)&group, sizeof(group)) < 0) {
+    if (setsockopt(app_udp_socket, IPPROTO_IP, IP_DROP_MEMBERSHIP, (char *)&group,
+                sizeof(group)) < 0) {
         CAL_Printf("Failed to remove membership of %X\r\n", addr);
         return;
     }
-    
-    CAL_Printf("Removed Membership of %X \r\n",addr);wmstdio_flush();
-#else   // !PLATFORM_IS(FRTOS_ARM_EABI)
-    #pragma message("Implement code to remove address membership from a multicast group")
+
+    CAL_Printf("Removed Membership of %X \r\n", addr);
+    wmstdio_flush();
+#else  // !PLATFORM_IS(FRTOS_ARM_EABI)
+#pragma message("Implement code to remove address membership from a multicast group")
 #endif  // !PLATFORM_IS(FRTOS_ARM_EABI)
-#endif  // PROTOCOL_IS(LON_IP)
 }
 
 /*
@@ -644,34 +632,32 @@ void RemoveIPMembership(uint32_t addr)
  */
 void AddIpMembership(uint32_t addr)
 {
-#if PROTOCOL_IS(LON_IP)
 #if PLATFORM_IS(FRTOS_ARM_EABI)
     IzotByte mcast_mac[MLAN_MAC_ADDR_LENGTH];
-    
+
     // Multicast address group structure
     struct ip_mreq group;
-    
+
     // Add the 'addr' address from the mac filter
     wifi_get_ipv4_multicast_mac(addr, mcast_mac);
     wifi_add_mcast_filter(mcast_mac);
-    
+
     // Add membership of 'addr' address
     memset((char *)&group, 0, sizeof(struct ip_mreq));
     group.imr_multiaddr.s_addr = htonl(addr);
     group.imr_interface.s_addr = htonl(INADDR_ANY);
-    
+
     // Set the socket option to add the membership
-    if (setsockopt(app_udp_socket, IPPROTO_IP, IP_ADD_MEMBERSHIP, 
-    (char *)&group, sizeof(group)) < 0) {
+    if (setsockopt(app_udp_socket, IPPROTO_IP, IP_ADD_MEMBERSHIP, (char *)&group,
+                sizeof(group)) < 0) {
         CAL_Printf("Failed to add membership for %X\r\n", addr);
         return;
     }
-    
+
     CAL_Printf("Added Membership of %X \r\n", addr);
-#else   // !PLATFORM_IS(FRTOS_ARM_EABI)
-    #pragma message("Implement code to add address membership to a multicast group")
+#else  // !PLATFORM_IS(FRTOS_ARM_EABI)
+#pragma message("Implement code to add address membership to a multicast group")
 #endif  // !PLATFORM_IS(FRTOS_ARM_EABI)
-#endif  // PROTOCOL_IS(LON_IP)
 }
 
 /*
@@ -684,60 +670,56 @@ void AddIpMembership(uint32_t addr)
  * Returns:
  *   None
  */
-void CalSend(uint32_t port, IzotByte* addr, IzotByte* pData, 
-                uint16_t dataLength)
+void CalSend(uint32_t port, IzotByte *addr, IzotByte *pData, uint16_t dataLength)
 {
-#if PROTOCOL_IS(LON_IP)
 #if PLATFORM_IS(FRTOS_ARM_EABI)
-    IzotByte            loopch = 0;
-    int                 sock = -1;
-    int                 reuse = 1;
-    struct sockaddr_in  to;
-    int                 toLen = sizeof(to);
-    struct in_addr      localInterface;
-    
+    IzotByte loopch = 0;
+    int sock = -1;
+    int reuse = 1;
+    struct sockaddr_in to;
+    int toLen = sizeof(to);
+    struct in_addr localInterface;
+
     to.sin_family = AF_INET;
     to.sin_port = htons(port);
-    to.sin_addr.s_addr = (u32_t)(addr[3]) << 24 | (u32_t)(addr[2]) << 16 
-                                             | (u32_t)(addr[1]) << 8 | addr[0];
-    
+    to.sin_addr.s_addr = (u32_t)(addr[3]) << 24 | (u32_t)(addr[2]) << 16 |
+                         (u32_t)(addr[1]) << 8 | addr[0];
+
     // socket for sending data
     sock = net_socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-    
-    if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, 
-    (char *)&reuse, sizeof(reuse)) < 0) {
+
+    if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (char *)&reuse, sizeof(reuse)) < 0) {
         CAL_Printf("Failed to SO_REUSEADDR\r\n");
         net_close(sock);
         return;
     }
-    
-    if (setsockopt(sock, IPPROTO_IP, IP_MULTICAST_LOOP, 
-    &loopch, sizeof(loopch)) < 0) {
+
+    if (setsockopt(sock, IPPROTO_IP, IP_MULTICAST_LOOP, &loopch, sizeof(loopch)) < 0) {
         CAL_Printf("ERROR while setting IP_MULTICAST_LOOP\r\n");
         net_close(sock);
         return;
     }
-    
-    memset((char *) &localInterface, 0, sizeof(localInterface));
+
+    memset((char *)&localInterface, 0, sizeof(localInterface));
     localInterface.s_addr = INADDR_ANY;
-    if (setsockopt(sock, IPPROTO_IP, IP_MULTICAST_IF,(char *)&localInterface, 
-    sizeof(localInterface)) < 0) {
+    if (setsockopt(sock, IPPROTO_IP, IP_MULTICAST_IF, (char *)&localInterface,
+                sizeof(localInterface)) < 0) {
         CAL_Printf("Failed to IP_MULTICAST_IF\r\n");
         net_close(sock);
         return;
     }
 #ifdef CAL_DEBUG
     int len;
-    len = 
+    len =
 #endif
-    sendto(sock, pData, dataLength, 0, (struct sockaddr *)&to, toLen);
+            sendto(sock, pData, dataLength, 0, (struct sockaddr *)&to, toLen);
 #ifdef CAL_DEBUG
     if (len > 0) {
         CAL_Printf("Dst IP: %s\r\n\n", inet_ntoa(to.sin_addr.s_addr));
 
         IzotByte i;
         CAL_Printf("LSUDP: %d bytes sent: ", len);
-        for(i = 0; i < len; i++) {
+        for (i = 0; i < len; i++) {
             CAL_Printf("%X ", pData[i]);
         }
         CAL_Printf("\r\n");
@@ -748,10 +730,9 @@ void CalSend(uint32_t port, IzotByte* addr, IzotByte* pData,
     }
 #endif
     net_close(sock);
-#else   // !PLATFORM_IS(FRTOS_ARM_EABI)
-    #pragma message("Implement code to send a UDP packet")
+#else  // !PLATFORM_IS(FRTOS_ARM_EABI)
+#pragma message("Implement code to send a UDP packet")
 #endif  // !PLATFORM_IS(FRTOS_ARM_EABI)
-#endif  // PROTOCOL_IS(LON_IP)
 }
 
 /*
@@ -765,30 +746,31 @@ void CalSend(uint32_t port, IzotByte* addr, IzotByte* pData,
  *   Keep the DUP socket non-blockable.  Implementation of this function is 
  *   required for LON/IP support.
  */
-int CalReceive(IzotByte* pData, IzotByte* pSourceAddr)
+int CalReceive(IzotByte *pData, IzotByte *pSourceAddr)
 {
     int dataLength = 0;
-#if PROTOCOL_IS(LON_IP)
 #if PLATFORM_IS(FRTOS_ARM_EABI)
     uint16_t bufferSize;
-    struct sockaddr_in  from;
-    int                 fromLen = sizeof(from);
-    uint32_t            SrcIP;
-    
+    struct sockaddr_in from;
+    int fromLen = sizeof(from);
+    uint32_t SrcIP;
+
     if (!LON_SUCCESS(DecodeBufferSize(CAL_RECEIVE_BUF_SIZE, &bufferSize))) {
-        OsalPrintLog(ERROR_LOG, LonStatusInvalidBufferCount, "CalReceive: Invalid buffer size");
+        OsalPrintLog(ERROR_LOG, LonStatusInvalidBufferCount,
+                "CalReceive: Invalid buffer size");
         return -1;
     }
-    dataLength = recvfrom(app_udp_socket, pData, bufferSize, 0, (struct sockaddr *)&from, (socklen_t *)&fromLen);
-    
+    dataLength = recvfrom(app_udp_socket, pData, bufferSize, 0, (struct sockaddr *)&from,
+            (socklen_t *)&fromLen);
+
     // Get the data if dataLength is bigger than zero
     if (dataLength > 0) {
 #ifdef CAL_DEBUG
         CAL_Printf("Src IP: %s\r\n", inet_ntoa(from.sin_addr.s_addr));
-        
+
         int i;
-        CAL_Printf("LSUDP: %d bytes recv: ",dataLength);
-        for(i = 0; i < dataLength; i++) {
+        CAL_Printf("LSUDP: %d bytes recv: ", dataLength);
+        for (i = 0; i < dataLength; i++) {
             CAL_Printf("%02X ", pData[i]);
         }
         CAL_Printf("\r\n");
@@ -802,10 +784,9 @@ int CalReceive(IzotByte* pData, IzotByte* pSourceAddr)
         pSourceAddr[2] = (IzotByte)((SrcIP & 0x0000FF00) >> 8);
         pSourceAddr[3] = (IzotByte)(SrcIP & 0x000000FF);
     }
-#else   // !PLATFORM_IS(FRTOS_ARM_EABI)
-    #pragma message("Implement code to receive data on a UDP socket")
+#else  // !PLATFORM_IS(FRTOS_ARM_EABI)
+#pragma message("Implement code to receive data on a UDP socket")
 #endif  // !PLATFORM_IS(FRTOS_ARM_EABI)
-#endif  // PROTOCOL_IS(LON_IP)
     return dataLength;
 }
 
@@ -820,28 +801,28 @@ int CalReceive(IzotByte* pData, IzotByte* pSourceAddr)
  */
 void CheckNetworkStatus(void)
 {
-#if LINK_IS(ETHERNET) || LINK_IS(WIFI)
+#if LINK_IS(UDP)
     if (LonTimerExpired(&linkCheckTimer)) {
-        #if LINK_IS(WIFI) && PROCESSOR_IS(MC200)
-            if (!is_sta_connected() && is_uap_started()) {
-                int ret = app_load_configured_network();
-                if (!ret) {
-                    app_sta_start();
-                }
-            } else {
-                if (is_uap_started()) {
-                    app_uap_stop();
-                }
+#if PHYSICAL_IS(WIFI) && PROCESSOR_IS(MC200)
+        if (!is_sta_connected() && is_uap_started()) {
+            int ret = app_load_configured_network();
+            if (!ret) {
+                app_sta_start();
             }
-        #endif  // LINK_IS(WIFI) && PROCESSOR_IS(MC200)
-        #if PROTOCOL_IS(LON_IP)
-            #pragma message("Implement code to test for an IP link transition from not connected to connected")
-            // if (!is_connected && <link is connected>) }
-                // Link has changed from not connected to connected; handle the change
-                // EventNormalConnected(NULL);
-            // }
-            (void) SetCurrentIP();
-        #endif  // LINK_IS(LON_IP)
+        } else {
+            if (is_uap_started()) {
+                app_uap_stop();
+            }
+        }
+#endif  // PHYSICAL_IS(WIFI) && PROCESSOR_IS(MC200)
+#pragma message(                                                                         \
+        "Implement code to test for an IP link transition from not connected to connected")
+        // if (!is_connected && <link is connected>) }
+        // Link has changed from not connected to connected; handle the change
+        // EventNormalConnected(NULL);
+        // }
+        (void)SetCurrentIP();
     }
-#endif  // LINK_IS(ETHERNET) || LINK_IS(WIFI)
+#endif  // LINK_IS(UDP)
 }
+#endif  // LINK_IS(UDP)

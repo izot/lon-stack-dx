@@ -4,42 +4,34 @@
  * Copyright (c) 2021-2026 EnOcean
  * SPDX-License-Identifier: MIT
  * See LICENSE file for details.
- * 
+ *
  * Title:   Operating System Abstraction Layer
  * Purpose: Defines portable functions and types of operating
  *          system interfaces.
- * Notes:   You can customize this file to add support for 
+ * Notes:   You can customize this file to add support for
  *          additional operating systems.
  */
 
-#include "izot/IzotPlatform.h"
+#include "abstraction/IzotOsal.h"
+#include "lcs/lcs_node.h"
 
 #if PROCESSOR_IS(MC200)
-    #include <wm_os.h>
+#include <wm_os.h>
 #else
-    #if PLATFORM_IS(RPI_PICO)
-        #include <Arduino.h>
-    #endif
-    #include <stdarg.h>
-    #include <stdio.h>
-    #include <stdlib.h>
-    #include <time.h>
-    #include <unistd.h>
+#if PLATFORM_IS(RPI_PICO)
+#include <Arduino.h>
 #endif
-
-#if OS_IS(FREERTOS)
-extern void DEBUG_LonStackInfo(const char *format, ...);
-
-#ifdef LONSTACK_USE_DEBUG_MENU
-#define DEBUG_LonStkInfo(S, ...)						DEBUG_LonStackInfo			(S,  ##__VA_ARGS__)
-#else
-#define DEBUG_LonStkInfo(S, ...)
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+#include <unistd.h>
 #endif
-#endif // OS_IS(FREERTOS)
 
 /*****************************************************************
  * Section: Semaphore Lock Management Function Definitions
  *****************************************************************/
+
 /*
  * Initializes a mutex or spinlock instance.
  * Parameters:
@@ -62,8 +54,8 @@ LonStatusCode OsalInitMutex(OsalLockType *lock)
     *lock = xSemaphoreCreateMutex();
     return (*lock != NULL) ? LonStatusNoError : LonStatusSemaphoreError;
 #else
-    // Add implementation
-    #pragma message("Implement OS-dependent definition of OsalInitMutex()")
+// Add implementation
+#pragma message("Implement OS-dependent definition of OsalInitMutex()")
     return LonStatusCriticalSectionError;
 #endif
 }
@@ -82,8 +74,8 @@ void OsalLockMutex(OsalLockType *lock)
 #elif OS_IS(FREERTOS)
     xSemaphoreTake(*lock, portMAX_DELAY);
 #else
-    // Add implementation
-    #pragma message("Implement OS-dependent definition of OsalLock()")
+// Add implementation
+#pragma message("Implement OS-dependent definition of OsalLock()")
 #endif
 }
 
@@ -101,39 +93,40 @@ void OsalUnlockMutex(OsalLockType *lock)
 #elif OS_IS(FREERTOS)
     xSemaphoreGive(*lock);
 #else
-    // Add implementation for future OSes
-    #pragma message("Implement OS-dependent definition of OsalUnlock()")
+// Add implementation for future OSes
+#pragma message("Implement OS-dependent definition of OsalUnlock()")
 #endif
 }
 
 /*****************************************************************
  * Section: Event Management Function Definitions
  *****************************************************************/
+
 /*
  * Creates an event object.
  * Parameters:
  *   eventHandle: Pointer to the event handle to be created.
  * Returns:
  *   LonStatusNoError if successful; LonStatusCode error code if unsuccessful.
- */ 
+ */
 LonStatusCode OsalCreateEvent(OsalHandle *eventHandle)
 {
 #if OS_IS(LINUX)
-    OsalEvent *event = (OsalEvent*)OsalAllocateMemory(sizeof(OsalEvent));
+    OsalEvent *event = (OsalEvent *)OsalAllocateMemory(sizeof(OsalEvent));
     pthread_cond_init(&event->cond, NULL);
     pthread_mutex_init(&event->mutex, NULL);
     event->flag = 0;
     *eventHandle = event;
     return LonStatusNoError;
 #elif OS_IS(FREERTOS)
-    OsalEvent *event = (OsalEvent*)OsalAllocateMemory(sizeof(OsalEvent));
+    OsalEvent *event = (OsalEvent *)OsalAllocateMemory(sizeof(OsalEvent));
     event->semaphore = xSemaphoreCreateBinary();
     event->flag = 0;
     *eventHandle = event;
     return event->semaphore ? LonStatusNoError : LonStatusEventError;
 #else
-    // Add implementation
-    #pragma message("Implement OS-dependent definition of OsalCreateEvent()")
+// Add implementation
+#pragma message("Implement OS-dependent definition of OsalCreateEvent()")
     *eventHandle = NULL;
     return LonStatusEventError;
 #endif
@@ -145,7 +138,7 @@ LonStatusCode OsalCreateEvent(OsalHandle *eventHandle)
  *   eventHandle: Pointer to the event handle to be deleted.
  * Returns:
  *   LonStatusNoError if successful; LonStatusCode error code if unsuccessful.
- */ 
+ */
 LonStatusCode OsalDeleteEvent(OsalHandle *eventHandle)
 {
 #if OS_IS(LINUX)
@@ -160,8 +153,8 @@ LonStatusCode OsalDeleteEvent(OsalHandle *eventHandle)
     *eventHandle = NULL;
     return LonStatusNoError;
 #else
-    // Add implementation
-    #pragma message("Implement OS-dependent definition of OsalDeleteEvent()")
+// Add implementation
+#pragma message("Implement OS-dependent definition of OsalDeleteEvent()")
     *eventHandle = NULL;
     return LonStatusEventError;
 #endif
@@ -173,33 +166,35 @@ LonStatusCode OsalDeleteEvent(OsalHandle *eventHandle)
  *   eventHandle: Pointer to the event handle to wait for.
  * Returns:
  *   LonStatusNoError if successful; LonStatusCode error code if unsuccessful.
- */ 
+ */
 LonStatusCode OsalWaitForEvent(OsalHandle eventHandle, unsigned int waittime)
 {
 #if OS_IS(LINUX)
-    OsalEvent *event = (OsalEvent*)eventHandle;
+    OsalEvent *event = (OsalEvent *)eventHandle;
     struct timespec ts;
     clock_gettime(CLOCK_REALTIME, &ts);
     ts.tv_sec += waittime / 1000;
     ts.tv_nsec += (waittime % 1000) * 1000000;
     pthread_mutex_lock(&event->mutex);
     while (event->flag == 0) {
-        if (pthread_cond_timedwait(&event->cond, &event->mutex, &ts) != 0) break;
+        if (pthread_cond_timedwait(&event->cond, &event->mutex, &ts) != 0) {
+            break;
+        }
     }
     LonStatusCode retVal = (event->flag == 1) ? LonStatusNoError : LonStatusTimeout;
     event->flag = 0;
     pthread_mutex_unlock(&event->mutex);
     return retVal;
 #elif OS_IS(FREERTOS)
-    OsalEvent *event = (OsalEvent*)eventHandle;
+    OsalEvent *event = (OsalEvent *)eventHandle;
     if (xSemaphoreTake(event->semaphore, pdMS_TO_TICKS(waittime)) == pdTRUE) {
         event->flag = 0;
         return LonStatusNoError;
     }
     return LonStatusTimeout;
 #else
-    // Add implementation
-    #pragma message("Implement OS-dependent definition of OsalWaitForEvent()")
+// Add implementation
+#pragma message("Implement OS-dependent definition of OsalWaitForEvent()")
     return LonStatusEventError;
 #endif
 }
@@ -214,7 +209,7 @@ LonStatusCode OsalWaitForEvent(OsalHandle eventHandle, unsigned int waittime)
 LonStatusCode OsalSetEvent(OsalHandle eventHandle)
 {
 #if OS_IS(LINUX)
-    OsalEvent *event = (OsalEvent*)eventHandle;
+    OsalEvent *event = (OsalEvent *)eventHandle;
     pthread_mutex_lock(&event->mutex);
     if (event->flag == 0) {
         event->flag = 1;
@@ -223,15 +218,15 @@ LonStatusCode OsalSetEvent(OsalHandle eventHandle)
     pthread_mutex_unlock(&event->mutex);
     return LonStatusNoError;
 #elif OS_IS(FREERTOS)
-    OsalEvent *event = (OsalEvent*)eventHandle;
+    OsalEvent *event = (OsalEvent *)eventHandle;
     if (event->flag == 0) {
         event->flag = 1;
         xSemaphoreGive(event->semaphore);
     }
     return LonStatusNoError;
 #else
-    // Add implementation
-    #pragma message("Implement OS-dependent definition of OsalSetEvent()")
+// Add implementation
+#pragma message("Implement OS-dependent definition of OsalSetEvent()")
     return LonStatusEventError;
 #endif
 }
@@ -240,6 +235,7 @@ LonStatusCode OsalSetEvent(OsalHandle eventHandle)
  * Section: Timing, Tasking, and Memory Allocation
  *          Function Definitions
  *****************************************************************/
+
 /*
  * Returns a string representing the current date and time.
  * Parameters:
@@ -248,7 +244,7 @@ LonStatusCode OsalSetEvent(OsalHandle eventHandle)
  *   Pointer to a static string containing the current date and time
  *   in "YYYY-MM-DD HH:MM:SS" format.
  */
-char* OsalGetDateTimeString(void)
+char *OsalGetDateTimeString(void)
 {
     static char datetime[20];
     time_t now = time(NULL);
@@ -284,8 +280,8 @@ OsalTickCount OsalGetTickCount(void)
     msecNow = millis();
     return msecNow;
 #else
-    // Future implementation
-    #pragma message("Implement OS-dependent definition of OsalGetTickCount()")
+// Future implementation
+#pragma message("Implement OS-dependent definition of OsalGetTickCount()")
     return 0;
 #endif
 }
@@ -299,10 +295,7 @@ OsalTickCount OsalGetTickCount(void)
  * Notes:
  *   See also OsalGetTickCount().
  */
-OsalTickCount OsalGetTicksPerSecond(void)
-{
-    return 1000;
-}
+OsalTickCount OsalGetTicksPerSecond(void) { return 1000; }
 
 /*
  * Creates a thread to run the specified entry point function.
@@ -312,7 +305,7 @@ OsalTickCount OsalGetTicksPerSecond(void)
  * Returns:
  *   Thread ID if successful; 0 or NULL if unsuccessful.
  */
-OsalThreadId OsalCreateThread(OsalEntryPoint threadEntry, void* threadData)
+OsalThreadId OsalCreateThread(OsalEntryPoint threadEntry, void *threadData)
 {
 #if OS_IS(LINUX)
     pthread_t tid;
@@ -321,12 +314,13 @@ OsalThreadId OsalCreateThread(OsalEntryPoint threadEntry, void* threadData)
 
 #elif OS_IS(FREERTOS)
     TaskHandle_t handle = NULL;
-    BaseType_t result = xTaskCreate(threadEntry, "U61Thread", configMINIMAL_STACK_SIZE, threadData, tskIDLE_PRIORITY+1, &handle);
+    BaseType_t result = xTaskCreate(threadEntry, "U61Thread", configMINIMAL_STACK_SIZE,
+            threadData, tskIDLE_PRIORITY + 1, &handle);
     return (result == pdPASS) ? handle : NULL;
 
 #else
-    // Future implementation
-    #pragma message("Implement OS-dependent definition of OsalCreateThread()")
+// Future implementation
+#pragma message("Implement OS-dependent definition of OsalCreateThread()")
     return NULL;
 #endif
 }
@@ -334,12 +328,12 @@ OsalThreadId OsalCreateThread(OsalEntryPoint threadEntry, void* threadData)
 /*
  * Sleeps for a specified number of milliseconds.
  * Parameters:
- *   msecs - The number of milliseconds to sleep 
+ *   msecs - The number of milliseconds to sleep
  * Returns:
  *   LonStatusNoError on success; LonStatusCode error code if unsuccessful.
  *  Notes:
  *   If the specified number of milliseconds exceeds the maximum timeout
- *   value of 0xFFFFFFFE, the sleep duration is capped at that value. 
+ *   value of 0xFFFFFFFE, the sleep duration is capped at that value.
  *   See also: OsalGetTickCount().
  */
 LonStatusCode OsalSleep(unsigned int msecs)
@@ -351,18 +345,18 @@ LonStatusCode OsalSleep(unsigned int msecs)
     struct timespec ts;
     ts.tv_sec = msecs / 1000;
     ts.tv_nsec = (msecs % 1000) * 1000000L;
-    nanosleep(&ts, NULL);   // High resolution sleep in user-space
+    nanosleep(&ts, NULL);  // High resolution sleep in user-space
 #elif OS_IS(LINUX_KERNEL)
-    msleep(msecs);          // Sleeps for the given number of milliseconds
+    msleep(msecs);  // Sleeps for the given number of milliseconds
 #elif OS_IS(FREERTOS)
-    os_thread_sleep(os_msec_to_ticks(msecs)); // Uses the FreeRTOS tick conversion macro
+    os_thread_sleep(os_msec_to_ticks(msecs));  // Uses the FreeRTOS tick conversion macro
 #elif PLATFORM_IS(RPI) || PLATFORM_IS(RPI_PICO)
     delay(msecs);
 #else
-    #pragma message("Implement millisecond delay")
+#pragma message("Implement millisecond delay")
     return LonStatusNotImplemented;
 #endif
-    return LonStatusNoError;    
+    return LonStatusNoError;
 }
 
 /*
@@ -372,7 +366,7 @@ LonStatusCode OsalSleep(unsigned int msecs)
  * Returns:
  *   Pointer to allocated memory, or NULL if allocation failed
  */
-void* OsalAllocateMemory(size_t size)
+void *OsalAllocateMemory(size_t size)
 {
 #if OS_IS(LINUX)
     return malloc(size);
@@ -382,12 +376,13 @@ void* OsalAllocateMemory(size_t size)
     void *ptr;
     if (gp->mallocUsedSize + sizeIn > MALLOC_SIZE) {
         // No space for requested size
-        OsalPrintLog(ERROR_LOG, LonStatusMemoryAllocFailure, "OsalAllocateMemory: out of memory");
-        return(NULL);
+        OsalPrintLog(ERROR_LOG, LonStatusMemoryAllocFailure,
+                "OsalAllocateMemory: out of memory");
+        return (NULL);
     }
     ptr = gp->mallocStorage + gp->mallocUsedSize;
     gp->mallocUsedSize += sizeIn;
-    return(ptr);
+    return (ptr);
 #endif
 }
 
@@ -405,30 +400,32 @@ void OsalFreeMemory(void *buf)
 #elif OS_IS(FREERTOS)
     vPortFree(buf);
 #else
-    // Future implementation
-    #pragma message("Implement OS-dependent definition of OsalFreeMemoryMemory()")
+// Future implementation
+#pragma message("Implement OS-dependent definition of OsalFreeMemoryMemory()")
 #endif
 }
 
 /*****************************************************************
  * Section: Message Reporting Global and Function Definitions
  *****************************************************************/
- /*
-  * Formats a debug or error message.
-  * Parameters:
-  *   buffer: Pointer to buffer to receive formatted message.
-  *   buffer_len: Length of the buffer in bytes
-  *   status_code: Error code to include in message, or LonStatusNoError for none
-  *   status_string: printf-style format string for message
-  *   args: Variable argument list for format string
-  * Returns:
-  *   None
-  * Notes:
-  *  This is a helper function used by OsalPrintLog() and OsalPrintSysError().
-  *  If status_code is no LonStatusNoError, the message is prefixed with
-  *  "Error <status_code>: ", otherwise it is prefixed with "Info: ".
-  */
-static void OsalFormatErrorString(char *buffer, size_t buffer_len, LonStatusCode status_code, const char *status_string, va_list args)
+
+/*
+ * Formats a debug or error message.
+ * Parameters:
+ *   buffer: Pointer to buffer to receive formatted message.
+ *   buffer_len: Length of the buffer in bytes
+ *   status_code: Error code to include in message, or LonStatusNoError for none
+ *   status_string: printf-style format string for message
+ *   args: Variable argument list for format string
+ * Returns:
+ *   None
+ * Notes:
+ *   This is a helper function used by OsalPrintLog() and OsalPrintSysError().
+ *   If status_code is no LonStatusNoError, the message is prefixed with
+ *   "Error <status_code>: ", otherwise it is prefixed with "Info: ".
+ */
+static void OsalFormatErrorString(char *buffer, size_t buffer_len,
+        LonStatusCode status_code, const char *status_string, va_list args)
 {
 #if OS_IS(LINUX)
     struct timespec ts;
@@ -440,7 +437,8 @@ static void OsalFormatErrorString(char *buffer, size_t buffer_len, LonStatusCode
     if (status_code == LonStatusNoError) {
         snprintf(buffer, buffer_len, "%s.%.3ld Info: ", datetime, milliseconds);
     } else {
-        snprintf(buffer, buffer_len, "%s.%.3ld Error %d: ", datetime, milliseconds, status_code);
+        snprintf(buffer, buffer_len, "%s.%.3ld Error %d: ", datetime, milliseconds,
+                status_code);
     }
 #else
     if (status_code == LonStatusNoError) {
@@ -461,10 +459,7 @@ static void OsalFormatErrorString(char *buffer, size_t buffer_len, LonStatusCode
  */
 static unsigned int log_categories = INITIAL_LOG_CATEGORIES;
 
-void OsalSetLogCategories(unsigned int categories)
-{
-    log_categories = categories;
-}
+void OsalSetLogCategories(unsigned int categories) { log_categories = categories; }
 
 /*
  * Gets the current log categories for message reporting.
@@ -473,10 +468,7 @@ void OsalSetLogCategories(unsigned int categories)
  * Returns:
  *   Current log categories (bitmask of LogCategory values)
  */
-unsigned int OsalGetLogCategories(void)
-{
-    return log_categories;
-}
+unsigned int OsalGetLogCategories(void) { return log_categories; }
 
 /*
  * Prints a system call error message with optional message code and text.
@@ -488,13 +480,14 @@ unsigned int OsalGetLogCategories(void)
  *   None
  * Notes:
  *   If status_code is >= 0, the message is prefixed with "Error <status_code>: ".
- *   If errno is set, the string from strerror(errno) is appended to the 
+ *   If errno is set, the string from strerror(errno) is appended to the
  *   message.  This function is intended for reporting system call errors.
  */
 void OsalPrintSysError(LonStatusCode status_code, char *status_string, ...)
 {
-    if ((OsalGetLogCategories() & ERROR_LOG) != ERROR_LOG)
+    if ((OsalGetLogCategories() & ERROR_LOG) != ERROR_LOG) {
         return;
+    }
 
     char formatted[OSAL_ERROR_STRING_MAXLEN];
     va_list args;
@@ -503,14 +496,15 @@ void OsalPrintSysError(LonStatusCode status_code, char *status_string, ...)
     va_end(args);
 
 #if OS_IS(LINUX)
-    fprintf(stderr, "%s (strerror(errno))\n", formatted, strerror(errno));
+    fprintf(stderr, "%s (strerror(%s))\n", formatted, strerror(errno));
 #elif OS_IS(FREERTOS)
     DEBUG_LonStkInfo("%s\n", formatted);
 #else
-    // Implement as needed
-    #pragma message("Implement OS-dependent definition of OsalPrintSysError()")
+// Implement as needed
+#pragma message("Implement OS-dependent definition of OsalPrintSysError()")
 #endif
 }
+
 /*
  * Prints a log message with optional message code and text if the
  *   specified log category is enabled.
@@ -522,20 +516,22 @@ void OsalPrintSysError(LonStatusCode status_code, char *status_string, ...)
  * Returns:
  *   None
  * Notes:
- *  This function only prints messages if the current log level includes the specified category.
+ *   This function only prints messages if the current log level includes the specified category.
  */
-void OsalPrintLog(LogCategory category, LonStatusCode status_code, const char *status_string, ...)
+void OsalPrintLog(LogCategory category, LonStatusCode status_code,
+        const char *status_string, ...)
 {
     // If status_code indicates an error, log the error to non-volatile memory
     // if the error code has changed to avoid wearing out flash memory with
     // redundant values
-    if (status_code != LonStatusNoError && eep->errorLog != status_code){
+    if (status_code != LonStatusNoError && eep->errorLog != status_code) {
         eep->errorLog = status_code;
         LCS_WritePersistentNetworkImage();
     }
 
-    if ((OsalGetLogCategories() & category) != category)
+    if ((OsalGetLogCategories() & category) != category) {
         return;
+    }
 
     char formatted[OSAL_ERROR_STRING_MAXLEN];
     va_list args;
@@ -548,8 +544,8 @@ void OsalPrintLog(LogCategory category, LonStatusCode status_code, const char *s
 #elif OS_IS(FREERTOS)
     DEBUG_LonStkInfo("%s\n", formatted);
 #else
-    // Implement as needed
-    #pragma message("Implement OS-dependent definition of OsalPrintLog()")
+// Implement as needed
+#pragma message("Implement OS-dependent definition of OsalPrintLog()")
 #endif
 }
 
@@ -565,60 +561,62 @@ void OsalPrintLog(LogCategory category, LonStatusCode status_code, const char *s
  * Notes:
  *   Only prints if log categories include the specified category.
  */
-void OsalPrintMessage(LogCategory category, const char *prefix, const uint8_t *msg, size_t length)
+void OsalPrintMessage(LogCategory category, const char *prefix, const uint8_t *msg,
+        size_t length)
 {
-	if ((OsalGetLogCategories() & category) != category) {
-		return;    // Fast path: tracing disabled
-	}
+    if ((OsalGetLogCategories() & category) != category) {
+        return;  // Fast path: tracing disabled
+    }
 
-	const size_t prefix_len = strlen(prefix); // Used for indentation
-	const int per_line = 20;                  // Hex bytes per output line
+    const size_t prefix_len = strlen(prefix);  // Used for indentation
+    const int per_line = 20;                   // Hex bytes per output line
 
-	size_t index = 0;
-	while (index < length) {
-		char line[256];
-		int pos = 0;
+    size_t index = 0;
+    while (index < length) {
+        char line[256];
+        int pos = 0;
 
-		// First line starts with the prefix; continuation lines are indented with spaces
-		if (index == 0) {
-			strncpy(line, prefix, sizeof(line) - 1);
-			line[sizeof(line) - 1] = '\0';
-			pos = (int)strlen(line);
-		} else {
-			// Fill indentation spaces
-			size_t indent = prefix_len < (sizeof(line) - 1) ? prefix_len : (sizeof(line) - 1);
-			memset(line, ' ', indent);
-			pos = (int)indent;
-			line[pos] = '\0';
-		}
+        // First line starts with the prefix; continuation lines are indented with spaces
+        if (index == 0) {
+            strncpy(line, prefix, sizeof(line) - 1);
+            line[sizeof(line) - 1] = '\0';
+            pos = (int)strlen(line);
+        } else {
+            // Fill indentation spaces
+            size_t indent =
+                    prefix_len < (sizeof(line) - 1) ? prefix_len : (sizeof(line) - 1);
+            memset(line, ' ', indent);
+            pos = (int)indent;
+            line[pos] = '\0';
+        }
 
-		// Append up to per_line hex bytes
-		int count = 0;
-		while (index < length && count < per_line) {
-			if (pos >= (int)(sizeof(line) - 4)) { // Reserve space for "..\n\0"
-				break; // Prevent overflow
-			}
-			int written = snprintf(line + pos, sizeof(line) - pos, "%02X ", msg[index]);
-			if (written <= 0 || written >= (int)(sizeof(line) - pos)) {
-				break; // Truncation or error
-			}
-			pos += written;
-			index++;
-			count++;
-		}
+        // Append up to per_line hex bytes
+        int count = 0;
+        while (index < length && count < per_line) {
+            if (pos >= (int)(sizeof(line) - 4)) {  // Reserve space for "..\n\0"
+                break;                             // Prevent overflow
+            }
+            int written = snprintf(line + pos, sizeof(line) - pos, "%02X ", msg[index]);
+            if (written <= 0 || written >= (int)(sizeof(line) - pos)) {
+                break;  // Truncation or error
+            }
+            pos += written;
+            index++;
+            count++;
+        }
 
-		// Trim trailing space if present
-		if (pos > 0 && line[pos - 1] == ' ') {
-			line[--pos] = '\0';
-		}
-		// Null-terminate the line
-		if (pos < (int)sizeof(line) - 1) {
-			line[pos] = '\0';
-		} else {
-			line[sizeof(line) - 1] = '\0';
-		}
+        // Trim trailing space if present
+        if (pos > 0 && line[pos - 1] == ' ') {
+            line[--pos] = '\0';
+        }
+        // Null-terminate the line
+        if (pos < (int)sizeof(line) - 1) {
+            line[pos] = '\0';
+        } else {
+            line[sizeof(line) - 1] = '\0';
+        }
 
-		// Emit this line
-		OsalPrintLog(PACKET_TRACE_LOG, LonStatusNoError, line);
-	}
+        // Emit this line
+        OsalPrintLog(PACKET_TRACE_LOG, LonStatusNoError, line);
+    }
 }

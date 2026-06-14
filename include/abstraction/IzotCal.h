@@ -12,35 +12,40 @@
  * 			for native LON.
  */
 
-#include "izot/IzotPlatform.h"
+#if !defined(_IZOT_CAL_H)
+#define _IZOT_CAL_H
 
-#if !defined(DEFINED_IZOTCAL_H)
-#define DEFINED_IZOTCAL_H
+#define _IZOT_PLATFORM_NO_UMBRELLA
+#include "izot/IzotPlatform.h"  // IWYU pragma: keep
+#undef _IZOT_PLATFORM_NO_UMBRELLA
+// #include "izot/lon_types.h"
 
-#define IPV4_ADDRESS_LEN 			4
-#define IP_ADDRESS_CHECK_INTERVAL	60000
+#if LINK_IS(UDP)
 
-#if LINK_IS(WIFI)
-	#define LINK_CHECK_INTERVAL	300000
+#define IPV4_ADDRESS_LEN 4
+#define IP_ADDRESS_CHECK_INTERVAL 60000
+
+#if PHYSICAL_IS(WIFI)
+#define LINK_CHECK_INTERVAL 300000
 #else
-	#define LINK_CHECK_INTERVAL	  3000
-#endif	// LINK_IS(WIFI)
+#define LINK_CHECK_INTERVAL 3000
+#endif  // PHYSICAL_IS(WIFI)
 
 #ifdef CAL_DEBUG
-	#define CAL_Printf(format,args...) wmprintf(args)
+#define CAL_Printf(format, args...) wmprintf(args)
 #else
-	#define CAL_Printf(format,args...)	;
+#define CAL_Printf(format, args...) ;
 #endif
 
 /*****************************************************************
  * Section: Globals
  *****************************************************************/
-#if LINK_IS(ETHERNET) || LINK_IS(WIFI)
-extern IzotByte	ownIpAddress[IPV4_ADDRESS_LEN]; 
-                // Buffer to store the IP address
+#if LINK_IS(UDP)
+extern IzotByte ownIpAddress[IPV4_ADDRESS_LEN];
+// Buffer to store the IP address
 extern IzotBool is_connected;
-                // Flag to report IP link connectivity
-#endif  // LINK_IS(ETHERNET) || LINK_IS(WIFI)
+// Flag to report IP link connectivity
+#endif  // LINK_IS(UDP)
 
 /*****************************************************************
  * Section: Function Declarations
@@ -108,8 +113,7 @@ extern void AddIpMembership(uint32_t addr);
  * Returns:
  *   None
  */
-extern void CalSend(uint32_t port, IzotByte* addr, IzotByte* pData, 
-				uint16_t dataLength);
+extern void CalSend(uint32_t port, IzotByte *addr, IzotByte *pData, uint16_t dataLength);
 
 /*
  * Receives data from a UDP socket.  
@@ -122,7 +126,7 @@ extern void CalSend(uint32_t port, IzotByte* addr, IzotByte* pData,
  *   Keep the DUP socket non-blockable.  Implementation of this function is 
  *   required for LON/IP support.
  */
-extern int CalReceive(IzotByte* pData, IzotByte* pSourceAddr);
+extern int CalReceive(IzotByte *pData, IzotByte *pSourceAddr);
 
 /*
  * Checks for a change of status for the data link. 
@@ -135,4 +139,5 @@ extern int CalReceive(IzotByte* pData, IzotByte* pSourceAddr);
  */
 extern void CheckNetworkStatus(void);
 
-#endif  /* defined(DEFINED_IZOTCAL_H) */
+#endif  // LINK_IS(UDP)
+#endif  // !defined(_IZOT_CAL_H)

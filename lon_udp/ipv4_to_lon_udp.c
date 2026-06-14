@@ -10,61 +10,61 @@
  *          and LON/IP UDP packets, and manage address mappings.
  */
 
+#include "izot/IzotPlatform.h"  // IWYU pragma: keep
+
+#if PROTOCOL_IS(LON_IPV4) || PROTOCOL_IS(LON_IPV6)
 #include "lon_udp/ipv4_to_lon_udp.h"
 
-#ifdef USE_UIP
-// Access to Contiki global buffer.
-# define UIP_IP_BUF  ((struct uip_ip_hdr *)&uip_buf[UIP_LLH_LEN])
-# define UIP_UDP_BUF ((struct uip_udp_hdr *)&uip_buf[UIP_LLH_LEN + UIP_IPH_LEN])
-#endif
+// Access to Contiki global buffer
+#define UIP_IP_BUF ((struct uip_ip_hdr *)&uip_buf[UIP_LLH_LEN])
+#define UIP_UDP_BUF ((struct uip_udp_hdr *)&uip_buf[UIP_LLH_LEN + UIP_IPH_LEN])
 
-#define MAX_DATA_LEN  255
+#define MAX_DATA_LEN 255
 
-#ifdef USE_UIP
-// Address Formats are based on those found in the LonTalk packet.
+// Address Formats are based on those found in the LON packet
 // These are used for incoming addresses.  The first 4 match
-// the address formats used in the LonTalk packet.
-typedef enum
-{
-    LT_AF_BROADCAST          = 0,
-    LT_AF_GROUP              = 1,
-    LT_AF_SUBNET_NODE        = 2,
-    LT_AF_UNIQUE_ID          = 3,
-    LT_AF_GROUP_ACK          = 4,
-    LT_AF_TURNAROUND         = 5,
-    LT_AF_NONE               = 6,    // indicates no address available
+// the address formats used in the LON packet.
+typedef enum {
+    LT_AF_BROADCAST = 0,
+    LT_AF_GROUP = 1,
+    LT_AF_SUBNET_NODE = 2,
+    LT_AF_UNIQUE_ID = 3,
+    LT_AF_GROUP_ACK = 4,
+    LT_AF_TURNAROUND = 5,
+    LT_AF_NONE = 6,  // indicates no address available
 } LtAddressFormat;
-#endif
 
 /*****************************************************************
  * Section: Globals
  *****************************************************************/
+
 void *ls_mapping;
-IzotUbits32 AnnounceTimer         = 0;      // Initial IP address anouncement
-                                            // timer duration in milliseconds
-IzotUbits32 AddrMappingAgingTimer = 0;    	// Initial address mapping aging
-                                            // timer duration in milliseconds
+IzotUbits32 AnnounceTimer = 0;          // Initial IP address anouncement
+                                        // timer duration in milliseconds
+IzotUbits32 AddrMappingAgingTimer = 0;  // Initial address mapping aging
+                                        // timer duration in milliseconds
 
-
-#if UIP_CONF_IPV6
-    const IzotByte ipv6_ls_multicast_prefix[] = {0x4C, 0x53, 0x49, 0x50, 0x56, 0x36};
-    uip_ds6_prefix_t *pIpv6LsDomainUipPrefix; // Pointer to my IP prefix
+#if PROTOCOL_IS(LON_IPV6)
+const IzotByte ipv6_ls_multicast_prefix[] = {0x4C, 0x53, 0x49, 0x50, 0x56, 0x36};
+uip_ds6_prefix_t *pIpv6LsDomainUipPrefix;  // Pointer to my IP prefix
 #else
-    const IzotByte ipv4_ls_multicast_prefix[] = {0xEF, 0xC0};
-    // The 2 byte IP prefix used to represent the 0 length domain
-    const IzotByte ipv4_zero_len_domain_prefix[] = {IPV4_DOMAIN_LEN_0_PREFIX_0, IPV4_DOMAIN_LEN_0_PREFIX_1};
-#endif
+const IzotByte ipv4_ls_multicast_prefix[] = {0xEF, 0xC0};
+// The 2 byte IP prefix used to represent the 0 length domain
+const IzotByte ipv4_zero_len_domain_prefix[] = {IPV4_DOMAIN_LEN_0_PREFIX_0,
+        IPV4_DOMAIN_LEN_0_PREFIX_1};
+#endif  // PROTOCOL_IS(LON_IPV6)
 
 // Encoded domain length
-static const IzotByte domainLengthTable[4] = { 0, 1, 3, 6 }; 
-static LonTimer       AnnouncementTimer;
-static LonTimer       AgingTimer;
+static const IzotByte domainLengthTable[4] = {0, 1, 3, 6};
+static LonTimer AnnouncementTimer;
+static LonTimer AgingTimer;
 
 /*****************************************************************
  * Section: Function Definitions
  *****************************************************************/
+
 /* 
- *  Callback: Ipv4GenerateLsPrefix
+ *  Callback: GenerateLonUdpAddrPrefix
  *  Generate a LS prefix from a LS domain and subnet
  *
  *  Parameters:
@@ -77,9 +77,10 @@ static LonTimer       AgingTimer;
  *  <void>.   
  *
  */
-static void Ipv4GenerateLsPrefix(const IzotByte *pDomainId, IzotByte domainLen, IzotByte subnet, IzotByte *pAddr)
+static void GenerateLonUdpAddrPrefix(const IzotByte *pDomainId, IzotByte domainLen,
+        IzotByte subnet, IzotByte *pAddr)
 {
-#if UIP_CONF_IPV6
+#if PROTOCOL_IS(LON_IPV6)
     memset(pAddr, 0, sizeof(uip_ipaddr_t));
     if (domainLen <= 6) {
         memcpy(pAddr, pDomainId, domainLen);
@@ -90,9 +91,9 @@ static void Ipv4GenerateLsPrefix(const IzotByte *pDomainId, IzotByte domainLen, 
     memset(pAddr, 0, IPV4_ADDRESS_LEN);
 
     if (domainLen > 6) {
-        // An invalid domain. Set node and subnet to 0.  
+        // An invalid domain. Set node and subnet to 0.
         // Will use the zero length domain below.
-        domainLen = 0;  
+        domainLen = 0;
     }
     if (domainLen == 0) {
         memcpy(pAddr, ipv4_zero_len_domain_prefix, sizeof(ipv4_zero_len_domain_prefix));
@@ -105,12 +106,12 @@ static void Ipv4GenerateLsPrefix(const IzotByte *pDomainId, IzotByte domainLen, 
             pAddr[1] = pDomainId[1];
         }
     }
-    pAddr[IPV4_LSIP_UCADDR_OFF_SUBNET] = subnet;
-#endif
+    pAddr[IPV4_LON_UDP_UCADDR_OFF_SUBNET] = subnet;
+#endif  // PROTOCOL_IS(LON_IPV6)
 }
 
 /* 
- *  Callback: getDomainLenEncoding
+ *  Callback: GetDomainLenEncoding
  *  Get domain length from encoded value
  *
  *  Parameters:
@@ -120,10 +121,12 @@ static void Ipv4GenerateLsPrefix(const IzotByte *pDomainId, IzotByte domainLen, 
  *  <IzotByte>.   
  *
  */
-static IzotByte getDomainLenEncoding(int domainLen)
+static IzotByte GetDomainLenEncoding(int domainLen)
 {
     IzotByte encodedLen;
-    for (encodedLen = 0; encodedLen < sizeof(domainLengthTable)/sizeof(domainLengthTable[0]); encodedLen++) {
+    for (encodedLen = 0;
+            encodedLen < sizeof(domainLengthTable) / sizeof(domainLengthTable[0]);
+            encodedLen++) {
         if (domainLen == domainLengthTable[encodedLen]) {
             return encodedLen;
         }
@@ -131,6 +134,7 @@ static IzotByte getDomainLenEncoding(int domainLen)
     return 0;  // Whoops.
 }
 
+#if LINK_IS(UDP)
 /* 
  *  Callback: RestoreIpMembership
  *  Scan Address table at boot time and add membership of
@@ -145,7 +149,7 @@ static void RestoreIpMembership(void)
     IzotByte i;
     uint32_t mc_addr = BROADCAST_PREFIX | 0x100;
     uint32_t bc_addr = BROADCAST_PREFIX;
-    
+
     // Group multicast membership
     for (i = 0; i < eep->readOnlyData.Extended; i++) {
         //Indicates the group entry in Address table
@@ -154,32 +158,32 @@ static void RestoreIpMembership(void)
             AddIpMembership(mc_addr);
         }
     }
-    
+
     // Domain Broadcast membership
     AddIpMembership(bc_addr);
-    
+
     // Subnet broadcast membership
-    if (eep->domainTable[0].Subnet != 0)    {
+    if (eep->domainTable[0].Subnet != 0) {
         bc_addr |= eep->domainTable[0].Subnet;
         AddIpMembership(bc_addr);
     }
 }
 
-#if IPV4_INCLUDE_LTVX_LSUDP_TRANSLATION
+#if IPV4_INCLUDE_LON_VX_LSUDP_TRANSLATION
 
 /* 
- *  Callback: Ipv4ConvertLTVXtoLsUdp
- *  Convert the LonTalk V0 or V2 NPDU to LS/UDP format.   
+ *  Callback: ConvertLonVxToLonUdp
+ *  Convert a LON V0 or V2 NPDU to LON/UDP format.   
  *
  *  Parameters:
  *   pNpdu:              On input, pointer to the LTV0 or LTV2 NPDU.  
  *                       This gets overwriten by the LS/UDP payload.
- *   pduLen:             The size, in bytes of the LTVX NPDU
+ *   pduLen:             The size, in bytes of the LON V0 or V2 NPDU
  *   pSourceAddr:        Pointer to recieve the IP source addresss, 
- *                       calculated from the address in the LTVX NPDU.
+ *                       calculated from the address in the LON V0 or V2 NPDU.
  *   pSourcePort:        Pointer to recieve the source port.
  *   pDestAddr:          Pointer to recieve the IP destination addresss, 
- *                       calculated from the address in the LTVX NPDU.
+ *                       calculated from the address in the LON V0 or V2 NPDU.
  *   pDestPort:          Pointer to recieve the dest port.
  *   lsMappingHandle:    A handle used for LS mapping 
  *
@@ -187,119 +191,124 @@ static void RestoreIpMembership(void)
  *  <void>.   
  *
  */
-static uint16_t Ipv4ConvertLTVXtoLsUdp(IzotByte *pNpdu, uint16_t pduLen, IzotByte *pSourceAddr, uint16_t *pSourcePort, 
-IzotByte *pDestAddr, uint16_t *pDestPort
+static uint16_t ConvertLonVxToLonUdp(IzotByte *pNpdu, uint16_t pduLen,
+        IzotByte *pSourceAddr, uint16_t *pSourcePort, IzotByte *pDestAddr,
+        uint16_t *pDestPort
 #if IPV4_SUPPORT_ARBITRARY_ADDRESSES
-    , void *lsMappingHandle
+        ,
+        void *lsMappingHandle
 #endif
 )
 {
     IzotByte domainOffset = 0;
     LtAddressFormat lsVxAddrFmt = IPV4_GET_ADDRESS_FORMAT_FROM_NPDU(pNpdu);
-    IzotByte domainLen = domainLengthTable[pNpdu[IPV4_LTVX_NPDU_IDX_TYPE] & IPV4_LTVX_NPDU_MASK_DOMAINLEN];
-    IzotByte lsUdpHdrLen = 2; // Size of the LS/UDP HDR
-    
+    IzotByte domainLen = domainLengthTable[pNpdu[IPV4_LON_VX_NPDU_IDX_TYPE] &
+                                           IPV4_LON_VX_NPDU_MASK_DOMAINLEN];
+    IzotByte lsUdpHdrLen = 2;  // Size of the LS/UDP HDR
+
     // Second byte of LS/UDP header
-    IzotByte lsUdpHdrByte1 = IPV4_GET_PDU_FORMAT_FROM_NPDU(pNpdu);  
+    IzotByte lsUdpHdrByte1 = IPV4_GET_PDU_FORMAT_FROM_NPDU(pNpdu);
     IzotByte lsUdpEnclosedAddr[7];
     IzotByte lsUdpEnclosedAddrLen = 0;
     IzotByte failed = 0;
 
-    if (!IPV4_LT_IS_VER_LS_LEGACY_MODE(pNpdu[IPV4_LTVX_NPDU_IDX_TYPE]) &&
-    !IPV4_LT_IS_VER_LS_ENHANCED_MODE(pNpdu[IPV4_LTVX_NPDU_IDX_TYPE])) {
-        failed = 1; // Version is not supported;
+    if (!IPV4_LT_IS_VER_LS_LEGACY_MODE(pNpdu[IPV4_LON_VX_NPDU_IDX_TYPE]) &&
+            !IPV4_LT_IS_VER_LS_ENHANCED_MODE(pNpdu[IPV4_LON_VX_NPDU_IDX_TYPE])) {
+        failed = 1;  // Version is not supported;
     } else {
         switch (lsVxAddrFmt) {
         case LT_AF_BROADCAST:
-        case LT_AF_GROUP:
-            {
-                domainOffset = IPV4_LTVX_NPDU_IDX_DEST_ADDR + 1;
-                Ipv4GenerateLsMacAddr(lsVxAddrFmt == LT_AF_BROADCAST ? 
-                    IPV4_LS_MC_ADDR_TYPE_BROADCAST : IPV4_LS_MC_ADDR_TYPE_GROUP,
-#if UIP_CONF_IPV6
-                   &pNpdu[IPV6_LTVX_NPDU_IDX_DEST_ADDR + 1], domainLen,
-#endif
-                pNpdu[IPV4_LTVX_NPDU_IDX_DEST_ADDR],  pDestAddr);
-                
-                if ((lsUdpHdrByte1 == ENCLOSED_PDU_TYPE_TPDU || lsUdpHdrByte1 == ENCLOSED_PDU_TYPE_SPDU) &&
-                ((pNpdu[4 + domainLen] & IPV4_LTVX_NPDU_MASK_SERVICE_TYPE) == 0)) {
-                    // Either an ackd or request service.  Include 
-                    lsUdpHdrByte1 |= IPV4_LSUDP_NPDU_MASK_MCR;
-                    lsUdpHdrLen += 1;  // Add room for backlog  info.
-                }
+        case LT_AF_GROUP: {
+            domainOffset = IPV4_LON_VX_NPDU_IDX_DEST_ADDR + 1;
+            GenerateLonMulticastAddr(lsVxAddrFmt == LT_AF_BROADCAST
+                                             ? IPV4_LS_MC_ADDR_TYPE_BROADCAST
+                                             : IPV4_LS_MC_ADDR_TYPE_GROUP,
+#if PROTOCOL_IS(LON_IPV6)
+                    &pNpdu[IPV6_LON_VX_NPDU_IDX_DEST_ADDR + 1], domainLen,
+#endif  // PROTOCOL_IS(LON_IPV6)
+                    pNpdu[IPV4_LON_VX_NPDU_IDX_DEST_ADDR], pDestAddr);
 
-                if (lsVxAddrFmt == LT_AF_BROADCAST) {
-                    if (pNpdu[IPV4_LTVX_NPDU_IDX_DEST_SUBNET] == 0) {
-                        lsUdpHdrByte1 |= IPV4_LSUDP_NPDU_ADDR_FMT_DOMAIN_BROADCAST;
-                    } else {
-                        lsUdpHdrByte1 |= IPV4_LSUDP_NPDU_ADDR_FMT_SUBNET_BROADCAST;
-                        lsUdpEnclosedAddrLen = 1;    // add room for subnetId
-                        lsUdpEnclosedAddr[0] = pNpdu[IPV4_LTVX_NPDU_IDX_DEST_ADDR];
-                    }
-                } else {
-                    lsUdpEnclosedAddrLen = 1;        // add room for groupID
-                    lsUdpHdrByte1 |= IPV4_LSUDP_NPDU_ADDR_FMT_GROUP;
-                    lsUdpEnclosedAddr[0] = pNpdu[IPV4_LTVX_NPDU_IDX_DEST_ADDR];
-                }
+            if ((lsUdpHdrByte1 == ENCLOSED_PDU_TYPE_TPDU ||
+                        lsUdpHdrByte1 == ENCLOSED_PDU_TYPE_SPDU) &&
+                    ((pNpdu[4 + domainLen] & IPV4_LON_VX_NPDU_MASK_SERVICE_TYPE) == 0)) {
+                // Either an ackd or request service.  Include
+                lsUdpHdrByte1 |= IPV4_LSUDP_NPDU_MASK_MCR;
+                lsUdpHdrLen += 1;  // Add room for backlog  info.
             }
-            break;
-        case LT_AF_SUBNET_NODE:
-            {
-                IzotByte lsUdpAddrFmt;
-                if (pNpdu[IPV4_LTVX_NPDU_IDX_SOURCE_NODE] & 0x80) {
-                    lsUdpAddrFmt = IPV4_LSUDP_NPDU_ADDR_FMT_SUBNET_NODE;
-                    domainOffset = IPV4_LTVX_NPDU_IDX_DEST_NODE + 1;
-                } else {
-                    lsUdpAddrFmt = IPV4_LSUDP_NPDU_ADDR_FMT_GROUP_RESP;
-                    domainOffset = IPV4_LTVX_NPDU_IDX_DEST_NODE + 3;
-                }
 
-                Ipv4GenerateLsSubnetNodeAddr(&pNpdu[domainOffset], domainLen, 
-                pNpdu[IPV4_LTVX_NPDU_IDX_DEST_SUBNET], pNpdu[IPV4_LTVX_NPDU_IDX_DEST_NODE], pDestAddr);
+            if (lsVxAddrFmt == LT_AF_BROADCAST) {
+                if (pNpdu[IPV4_LON_VX_NPDU_IDX_DEST_SUBNET] == 0) {
+                    lsUdpHdrByte1 |= IPV4_LSUDP_NPDU_ADDR_FMT_DOMAIN_BROADCAST;
+                } else {
+                    lsUdpHdrByte1 |= IPV4_LSUDP_NPDU_ADDR_FMT_SUBNET_BROADCAST;
+                    lsUdpEnclosedAddrLen = 1;  // add room for subnetId
+                    lsUdpEnclosedAddr[0] = pNpdu[IPV4_LON_VX_NPDU_IDX_DEST_ADDR];
+                }
+            } else {
+                lsUdpEnclosedAddrLen = 1;  // add room for groupID
+                lsUdpHdrByte1 |= IPV4_LSUDP_NPDU_ADDR_FMT_GROUP;
+                lsUdpEnclosedAddr[0] = pNpdu[IPV4_LON_VX_NPDU_IDX_DEST_ADDR];
+            }
+        } break;
+        case LT_AF_SUBNET_NODE: {
+            IzotByte lsUdpAddrFmt;
+            if (pNpdu[IPV4_LON_VX_NPDU_IDX_SOURCE_NODE] & 0x80) {
+                lsUdpAddrFmt = IPV4_LSUDP_NPDU_ADDR_FMT_SUBNET_NODE;
+                domainOffset = IPV4_LON_VX_NPDU_IDX_DEST_NODE + 1;
+            } else {
+                lsUdpAddrFmt = IPV4_LSUDP_NPDU_ADDR_FMT_GROUP_RESP;
+                domainOffset = IPV4_LON_VX_NPDU_IDX_DEST_NODE + 3;
+            }
+
+            GenerateLonUdpAddress(&pNpdu[domainOffset], domainLen,
+                    pNpdu[IPV4_LON_VX_NPDU_IDX_DEST_SUBNET],
+                    pNpdu[IPV4_LON_VX_NPDU_IDX_DEST_NODE], pDestAddr);
 #if IPV4_SUPPORT_ARBITRARY_ADDRESSES
-                if (Ipv4GetArbitraryDestAddress(lsMappingHandle, &pNpdu[domainOffset], domainLen, 
-                pNpdu[IPV4_LTVX_NPDU_IDX_DEST_SUBNET], pNpdu[IPV4_LTVX_NPDU_IDX_DEST_NODE],
-                lsUdpAddrFmt, pDestAddr, lsUdpEnclosedAddr)) {
-                    lsUdpEnclosedAddrLen += 2;
-                    lsUdpAddrFmt = IPV4_LSUDP_NPDU_ADDR_FMT_EXP_SUBNET_NODE;
-                }
-#endif
-                if ((pNpdu[IPV4_LTVX_NPDU_IDX_SOURCE_NODE] & 0x80) == 0) {
-                    // Group response.  Add in the grop and member.
-                    lsUdpEnclosedAddr[lsUdpEnclosedAddrLen++] = pNpdu[IPV4_LTVX_NPDU_IDX_RESP_GROUPID];
-                    lsUdpEnclosedAddr[lsUdpEnclosedAddrLen++] = pNpdu[IPV4_LTVX_NPDU_IDX_RESP_GROUPMBR];
-                }
-                lsUdpHdrByte1 |= lsUdpAddrFmt; 
+            if (Ipv4GetArbitraryDestAddress(lsMappingHandle, &pNpdu[domainOffset],
+                        domainLen, pNpdu[IPV4_LON_VX_NPDU_IDX_DEST_SUBNET],
+                        pNpdu[IPV4_LON_VX_NPDU_IDX_DEST_NODE], lsUdpAddrFmt, pDestAddr,
+                        lsUdpEnclosedAddr)) {
+                lsUdpEnclosedAddrLen += 2;
+                lsUdpAddrFmt = IPV4_LSUDP_NPDU_ADDR_FMT_EXP_SUBNET_NODE;
             }
-            break;
+#endif
+            if ((pNpdu[IPV4_LON_VX_NPDU_IDX_SOURCE_NODE] & 0x80) == 0) {
+                // Group response.  Add in the grop and member.
+                lsUdpEnclosedAddr[lsUdpEnclosedAddrLen++] =
+                        pNpdu[IPV4_LON_VX_NPDU_IDX_RESP_GROUPID];
+                lsUdpEnclosedAddr[lsUdpEnclosedAddrLen++] =
+                        pNpdu[IPV4_LON_VX_NPDU_IDX_RESP_GROUPMBR];
+            }
+            lsUdpHdrByte1 |= lsUdpAddrFmt;
+        } break;
         case LT_AF_UNIQUE_ID:
-            domainOffset = IPV4_LTVX_NPDU_IDX_DEST_NEURON_ID + IPV4_LTVX_NPDU_DEST_NEURON_ID_LEN;
-#if UIP_CONF_IPV6
-            if (pNpdu[IPV6_LTVX_NPDU_IDX_DEST_SUBNET]) {
+            domainOffset = IPV4_LON_VX_NPDU_IDX_DEST_NEURON_ID +
+                           IPV4_LON_VX_NPDU_DEST_NEURON_ID_LEN;
+#if PROTOCOL_IS(LON_IPV6)
+            if (pNpdu[IPV6_LON_VX_NPDU_IDX_DEST_SUBNET]) {
                 // Unicast neuron ID addressing
                 lsUdpHdrByte1 |= IPV6_LSUDP_NPDU_ADDR_FMT_NEURON_ID;
-#if UIP_CONF_IPV6
-                ipv6_gen_ls_neuronid_addr(&pNpdu[domainOffset], domainLen, 
-                pNpdu[IPV6_LTVX_NPDU_IDX_DEST_SUBNET], &pNpdu[IPV6_LTVX_NPDU_IDX_DEST_NEURON_ID], pDestAddr);
-#endif
+                ipv6_gen_ls_neuronid_addr(&pNpdu[domainOffset], domainLen,
+                        pNpdu[IPV6_LON_VX_NPDU_IDX_DEST_SUBNET],
+                        &pNpdu[IPV6_LON_VX_NPDU_IDX_DEST_NEURON_ID], pDestAddr);
             } else
-#endif
+#endif  // PROTOCOL_IS(LON_IPV6)
             {
-                // Subnet is 0. This is a neuron ID addressed message 
-                // that floods the network. Use the broadcast address and 
+                // Subnet is 0. This is a neuron ID addressed message
+                // that floods the network. Use the broadcast address and
                 // include the NEURON ID in the payload
                 lsUdpHdrByte1 |= IPV4_LSUDP_NPDU_ADDR_FMT_BROADCAST_NEURON_ID;
-                Ipv4GenerateLsMacAddr(IPV4_LS_MC_ADDR_TYPE_BROADCAST, 
-#if UIP_CONF_IPV6
-                                   &pNpdu[domainOffset], domainLen,
-#endif
-                                   0,  pDestAddr);
+                GenerateLonMulticastAddr(IPV4_LS_MC_ADDR_TYPE_BROADCAST,
+#if PROTOCOL_IS(LON_IPV6)
+                        &pNpdu[domainOffset], domainLen,
+#endif  // PROTOCOL_IS(LON_IPV6)
+                        0, pDestAddr);
 
                 // add room for subnetID and neuronID
-                lsUdpEnclosedAddrLen = IPV4_LTVX_NPDU_DEST_NEURON_ID_LEN + 1;
-                lsUdpEnclosedAddr[0] = pNpdu[IPV4_LTVX_NPDU_IDX_DEST_SUBNET];
-                memcpy(&lsUdpEnclosedAddr[1], &pNpdu[IPV4_LTVX_NPDU_IDX_DEST_NEURON_ID], 
-                                IPV4_LTVX_NPDU_DEST_NEURON_ID_LEN);
+                lsUdpEnclosedAddrLen = IPV4_LON_VX_NPDU_DEST_NEURON_ID_LEN + 1;
+                lsUdpEnclosedAddr[0] = pNpdu[IPV4_LON_VX_NPDU_IDX_DEST_SUBNET];
+                memcpy(&lsUdpEnclosedAddr[1], &pNpdu[IPV4_LON_VX_NPDU_IDX_DEST_NEURON_ID],
+                        IPV4_LON_VX_NPDU_DEST_NEURON_ID_LEN);
             }
             break;
         default:
@@ -313,26 +322,29 @@ IzotByte *pDestAddr, uint16_t *pDestPort
         IzotByte arbitrarySourceAddressLen;
 #endif
         // Copy the enclosed PDU following the LS/UDP header
-        pduLen -= domainOffset+domainLen;
+        pduLen -= domainOffset + domainLen;
         if (pSourceAddr != NULL) {
-            Ipv4GenerateLsSubnetNodeAddr(&pNpdu[domainOffset], domainLen, pNpdu[IPV4_LTVX_NPDU_IDX_SOURCE_SUBNET], 
-            pNpdu[IPV4_LTVX_NPDU_IDX_SOURCE_NODE], pSourceAddr);
+            GenerateLonUdpAddress(&pNpdu[domainOffset], domainLen,
+                    pNpdu[IPV4_LON_VX_NPDU_IDX_SOURCE_SUBNET],
+                    pNpdu[IPV4_LON_VX_NPDU_IDX_SOURCE_NODE], pSourceAddr);
         }
 
-        if (pNpdu[0] & IPV4_LTVX_NPDU_MASK_PRIORITY) {
+        if (pNpdu[0] & IPV4_LON_VX_NPDU_MASK_PRIORITY) {
             lsUdpHdrByte1 |= (1 << IPV4_LSUDP_NPDU_BITPOS_PRIORITY);
         }
 #if IPV4_SUPPORT_ARBITRARY_ADDRESSES
         {
             IzotByte arbitrarySourceAddress[IPV4_MAX_ARBITRARY_SOURCE_ADDR_LEN];
-            arbitrarySourceAddressLen = Ipv4GetArbitrarySourceAddress(lsMappingHandle, pSourceAddr, 
-                                                &pNpdu[domainOffset], domainLen, arbitrarySourceAddress);
-                                              
-            memmove(&pNpdu[lsUdpHdrLen + lsUdpEnclosedAddrLen + arbitrarySourceAddressLen], 
-            &pNpdu[domainOffset + domainLen], pduLen);
-            
+            arbitrarySourceAddressLen = Ipv4GetArbitrarySourceAddress(lsMappingHandle,
+                    pSourceAddr, &pNpdu[domainOffset], domainLen, arbitrarySourceAddress);
+
+            memmove(&pNpdu[lsUdpHdrLen + lsUdpEnclosedAddrLen +
+                            arbitrarySourceAddressLen],
+                    &pNpdu[domainOffset + domainLen], pduLen);
+
             if (arbitrarySourceAddressLen) {
-                memcpy(&pNpdu[lsUdpHdrLen], arbitrarySourceAddress, arbitrarySourceAddressLen);
+                memcpy(&pNpdu[lsUdpHdrLen], arbitrarySourceAddress,
+                        arbitrarySourceAddressLen);
                 lsUdpHdrLen += arbitrarySourceAddressLen;
             }
         }
@@ -340,12 +352,14 @@ IzotByte *pDestAddr, uint16_t *pDestPort
         memmove(&pNpdu[lsUdpHdrLen], &pNpdu[domainOffset + domainLen], pduLen);
 #endif
         if (lsUdpHdrByte1 & IPV4_LSUDP_NPDU_MASK_MCR) {
-            pNpdu[IPV4_LSUDP_NPDU_IDX_BLINFO] = pNpdu[0] & IPV4_LTVX_NPDU_MASK_DELTA_BACKLOG;  // Copy delta backlog.
+            pNpdu[IPV4_LSUDP_NPDU_IDX_BLINFO] =
+                    pNpdu[0] &
+                    IPV4_LON_VX_NPDU_MASK_DELTA_BACKLOG;  // Copy delta backlog.
         }
 
-        // Set the version to use LS legacy or 
+        // Set the version to use LS legacy or
         // enhanced mode based on the LT version.
-        if (IPV4_LT_IS_VER_LS_LEGACY_MODE(pNpdu[IPV4_LTVX_NPDU_IDX_TYPE])) {
+        if (IPV4_LT_IS_VER_LS_LEGACY_MODE(pNpdu[IPV4_LON_VX_NPDU_IDX_TYPE])) {
             pNpdu[0] = IPV4_LSUDP_UDP_VER_LS_LEGACY << IPV4_LSUDP_NPDU_BITPOS_UDPVER;
         } else {
             pNpdu[0] = IPV4_LSUDP_UDP_VER_LS_ENHANCED << IPV4_LSUDP_NPDU_BITPOS_UDPVER;
@@ -363,14 +377,14 @@ IzotByte *pDestAddr, uint16_t *pDestPort
         pduLen = 0;
         lsUdpHdrLen = 0;
     }
-    
+
     return pduLen + lsUdpHdrLen;
 }
 
 #if IPV4_SUPPORT_ARBITRARY_ADDRESSES
 /* 
- *  Callback: Ipv4SendAnnouncement
- *  Send the announcement
+ *  Callback: SendLonUdpMessage
+ *  Sends a LON/IP-UDP message
  *
  *  Parameters:
  *    msg:  Pointer to the buffer
@@ -380,22 +394,22 @@ IzotByte *pDestAddr, uint16_t *pDestPort
  *  <void>.   
  *
  */
-static void Ipv4SendAnnouncement(IzotByte *msg, IzotByte len)
+static void SendLonUdpMessage(IzotByte *msg, IzotByte len)
 {
-    LKSendParam  *lkSendParamPtr; /* Param in lkOutQ or lkPriOutQ.   */
-    IzotByte     *npduPtr;        /* Pointer to NPDU being formed.   */
+    LKSendParam *lkSendParamPtr; /* Param in lkOutQ or lkPriOutQ.   */
+    IzotByte *npduPtr;           /* Pointer to NPDU being formed.   */
 
     if (!QueueFull(&gp->lkOutQ)) {
-        lkSendParamPtr  = QueueTail(&gp->lkOutQ);
+        lkSendParamPtr = QueueTail(&gp->lkOutQ);
     } else {
         return;
     }
-    
+
     // ptr to NPDU constructed.
     npduPtr = (IzotByte *)(lkSendParamPtr + 1);
 
 #if 0
-// TBD: following block crashes
+// TODO: following block crashes
     // Write the parameters for the link layer.
     lkSendParamPtr->deltaBL = 0;
     lkSendParamPtr->altPath = 0;
@@ -416,18 +430,18 @@ static void Ipv4SendAnnouncement(IzotByte *msg, IzotByte len)
 // Extract a 32-bit seconds value from a message and convert it to milliseconds
 // (as required by SetLonTimer).  Check for overflow and cap.
 //
-#define MAX_PROTOCOL_TIMER_SECONDS (IzotUbits32) (0x7FFFFFFF / 1000)
+#define MAX_PROTOCOL_TIMER_SECONDS (IzotUbits32)(LON_TIMER_MAX_DURATION / 1000)
 
 void StartProtocolTimer(LonTimer *pTimer, IzotUbits32 *pTimeout, IzotByte *pMsg)
 {
-    IzotUbits32 seconds = pMsg[0]<<24 | pMsg[1]<<16 | pMsg[2]<<8 | pMsg[3];
+    IzotUbits32 seconds = pMsg[0] << 24 | pMsg[1] << 16 | pMsg[2] << 8 | pMsg[3];
     seconds = min(seconds, MAX_PROTOCOL_TIMER_SECONDS);
-    *pTimeout = seconds * 1000;      // Save timer duration for later resumption
+    *pTimeout = seconds * 1000;  // Save timer duration for later resumption
     SetLonRepeatTimer(pTimer, *pTimeout, *pTimeout);
 }
 
 /* 
- *  Callback: Ipv4ConvertLsUdptoLTVX
+ *  Callback: ConvertLonUdpToLonVx
  *  Convert the LON/IP UDP packet found in the Contiki global uip_buf to an LTV0
  *  or LTV2 NPDU and return it in the buffer provided.
  * 
@@ -439,7 +453,7 @@ void StartProtocolTimer(LonTimer *pTimer, IzotUbits32 *pTimeout, IzotByte *pMsg)
  *   sourcePort:         Source port in *host* order
  *   pDestAddr:          Pointer to destination address, in *network* order
  *   destPort:           Destination port in *host* order
- *   pNpdu:              A pointer to a buffer to write the LTVX npdu.
+ *   pNpdu:              A pointer to a buffer to write the LON V0 or V2 npdu.
  *   pLtVxLen:           A pointer to the size in bytes of the resulting NPDU.
  *   lsMappingHandle:    A handle used for LS mapping 
  *
@@ -447,19 +461,20 @@ void StartProtocolTimer(LonTimer *pTimer, IzotUbits32 *pTimeout, IzotByte *pMsg)
  *  <void>.   
  *
  */
-static void Ipv4ConvertLsUdptoLTVX(IzotByte ipv6, IzotByte *pUdpPayload, uint16_t udpLen, const IzotByte *pSourceAddr, 
-        uint16_t sourcPort,const IzotByte *pDestAddr, uint16_t destPort,
-        IzotByte *pNpdu, uint16_t *pLtVxLen
-        #if IPV4_SUPPORT_ARBITRARY_ADDRESSES
-            , void *lsMappingHandle
-        #endif
-        )
+static void ConvertLonUdpToLonVx(IzotByte ipv6, IzotByte *pUdpPayload, uint16_t udpLen,
+        const IzotByte *pSourceAddr, uint16_t sourcPort, const IzotByte *pDestAddr,
+        uint16_t destPort, IzotByte *pNpdu, uint16_t *pLtVxLen
+#if IPV4_SUPPORT_ARBITRARY_ADDRESSES
+        ,
+        void *lsMappingHandle
+#endif
+)
 {
     IzotByte *pLsUdpPayload = pUdpPayload;
     IzotByte *p = pNpdu;
     IzotByte npduHdr = 0;
-    IzotByte lsUdpHdr0 = 0; // First byte of LS/UDP header.
-    IzotByte lsUdpHdr1 = 0; // Second byte of LS/UDP header
+    IzotByte lsUdpHdr0 = 0;  // First byte of LS/UDP header.
+    IzotByte lsUdpHdr1 = 0;  // Second byte of LS/UDP header
     IzotByte domainLen = 0;
     const IzotByte *pDomain;
     IzotByte failed = 0;
@@ -469,8 +484,8 @@ static void Ipv4ConvertLsUdptoLTVX(IzotByte ipv6, IzotByte *pUdpPayload, uint16_
     } else {
         pDomain = pSourceAddr;
 
-        if ((*pLsUdpPayload & IPV4_LSUDP_NPDU_MASK_UDPVER) > 
-        (IPV4_LSUDP_UDP_VER_CURRENT << IPV4_LSUDP_NPDU_BITPOS_UDPVER)) {
+        if ((*pLsUdpPayload & IPV4_LSUDP_NPDU_MASK_UDPVER) >
+                (IPV4_LSUDP_UDP_VER_CURRENT << IPV4_LSUDP_NPDU_BITPOS_UDPVER)) {
             // Unsupported version.  Drop it.
             failed = 1;
         }
@@ -484,28 +499,33 @@ static void Ipv4ConvertLsUdptoLTVX(IzotByte ipv6, IzotByte *pUdpPayload, uint16_
             lsUdpHdr0 = *pLsUdpPayload;
             pLsUdpPayload++;
             lsUdpHdr1 = *pLsUdpPayload++;
-            *p = (lsUdpHdr1 & IPV4_LSUDP_NPDU_MASK_PRIORITY) ? IPV4_LTVX_NPDU_MASK_PRIORITY : 0;
-                                              
+            *p = (lsUdpHdr1 & IPV4_LSUDP_NPDU_MASK_PRIORITY)
+                         ? IPV4_LON_VX_NPDU_MASK_PRIORITY
+                         : 0;
+
             if (lsUdpHdr1 & IPV4_LSUDP_NPDU_MASK_MCR) {
-                *p |= *pLsUdpPayload++ & IPV4_LSUDP_NPDU_MASK_DELTA_BACKLOG;    
+                *p |= *pLsUdpPayload++ & IPV4_LSUDP_NPDU_MASK_DELTA_BACKLOG;
             }
         }
     }
 
     if (!failed) {
         // Set version (0), pdu format and domain length
-        npduHdr = ((lsUdpHdr1 & IPV4_LSUDP_NPDU_MASK_PDUFMT) << IPV4_LTVX_NPDU_BITPOS_PDUFMT);
-        if ((lsUdpHdr0 & IPV4_LSUDP_NPDU_MASK_UDPVER) == 
-        (IPV4_LSUDP_UDP_VER_LS_ENHANCED << IPV4_LSUDP_NPDU_BITPOS_UDPVER)) {
+        npduHdr = ((lsUdpHdr1 & IPV4_LSUDP_NPDU_MASK_PDUFMT)
+                   << IPV4_LON_VX_NPDU_BITPOS_PDUFMT);
+        if ((lsUdpHdr0 & IPV4_LSUDP_NPDU_MASK_UDPVER) ==
+                (IPV4_LSUDP_UDP_VER_LS_ENHANCED << IPV4_LSUDP_NPDU_BITPOS_UDPVER)) {
             // Whoops, need to set the LT version to enhanced mode.
-            npduHdr |= (IPV4_LT_VER_ENHANCED << IPV4_LTVX_NPDU_BITPOS_VER);
+            npduHdr |= (IPV4_LT_VER_ENHANCED << IPV4_LON_VX_NPDU_BITPOS_VER);
         }
         domainLen = 0xff;
         if (lsUdpHdr0 & IPV4_LSUDP_NPDU_MASK_ARB_SOURCE) {
 #if IPV4_SUPPORT_ARBITRARY_ADDRESSES
-            if (pLsUdpPayload[IPV4_LSUDP_NPDU_OFF_ARB_SOURCE_DMFLAG] & IPV4_LSUDP_NPDU_MASK_ARB_SOURCE_DMFLG) {
-                domainLen = domainLengthTable[
-                pLsUdpPayload[IPV4_LSUDP_NPDU_OFF_ARB_SOURCE_DMLEN] & IPV4_LSUDP_NPDU_MASK_ARB_SOURCE_DMLEN];
+            if (pLsUdpPayload[IPV4_LSUDP_NPDU_OFF_ARB_SOURCE_DMFLAG] &
+                    IPV4_LSUDP_NPDU_MASK_ARB_SOURCE_DMFLG) {
+                domainLen = domainLengthTable
+                        [pLsUdpPayload[IPV4_LSUDP_NPDU_OFF_ARB_SOURCE_DMLEN] &
+                                IPV4_LSUDP_NPDU_MASK_ARB_SOURCE_DMLEN];
                 pDomain = &pLsUdpPayload[IPV4_LSUDP_NPDU_OFF_ARB_SOURCE_DM];
             } else {
                 pDomain = pSourceAddr;
@@ -513,14 +533,16 @@ static void Ipv4ConvertLsUdptoLTVX(IzotByte ipv6, IzotByte *pUdpPayload, uint16_
 #else
             failed = 1;
 #endif
-        } else if ((lsUdpHdr1 & IPV4_LSUDP_NPDU_MASK_ADDRFMT) == IPV4_LSUDP_NPDU_ADDR_FMT_EXP_SUBNET_NODE) {
+        } else if ((lsUdpHdr1 & IPV4_LSUDP_NPDU_MASK_ADDRFMT) ==
+                   IPV4_LSUDP_NPDU_ADDR_FMT_EXP_SUBNET_NODE) {
             pDomain = pSourceAddr;
         }
 
         if (domainLen == 0xff) {
-            // The domain is not included in arbitrary source address.  
+            // The domain is not included in arbitrary source address.
             // Need to extract it from source or dest addr.
-            if (memcmp(pDomain, ipv4_zero_len_domain_prefix, sizeof(ipv4_zero_len_domain_prefix)) == 0) {
+            if (memcmp(pDomain, ipv4_zero_len_domain_prefix,
+                        sizeof(ipv4_zero_len_domain_prefix)) == 0) {
                 domainLen = 0;
             } else if (pDomain[0] == IPV4_DOMAIN_LEN_1_PREFIX) {
                 domainLen = 1;
@@ -529,19 +551,20 @@ static void Ipv4ConvertLsUdptoLTVX(IzotByte ipv6, IzotByte *pUdpPayload, uint16_
                 domainLen = 3;
             }
         }
-        npduHdr |= getDomainLenEncoding(domainLen);
+        npduHdr |= GetDomainLenEncoding(domainLen);
         p += 2;  // Skip over delta backlog and npuHdr;
 
 #if IPV4_SUPPORT_ARBITRARY_ADDRESSES
         if (lsUdpHdr0 & IPV4_LSUDP_NPDU_MASK_ARB_SOURCE) {
             // Update arbitrary address info
-            Ipv4SetArbitraryAddressMapping(lsMappingHandle, pSourceAddr, pDomain, domainLen, pLsUdpPayload[0], 
-                                    pLsUdpPayload[1] & NODE_ID_MASK);
+            Ipv4SetArbitraryAddressMapping(lsMappingHandle, pSourceAddr, pDomain,
+                    domainLen, pLsUdpPayload[0], pLsUdpPayload[1] & NODE_ID_MASK);
 
             *p++ = pLsUdpPayload[IPV4_LSUDP_NPDU_OFF_ARB_SOURCE_SUBNET];
             *p++ = 0x80 | pLsUdpPayload[IPV4_LSUDP_NPDU_OFF_ARB_SOURCE_NODE];
             // Skip source address.
-            if (pLsUdpPayload[IPV4_LSUDP_NPDU_OFF_ARB_SOURCE_DMFLAG] & IPV4_LSUDP_NPDU_MASK_ARB_SOURCE_DMFLG) {
+            if (pLsUdpPayload[IPV4_LSUDP_NPDU_OFF_ARB_SOURCE_DMFLAG] &
+                    IPV4_LSUDP_NPDU_MASK_ARB_SOURCE_DMFLG) {
                 pLsUdpPayload += domainLen + IPV4_LSUDP_NPDU_OFF_ARB_SOURCE_DM;
             } else {
                 pLsUdpPayload += IPV4_LSUDP_NPDU_OFF_ARB_SOURCE_DMLEN;
@@ -550,73 +573,78 @@ static void Ipv4ConvertLsUdptoLTVX(IzotByte ipv6, IzotByte *pUdpPayload, uint16_
 #endif
         {
 #if IPV4_SUPPORT_ARBITRARY_ADDRESSES
-            Ipv4SetDerivedAddressMapping(lsMappingHandle, pDomain, domainLen, pSourceAddr[IPV4_LSIP_UCADDR_OFF_SUBNET], 
-            pSourceAddr[IPV4_LSIP_UCADDR_OFF_NODE] & NODE_ID_MASK);
+            Ipv4SetDerivedAddressMapping(lsMappingHandle, pDomain, domainLen,
+                    pSourceAddr[IPV4_LON_UDP_UCADDR_OFF_SUBNET],
+                    pSourceAddr[IPV4_LON_UDP_UCADDR_OFF_NODE] & NODE_ID_MASK);
 #endif
-            *p++ = pSourceAddr[IPV4_LSIP_UCADDR_OFF_SUBNET];
-            *p++ = 0x80 | pSourceAddr[IPV4_LSIP_UCADDR_OFF_NODE];
+            *p++ = pSourceAddr[IPV4_LON_UDP_UCADDR_OFF_SUBNET];
+            *p++ = 0x80 | pSourceAddr[IPV4_LON_UDP_UCADDR_OFF_NODE];
         }
 
-        switch(lsUdpHdr1 & IPV4_LSUDP_NPDU_MASK_ADDRFMT) {
-#if UIP_CONF_IPV6
+        switch (lsUdpHdr1 & IPV4_LSUDP_NPDU_MASK_ADDRFMT) {
+#if PROTOCOL_IS(LON_IPV6)
         case IPV6_LSUDP_NPDU_ADDR_FMT_NEURON_ID:
-            npduHdr |= (ADDR_FORMAT_NEURONID << IPV6_LTVX_NPDU_BITPOS_ADDRTYPE);
-            *p++ = UIP_IP_BUF->destipaddr.u8[IPV6_LSIP_UCADDR_OFF_SUBNET];
-            memcpy(p, &UIP_IP_BUF->destipaddr.u8[IPV6_LSIP_UCADDR_OFF_NIDHI], IPV6_LSIP_UCADDR_NID_HILEN);
-                   
+            npduHdr |= (ADDR_FORMAT_NEURONID << IPV6_LON_VX_NPDU_BITPOS_ADDRTYPE);
+            *p++ = UIP_IP_BUF->destipaddr.u8[IPV6_LON_UDP_UCADDR_OFF_SUBNET];
+            memcpy(p, &UIP_IP_BUF->destipaddr.u8[IPV6_LON_UDP_UCADDR_OFF_NIDHI],
+                    IPV6_LON_UDP_UCADDR_NID_HILEN);
+
             *p = (*p << 2) | (*p >> 6);
-            p += IPV6_LSIP_UCADDR_NID_HILEN;
-            memcpy(p, &UIP_IP_BUF->destipaddr.u8[IPV6_LSIP_UCADDR_OFF_NIDLO], IPV6_LSIP_UCADDR_NID_LOLEN);
-            p += IPV6_LSIP_UCADDR_NID_LOLEN;
+            p += IPV6_LON_UDP_UCADDR_NID_HILEN;
+            memcpy(p, &UIP_IP_BUF->destipaddr.u8[IPV6_LON_UDP_UCADDR_OFF_NIDLO],
+                    IPV6_LON_UDP_UCADDR_NID_LOLEN);
+            p += IPV6_LON_UDP_UCADDR_NID_LOLEN;
             break;
-#endif
+#endif  // PROTOCOL_IS(LON_IPV6)
         case IPV4_LSUDP_NPDU_ADDR_FMT_BROADCAST_NEURON_ID:
-            npduHdr |= (LT_AF_UNIQUE_ID << IPV4_LTVX_NPDU_BITPOS_ADDRTYPE);
+            npduHdr |= (LT_AF_UNIQUE_ID << IPV4_LON_VX_NPDU_BITPOS_ADDRTYPE);
             *p++ = *pLsUdpPayload++;
-            memcpy(p, pLsUdpPayload, IPV4_LTVX_NPDU_DEST_NEURON_ID_LEN);
-            p += IPV4_LTVX_NPDU_DEST_NEURON_ID_LEN;
-            pLsUdpPayload += IPV4_LTVX_NPDU_DEST_NEURON_ID_LEN;
+            memcpy(p, pLsUdpPayload, IPV4_LON_VX_NPDU_DEST_NEURON_ID_LEN);
+            p += IPV4_LON_VX_NPDU_DEST_NEURON_ID_LEN;
+            pLsUdpPayload += IPV4_LON_VX_NPDU_DEST_NEURON_ID_LEN;
             break;
         case IPV4_LSUDP_NPDU_ADDR_FMT_SUBNET_NODE:
         case IPV4_LSUDP_NPDU_ADDR_FMT_GROUP_RESP:
-            npduHdr |= (LT_AF_SUBNET_NODE << IPV4_LTVX_NPDU_BITPOS_ADDRTYPE);
+            npduHdr |= (LT_AF_SUBNET_NODE << IPV4_LON_VX_NPDU_BITPOS_ADDRTYPE);
             *p++ = eep->domainTable[0].Subnet;
             *p++ = 0x80 | IZOT_GET_ATTRIBUTE(eep->domainTable[0], IZOT_DOMAIN_NODE);
-            if ((lsUdpHdr1 & IPV4_LSUDP_NPDU_MASK_ADDRFMT) == IPV4_LSUDP_NPDU_ADDR_FMT_SUBNET_NODE) {
-                break; 
+            if ((lsUdpHdr1 & IPV4_LSUDP_NPDU_MASK_ADDRFMT) ==
+                    IPV4_LSUDP_NPDU_ADDR_FMT_SUBNET_NODE) {
+                break;
             }
             // Strip hi bit to indicate group response
-            pNpdu[IPV4_LTVX_NPDU_IDX_SOURCE_NODE] = pNpdu[IPV4_LTVX_NPDU_IDX_SOURCE_NODE] & NODE_ID_MASK;  
+            pNpdu[IPV4_LON_VX_NPDU_IDX_SOURCE_NODE] =
+                    pNpdu[IPV4_LON_VX_NPDU_IDX_SOURCE_NODE] & NODE_ID_MASK;
             *p++ = *pLsUdpPayload++;
             *p++ = *pLsUdpPayload++;
-            break; 
+            break;
         case IPV4_LSUDP_NPDU_ADDR_FMT_DOMAIN_BROADCAST:
-            npduHdr |= (LT_AF_BROADCAST << IPV4_LTVX_NPDU_BITPOS_ADDRTYPE);
+            npduHdr |= (LT_AF_BROADCAST << IPV4_LON_VX_NPDU_BITPOS_ADDRTYPE);
             *p++ = 0;
-           break;
+            break;
         case IPV4_LSUDP_NPDU_ADDR_FMT_SUBNET_BROADCAST:
-            npduHdr |= (LT_AF_BROADCAST << IPV4_LTVX_NPDU_BITPOS_ADDRTYPE);
+            npduHdr |= (LT_AF_BROADCAST << IPV4_LON_VX_NPDU_BITPOS_ADDRTYPE);
             *p++ = *pLsUdpPayload++;
             break;
         case IPV4_LSUDP_NPDU_ADDR_FMT_GROUP:
-            npduHdr |= (LT_AF_GROUP << IPV4_LTVX_NPDU_BITPOS_ADDRTYPE);
-            *p++ = *pLsUdpPayload++; // Note that this should be the same as UIP_IP_BUF->destipaddr.u8[IPV4_LSIP_MCADDR_OFF_GROUP]
+            npduHdr |= (LT_AF_GROUP << IPV4_LON_VX_NPDU_BITPOS_ADDRTYPE);
+            *p++ = *pLsUdpPayload++;  // Note that this should be the same as UIP_IP_BUF->destipaddr.u8[IPV4_LON_UDP_MCADDR_OFF_GROUP]
             break;
         case IPV4_LSUDP_NPDU_ADDR_FMT_EXP_SUBNET_NODE:
-            npduHdr |= (LT_AF_SUBNET_NODE << IPV4_LTVX_NPDU_BITPOS_ADDRTYPE);
-            *p++ = *pLsUdpPayload++;           // Subnet ID
-            *p++ = 0x80 | *pLsUdpPayload;      // Node ID
+            npduHdr |= (LT_AF_SUBNET_NODE << IPV4_LON_VX_NPDU_BITPOS_ADDRTYPE);
+            *p++ = *pLsUdpPayload++;       // Subnet ID
+            *p++ = 0x80 | *pLsUdpPayload;  // Node ID
             if (*pLsUdpPayload++ & 0x80) {
                 // Strip hi bit to indicate group response
-                pNpdu[IPV4_LTVX_NPDU_IDX_SOURCE_NODE] &= NODE_ID_MASK;  
-                *p++ = *pLsUdpPayload++;   // Group ID
-                *p++ = *pLsUdpPayload++;   // Group member
+                pNpdu[IPV4_LON_VX_NPDU_IDX_SOURCE_NODE] &= NODE_ID_MASK;
+                *p++ = *pLsUdpPayload++;  // Group ID
+                *p++ = *pLsUdpPayload++;  // Group member
             }
             break;
         default:
             // Unknown address type
-             failed = 1;
-             break;
+            failed = 1;
+            break;
         }
     }
 
@@ -624,117 +652,124 @@ static void Ipv4ConvertLsUdptoLTVX(IzotByte ipv6, IzotByte *pUdpPayload, uint16_
         *pLtVxLen = 0;
     } else {
         uint16_t pduLen;
-        // Calculate the pduLen by subtracting the UDP payload and 
+        // Calculate the pduLen by subtracting the UDP payload and
         // LS/UDP headers from udplen.
         pduLen = udpLen - (pLsUdpPayload - pUdpPayload);
-        pNpdu[IPV4_LTVX_NPDU_IDX_TYPE] = npduHdr;
+        pNpdu[IPV4_LON_VX_NPDU_IDX_TYPE] = npduHdr;
         memcpy(p, pDomain, domainLen);
-#if !UIP_CONF_IPV6
+#if !PROTOCOL_IS(LON_IPV6)
         // IPV4 address doesn not include the LSB of the domain, which MBZ
-        if (domainLen > IPV4_LSIP_IPADDR_DOMAIN_LEN) {
-            memset(p + IPV4_LSIP_IPADDR_DOMAIN_LEN, 0, domainLen - IPV4_LSIP_IPADDR_DOMAIN_LEN);
+        if (domainLen > IPV4_LON_UDP_IPADDR_DOMAIN_LEN) {
+            memset(p + IPV4_LON_UDP_IPADDR_DOMAIN_LEN, 0,
+                    domainLen - IPV4_LON_UDP_IPADDR_DOMAIN_LEN);
         }
-#endif
+#endif  // !PROTOCOL_IS(LON_IPV6)
         p += domainLen;
 #if IPV4_SUPPORT_ARBITRARY_ADDRESSES
-        if (((lsUdpHdr1 & IPV4_LSUDP_NPDU_MASK_ADDRFMT) == IPV4_LSUDP_NPDU_ADDR_FMT_EXP_SUBNET_NODE) &&
-        (((lsUdpHdr1 & IPV4_LSUDP_NPDU_MASK_PDUFMT) == ENCLOSED_PDU_TYPE_APDU) || 
-        (((lsUdpHdr1 & IPV4_LSUDP_NPDU_MASK_PDUFMT) == ENCLOSED_PDU_TYPE_TPDU) && 
-        ((*pLsUdpPayload & IPV4_LTVX_NPDU_MASK_SERVICE_TYPE) == IPV4_LTVX_NPDU_TPDU_TYPE_REPEATED)))) {
-            // An unacked or repeated message that uses LS subnet node 
-            // addressing, but includes the subnet/node address expliicitly. 
+        if (((lsUdpHdr1 & IPV4_LSUDP_NPDU_MASK_ADDRFMT) ==
+                    IPV4_LSUDP_NPDU_ADDR_FMT_EXP_SUBNET_NODE) &&
+                (((lsUdpHdr1 & IPV4_LSUDP_NPDU_MASK_PDUFMT) == ENCLOSED_PDU_TYPE_APDU) ||
+                        (((lsUdpHdr1 & IPV4_LSUDP_NPDU_MASK_PDUFMT) ==
+                                 ENCLOSED_PDU_TYPE_TPDU) &&
+                                ((*pLsUdpPayload & IPV4_LON_VX_NPDU_MASK_SERVICE_TYPE) ==
+                                        IPV4_LON_VX_NPDU_TPDU_TYPE_REPEATED)))) {
+            // An unacked or repeated message that uses LS subnet node
+            // addressing, but includes the subnet/node address expliicitly.
             // We won't be sending an ack or response, so even if there
-            // is a better address to use the sending device won't learn it. 
+            // is a better address to use the sending device won't learn it.
 
-            // Note that it should be sufficient to determine whether a unicast 
-            // or multicast address  was used.  However, sockets doesn't really 
-            // provide that information, so we can't always tell. So generate 
-            // the ls derived IP address, and see if it is supported, and send 
+            // Note that it should be sufficient to determine whether a unicast
+            // or multicast address  was used.  However, sockets doesn't really
+            // provide that information, so we can't always tell. So generate
+            // the ls derived IP address, and see if it is supported, and send
             // the announcement in that case as well.
 
-#if UIP_CONF_IPV6
+#if PROTOCOL_IS(LON_IPV6)
             IzotByte lsDerivedAddr[16];
 #else
             IzotByte lsDerivedAddr[4];
-#endif
-            // we know that the Vx message uses subnet node address, 
+#endif  // PROTOCOL_IS(LON_IPV6)
+            // we know that the Vx message uses subnet node address,
             // so we know where the domain ID is.
-            Ipv4GenerateLsSubnetNodeAddr(&pNpdu[IPV4_LTVX_NPDU_IDX_DEST_NODE + 1], domainLen, 
-            pNpdu[IPV4_LTVX_NPDU_IDX_DEST_SUBNET], pNpdu[IPV4_LTVX_NPDU_IDX_DEST_NODE], lsDerivedAddr);
+            GenerateLonUdpAddress(&pNpdu[IPV4_LON_VX_NPDU_IDX_DEST_NODE + 1], domainLen,
+                    pNpdu[IPV4_LON_VX_NPDU_IDX_DEST_SUBNET],
+                    pNpdu[IPV4_LON_VX_NPDU_IDX_DEST_NODE], lsDerivedAddr);
 
             if (Ipv4IsUnicastAddressSupported(lsMappingHandle, lsDerivedAddr)) {
-                IzotByte msg[IPV4_MAX_LTVX_UNICAST_ARB_ANNOUNCE_LEN];
+                IzotByte msg[IPV4_MAX_LON_VX_UNICAST_ARB_ANNOUNCE_LEN];
                 IzotByte len = 0;
-                msg[len++] = 0;     // Pri, altpath backlog
+                msg[len++] = 0;  // Pri, altpath backlog
 
                 // version, pdu fmt, addfmt, domain len
-                msg[len++] = (ENCLOSED_PDU_TYPE_APDU << IPV4_LTVX_NPDU_BITPOS_PDUFMT) |
-                (LT_AF_SUBNET_NODE << IPV4_LTVX_NPDU_BITPOS_ADDRTYPE) |
-                (pNpdu[IPV4_LTVX_NPDU_IDX_TYPE] & IPV4_LTVX_NPDU_MASK_DOMAINLEN);
+                msg[len++] = (ENCLOSED_PDU_TYPE_APDU << IPV4_LON_VX_NPDU_BITPOS_PDUFMT) |
+                             (LT_AF_SUBNET_NODE << IPV4_LON_VX_NPDU_BITPOS_ADDRTYPE) |
+                             (pNpdu[IPV4_LON_VX_NPDU_IDX_TYPE] &
+                                     IPV4_LON_VX_NPDU_MASK_DOMAINLEN);
 
                 // souce address
-                msg[len++] = pNpdu[IPV4_LTVX_NPDU_IDX_DEST_SUBNET];
-                msg[len++] = pNpdu[IPV4_LTVX_NPDU_IDX_DEST_NODE] | 0x80;
+                msg[len++] = pNpdu[IPV4_LON_VX_NPDU_IDX_DEST_SUBNET];
+                msg[len++] = pNpdu[IPV4_LON_VX_NPDU_IDX_DEST_NODE] | 0x80;
                 // dest address
-                msg[len++] = pNpdu[IPV4_LTVX_NPDU_IDX_SOURCE_SUBNET];
-                msg[len++] = pNpdu[IPV4_LTVX_NPDU_IDX_SOURCE_NODE];
+                msg[len++] = pNpdu[IPV4_LON_VX_NPDU_IDX_SOURCE_SUBNET];
+                msg[len++] = pNpdu[IPV4_LON_VX_NPDU_IDX_SOURCE_NODE];
                 // domain ID
-                memcpy(&msg[len], &pNpdu[IPV4_LTVX_NPDU_IDX_DEST_NODE+1], domainLen);
+                memcpy(&msg[len], &pNpdu[IPV4_LON_VX_NPDU_IDX_DEST_NODE + 1], domainLen);
                 len += domainLen;
-                msg[len++] = IPV4_EXP_MSG_CODE;  
+                msg[len++] = IPV4_EXP_MSG_CODE;
                 msg[len++] = IPV4_EXP_DEVICE_LS_ADDR_MAPPING_ANNOUNCEMENT;
-                Ipv4SendAnnouncement(msg, len);                
+                SendLonUdpMessage(msg, len);
             }
         }
 
         // Check for IPV4_EXP_SUBNETS_LS_ADDR_MAPPING_ANNOUNCEMENT
-        if ((lsUdpHdr1 & IPV4_LSUDP_NPDU_MASK_PDUFMT) == ENCLOSED_PDU_TYPE_APDU && 
-        pLsUdpPayload[0] == IPV4_EXP_MSG_CODE && pduLen >= (3 + 32) && pLsUdpPayload[1] == 
-        IPV4_EXP_SUBNETS_LS_ADDR_MAPPING_ANNOUNCEMENT) {
-            // This is IPV4_EXP_SUBNETS_LS_ADDR_MAPPING_ANNOUNCEMENT 
+        if ((lsUdpHdr1 & IPV4_LSUDP_NPDU_MASK_PDUFMT) == ENCLOSED_PDU_TYPE_APDU &&
+                pLsUdpPayload[0] == IPV4_EXP_MSG_CODE && pduLen >= (3 + 32) &&
+                pLsUdpPayload[1] == IPV4_EXP_SUBNETS_LS_ADDR_MAPPING_ANNOUNCEMENT) {
+            // This is IPV4_EXP_SUBNETS_LS_ADDR_MAPPING_ANNOUNCEMENT
             // announcement;
-            Ipv4SetDerivedSubnetsMapping(lsMappingHandle, p - domainLen, domainLen, pLsUdpPayload[2], &pLsUdpPayload[3]);
-            
+            Ipv4SetDerivedSubnetsMapping(lsMappingHandle, p - domainLen, domainLen,
+                    pLsUdpPayload[2], &pLsUdpPayload[3]);
+
             // Do not need to send this packet to the network layer
             *pLtVxLen = 0;
             return;
         }
-        
-        if ((lsUdpHdr1 & IPV4_LSUDP_NPDU_MASK_PDUFMT) == ENCLOSED_PDU_TYPE_APDU && 
-        pLsUdpPayload[0] == IPV4_EXP_MSG_CODE && pduLen >= 2 && pLsUdpPayload[1] == 
-        IPV4_EXP_DEVICE_LS_ADDR_MAPPING_ANNOUNCEMENT) {
+
+        if ((lsUdpHdr1 & IPV4_LSUDP_NPDU_MASK_PDUFMT) == ENCLOSED_PDU_TYPE_APDU &&
+                pLsUdpPayload[0] == IPV4_EXP_MSG_CODE && pduLen >= 2 &&
+                pLsUdpPayload[1] == IPV4_EXP_DEVICE_LS_ADDR_MAPPING_ANNOUNCEMENT) {
             // Announcement received, update mapping table if necessary
-            UpdateMapping(p - domainLen, // Domain id
-                domainLen, // Domain Length
-                pNpdu[IPV4_LTVX_NPDU_IDX_SOURCE_SUBNET], // Subnet Id
-                pNpdu[IPV4_LTVX_NPDU_IDX_SOURCE_NODE] & NODE_ID_MASK, // Node Id
-                pSourceAddr); // Source ip Address
-            
+            UpdateMapping(p - domainLen,                        // Domain id
+                    domainLen,                                  // Domain Length
+                    pNpdu[IPV4_LON_VX_NPDU_IDX_SOURCE_SUBNET],  // Subnet Id
+                    pNpdu[IPV4_LON_VX_NPDU_IDX_SOURCE_NODE] & NODE_ID_MASK,  // Node Id
+                    pSourceAddr);  // Source ip Address
+
             // Do not need to send this packet to the network layer
             *pLtVxLen = 0;
             return;
         }
-        
-        if ((lsUdpHdr1 & IPV4_LSUDP_NPDU_MASK_PDUFMT) == ENCLOSED_PDU_TYPE_APDU && 
-        pLsUdpPayload[0] == IPV4_EXP_MSG_CODE && pduLen >= 12 && pLsUdpPayload[1] == 
-        IPV4_EXP_SET_LS_ADDR_MAPPING_ANNOUNCEMENT_PARAM) {
-			StartProtocolTimer(&AnnouncementTimer, &AnnounceTimer, &pLsUdpPayload[2]);
-			StartProtocolTimer(&AgingTimer, &AddrMappingAgingTimer, &pLsUdpPayload[8]);
+
+        if ((lsUdpHdr1 & IPV4_LSUDP_NPDU_MASK_PDUFMT) == ENCLOSED_PDU_TYPE_APDU &&
+                pLsUdpPayload[0] == IPV4_EXP_MSG_CODE && pduLen >= 12 &&
+                pLsUdpPayload[1] == IPV4_EXP_SET_LS_ADDR_MAPPING_ANNOUNCEMENT_PARAM) {
+            StartProtocolTimer(&AnnouncementTimer, &AnnounceTimer, &pLsUdpPayload[2]);
+            StartProtocolTimer(&AgingTimer, &AddrMappingAgingTimer, &pLsUdpPayload[8]);
         }
 #endif
         memcpy(p, pLsUdpPayload, pduLen);
 
-        // LTVX len is pduLen + NPDU header len.
-        *pLtVxLen = pduLen + (p-pNpdu);
+        // LON V0 or V2 len is pduLen + NPDU header len.
+        *pLtVxLen = pduLen + (p - pNpdu);
     }
 }
 
 #if IPV4_SUPPORT_ARBITRARY_ADDRESSES
 /* 
- *  Callback: Ipv4SendMulticastAnnouncement
+ *  Callback: SendLonUdpMulticastAnnouncement
  *  Send a multicast announcement that this device is using an arbitrary
  *  IP address.  This function contructs the message and then calls the 
- *  utility function Ipv4SendAnnouncement to do the actual send.
+ *  utility function SendLonUdpMessage to do the actual send.
  *
  *  Parameters:
  *    lsSenderHandle:     A handle used for sending messages 
@@ -745,62 +780,62 @@ static void Ipv4ConvertLsUdptoLTVX(IzotByte ipv6, IzotByte *pUdpPayload, uint16_
  *  <void>.   
  *
  */
-static void Ipv4SendMulticastAnnouncement(const IzotByte *pDesiredIpAddress)
+static void SendLonUdpMulticastAnnouncement(const IzotByte *pDesiredIpAddress)
 {
-    IzotByte msg[IPV4_MAX_LTVX_BROADCAST_ARB_ANNOUNCE_LEN] = {0};
+    IzotByte msg[IPV4_MAX_LON_VX_BROADCAST_ARB_ANNOUNCE_LEN] = {0};
     IzotByte len = 0;
     IzotByte encodedDomainLen;
     const IzotByte *pDomainId = pDesiredIpAddress;
-    msg[len++] = 0;     // Pri, altpath backlog
+    msg[len++] = 0;  // Pri, altpath backlog
 
-    // The domain is not included in arbitrary source address.  
+    // The domain is not included in arbitrary source address.
     // Need to extract it from source or dest addr.
-#if UIP_CONF_IPV6
+#if PROTOCOL_IS(LON_IPV6)
     encodedDomainLen = 3;
 #else
-    if (memcmp(pDesiredIpAddress, ipv4_zero_len_domain_prefix, 
-    sizeof(ipv4_zero_len_domain_prefix)) == 0) {
+    if (memcmp(pDesiredIpAddress, ipv4_zero_len_domain_prefix,
+                sizeof(ipv4_zero_len_domain_prefix)) == 0) {
         encodedDomainLen = 0;
     } else if (pDesiredIpAddress[0] == IPV4_DOMAIN_LEN_1_PREFIX) {
-        encodedDomainLen = 1;   // 1 byte domain
-        pDomainId++;  // Skip the first byte.
+        encodedDomainLen = 1;  // 1 byte domain
+        pDomainId++;           // Skip the first byte.
     } else {
-        encodedDomainLen = 2;   // 3 byte domain
+        encodedDomainLen = 2;  // 3 byte domain
     }
-#endif
+#endif  // PROTOCOL_IS(LON_IPV6)
     // version, pdu fmt, addfmt, domain len
-    msg[len++] = (ENCLOSED_PDU_TYPE_APDU << IPV4_LTVX_NPDU_BITPOS_PDUFMT) |
-                 (LT_AF_BROADCAST << IPV4_LTVX_NPDU_BITPOS_ADDRTYPE) | encodedDomainLen;
+    msg[len++] = (ENCLOSED_PDU_TYPE_APDU << IPV4_LON_VX_NPDU_BITPOS_PDUFMT) |
+                 (LT_AF_BROADCAST << IPV4_LON_VX_NPDU_BITPOS_ADDRTYPE) | encodedDomainLen;
 
     // source address
-    msg[len++] = pDesiredIpAddress[IPV4_LSIP_UCADDR_OFF_SUBNET];
-    msg[len++] = pDesiredIpAddress[IPV4_LSIP_UCADDR_OFF_NODE] | 0x80;
+    msg[len++] = pDesiredIpAddress[IPV4_LON_UDP_UCADDR_OFF_SUBNET];
+    msg[len++] = pDesiredIpAddress[IPV4_LON_UDP_UCADDR_OFF_NODE] | 0x80;
     // dest subnet - domain wide broadcast uses 0.
     msg[len++] = 0;
     // domain ID
-#if UIP_CONF_IPV6
-    memcpy(&msg[len], pDesiredIpAddress, IPV6_LSIP_IPADDR_DOMAIN_LEN);
-    len += IPV6_LSIP_IPADDR_DOMAIN_LEN;
+#if PROTOCOL_IS(LON_IPV6)
+    memcpy(&msg[len], pDesiredIpAddress, IPV6_LON_UDP_IPADDR_DOMAIN_LEN);
+    len += IPV6_LON_UDP_IPADDR_DOMAIN_LEN;
 #else
-    // it just so happens that for IPV4 the encoded domain LEN is 
+    // it just so happens that for IPV4 the encoded domain LEN is
     // also equal to the number of bytes to copy.
     memcpy(&msg[len], pDomainId, encodedDomainLen);
     len += encodedDomainLen;
     if (encodedDomainLen == 2) {
-        msg[len++] = 0; // Last byte is 0.
+        msg[len++] = 0;  // Last byte is 0.
     }
-#endif
+#endif  // PROTOCOL_IS(LON_IPV6)
     msg[len++] = IPV4_EXP_MSG_CODE;
-    msg[len++] = IPV4_EXP_DEVICE_LS_ADDR_MAPPING_ANNOUNCEMENT; 
+    msg[len++] = IPV4_EXP_DEVICE_LS_ADDR_MAPPING_ANNOUNCEMENT;
 
-    Ipv4SendAnnouncement(msg, len);    
+    SendLonUdpMessage(msg, len);
 }
 #endif
 #endif
 
 /* 
- *  Callback: Ipv4GenerateLsMacAddr
- *  Generate a multicast address for a LS broadcast or group address
+ *  Callback: GenerateLonMulticastAddr
+ *  Generate a multicast address for a LON broadcast or group address
  *
  *  Parameters:
  *    type:           The multicast group type: IPV4_LS_MC_ADDR_TYPE_BROADCAST 
@@ -814,15 +849,15 @@ static void Ipv4SendMulticastAnnouncement(const IzotByte *pDesiredIpAddress)
  *  <void>.   
  *
  */
-void Ipv4GenerateLsMacAddr(IzotByte type, 
-#if UIP_CONF_IPV6
-    const IzotByte *pDomainId, IzotByte domainLen, 
+void GenerateLonMulticastAddr(IzotByte type,
+#if PROTOCOL_IS(LON_IPV6)
+        const IzotByte *pDomainId, IzotByte domainLen,
 #endif
-IzotByte subnetOrGroup, IzotByte *pAddr)
+        IzotByte subnetOrGroup, IzotByte *pAddr)
 {
-#if UIP_CONF_IPV6
+#if PROTOCOL_IS(LON_IPV6)
     memset(pAddr, 0, sizeof(uip_ipaddr_t));
-    if (domainLen > IPV6_LSIP_IPADDR_DOMAIN_LEN) {
+    if (domainLen > IPV6_LON_UDP_IPADDR_DOMAIN_LEN) {
         domainLen = 0;  // No domain...
     }
     *pAddr++ = 0xff;
@@ -835,9 +870,10 @@ IzotByte subnetOrGroup, IzotByte *pAddr)
     *pAddr++ = type;
     *pAddr++ = subnetOrGroup;
 }
+#endif  // LINK_IS(UDP)
 
 /* 
- *  Callback: Ipv4GenerateLsSubnetNodeAddr
+ *  Callback: GenerateLonUdpAddress
  *  Generate a unicast address for a LS subent/node address
  *
  *  Parameters:
@@ -851,30 +887,29 @@ IzotByte subnetOrGroup, IzotByte *pAddr)
  *  <void>.   
  *
  */
-void Ipv4GenerateLsSubnetNodeAddr(const IzotByte *pDomainId, IzotByte domainLen, 
-IzotByte subnetId, IzotByte nodeId, IzotByte *pAddr
-)
-{                                     
-#if UIP_CONF_IPV6
-    Ipv4GenerateLsPrefix(pDomainId, domainLen, subnetId, pAddr);
+void GenerateLonUdpAddress(const IzotByte *pDomainId, IzotByte domainLen,
+        IzotByte subnetId, IzotByte nodeId, IzotByte *pAddr)
+{
+#if PROTOCOL_IS(LON_IPV6)
+    GenerateLonUdpAddrPrefix(pDomainId, domainLen, subnetId, pAddr);
     pAddr[15] = nodeId & NODE_ID_MASK;
 #else
-    nodeId &= NODE_ID_MASK ;
+    nodeId &= NODE_ID_MASK;
     if (domainLen > 6) {
-        // An invalid domain. Set node  to 0.  
+        // An invalid domain. Set node  to 0.
         // Will use the zero length domain below.
-        domainLen = 0;  
+        domainLen = 0;
         nodeId = 0;
     }
     if (subnetId == 0 || nodeId == 0) {
         domainLen = 0;
     }
-    Ipv4GenerateLsPrefix(pDomainId, domainLen, subnetId, pAddr);
-    pAddr[IPV4_LSIP_UCADDR_OFF_NODE] = nodeId;
+    GenerateLonUdpAddrPrefix(pDomainId, domainLen, subnetId, pAddr);
+    pAddr[IPV4_LON_UDP_UCADDR_OFF_NODE] = nodeId;
 #endif
 }
 
-
+#if LINK_IS(UDP)
 /*
  * Initializes the LON Stack UDP link layer including queues used by the link layer.
  * Parameters:
@@ -888,38 +923,51 @@ LonStatusCode LinkLayerUdpReset(void)
 {
     IzotUbits16 queueItemSize;
     LonStatusCode status = LonStatusNoError;
-    
+
     // Allocate and initialize the output queue.
     if (!LON_SUCCESS(status = DecodeBufferSize(LK_OUT_BUF_SIZE, &gp->lkOutBufSize))) {
         gp->resetOk = FALSE;
-        OsalPrintLog(ERROR_LOG, status, "LinkLayerUdpReset: Unable to decode output link buffer size");
+        OsalPrintLog(ERROR_LOG, status,
+                "LinkLayerUdpReset: Unable to decode output link buffer size");
         return status;
     }
-    if (!LON_SUCCESS(status = DecodeBufferCnt((IzotByte)IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NW_OUTBUF_CNT), &gp->lkOutQCnt))) {
+    if (!LON_SUCCESS(
+                status = DecodeBufferCnt((IzotByte)IZOT_GET_ATTRIBUTE(eep->readOnlyData,
+                                                 IZOT_READONLY_NW_OUTBUF_CNT),
+                        &gp->lkOutQCnt))) {
         gp->resetOk = FALSE;
-        OsalPrintLog(ERROR_LOG, status, "LinkLayerUdpReset: Unable to decode output link buffer count");
+        OsalPrintLog(ERROR_LOG, status,
+                "LinkLayerUdpReset: Unable to decode output link buffer count");
         return status;
     }
-    queueItemSize    = gp->lkOutBufSize + sizeof(LKSendParam) + 21;
+    queueItemSize = gp->lkOutBufSize + sizeof(LKSendParam) + 21;
 
-    if (!LON_SUCCESS(status = QueueInit(&gp->lkOutQ, "link layer output", queueItemSize, gp->lkOutQCnt))) {
+    if (!LON_SUCCESS(status = QueueInit(&gp->lkOutQ, "link layer output", queueItemSize,
+                             gp->lkOutQCnt))) {
         gp->resetOk = FALSE;
-        OsalPrintLog(ERROR_LOG, status, "LinkLayerUdpReset: Unable to initialize the output link queue");
+        OsalPrintLog(ERROR_LOG, status,
+                "LinkLayerUdpReset: Unable to initialize the output link queue");
         return status;
     }
 
     // Allocate and initialize the priority output queue.
-    gp->lkOutPriBufSize = gp->lkOutBufSize; //1280
-    if (!LON_SUCCESS(status = DecodeBufferCnt((IzotByte)IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NW_OUT_PRICNT), &gp->lkOutPriQCnt))) {
+    gp->lkOutPriBufSize = gp->lkOutBufSize;  //1280
+    if (!LON_SUCCESS(
+                status = DecodeBufferCnt((IzotByte)IZOT_GET_ATTRIBUTE(eep->readOnlyData,
+                                                 IZOT_READONLY_NW_OUT_PRICNT),
+                        &gp->lkOutPriQCnt))) {
         gp->resetOk = FALSE;
-        OsalPrintLog(ERROR_LOG, status, "LinkLayerUdpReset: Unable to decode priority output link buffer count");
+        OsalPrintLog(ERROR_LOG, status,
+                "LinkLayerUdpReset: Unable to decode priority output link buffer count");
         return status;
     }
-    queueItemSize       = gp->lkOutPriBufSize + sizeof(LKSendParam);
+    queueItemSize = gp->lkOutPriBufSize + sizeof(LKSendParam);
 
-    if (!LON_SUCCESS(status = QueueInit(&gp->lkOutPriQ, "link layer priority output", queueItemSize, gp->lkOutPriQCnt))) {
+    if (!LON_SUCCESS(status = QueueInit(&gp->lkOutPriQ, "link layer priority output",
+                             queueItemSize, gp->lkOutPriQCnt))) {
         gp->resetOk = FALSE;
-        OsalPrintLog(ERROR_LOG, status, "LinkLayerUdpReset: Unable to initialize the priority output link queue");
+        OsalPrintLog(ERROR_LOG, status,
+                "LinkLayerUdpReset: Unable to initialize the priority output link queue");
         return status;
     }
 
@@ -927,7 +975,8 @@ LonStatusCode LinkLayerUdpReset(void)
     SetLonRepeatTimer(&AnnouncementTimer, AnnounceTimer, AnnounceTimer);
     SetLonRepeatTimer(&AgingTimer, AddrMappingAgingTimer, AddrMappingAgingTimer);
 
-    OsalPrintLog(INFO_LOG, LonStatusNoError, "LinkLayerUdpReset: Link layer queues initialized");
+    OsalPrintLog(INFO_LOG, LonStatusNoError,
+            "LinkLayerUdpReset: Link layer queues initialized");
     return status;
 }
 
@@ -944,48 +993,49 @@ LonStatusCode LinkLayerUdpReset(void)
  */
 void LinkLayerUdpSend(void)
 {
-    LKSendParam   *lkSendParamPtr;
-    Queue         *lkSendQueuePtr;
-    IzotByte      *npduPtr;
-    IzotByte       priority;
-    IzotByte       LtVx2lsUdpPayload[MAX_PDU_SIZE]; //1280
-    IzotByte       SourceAddr[IPV4_ADDRESS_LEN];// buffer to store source ip
-    IzotByte       DestAddr[IPV4_ADDRESS_LEN];    // buffer to store dest ip
-    uint16_t       lsUdpLen;                    // size of lsudp payload formed
+    LKSendParam *lkSendParamPtr;
+    Queue *lkSendQueuePtr;
+    IzotByte *npduPtr;
+    IzotByte priority;
+    IzotByte LtVx2lsUdpPayload[MAX_PDU_SIZE];  //1280
+    IzotByte SourceAddr[IPV4_ADDRESS_LEN];     // buffer to store source ip
+    IzotByte DestAddr[IPV4_ADDRESS_LEN];       // buffer to store dest ip
+    uint16_t lsUdpLen;                         // size of lsudp payload formed
 
     // Check for announcement timer expiration
     if (LonTimerExpired(&AnnouncementTimer)) {
-        SendAnnouncement();
+        SendLonUdpAddrAnnouncement();
     }
-    
+
     // Check for LON/IP address mapping aging timer expiration
     if (LonTimerExpired(&AgingTimer)) {
         ClearMapping();
     }
-    
+
     // Make variables point to the right queue.
     if (!QueueEmpty(&gp->lkOutPriQ)) {
-        priority        = TRUE;
-        lkSendQueuePtr  = &gp->lkOutPriQ;
+        priority = TRUE;
+        lkSendQueuePtr = &gp->lkOutPriQ;
     } else if (!QueueEmpty(&gp->lkOutQ)) {
-        priority        = FALSE;
-        lkSendQueuePtr  = &gp->lkOutQ;
+        priority = FALSE;
+        lkSendQueuePtr = &gp->lkOutQ;
     } else {
-        return; // Nothing to send.
+        return;  // Nothing to send.
     }
 
     lkSendParamPtr = QueuePeek(lkSendQueuePtr);
-    npduPtr        = (IzotByte *) (lkSendParamPtr + 1);
+    npduPtr = (IzotByte *)(lkSendParamPtr + 1);
 
-    memset(&LtVx2lsUdpPayload[0], 0, MAX_PDU_SIZE); //1280
-    LtVx2lsUdpPayload[0] = ((priority << 7) & 0x80)| lkSendParamPtr->deltaBL;
-    
+    memset(&LtVx2lsUdpPayload[0], 0, MAX_PDU_SIZE);  //1280
+    LtVx2lsUdpPayload[0] = ((priority << 7) & 0x80) | lkSendParamPtr->deltaBL;
+
     IzotDomain *temp = &eep->domainTable[lkSendParamPtr->DomainIndex];
-    
+
     // Prepare the LON/IP derived source IP address
-    Ipv4GenerateLsSubnetNodeAddr(temp->Id, (IzotByte)IZOT_GET_ATTRIBUTE_P(temp, IZOT_DOMAIN_ID_LENGTH), 
-    temp->Subnet, (IzotByte)IZOT_GET_ATTRIBUTE_P(temp, IZOT_DOMAIN_NODE), SourceAddr);
-    
+    GenerateLonUdpAddress(temp->Id,
+            (IzotByte)IZOT_GET_ATTRIBUTE_P(temp, IZOT_DOMAIN_ID_LENGTH), temp->Subnet,
+            (IzotByte)IZOT_GET_ATTRIBUTE_P(temp, IZOT_DOMAIN_NODE), SourceAddr);
+
     // Copy the NPDU
     if (lkSendParamPtr->pduSize <= MAX_PDU_SIZE) {
         memcpy(&LtVx2lsUdpPayload[1], npduPtr, lkSendParamPtr->pduSize);
@@ -993,26 +1043,26 @@ void LinkLayerUdpSend(void)
         QueueDropHead(lkSendQueuePtr);
         return;
     }
-    
-    // Convert the LTVX payload into LSUDP payload and set the
+
+    // Convert the LON V0 or V2 payload into LSUDP payload and set the
     // destination IP address
-    lsUdpLen = Ipv4ConvertLTVXtoLsUdp(
-                LtVx2lsUdpPayload, // Ptr to LTVX PDU to be sent
-                lkSendParamPtr->pduSize + 1, // Size of LTVX PDU to be sent
-                SourceAddr, NULL, // LS derived source IP address
-                DestAddr, NULL, // Destination IP address to be used
+    lsUdpLen =
+            ConvertLonVxToLonUdp(LtVx2lsUdpPayload,  // Ptr to LON V0 or V2 PDU to be sent
+                    lkSendParamPtr->pduSize + 1,  // Size of LON V0 or V2 PDU to be sent
+                    SourceAddr, NULL,             // LS derived source IP address
+                    DestAddr, NULL,               // Destination IP address to be used
 #if IPV4_SUPPORT_ARBITRARY_ADDRESSES
-                &ls_mapping    // Mapping Handle
+                    &ls_mapping  // Mapping Handle
 #endif
-    );
-    
+            );
+
     if (lsUdpLen == 0) {
         QueueDropHead(lkSendQueuePtr);
         return;
     }
-    
+
     CalSend(IPV4_LS_UDP_PORT, DestAddr, LtVx2lsUdpPayload, lsUdpLen);
-    
+
     QueueDropHead(lkSendQueuePtr);
     return;
 }
@@ -1027,78 +1077,78 @@ void LinkLayerUdpSend(void)
  */
 void LinkLayerUdpReceive(void)
 {
-    NWReceiveParam      *nwReceiveParamPtr;
-    IzotByte            *npduPtr;
-    IzotByte             priority;
-    int                  lsudpLen;
-    IzotByte             SourceAddr[IPV4_ADDRESS_LEN] = {0};
-    uint16_t             LtVxLen = 0;    // ltv0 payload length
-    
+    NWReceiveParam *nwReceiveParamPtr;
+    IzotByte *npduPtr;
+    IzotByte priority;
+    int lsudpLen;
+    IzotByte SourceAddr[IPV4_ADDRESS_LEN] = {0};
+    uint16_t LtVxLen = 0;  // ltv0 payload length
+
     if (!QueueFull(&gp->nwInQ)) {
         nwReceiveParamPtr = QueueTail(&gp->nwInQ);
-        npduPtr           = (IzotByte *)(nwReceiveParamPtr + 1);
+        npduPtr = (IzotByte *)(nwReceiveParamPtr + 1);
     } else {
         return;
     }
-    
+
     // Receive the UDP data from UDP port
     lsudpLen = CalReceive(npduPtr, SourceAddr);
-    
+
     if (lsudpLen > 0 && lsudpLen < 3) {
         INCR_STATS(LcsTxError);
         return;
     }
-    
+
     // Do nothing if there is no data
     if (lsudpLen <= 0) {
         return;
     }
-    
+
     // Count a good packet
-    INCR_STATS(LcsL2Rx); 
+    INCR_STATS(LcsL2Rx);
 
     // Get the priority bit from LON/IP UDP packet
     priority = npduPtr[1] & IPV4_LSUDP_NPDU_MASK_PRIORITY;
-    
+
     // Receive the message
     if (QueueFull(&gp->nwInQ)) {
         // Count a lost packet
         INCR_STATS(LcsMissed);
     } else {
-        // Buffer to store LTVX payload
-        IzotByte    LtVxPayload[MAX_PDU_SIZE];
-         
+        // Buffer to store LON V0 or V2 payload
+        IzotByte LtVxPayload[MAX_PDU_SIZE];
+
         memset(&LtVxPayload[0], 0, MAX_PDU_SIZE);
-        
+
         // Convert the LTV1 payload into an LTV0 payload
-        Ipv4ConvertLsUdptoLTVX(0, npduPtr, // Ptr to LON/IP UDP packet received
-                    lsudpLen,   // Size of LON/IP UDP packet received
-                    SourceAddr, // Source IP address
-                    0,          // Source port
-                    NULL, 0,    // Destination IP address and port
-                    LtVxPayload, // Buffer to store LTVX PDU to be formed
-                    &LtVxLen,   // Will be the size of LTVX pdu
+        ConvertLonUdpToLonVx(0, npduPtr,  // Ptr to LON/IP UDP packet received
+                lsudpLen,                 // Size of LON/IP UDP packet received
+                SourceAddr,               // Source IP address
+                0,                        // Source port
+                NULL, 0,                  // Destination IP address and port
+                LtVxPayload,              // Buffer to store LON V0 or V2 PDU to be formed
+                &LtVxLen,                 // Will be the size of LON V0 or V2 pdu
 #if IPV4_SUPPORT_ARBITRARY_ADDRESSES
-                    &ls_mapping // Mapping handle
+                &ls_mapping  // Mapping handle
 #endif
         );
-        
+
         // Return if LtVxLen set to zero
         if (LtVxLen == 0) {
             return;
         }
-#ifdef LSUDP_DEBUG
         int k;
-        LSUDP_PRINTF("LTVX: %d byte recv: ", LtVxLen);
+        OsalPrintLog(PACKET_TRACE_LOG, LonStatusNoError,
+                "LON V0 or V2: %d byte recv: ", LtVxLen);
         for (k = 0; k < LtVxLen; k++) {
-            LSUDP_PRINTF("%02X ", LtVxPayload[k]);
+            OsalPrintLog(PACKET_TRACE_LOG, LonStatusNoError, "%02X ", LtVxPayload[k]);
         }
-        LSUDP_PRINTF("\r\n");wmstdio_flush();
-#endif    
+        OsalPrintLog(PACKET_TRACE_LOG, LonStatusNoError, "\r\n");
+        wmstdio_flush();
         nwReceiveParamPtr->priority = priority;
-        nwReceiveParamPtr->altPath  = 0;
-        nwReceiveParamPtr->pduSize  = LtVxLen - 1;
-        
+        nwReceiveParamPtr->altPath = 0;
+        nwReceiveParamPtr->pduSize = LtVxLen - 1;
+
         // Copy the NPDU.
         // if it was in link layer's queue, then the size should be
         // sufficient in network layer's queue as they differ by 3.
@@ -1107,72 +1157,70 @@ void LinkLayerUdpReceive(void)
             memcpy(npduPtr, &LtVxPayload[1], nwReceiveParamPtr->pduSize);
             QueueWrite(&gp->nwInQ);
         } else {
-            OsalPrintLog(ERROR_LOG, LonStatusInvalidPacketLength, "LinkLayerUdpReceive: LON/IP packet size too large");
+            OsalPrintLog(ERROR_LOG, LonStatusInvalidPacketLength,
+                    "LinkLayerUdpReceive: LON/IP packet size too large");
             // We are losing this packet.
             INCR_STATS(LcsMissed);
         }
     }
-    
+
     return;
 }
 
 /* 
- *  Function: SendAnnouncement
+ *  Function: SendLonUdpAddrAnnouncement
  *  Send a LON/IP address announcement to the network
  *
  *  Returns:
  *  <void>.   
  */
-void SendAnnouncement(void)
+void SendLonUdpAddrAnnouncement(void)
 {
     IzotDomain *temp = &eep->domainTable[0];
-    IzotByte    ls_derived_src_ip[IPV4_ADDRESS_LEN];
+    IzotByte ls_derived_src_ip[IPV4_ADDRESS_LEN];
 
-    (void) SetCurrentIP();
+    (void)SetCurrentIP();
 
-    Ipv4GenerateLsSubnetNodeAddr(
-            (IzotByte *)temp->Id, 
-            (IzotByte)IZOT_GET_ATTRIBUTE_P(temp, IZOT_DOMAIN_ID_LENGTH), 
-            (IzotByte)temp->Subnet, 
-            (IzotByte)IZOT_GET_ATTRIBUTE_P(temp, IZOT_DOMAIN_NODE), 
-            ls_derived_src_ip);
+    GenerateLonUdpAddress((IzotByte *)temp->Id,
+            (IzotByte)IZOT_GET_ATTRIBUTE_P(temp, IZOT_DOMAIN_ID_LENGTH),
+            (IzotByte)temp->Subnet,
+            (IzotByte)IZOT_GET_ATTRIBUTE_P(temp, IZOT_DOMAIN_NODE), ls_derived_src_ip);
 
-    Ipv4SendMulticastAnnouncement(ls_derived_src_ip);
+    SendLonUdpMulticastAnnouncement(ls_derived_src_ip);
 }
 
 /* 
- *  Callback: SetLsAddressFromIpAddr
- *  Set the LS address from the IP address
+ *  Callback: SetLonVxAddrFromLonUdpAddr
+ *  Set the LON V0 or V2 address from a LON UDP IP address
  *
  *
  *  Returns:
  *  <void>.   
  *
  */
-void SetLsAddressFromIpAddr(void)
+void SetLonVxAddrFromLonUdpAddr(void)
 {
     IzotDomain domain;
 
-#if 0
-
     memset(&domain, 0, sizeof(IzotDomain));
-    
-    if (ownIpAddress[0] == IPV4_DOMAIN_LEN_0_PREFIX_0 && ownIpAddress[1] == IPV4_DOMAIN_LEN_0_PREFIX_1) {
+
+    if (ownIpAddress[0] == IPV4_DOMAIN_LEN_0_PREFIX_0 &&
+            ownIpAddress[1] == IPV4_DOMAIN_LEN_0_PREFIX_1) {
         IZOT_SET_ATTRIBUTE(domain, IZOT_DOMAIN_ID_LENGTH, 0);
     } else if (ownIpAddress[0] == IPV4_DOMAIN_LEN_1_PREFIX) {
-        IZOT_SET_ATTRIBUTE(domain, IZOT_DOMAIN_ID_LENGTH, 1); // 1 byte domain
-        domain.Id[0] = ownIpAddress[1];   // 1 byte domain
+        IZOT_SET_ATTRIBUTE(domain, IZOT_DOMAIN_ID_LENGTH, 1);  // 1 byte domain
+        domain.Id[0] = ownIpAddress[1];                        // 1 byte domain
     } else {
         IZOT_SET_ATTRIBUTE(domain, IZOT_DOMAIN_ID_LENGTH, 3);  // 3 byte domain
         domain.Id[0] = ownIpAddress[0];
         domain.Id[1] = ownIpAddress[1];
         domain.Id[2] = 0;
     }
-    
+
     if ((ownIpAddress[2] >= 1) && (ownIpAddress[3] >= 1 && ownIpAddress[3] <= 127)) {
         domain.Subnet = ownIpAddress[2];
         // 3 byte domain
-        IZOT_SET_ATTRIBUTE(domain, IZOT_DOMAIN_NODE, ownIpAddress[3]);  
+        IZOT_SET_ATTRIBUTE(domain, IZOT_DOMAIN_NODE, ownIpAddress[3]);
         IZOT_SET_ATTRIBUTE(domain, IZOT_DHCP_FLAG, 1);
         IZOT_SET_ATTRIBUTE(domain, IZOT_LS_MODE, 0);
     } else {
@@ -1191,8 +1239,8 @@ void SetLsAddressFromIpAddr(void)
     UpdateDomain(&domain, 0, 0);
     RecomputeChecksum();
     LCS_WritePersistentNetworkImage();
-#endif
 }
+#endif  // LINK_IS(UDP)
 
 /* 
  *  Callback: WiFiInit
@@ -1202,71 +1250,77 @@ void SetLsAddressFromIpAddr(void)
  *  LonApiError on unsuccessful exit LonApiNoError otherwise.
  *
  */
+#if PHYSICAL_IS(WIFI)
 LonStatusCode WiFiInit(void)
 {
     LonStatusCode status = LonStatusNoError;
 
- #if LINK_IS(WIFI)   
-     #if PROCESSOR_IS(MC200)
-        // Init the debug UART
-        wmstdio_init(UART0_ID, 0);
-    
-        // Init the wlan service
-        int err = wm_wlan_init();
-        if (!err) {
-            status = LonStatusInitializationFailed;
-            OsalPrintLog(ERROR_LOG, status, "WiFiInit: Failed to initialize WLAN with error %d", err);
-            return status;
-        }
-    #endif  // PROCESSOR_IS(MC200)
-#endif  // LINK_IS(WIFI)
+#if PROCESSOR_IS(MC200)
+    // Init the debug UART
+    wmstdio_init(UART0_ID, 0);
+
+    // Init the wlan service
+    int err = wm_wlan_init();
+    if (!err) {
+        status = LonStatusInitializationFailed;
+        OsalPrintLog(ERROR_LOG, status,
+                "WiFiInit: Failed to initialize WLAN with error %d", err);
+        return status;
+    }
+#endif  // PROCESSOR_IS(MC200)
     return status;
 }
+#endif  // PHYSICAL_IS(WIFI)
 
 /*
  * Starts the UDP link layer.
  */
-LonStatusCode UdpStart(void)
+#if LINK_IS(UDP)
+LonStatusCode StartLonUdpLink(void)
 {
     LonStatusCode status = LonStatusNoError;
 
-#if LINK_IS(ETHERNET) || LINK_IS(WIFI)
+#if LINK_IS(UDP)
     // Start the link
     status = CalStart();
     if (status != LonStatusNoError) {
         return status;
     }
     // Initialize the UDP socket for communication
-    int ret = InitSocket(IPV4_LS_UDP_PORT); 
+    int ret = InitSocket(IPV4_LS_UDP_PORT);
     if (ret < 0) {
         status = LonStatusIpAddressNotDefined;
-        OsalPrintLog(ERROR_LOG, status, "UdpStart: Socket initialization failure with error %d", ret);
+        OsalPrintLog(ERROR_LOG, status,
+                "StartLonUdpLink: Socket initialization failure with error %d", ret);
         return status;
     }
-    OsalPrintLog(INFO_LOG, LonStatusNoError, "UdpStart: Sockets created");
+    OsalPrintLog(INFO_LOG, LonStatusNoError, "StartLonUdpLink: Sockets created");
     // Restore multicast membership
     RestoreIpMembership();
-#endif  // LINK_IS(ETHERNET) || LINK_IS(WIFI)
+#endif  // LINK_IS(UDP)
     return status;
 }
+#endif  // PROTOCOL_IS(LON_IPV4) || PROTOCOL_IS(LON_IPV6)
 
 /*
  * Starts the Wi-Fi interface.
  */
-LonStatusCode WiFiStart(void)
+#if PHYSICAL_IS(WIFI)
+LonStatusCode StartWiFiInterface(void)
 {
     LonStatusCode status = LonStatusNoError;
-#if LINK_IS(WIFI)
-    psm_register_module(IZOT_MOD_NAME, "common_part", 1); // Set up psm module if it does not exist
-    psm_get_single(IZOT_MOD_NAME, "progId", oldProgId, 10); // get old program ID
-    psm_set_single(IZOT_MOD_NAME, "progId", cp->progId); // set new program ID
-    
+    psm_register_module(IZOT_MOD_NAME, "common_part",
+            1);  // Set up psm module if it does not exist
+    psm_get_single(IZOT_MOD_NAME, "progId", oldProgId, 10);  // get old program ID
+    psm_set_single(IZOT_MOD_NAME, "progId", cp->progId);     // set new program ID
+
     if (strcmp(oldProgId, cp->progId) != 0) {
         // Set first run to true if program IDs are not equal
         psm_set_single(IZOT_MOD_NAME, "first_run", "y");
     } else {
         psm_set_single(IZOT_MOD_NAME, "first_run", "n");
     }
-#endif  // LINK_IS(WIFI)
     return status;
 }
+#endif  // PHYSICAL_IS(WIFI)
+#endif  // PROTOCOL_IS(LON_IPV4) || PROTOCOL_IS(LON_IPV6)

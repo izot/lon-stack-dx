@@ -62,13 +62,14 @@
  *          Manual Service Request Message:
  *          NM_MANUAL_SERVICE_REQUEST 0x1F     -na-         -na-     -na-
  */
- 
+
 #include "lcs/lcs_netmgmt.h"
 #include "izot/IzotApi.h"
 
-/*****************************************************************
- * Section: Globals
- *****************************************************************/
+#if PROTOCOL_IS(LON_IPV4) || PROTOCOL_IS(LON_IPV6)
+#include "lon_udp/ipv4_to_lon_udp.h"
+#endif  // PROTOCOL_IS(LON_IPV4) || PROTOCOL_IS(LON_IPV6)
+
 extern IzotUbits32 AnnounceTimer;
 extern IzotUbits32 AddrMappingAgingTimer;
 
@@ -80,75 +81,79 @@ static unsigned DmfWindowSize;
  * Section: Function Definitions
  *****************************************************************/
 
-/*******************************************************************************
- Function:  InDmfWindow
- Purpose:   To check the address within the DMF window range.
- Comments:  None.
- *******************************************************************************/
-static int InDmfWindow(unsigned addr, unsigned size) 
+/*
+ * Checks if the address is within the DMF window range.
+ * Parameters:
+ *   addr: The address to check
+ *   size: The size of the address range
+ * Returns: 
+ *   TRUE if the address is within the DMF window range, FALSE otherwise
+ */
+static int InDmfWindow(unsigned addr, unsigned size)
 {
 #if LON_DMF_ENABLED
-    return (addr >= DmfWindowAddress && 
-    addr + size <= DmfWindowAddress + DmfWindowSize);
+    return (addr >= DmfWindowAddress && addr + size <= DmfWindowAddress + DmfWindowSize);
 #else
     return FALSE;
-#endif  /* LON_DMF_ENABLED */
+#endif /* LON_DMF_ENABLED */
 }
 
-/*******************************************************************************
- Function:  ConfigureDmfWindow
- Purpose:   To set the DMF window address and size.
- Comments:  None.
- *******************************************************************************/
-void ConfigureDmfWindow(const unsigned addr, const unsigned size) 
+/*
+ * Configures the DMF window address and size.
+ * Parameters:
+ *   addr: The address to set
+ *   size: The size to set
+ * Returns: 
+ *   None
+ */
+void ConfigureDmfWindow(const unsigned addr, const unsigned size)
 {
     DmfWindowAddress = addr;
     DmfWindowSize = size;
 }
 
-/*******************************************************************************
- Function:  RecomputeChecksum
- Returns:   None.
- Reference: None
- Purpose:   To compute the configuration checksum and store.
- Comments:  None.
- *******************************************************************************/
-void RecomputeChecksum(void) 
-{
-    eep->configCheckSum = ComputeConfigCheckSum();
-}
+/*
+ * Recomputes the configuration checksum and stores it.
+ * Parameters:
+ *   None
+ * Returns: 
+ *   None
+ */
+void RecomputeChecksum(void) { eep->configCheckSum = ComputeConfigCheckSum(); }
 
-/*******************************************************************************
- Function:  ManualServiceRequestMessage
- Returns:   LonStatusNoError if the message is sent, <LonStatusCode> otherwise.
- Reference: None
- Purpose:   Produces a manual service request message.
- Comments:  Prototype in api.h so that application program can use this
- function too. Returns TRUE or FALSE so that application
- program can determine whether the message was sent or not.
- *******************************************************************************/
-LonStatusCode ManualServiceRequestMessage(void) {
+/*
+ * Sends a manual Service request message.
+ * Parameters:
+ *   None
+ * Returns: 
+ *   LonStatusNoError if the message is sent, <LonStatusCode> otherwise.
+ */
+LonStatusCode ManualServiceRequestMessage(void)
+{
     LonStatusCode status = LonStatusNoError;
     NWSendParam *nwSendParamPtr;
     APDU *apduRespPtr;
 
     if (QueueFull(&gp->nwOutQ)) {
         status = LonStatusNoBufferAvailable;
-        OsalPrintLog(ERROR_LOG, status, "ManualServiceRequestMessage: No room for Service request message in network layer queue");
-        return status; // Can't send it now; try later
+        OsalPrintLog(ERROR_LOG, status,
+                "ManualServiceRequestMessage: No room for Service request message in "
+                "network layer queue");
+        return status;  // Can't send it now; try later
     }
 
     // Send unacked domain-wide broadcast message
     OsalPrintLog(INFO_LOG, status, "ManualServiceRequestMessage: Send Service message");
     nwSendParamPtr = QueueTail(&gp->nwOutQ);
-    nwSendParamPtr->pduSize = 
-                            1 + IZOT_UNIQUE_ID_LENGTH + IZOT_PROGRAM_ID_LENGTH;
+    nwSendParamPtr->pduSize = 1 + IZOT_UNIQUE_ID_LENGTH + IZOT_PROGRAM_ID_LENGTH;
     if (nwSendParamPtr->pduSize > gp->nwOutBufSize) {
         status = LonStatusInvalidBufferLength;
-        OsalPrintLog(ERROR_LOG, status, "ManualServiceRequestMessage: Do not have sufficient space to send the message");
+        OsalPrintLog(ERROR_LOG, status,
+                "ManualServiceRequestMessage: Do not have sufficient space to send the "
+                "message");
         return status; /* Do not have sufficient space to send the message */
     }
-    apduRespPtr = (APDU *) (nwSendParamPtr + 1);
+    apduRespPtr = (APDU *)(nwSendParamPtr + 1);
     apduRespPtr->code.allBits = 0x7F; /* Manual Service Request */
     nwSendParamPtr->destAddr.dmn.domainIndex = FLEX_DOMAIN;
     nwSendParamPtr->destAddr.dmn.domainLen = 0;
@@ -160,25 +165,27 @@ LonStatusCode ManualServiceRequestMessage(void) {
     nwSendParamPtr->tag = MANUAL_SERVICE_REQ_TAG_VALUE;
     nwSendParamPtr->version = 0;
 
-    memcpy(apduRespPtr->data, eep->readOnlyData.UniqueNodeId,
-            IZOT_UNIQUE_ID_LENGTH);
-    memcpy(&(apduRespPtr->data[IZOT_UNIQUE_ID_LENGTH]), 
-                eep->readOnlyData.ProgramId, IZOT_PROGRAM_ID_LENGTH);
+    memcpy(apduRespPtr->data, eep->readOnlyData.UniqueNodeId, IZOT_UNIQUE_ID_LENGTH);
+    memcpy(&(apduRespPtr->data[IZOT_UNIQUE_ID_LENGTH]), eep->readOnlyData.ProgramId,
+            IZOT_PROGRAM_ID_LENGTH);
     QueueWrite(&gp->nwOutQ);
     gp->manualServiceRequest = FALSE;
     return (LonStatusNoError);
 }
 
-/*******************************************************************************
- Function:  NMNDRespond
- Returns:   None
- Reference: None
- Purpose:   Respond with success or failure code to current message.
- Can be called either for ND or NM messages.
- Comments:  None
- *******************************************************************************/
-void NMNDRespond(NtwkMgmtMsgType msgType, LonStatusCode success, 
-APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
+/*
+ * Sends a response to the current message with a success or failure code.
+ * Parameters:
+ *   msgType: The type of message (NM or ND)
+ *   success: The status code to return
+ *   appReceiveParamPtr: Pointer to the application receive parameters
+ *   apduPtr: Pointer to the APDU
+ * Returns: 
+ *   None
+ */
+void NMNDRespond(NtwkMgmtMsgType msgType, LonStatusCode success,
+        APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
+{
     IzotByte code;
     IzotByte subCode;
     int len = 0;
@@ -192,14 +199,14 @@ APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
 
     if (msgType == NM_MESSAGE) {
         subCode = apduPtr->code.nm.nmCode;
-        code = (success != LonStatusNoError ? NM_resp_success : NM_resp_failure)
-                | subCode;
+        code = (success != LonStatusNoError ? NM_resp_success : NM_resp_failure) |
+               subCode;
     } else {
         subCode = apduPtr->code.nd.ndCode;
-        code = (success != LonStatusNoError ? ND_resp_success : ND_resp_failure)
-                | subCode;
+        code = (success != LonStatusNoError ? ND_resp_success : ND_resp_failure) |
+               subCode;
     }
-    // Look for expanded commands.  
+    // Look for expanded commands.
     // The response to these includes the sub-command
     if (subCode == 0) {
         len = 1;
@@ -208,18 +215,23 @@ APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
     SendResponse(appReceiveParamPtr->reqId, code, len, data);
 }
 
-/*******************************************************************************
- Function:  HandleNDQueryUnconfig
- Returns:   None
- Reference: None
- Purpose:   Handle Query Unconfig through Proxy message.
- Comments:  This is a simplified version of HandleNMQueryId.
- Only unconfig version of Query ID is supported.
- *******************************************************************************/
-void HandleNDQueryUnconfig(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
+/*
+ * Handles an incoming Query Unconfig message through a proxy.
+ * Parameters:
+ *   appReceiveParamPtr: Pointer to the application receive parameters
+ *   apduPtr: Pointer to the APDU
+ * Returns: 
+ *   None
+ * Notes:
+ *   This is a simplified version of HandleNMQueryId.
+ *   Only unconfig version of Query ID is supported.
+ */
+void HandleNDQueryUnconfig(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
+{
     /* Check for proper size of the message */
     if (appReceiveParamPtr->pduSize != 2) {
-        NMNDRespond(ND_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr, apduPtr);
+        NMNDRespond(ND_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr,
+                apduPtr);
         return;
     }
 
@@ -230,21 +242,22 @@ void HandleNDQueryUnconfig(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
         IzotByte code = ND_resp_success | (apduPtr->code.allBits & 0x0F);
         IzotByte data[IZOT_UNIQUE_ID_LENGTH + IZOT_PROGRAM_ID_LENGTH];
         memcpy(data, eep->readOnlyData.UniqueNodeId, IZOT_UNIQUE_ID_LENGTH);
-        memcpy(&data[IZOT_UNIQUE_ID_LENGTH], eep->readOnlyData.ProgramId, 
-        IZOT_PROGRAM_ID_LENGTH);
+        memcpy(&data[IZOT_UNIQUE_ID_LENGTH], eep->readOnlyData.ProgramId,
+                IZOT_PROGRAM_ID_LENGTH);
         SendResponse(appReceiveParamPtr->reqId, code, sizeof(data), data);
     }
 }
 
-/*******************************************************************************
- Function:  HandleNDTransceiverStatus
- Returns:   none
- Reference: None
- Purpose:   Handle network diagnostics transceiver status message.
- Comments:  None.
- *******************************************************************************/
-void HandleNDTransceiverStatus(APPReceiveParam *appReceiveParamPtr, 
-APDU *apduPtr) {
+/*
+ * Handles an incoming Transceiver Status message.
+ * Parameters:
+ *   appReceiveParamPtr: Pointer to the application receive parameters
+ *   apduPtr: Pointer to the APDU
+ * Returns: 
+ *   None
+ */
+void HandleNDTransceiverStatus(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
+{
     XcvrParam transceiverStatus;
     IzotByte n;
     IzotByte response = ND_resp_success | (apduPtr->code.allBits & 0x0F);
@@ -252,21 +265,22 @@ APDU *apduPtr) {
     /* Check for proper size of the message. Regular pdusize is 1 byte.
      If this fn is called due to proxy request, then it is 2 bytes. */
     if (appReceiveParamPtr->pduSize > 2) {
-        NMNDRespond(ND_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr, apduPtr);
+        NMNDRespond(ND_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr,
+                apduPtr);
         return;
     } else if (appReceiveParamPtr->pduSize == 2) {
         /* Make sure it is a proxy request. Or else, length is wrong. */
-        if (apduPtr->code.nd.ndFlag == 0x5 && apduPtr->code.nd.ndCode
-                == ND_PROXY_COMMAND && apduPtr->data[0] == 2) {
+        if (apduPtr->code.nd.ndFlag == 0x5 &&
+                apduPtr->code.nd.ndCode == ND_PROXY_COMMAND && apduPtr->data[0] == 2) {
             ; /* It is indeed a proxy command. Length ok. Proceed. */
         } else {
-            NMNDRespond(ND_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr, apduPtr);
+            NMNDRespond(ND_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr,
+                    apduPtr);
             return;
         }
     }
 
-    if (IZOT_GET_ATTRIBUTE(eep->configData, IZOT_CONFIG_COMM_TYPE) == 
-    SPECIAL_PURPOSE) {
+    if (IZOT_GET_ATTRIBUTE(eep->configData, IZOT_CONFIG_COMM_TYPE) == SPECIAL_PURPOSE) {
         transceiverStatus = appReceiveParamPtr->xcvrParams;
         n = IZOT_COMMUNICATIONS_PARAMETER_LENGTH;
     } else {
@@ -274,70 +288,76 @@ APDU *apduPtr) {
         response = ND_resp_failure | (apduPtr->code.allBits & 0x0F);
     }
 
-    SendResponse(appReceiveParamPtr->reqId, response, n, 
-    transceiverStatus.data);
+    SendResponse(appReceiveParamPtr->reqId, response, n, transceiverStatus.data);
 }
 
-/*******************************************************************************
- Purpose:   Handle incoming NM Update Domain message.
- ******************************************************************************/
-void HandleNMUpdateDomain(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
+/*
+ * Handles an incoming Update Domain message.
+ * Parameters:
+ *   appReceiveParamPtr: Pointer to the application receive parameters
+ *   apduPtr: Pointer to the APDU
+ * Returns: 
+ *   None
+ */
+void HandleNMUpdateDomain(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
+{
     IzotDomain *p = NULL, *pDomain = NULL;
     LonStatusCode sts = LonStatusInvalidOperation;
-    
+
     if (appReceiveParamPtr->pduSize >= 2 + sizeof(IzotDomain)) {
         p = AccessDomain(apduPtr->data[0]);
-        pDomain = (IzotDomain *) &apduPtr->data[1];
+        pDomain = (IzotDomain *)&apduPtr->data[1];
         sts = UpdateDomain(pDomain, apduPtr->data[0], true);
         RecomputeChecksum();
     }
     NMNDRespond(NM_MESSAGE, sts, appReceiveParamPtr, apduPtr);
-        
-    if (sts == LonStatusNoError && apduPtr->data[0] == 0) 
-    {
-        if (pDomain->Subnet != 0 && p->Subnet != pDomain->Subnet) 
-        {
+
+    if (sts == LonStatusNoError && apduPtr->data[0] == 0) {
+        if (pDomain->Subnet != 0 && p->Subnet != pDomain->Subnet) {
             uint32_t oldaddr = BROADCAST_PREFIX | p->Subnet;
             uint32_t newaddr = BROADCAST_PREFIX | pDomain->Subnet;
+#if LINK_IS(UDP)
             RemoveIPMembership(oldaddr);
             AddIpMembership(newaddr);
+#endif  // LINK_IS(UDP)
         }
     }
 }
 
-/*******************************************************************************
- Function:  HandleNMLeaveDomain
- Returns:   None
- Reference: None
- Purpose:   Handle incoming NM LeaveDomain message.
- - Delete the indicated domain table entry.
- - Recompute the configuration checksum.
- - If message was received on the indicated domain,
- do not respond
- - If node no longer belongs to any Domain:
- + become unconfigured
- + reset
- Comments:  None.
- ******************************************************************************/
-void HandleNMLeaveDomain(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
+/*
+ * Handles an incoming Leave Domain message.
+ * Parameters:
+ *   appReceiveParamPtr: Pointer to the application receive parameters
+ *   apduPtr: Pointer to the APDU
+ * Returns: 
+ *   None
+ * Notes:
+ *   This function deletes the indicated domain table entry and recomputes
+ *   the configuration checksum. If the message was received on the specified
+ *   domain, do not respond. If the device no longer belongs to any domain:
+ *   become unconfigured and reset.
+ */
+void HandleNMLeaveDomain(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
+{
     /* Fail if message is not 2 bytes long */
     if (appReceiveParamPtr->pduSize != 2) {
-        NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr, apduPtr);
+        NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr,
+                apduPtr);
         return;
     }
     /* If the domain index is bad, fail */
     if (apduPtr->data[0] != 0 && apduPtr->data[0] != 1) {
-        OsalPrintLog(ERROR_LOG, LonStatusInvalidDomain, "HandleNMLeaveDomain: Invalid domain");
+        OsalPrintLog(ERROR_LOG, LonStatusInvalidDomain,
+                "HandleNMLeaveDomain: Invalid domain");
         NMNDRespond(NM_MESSAGE, LonStatusInvalidDomain, appReceiveParamPtr, apduPtr);
         return;
     }
     /* Leave the domain */
-    memset(&eep->domainTable[apduPtr->data[0]], 0xFF,
-            sizeof(eep->domainTable[0]));
+    memset(&eep->domainTable[apduPtr->data[0]], 0xFF, sizeof(eep->domainTable[0]));
     memcpy(eep->domainTable[apduPtr->data[0]].Id, "gmrdwf", IZOT_DOMAIN_ID_MAX_LENGTH);
     eep->domainTable[apduPtr->data[0]].Subnet = 0;
     IZOT_SET_ATTRIBUTE(eep->domainTable[apduPtr->data[0]], IZOT_DOMAIN_NODE, 0);
-    
+
     /* Recompute the configuration checksum */
     RecomputeChecksum();
 
@@ -347,13 +367,13 @@ void HandleNMLeaveDomain(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
     }
 
     /* If not a member of any domain, go unconfigured and reset. */
-    if ((!IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_TWO_DOMAINS) 
-        && IZOT_GET_ATTRIBUTE(eep->domainTable[0], IZOT_DOMAIN_INVALID))
-        || (IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_TWO_DOMAINS) 
-        && IZOT_GET_ATTRIBUTE(eep->domainTable[0], IZOT_DOMAIN_INVALID)
-        && IZOT_GET_ATTRIBUTE(eep->domainTable[1], IZOT_DOMAIN_INVALID))) {
-        IZOT_SET_ATTRIBUTE(eep->readOnlyData, 
-                            IZOT_READONLY_NODE_STATE, IzotApplicationUnconfig);
+    if ((!IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_TWO_DOMAINS) &&
+                IZOT_GET_ATTRIBUTE(eep->domainTable[0], IZOT_DOMAIN_INVALID)) ||
+            (IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_TWO_DOMAINS) &&
+                    IZOT_GET_ATTRIBUTE(eep->domainTable[0], IZOT_DOMAIN_INVALID) &&
+                    IZOT_GET_ATTRIBUTE(eep->domainTable[1], IZOT_DOMAIN_INVALID))) {
+        IZOT_SET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NODE_STATE,
+                IzotApplicationUnconfig);
         nmp->resetCause = IzotSoftwareReset;
         gp->resetNode = TRUE; /* Scheduler will reset the node */
     }
@@ -362,17 +382,20 @@ void HandleNMLeaveDomain(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
 /*******************************************************************************
  Purpose:   Handle incoming NM Update Address message.
  *******************************************************************************/
-void HandleNMUpdateKey(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
+void HandleNMUpdateKey(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
+{
     int i;
 
     /* Fail if message is not of correct length or domain index is bad. */
     if (appReceiveParamPtr->pduSize != 2 + IZOT_AUTHENTICATION_KEY_LENGTH) {
-        NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr, apduPtr);
+        NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr,
+                apduPtr);
         return;
     }
     if (apduPtr->data[0] != 0 && apduPtr->data[0] != 1) {
 
-        OsalPrintLog(ERROR_LOG, LonStatusInvalidDomain, "HandleNMUpdateKey: Invalid domain");
+        OsalPrintLog(ERROR_LOG, LonStatusInvalidDomain,
+                "HandleNMUpdateKey: Invalid domain");
         NMNDRespond(NM_MESSAGE, LonStatusInvalidDomain, appReceiveParamPtr, apduPtr);
         return;
     }
@@ -387,38 +410,41 @@ void HandleNMUpdateKey(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
 /*******************************************************************************
  Purpose:   Handle incoming NM Update Address message.
  ******************************************************************************/
-void HandleNMUpdateAddr(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
+void HandleNMUpdateAddr(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
+{
     LonStatusCode sts = LonStatusInvalidOperation;
     uint32_t oldaddr = 0, newaddr;
     IzotByte removeFlag = 0;
     IzotUbits16 indexIn;
-    
+
     /* Check for incorrect size. Not sure why IzotAddressUnassigned tolerates 
     a missing last byte.  Probably legacy from a LB bug. */
-    if (appReceiveParamPtr->pduSize >= 
-    (apduPtr->data[1] == IzotAddressUnassigned ? 6 : 7)) {
+    if (appReceiveParamPtr->pduSize >=
+            (apduPtr->data[1] == IzotAddressUnassigned ? 6 : 7)) {
         indexIn = apduPtr->data[0];
-        
+
         //Backup old group id
-        if (IZOT_GET_ATTRIBUTE(eep->addrTable[indexIn].Group, 
-        IZOT_ADDRESS_GROUP_TYPE) == 1) {
+        if (IZOT_GET_ATTRIBUTE(eep->addrTable[indexIn].Group, IZOT_ADDRESS_GROUP_TYPE) ==
+                1) {
             oldaddr = BROADCAST_PREFIX | 0x100 | eep->addrTable[indexIn].Group.Group;
             removeFlag = 1;
         }
-        
-        sts = UpdateAddress((const IzotAddress *)&apduPtr->data[1], 
-                                                            apduPtr->data[0]);
-            
+
+        sts = UpdateAddress((const IzotAddress *)&apduPtr->data[1], apduPtr->data[0]);
+
+#if LINK_IS(UDP)
         // Get the new group id
         newaddr = BROADCAST_PREFIX | 0x100 | eep->addrTable[indexIn].Group.Group;
-        if (IZOT_GET_ATTRIBUTE(eep->addrTable[indexIn].Group, 
-        IZOT_ADDRESS_GROUP_TYPE) == 1 && oldaddr != newaddr) {
+        if (IZOT_GET_ATTRIBUTE(eep->addrTable[indexIn].Group, IZOT_ADDRESS_GROUP_TYPE) ==
+                        1 &&
+                oldaddr != newaddr) {
             if (removeFlag) {
                 RemoveIPMembership(oldaddr);
             }
             AddIpMembership(newaddr);
         }
-        
+#endif  // LINK_IS(UDP)
+
         RecomputeChecksum();
     }
 
@@ -432,20 +458,24 @@ void HandleNMUpdateAddr(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
  Purpose:   Handle incoming NM Query Address message.
  Comments:  None.
  ******************************************************************************/
-void HandleNMQueryAddr(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
+void HandleNMQueryAddr(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
+{
     if (appReceiveParamPtr->pduSize < 2) {
-        NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr, apduPtr);
+        NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr,
+                apduPtr);
         return;
     }
     // Fail if the address table index is bad and set statistics
     if (apduPtr->data[0] >= eep->readOnlyData.Extended) {
-        OsalPrintLog(ERROR_LOG, LonStatusInvalidAddrTableIndex, "HandleNMQueryAddr: Invalid address table index");
-        NMNDRespond(NM_MESSAGE, LonStatusInvalidAddrTableIndex, appReceiveParamPtr, apduPtr);
+        OsalPrintLog(ERROR_LOG, LonStatusInvalidAddrTableIndex,
+                "HandleNMQueryAddr: Invalid address table index");
+        NMNDRespond(NM_MESSAGE, LonStatusInvalidAddrTableIndex, appReceiveParamPtr,
+                apduPtr);
         return;
     }
     // Send response
     SendResponse(appReceiveParamPtr->reqId, NM_resp_success | NM_QUERY_ADDR,
-            sizeof(IzotAddress), (IzotByte*) AccessAddress(apduPtr->data[0]));
+            sizeof(IzotAddress), (IzotByte *)AccessAddress(apduPtr->data[0]));
 }
 
 /*******************************************************************************
@@ -462,16 +492,18 @@ void HandleNMQueryNvCnfg(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
     APDU *apduRespPtr;
     IzotUbits16 n;
     AliasStruct alias_config;
-    
+
     // Fail if the request does not have correct size
     if (appReceiveParamPtr->pduSize != 2 && appReceiveParamPtr->pduSize != 4) {
-        NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr, apduPtr);
+        NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr,
+                apduPtr);
         return;
     }
 
     n = apduPtr->data[0];
     if (n == 255 && appReceiveParamPtr->pduSize != 4) {
-        NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr, apduPtr);
+        NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr,
+                apduPtr);
         return;
     }
 
@@ -480,15 +512,14 @@ void HandleNMQueryNvCnfg(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
     /* In implementations which handle a maximum number of network variables that is less
      * than 255, it is not necessary to check for network variable escapes of 255. */
     if (n == 255) {
-        n = (IzotUbits16) apduPtr->data[1];
+        n = (IzotUbits16)apduPtr->data[1];
         n = (n << 8) | apduPtr->data[2];
     }
 
     /* Fail if there is insufficient space to send the response */
-    if ((n < nmp->nvTableSize && (1 + sizeof(NVStruct)) > gp->tsaRespBufSize)
-            || (n >= nmp->nvTableSize && n < nmp->nvTableSize
-                    + NV_ALIAS_TABLE_SIZE && (1 + sizeof(AliasStruct))
-                    > gp->tsaRespBufSize)) {
+    if ((n < nmp->nvTableSize && (1 + sizeof(NVStruct)) > gp->tsaRespBufSize) ||
+            (n >= nmp->nvTableSize && n < nmp->nvTableSize + NV_ALIAS_TABLE_SIZE &&
+                    (1 + sizeof(AliasStruct)) > gp->tsaRespBufSize)) {
         NMNDRespond(NM_MESSAGE, LonStatusBufferSizeTooSmall, appReceiveParamPtr, apduPtr);
         return;
     }
@@ -501,7 +532,7 @@ void HandleNMQueryNvCnfg(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
     tsaSendParamPtr->nullResponse = FALSE;
     tsaSendParamPtr->flexResponse = FALSE;
     tsaSendParamPtr->reqId = appReceiveParamPtr->reqId;
-    apduRespPtr = (APDU *) (tsaSendParamPtr + 1);
+    apduRespPtr = (APDU *)(tsaSendParamPtr + 1);
     apduRespPtr->code.allBits = NM_resp_success | NM_QUERY_NV_CNFG;
     if (n < nmp->nvTableSize) {
         /* Copy the NVStruct entry */
@@ -512,14 +543,14 @@ void HandleNMQueryNvCnfg(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
         /* Copy the alias table entry. */
         tsaSendParamPtr->apduSize = 1 + sizeof(AliasStruct);
         n = n - nmp->nvTableSize;
-        memcpy(&alias_config.nvConfig, &eep->nvAliasTable[n].Alias, 
-        sizeof(NVStruct));
-        alias_config.primary                = eep->nvAliasTable[n].Primary;
-        alias_config.hostPrimary            = 0xFFFF;
-        
+        memcpy(&alias_config.nvConfig, &eep->nvAliasTable[n].Alias, sizeof(NVStruct));
+        alias_config.primary = eep->nvAliasTable[n].Primary;
+        alias_config.hostPrimary = 0xFFFF;
+
         memcpy(apduRespPtr->data, &alias_config, sizeof(AliasStruct));
     } else {
-        OsalPrintLog(ERROR_LOG, LonStatusInvalidDatapointIndex, "HandleNMQueryNvCnfg: Invalid NV index");
+        OsalPrintLog(ERROR_LOG, LonStatusInvalidDatapointIndex,
+                "HandleNMQueryNvCnfg: Invalid NV index");
         apduRespPtr->code.allBits = NM_resp_failure | NM_QUERY_NV_CNFG;
         tsaSendParamPtr->apduSize = 1;
     }
@@ -534,7 +565,8 @@ void HandleNMQueryNvCnfg(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
  Purpose:   Handle incoming NM NV Fetch message.
  Comments:  None.
  *******************************************************************************/
-void HandleNMNVFetch(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
+void HandleNMNVFetch(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
+{
     Queue *tsaOutQPtr;
     TSASendParam *tsaSendParamPtr;
     APDU *apduRespPtr;
@@ -543,12 +575,14 @@ void HandleNMNVFetch(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
 
     /* Check if the message has correct size. If not, fail. */
     if (appReceiveParamPtr->pduSize != 2 && appReceiveParamPtr->pduSize != 4) {
-        NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr, apduPtr);
+        NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr,
+                apduPtr);
         return;
     }
     n = apduPtr->data[0];
     if (n == 255 && appReceiveParamPtr->pduSize != 4) {
-        NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr, apduPtr);
+        NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr,
+                apduPtr);
         return;
     }
     tsaOutQPtr = &gp->tsaRespQ;
@@ -559,7 +593,7 @@ void HandleNMNVFetch(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
     tsaSendParamPtr->nullResponse = FALSE;
     tsaSendParamPtr->flexResponse = FALSE;
     tsaSendParamPtr->reqId = appReceiveParamPtr->reqId;
-    apduRespPtr = (APDU *) (tsaSendParamPtr + 1);
+    apduRespPtr = (APDU *)(tsaSendParamPtr + 1);
 
     if (n == 255) {
         n = apduPtr->data[1];
@@ -567,18 +601,20 @@ void HandleNMNVFetch(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
         memcpy(apduRespPtr->data, apduPtr->data, 3); /* copy the index */
         i = 3; /* index where value of nv is copied */
     } else {
-        apduRespPtr->data[0] = (char) n;
+        apduRespPtr->data[0] = (char)n;
         i = 1;
     }
     if (n < nmp->nvTableSize) {
         /* Make sure there is sufficient space for the response. Else, fail. */
         if (nmp->nvFixedTable[n].nvLength + i + 1 > gp->tsaRespBufSize) {
-            NMNDRespond(NM_MESSAGE, LonStatusBufferSizeTooSmall, appReceiveParamPtr, apduPtr);
+            NMNDRespond(NM_MESSAGE, LonStatusBufferSizeTooSmall, appReceiveParamPtr,
+                    apduPtr);
             return;
         }
 
         IzotByte ndi[nmp->nvFixedTable[n].nvLength];
-        IzotPrepareNetworkData(ndi, n, nmp->nvFixedTable[n].nvLength, (IzotByte *)nmp->nvFixedTable[n].nvAddress);
+        IzotPrepareNetworkData(ndi, n, nmp->nvFixedTable[n].nvLength,
+                (IzotByte *)nmp->nvFixedTable[n].nvAddress);
         memcpy(&apduRespPtr->data[i], ndi, nmp->nvFixedTable[n].nvLength);
         tsaSendParamPtr->apduSize = nmp->nvFixedTable[n].nvLength + i + 1;
         apduRespPtr->code.allBits = NM_resp_success | NM_NV_FETCH;
@@ -596,7 +632,8 @@ void HandleNMNVFetch(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
  Purpose:   Handle incoming NM Query SI Data message.
  Comments:  None.
  *******************************************************************************/
-void HandleNMQuerySIData(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
+void HandleNMQuerySIData(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
+{
     Queue *tsaOutQPtr;
     TSASendParam *tsaSendParamPtr;
     APDU *apduRespPtr;
@@ -607,7 +644,8 @@ void HandleNMQuerySIData(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
 
     /* Fail if message is not 4 bytes long */
     if (appReceiveParamPtr->pduSize != 4) {
-        NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr, apduPtr);
+        NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr,
+                apduPtr);
         return;
     }
 
@@ -628,29 +666,25 @@ void HandleNMQuerySIData(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
     tsaSendParamPtr->nullResponse = FALSE;
     tsaSendParamPtr->flexResponse = FALSE;
     tsaSendParamPtr->reqId = appReceiveParamPtr->reqId;
-    apduRespPtr = (APDU *) (tsaSendParamPtr + 1);
+    apduRespPtr = (APDU *)(tsaSendParamPtr + 1);
     apduRespPtr->code.allBits = NM_resp_success | NM_QUERY_SNVT;
     tsaSendParamPtr->apduSize = 1 + count;
-    
-    if((offset + count) < OFFSET_OF_SI_DATA_BUFFER_IN_SNVT_STRUCT)
-    {
-        memcpy(apduRespPtr->data, offset + (char *) &(nmp->snvt), count);
-    }
-    else if(offset < OFFSET_OF_SI_DATA_BUFFER_IN_SNVT_STRUCT)
-    {
-        memcpy(apduRespPtr->data, offset + (char *) &(nmp->snvt), 
-                            (OFFSET_OF_SI_DATA_BUFFER_IN_SNVT_STRUCT - offset));
-        memcpy(apduRespPtr->data + 
-                OFFSET_OF_SI_DATA_BUFFER_IN_SNVT_STRUCT - offset, 
-                (char *) (nmp->snvt.sb), 
+
+    if ((offset + count) < OFFSET_OF_SI_DATA_BUFFER_IN_SNVT_STRUCT) {
+        memcpy(apduRespPtr->data, offset + (char *)&(nmp->snvt), count);
+    } else if (offset < OFFSET_OF_SI_DATA_BUFFER_IN_SNVT_STRUCT) {
+        memcpy(apduRespPtr->data, offset + (char *)&(nmp->snvt),
+                (OFFSET_OF_SI_DATA_BUFFER_IN_SNVT_STRUCT - offset));
+        memcpy(apduRespPtr->data + OFFSET_OF_SI_DATA_BUFFER_IN_SNVT_STRUCT - offset,
+                (char *)(nmp->snvt.sb),
                 (count - (OFFSET_OF_SI_DATA_BUFFER_IN_SNVT_STRUCT - offset)));
+    } else {
+        memcpy(apduRespPtr->data,
+                (char *)((nmp->snvt.sb) +
+                         (offset - OFFSET_OF_SI_DATA_BUFFER_IN_SNVT_STRUCT)),
+                count);
     }
-    else
-    {
-        memcpy(apduRespPtr->data, (char *) ((nmp->snvt.sb) +  
-                   (offset - OFFSET_OF_SI_DATA_BUFFER_IN_SNVT_STRUCT)), count);
-    }
-    
+
     QueueWrite(tsaOutQPtr);
 }
 
@@ -661,7 +695,8 @@ void HandleNMQuerySIData(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
  Purpose:   Handle incoming NM Wink message.
  Comments:  None.
  *******************************************************************************/
-void HandleNMWink(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
+void HandleNMWink(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
+{
     Queue *tsaQueuePtr;
     TSASendParam *tsaSendParamPtr;
     APDU *apduRespPtr;
@@ -680,30 +715,33 @@ void HandleNMWink(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
     }
 
     if (appReceiveParamPtr->pduSize > 5) {
-        NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr, apduPtr);
+        NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr,
+                apduPtr);
         return;
     }
-    
+
     if (appReceiveParamPtr->pduSize <= 1 || subcmd == 0) {
         if (appReceiveParamPtr->service != IzotServiceRequest) {
             /* Any service except request/response */
             IzotWink(); /* Simple Wink */
         } else {
-            NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageService, appReceiveParamPtr, apduPtr);
+            NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageService, appReceiveParamPtr,
+                    apduPtr);
         }
         return;
     }
 
     if (appReceiveParamPtr->pduSize == 5 || subcmd == 7) {
         if (appReceiveParamPtr->service != IzotServiceRequest) {
-            NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageService, appReceiveParamPtr, apduPtr);
+            NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageService, appReceiveParamPtr,
+                    apduPtr);
             return;
         }
-        
-        offset = (IzotUbits16) apduPtr->data[1];
+
+        offset = (IzotUbits16)apduPtr->data[1];
         offset = (offset << 8) | apduPtr->data[2];
         count = apduPtr->data[3];
-        
+
         tsaQueuePtr = &gp->tsaRespQ;
         tsaSendParamPtr = QueueTail(tsaQueuePtr);
         tsaSendParamPtr->altPathOverride = FALSE;
@@ -711,32 +749,28 @@ void HandleNMWink(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
         tsaSendParamPtr->reqId = appReceiveParamPtr->reqId;
         tsaSendParamPtr->nullResponse = FALSE;
         tsaSendParamPtr->flexResponse = FALSE;
-        apduRespPtr = (APDU *) (tsaSendParamPtr + 1);
-        
-        if(count + 1 <= gp->tsaRespBufSize)
-        {
-            IzotByte data[sizeof(AliasField) + sizeof(SIHeaderExt) + 
-            sizeof(SNVTCapabilityInfo)] = {0};
-            
-            memcpy(&data[0], (IzotByte *)nmp->snvt.aliasPtr, 
-                                                         sizeof(AliasField));
-            memcpy(&data[sizeof(AliasField)], (IzotByte *) si_header_ext,
-                                                        sizeof(SIHeaderExt));
-            memcpy(&data[sizeof(AliasField) + sizeof(SIHeaderExt)], 
-              (IzotByte *) snvt_capability_info, sizeof(SNVTCapabilityInfo));              
+        apduRespPtr = (APDU *)(tsaSendParamPtr + 1);
+
+        if (count + 1 <= gp->tsaRespBufSize) {
+            IzotByte data[sizeof(AliasField) + sizeof(SIHeaderExt) +
+                          sizeof(SNVTCapabilityInfo)] = {0};
+
+            memcpy(&data[0], (IzotByte *)nmp->snvt.aliasPtr, sizeof(AliasField));
+            memcpy(&data[sizeof(AliasField)], (IzotByte *)si_header_ext,
+                    sizeof(SIHeaderExt));
+            memcpy(&data[sizeof(AliasField) + sizeof(SIHeaderExt)],
+                    (IzotByte *)snvt_capability_info, sizeof(SNVTCapabilityInfo));
             tsaSendParamPtr->apduSize = count + 1;
             apduRespPtr->code.allBits = NM_resp_success | NM_WINK;
             memcpy(&apduRespPtr->data[0], &data[offset], count);
-        }
-        else
-        {
+        } else {
             tsaSendParamPtr->apduSize = 1;
             apduRespPtr->code.allBits = NM_resp_failure | NM_WINK;
         }
         QueueWrite(tsaQueuePtr);
         return;
     }
-    
+
     /* must be requesting SEND_ID_INFO. */
     if (appReceiveParamPtr->service != IzotServiceRequest) {
         return; /* The message should be a request. */
@@ -751,12 +785,11 @@ void HandleNMWink(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
     tsaSendParamPtr->reqId = appReceiveParamPtr->reqId;
     tsaSendParamPtr->nullResponse = FALSE;
     tsaSendParamPtr->flexResponse = FALSE;
-    apduRespPtr = (APDU *) (tsaSendParamPtr + 1);
+    apduRespPtr = (APDU *)(tsaSendParamPtr + 1);
 
-    if (niIndex == 0 && IZOT_UNIQUE_ID_LENGTH + IZOT_PROGRAM_ID_LENGTH + 2
-            <= gp->tsaRespBufSize) {
-        tsaSendParamPtr->apduSize = 
-                        IZOT_PROGRAM_ID_LENGTH + IZOT_UNIQUE_ID_LENGTH + 2;
+    if (niIndex == 0 &&
+            IZOT_UNIQUE_ID_LENGTH + IZOT_PROGRAM_ID_LENGTH + 2 <= gp->tsaRespBufSize) {
+        tsaSendParamPtr->apduSize = IZOT_PROGRAM_ID_LENGTH + IZOT_UNIQUE_ID_LENGTH + 2;
         apduRespPtr->data[0] = 0; /* Interface not down. */
         apduRespPtr->code.allBits = NM_resp_success | NM_WINK;
         memcpy(&apduRespPtr->data[1], eep->readOnlyData.UniqueNodeId,
@@ -774,9 +807,9 @@ void HandleNMWink(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
  Function:  HandleNMRefresh
  Purpose:   Handle incoming NM Refresh
  *******************************************************************************/
-void HandleNMRefresh(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
-    IzotUbits16 offset = 
-                    (IzotUbits16) apduPtr->data[0] * 256 + apduPtr->data[1];
+void HandleNMRefresh(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
+{
+    IzotUbits16 offset = (IzotUbits16)apduPtr->data[0] * 256 + apduPtr->data[1];
     IzotByte offchip = apduPtr->data[3];
     IzotByte result = NM_resp_failure;
 
@@ -787,15 +820,15 @@ void HandleNMRefresh(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
         result = NM_resp_success;
     }
 
-    SendResponse(appReceiveParamPtr->reqId, 
-    result | NM_MEMORY_REFRESH, 0, NULL);
+    SendResponse(appReceiveParamPtr->reqId, result | NM_MEMORY_REFRESH, 0, NULL);
 }
 
 /*******************************************************************************
  Function:  HandleNmeQueryVersion
  Purpose:   Handle incoming NME Query Version
  *******************************************************************************/
-void HandleNmeQueryVersion(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
+void HandleNmeQueryVersion(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
+{
     struct {
         IzotByte subcommand;
         IzotByte version;
@@ -805,25 +838,34 @@ void HandleNmeQueryVersion(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
 
     queryVersion.subcommand = apduPtr->data[0];
     queryVersion.version = 2;
-    queryVersion.capabilitiesHi = NMV_LS_MODE_COMPATIBILITY_OR_ENHANCED | NMV_LSIP_ADDR_MAPPING_ANNOUNCEMENTS;
-    queryVersion.capabilitiesLo = NMV_OMA | NMV_PROXY | NMV_SSI | NMV_INITCONFIG | NMV_UPDATE_NV_BY_INDEX;
-#ifdef SECURITY_II
-	queryVersion.capabilitiesLo |= NVM_SECURITY_II;
-#endif
-    SendResponse(appReceiveParamPtr->reqId, NM_resp_success | NM_EXPANDED, sizeof(queryVersion), 
-    (IzotByte*) &queryVersion);
+    queryVersion.capabilitiesHi = NMV_LS_MODE_COMPATIBILITY_OR_ENHANCED;
+    queryVersion.capabilitiesLo = NMV_OMA | NMV_INITCONFIG | NMV_UPDATE_NV_BY_INDEX;
+#if LINK_IS(UDP)
+    queryVersion.capabilitiesHi |= NMV_LON_UDP_ADDR_MAPPING_ANNOUNCEMENTS;
+#endif  // LINK_IS(UDP)
+#if PHYSICAL_IS(LON_PL) || PHYSICAL_IS(LON_PL_WITH_PROXY)
+    queryVersion.capabilitiesLo |= NMV_SSI;
+#endif  // PHYSICAL_IS(LON_PL)
+#if PHYSICAL_IS(LON_PL_PROXY)
+    queryVersion.capabilitiesLo |= NMV_PROXY;
+#endif  //  PHYSICAL_IS(LON_PL_PROXY)
+#if SECURITY_IS(V2)
+    queryVersion.capabilitiesLo |= NVM_SECURITY_II;
+#endif  // SECURITY_IS(V2)
+    SendResponse(appReceiveParamPtr->reqId, NM_resp_success | NM_EXPANDED,
+            sizeof(queryVersion), (IzotByte *)&queryVersion);
 }
 
 /*******************************************************************************
  Function:  HandleNmeUpdateDomain
  Purpose:   Handle incoming NME Join Domain No Key
  *******************************************************************************/
-void HandleNmeUpdateDomain(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
+void HandleNmeUpdateDomain(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
+{
     LonStatusCode sts = LonStatusInvalidOperation;
-    if (appReceiveParamPtr->pduSize >= 
-    3 + sizeof(IzotDomain) - IZOT_AUTHENTICATION_KEY_LENGTH) {
-        sts = UpdateDomain((IzotDomain *) &apduPtr->data[2],
-                apduPtr->data[1], false);
+    if (appReceiveParamPtr->pduSize >=
+            3 + sizeof(IzotDomain) - IZOT_AUTHENTICATION_KEY_LENGTH) {
+        sts = UpdateDomain((IzotDomain *)&apduPtr->data[2], apduPtr->data[1], false);
         RecomputeChecksum();
     }
     NMNDRespond(NM_MESSAGE, sts, appReceiveParamPtr, apduPtr);
@@ -833,7 +875,8 @@ void HandleNmeUpdateDomain(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
  Function:  HandleNmeReportDomain
  Purpose:   Handle incoming NME Report Domain No Key
  *******************************************************************************/
-void HandleNmeReportDomain(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
+void HandleNmeReportDomain(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
+{
     IzotDomain *p = AccessDomain(apduPtr->data[1]);
     struct {
         IzotByte subcommand;
@@ -841,15 +884,17 @@ void HandleNmeReportDomain(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
     } reportDomain;
 
     if (appReceiveParamPtr->pduSize < 3) {
-        NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr, apduPtr);
+        NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr,
+                apduPtr);
     } else if (p == NULL) {
-        OsalPrintLog(ERROR_LOG, LonStatusInvalidDomain, "HandleNmeReportDomain: Invalid domain");
+        OsalPrintLog(ERROR_LOG, LonStatusInvalidDomain,
+                "HandleNmeReportDomain: Invalid domain");
         NMNDRespond(NM_MESSAGE, LonStatusInvalidDomain, appReceiveParamPtr, apduPtr);
     } else {
         reportDomain.subcommand = apduPtr->data[0];
         memcpy(&reportDomain.address, p, sizeof(reportDomain.address));
         SendResponse(appReceiveParamPtr->reqId, NM_resp_success | NM_EXPANDED,
-                sizeof(reportDomain), (IzotByte*) &reportDomain);
+                sizeof(reportDomain), (IzotByte *)&reportDomain);
     }
 }
 
@@ -857,7 +902,8 @@ void HandleNmeReportDomain(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
  Function:  HandleNmeReportKey
  Purpose:   Handle incoming NME Report Key
  *******************************************************************************/
-void HandleNmeReportKey(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
+void HandleNmeReportKey(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
+{
     IzotByte i;
     struct {
         IzotByte subcommand;
@@ -870,13 +916,13 @@ void HandleNmeReportKey(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
             NMNDRespond(NM_MESSAGE, LonStatusInvalidDomain, appReceiveParamPtr, apduPtr);
             break;
         }
-        memcpy(&reportKey.key[i * IZOT_AUTHENTICATION_KEY_LENGTH], 
-        p->Key, IZOT_AUTHENTICATION_KEY_LENGTH);
+        memcpy(&reportKey.key[i * IZOT_AUTHENTICATION_KEY_LENGTH], p->Key,
+                IZOT_AUTHENTICATION_KEY_LENGTH);
     }
     if (i == 2) {
         reportKey.subcommand = apduPtr->data[0];
         SendResponse(appReceiveParamPtr->reqId, NM_resp_success | NM_EXPANDED,
-                sizeof(reportKey), (IzotByte*) &reportKey);
+                sizeof(reportKey), (IzotByte *)&reportKey);
     }
 }
 
@@ -884,13 +930,14 @@ void HandleNmeReportKey(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
  Function:  HandleNmeUpdateKey
  Purpose:   Handle incoming NME Update Key
  *******************************************************************************/
-void HandleNmeUpdateKey(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
+void HandleNmeUpdateKey(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
+{
     LonStatusCode sts = LonStatusInvalidOperation;
-    if (appReceiveParamPtr->pduSize >= 3 + IZOT_OMA_AUTHENTICATION_KEY_LENGTH && AccessDomain(1)
-            != NULL) {
+    if (appReceiveParamPtr->pduSize >= 3 + IZOT_OMA_AUTHENTICATION_KEY_LENGTH &&
+            AccessDomain(1) != NULL) {
         IzotByte i;
         IzotByte increment = apduPtr->data[1] == 1;
-        IzotByte* pKey = &apduPtr->data[2];
+        IzotByte *pKey = &apduPtr->data[2];
 
         for (i = 0; i < 2; i++) {
             int j;
@@ -916,7 +963,8 @@ void HandleNmeUpdateKey(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
  Function:  HandleNmeInitConfig
  Purpose:   Handle incoming NME Init Config
  *******************************************************************************/
-void HandleNmeInitConfig(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
+void HandleNmeInitConfig(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
+{
     int i;
     uint16_t selectorVal = 0x3FFF;
     LonStatusCode sts = LonStatusNoError;
@@ -940,12 +988,10 @@ void HandleNmeInitConfig(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
 
         for (i = 0; i < nmp->nvTableSize; i++, selectorVal--) {
             IzotDatapointConfig *p = &eep->nvConfigTable[i];
-            IZOT_SET_ATTRIBUTE_P(p, IZOT_DATAPOINT_SELHIGH, 
-            (IzotByte) (selectorVal >> 8));
+            IZOT_SET_ATTRIBUTE_P(p, IZOT_DATAPOINT_SELHIGH, (IzotByte)(selectorVal >> 8));
             p->SelectorLow = selectorVal & 0xFF;
             if (i / 8 < len) {
-                nvAuth = (apduPtr->data[2 + (i / 8)] & (1 << (i % 8))) ? true
-                        : false;
+                nvAuth = (apduPtr->data[2 + (i / 8)] & (1 << (i % 8))) ? true : false;
             }
             IZOT_SET_ATTRIBUTE_P(p, IZOT_DATAPOINT_AUTHENTICATION, nvAuth);
         }
@@ -960,14 +1006,15 @@ void HandleNmeInitConfig(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
  Function:  HandleNmeUpdateNvCnfg
  Purpose:   Handle incoming NM Expanded update NV Config message
  *******************************************************************************/
-void HandleNmeUpdateNvCnfg(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
-    IzotUbits16           n; /* for nv index */
-    IzotByte            pduSize;
-    IzotDatapointConfig    *np;
-    if (appReceiveParamPtr->pduSize < 6)
-    {
-        NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr, apduPtr);
-         return;
+void HandleNmeUpdateNvCnfg(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
+{
+    IzotUbits16 n; /* for nv index */
+    IzotByte pduSize;
+    IzotDatapointConfig *np;
+    if (appReceiveParamPtr->pduSize < 6) {
+        NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr,
+                apduPtr);
+        return;
     }
 
     /* Decode index */
@@ -981,14 +1028,17 @@ void HandleNmeUpdateNvCnfg(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
             memcpy(&eep->nvConfigTable[n], np, sizeof(IzotDatapointConfig));
         } else {
             /* Incorrect size */
-            NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr, apduPtr);
-             return;
+            NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr,
+                    apduPtr);
+            return;
         }
     } else {
-    /* Invalid nv table index */
-        OsalPrintLog(ERROR_LOG, LonStatusInvalidDatapointIndex, "HandleNmeUpdateNvCnfg: Invalid NV index");
-        NMNDRespond(NM_MESSAGE, LonStatusInvalidDatapointIndex, appReceiveParamPtr, apduPtr);
-         return;
+        /* Invalid nv table index */
+        OsalPrintLog(ERROR_LOG, LonStatusInvalidDatapointIndex,
+                "HandleNmeUpdateNvCnfg: Invalid NV index");
+        NMNDRespond(NM_MESSAGE, LonStatusInvalidDatapointIndex, appReceiveParamPtr,
+                apduPtr);
+        return;
     }
     /* Recompute checksum and send response */
     RecomputeChecksum();
@@ -999,17 +1049,19 @@ void HandleNmeUpdateNvCnfg(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
  Function:  HandleNmeQueryNvCnfg
  Purpose:   Handle incoming NM Expanded query NV config message
  *******************************************************************************/
-void HandleNmeQueryNvCnfg(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
-    IzotUbits16            n;
+void HandleNmeQueryNvCnfg(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
+{
+    IzotUbits16 n;
 
     struct {
-        IzotByte             subcommand;
-        IzotDatapointConfig  nv_config;
+        IzotByte subcommand;
+        IzotDatapointConfig nv_config;
     } query_nv_config;
-    
+
     /* Fail if the request does not have correct size */
     if ((appReceiveParamPtr->pduSize) != 4) {
-        NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr, apduPtr);
+        NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr,
+                apduPtr);
         return;
     }
 
@@ -1017,21 +1069,23 @@ void HandleNmeQueryNvCnfg(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
     n = (n << 8) | apduPtr->data[2];
 
     /* Fail if there is insufficient space to send the response */
-    if (n < nmp->nvTableSize && (1 + sizeof(IzotDatapointConfig)) > gp->tsaRespBufSize ) {
+    if (n < nmp->nvTableSize && (1 + sizeof(IzotDatapointConfig)) > gp->tsaRespBufSize) {
         NMNDRespond(NM_MESSAGE, LonStatusBufferSizeTooSmall, appReceiveParamPtr, apduPtr);
         return;
     }
 
     if (n < nmp->nvTableSize) {
         query_nv_config.subcommand = apduPtr->data[0];
-        memcpy(&query_nv_config.nv_config, &eep->nvConfigTable[n], 
-        sizeof(IzotDatapointConfig));
-        
-        SendResponse(appReceiveParamPtr->reqId, NM_resp_success | NM_EXPANDED, 
-        sizeof(query_nv_config), (IzotByte*)&query_nv_config);
+        memcpy(&query_nv_config.nv_config, &eep->nvConfigTable[n],
+                sizeof(IzotDatapointConfig));
+
+        SendResponse(appReceiveParamPtr->reqId, NM_resp_success | NM_EXPANDED,
+                sizeof(query_nv_config), (IzotByte *)&query_nv_config);
     } else {
-        OsalPrintLog(ERROR_LOG, LonStatusInvalidDatapointIndex, "HandleNmeQueryNvCnfg: Invalid NV index");
-        NMNDRespond(NM_MESSAGE, LonStatusInvalidDatapointIndex, appReceiveParamPtr, apduPtr);
+        OsalPrintLog(ERROR_LOG, LonStatusInvalidDatapointIndex,
+                "HandleNmeQueryNvCnfg: Invalid NV index");
+        NMNDRespond(NM_MESSAGE, LonStatusInvalidDatapointIndex, appReceiveParamPtr,
+                apduPtr);
     }
 }
 
@@ -1039,33 +1093,38 @@ void HandleNmeQueryNvCnfg(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
  Function:  HandleNmeUpdateNvAliasCnfg
  Purpose:   Handle incoming NM Expanded update alias message
  *******************************************************************************/
-void HandleNmeUpdateNvAliasCnfg(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
-    IzotUbits16            n,pduSize;
-        
+void HandleNmeUpdateNvAliasCnfg(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
+{
+    IzotUbits16 n, pduSize;
+
     if (appReceiveParamPtr->pduSize < 10) {
-        NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr, apduPtr);
+        NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr,
+                apduPtr);
         return;
     }
-    
+
     n = (IzotUbits16)apduPtr->data[1];
     n = (n << 8) | apduPtr->data[2];
-    
+
     pduSize = sizeof(IzotAliasConfig) + 4;
-    
+
     if (n < nmp->nvTableSize + NV_ALIAS_TABLE_SIZE) {
         /* Update the nv alias table */
         if (appReceiveParamPtr->pduSize >= pduSize) {
-            memcpy(&eep->nvAliasTable[n], 
-            (IzotAliasConfig *)(&apduPtr->data[3]), sizeof(IzotAliasConfig));
+            memcpy(&eep->nvAliasTable[n], (IzotAliasConfig *)(&apduPtr->data[3]),
+                    sizeof(IzotAliasConfig));
         } else {
             /* Incorrect size */
-            NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr, apduPtr);
+            NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr,
+                    apduPtr);
             return;
         }
     } else {
         /* Invalid nv table index */
-        OsalPrintLog(ERROR_LOG, LonStatusInvalidDatapointIndex, "HandleNmeUpdateNvAliasCnfg: Invalid NV index");
-        NMNDRespond(NM_MESSAGE, LonStatusInvalidDatapointIndex, appReceiveParamPtr, apduPtr);
+        OsalPrintLog(ERROR_LOG, LonStatusInvalidDatapointIndex,
+                "HandleNmeUpdateNvAliasCnfg: Invalid NV index");
+        NMNDRespond(NM_MESSAGE, LonStatusInvalidDatapointIndex, appReceiveParamPtr,
+                apduPtr);
         return;
     }
     /* Recompute checksum and send response */
@@ -1077,158 +1136,182 @@ void HandleNmeUpdateNvAliasCnfg(APPReceiveParam *appReceiveParamPtr, APDU *apduP
  Function:  HandleNmeQueryNvAliasCnfg
  Purpose:   Handle incoming NM Expanded query alias message
  *******************************************************************************/
-void HandleNmeQueryNvAliasCnfg(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
+void HandleNmeQueryNvAliasCnfg(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
+{
     IzotUbits16 n;
 
     struct {
-        IzotByte           subcommand;
-        IzotAliasConfig    alias_config;
+        IzotByte subcommand;
+        IzotAliasConfig alias_config;
     } query_alias_config;
-    
+
     /* Fail if the request does not have correct size */
     if (appReceiveParamPtr->pduSize != 4) {
-        NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr, apduPtr);
+        NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr,
+                apduPtr);
         return;
     }
 
-    n = (IzotUbits16) apduPtr->data[1];
+    n = (IzotUbits16)apduPtr->data[1];
     n = (n << 8) | apduPtr->data[2];
-    
+
     /* Fail if there is insufficient space to send the response */
     if ((n >= nmp->nvTableSize && n < nmp->nvTableSize + NV_ALIAS_TABLE_SIZE &&
-                (1 + sizeof(IzotAliasConfig)) > gp->tsaRespBufSize )) {
+                (1 + sizeof(IzotAliasConfig)) > gp->tsaRespBufSize)) {
         NMNDRespond(NM_MESSAGE, LonStatusBufferSizeTooSmall, appReceiveParamPtr, apduPtr);
         return;
     }
     if (n < nmp->nvTableSize + NV_ALIAS_TABLE_SIZE) {
         /* Copy the alias table entry. */
         query_alias_config.subcommand = apduPtr->data[0];
-        memcpy(&query_alias_config.alias_config, &eep->nvAliasTable[n], 
-        sizeof(IzotAliasConfig));
-        
-        SendResponse(appReceiveParamPtr->reqId, NM_resp_success | NM_EXPANDED, 
-        sizeof(query_alias_config), (IzotByte*)&query_alias_config);
+        memcpy(&query_alias_config.alias_config, &eep->nvAliasTable[n],
+                sizeof(IzotAliasConfig));
+
+        SendResponse(appReceiveParamPtr->reqId, NM_resp_success | NM_EXPANDED,
+                sizeof(query_alias_config), (IzotByte *)&query_alias_config);
     } else {
-        OsalPrintLog(ERROR_LOG, LonStatusInvalidDatapointIndex, "HandleNmeQueryNvAliasCnfg: Invalid NV index");
-        NMNDRespond(NM_MESSAGE, LonStatusInvalidDatapointIndex, appReceiveParamPtr, apduPtr);
+        OsalPrintLog(ERROR_LOG, LonStatusInvalidDatapointIndex,
+                "HandleNmeQueryNvAliasCnfg: Invalid NV index");
+        NMNDRespond(NM_MESSAGE, LonStatusInvalidDatapointIndex, appReceiveParamPtr,
+                apduPtr);
     }
 }
 
 /*******************************************************************************
- Function:  HandleNmeQueryLsAddrMapping
+ Function:  HandleNmeQueryLonUdpAddrMapping
  Purpose:   Handle incoming query mapping table message
  *******************************************************************************/
-void HandleNmeQueryLsAddrMapping(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
+#if LINK_IS(UDP)
+void HandleNmeQueryLonUdpAddrMapping(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
+{
     struct {
         IzotByte subcommand;
         uint32_t AnnouncePeriod;
         uint32_t AgePeriod;
     } reportLsAddrMapping;
-    
+
     /* Fail if the request does not have correct size */
     if ((appReceiveParamPtr->pduSize) != 2) {
-        NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr, apduPtr);
+        NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr,
+                apduPtr);
         return;
     }
 
     reportLsAddrMapping.subcommand = apduPtr->data[0];
     reportLsAddrMapping.AnnouncePeriod = AnnounceTimer;
     reportLsAddrMapping.AgePeriod = AddrMappingAgingTimer;
-    
+
     SendResponse(appReceiveParamPtr->reqId, NM_resp_success | NM_EXPANDED,
-    sizeof(reportLsAddrMapping), (IzotByte*) &reportLsAddrMapping);
+            sizeof(reportLsAddrMapping), (IzotByte *)&reportLsAddrMapping);
 }
+#endif  // LINK_IS(UDP)
 
 /*******************************************************************************
  Function:  HandleNmeQueryIpAddress
  Purpose:   Handle incoming query IP address message
  *******************************************************************************/
-void HandleNmeQueryIpAddress(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
-#if LINK_IS(ETHERNET) || LINK_IS(WIFI)
+void HandleNmeQueryIpAddress(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
+{
+#if PROTOCOL_IS(LON_IPV4) || PROTOCOL_IS(LON_IPV6)
     struct {
         IzotByte subcommand;
         IzotByte ipAddress[IP_ADDRESS_LEN];
     } reportIpAddress;
-    
+
     /* Fail if the request does not have correct size */
     if ((appReceiveParamPtr->pduSize) != 2) {
-        NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr, apduPtr);
+        NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr,
+                apduPtr);
         return;
     }
-    
+#if LINK_IS(UDP)
     reportIpAddress.subcommand = apduPtr->data[0];
     reportIpAddress.ipAddress[0] = ownIpAddress[0];
     reportIpAddress.ipAddress[1] = ownIpAddress[1];
     reportIpAddress.ipAddress[2] = ownIpAddress[2];
     reportIpAddress.ipAddress[3] = ownIpAddress[3];
-    
+#else
+    GenerateLonUdpAddress(eep->domainTable[0].Id,
+            IZOT_GET_ATTRIBUTE_P(&eep->domainTable[0], IZOT_DOMAIN_ID_LENGTH),
+            eep->domainTable[0].Subnet,
+            IZOT_GET_ATTRIBUTE_P(&eep->domainTable[0], IZOT_DOMAIN_NODE),
+            reportIpAddress.ipAddress);
+#endif  // LINK_IS(UDP)
     SendResponse(appReceiveParamPtr->reqId, NM_resp_success | NM_EXPANDED,
-                sizeof(reportIpAddress), (IzotByte*) &reportIpAddress);
+            sizeof(reportIpAddress), (IzotByte *)&reportIpAddress);
 #else
     NMNDRespond(NM_MESSAGE, LonStatusInvalidOperation, appReceiveParamPtr, apduPtr);
-#endif  // OS_IS(ETHERNET) || OS_IS(WIFI)
+#endif  // PROTOCOL_IS(LON_IPV4) || PROTOCOL_IS(LON_IPV6)
 }
 
 /*******************************************************************************
  Function:  HandleNmeUpdateNvByIndex
  Purpose:   Handle incoming Update NV by index message
  *******************************************************************************/
-void HandleNmeUpdateNvByIndex(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) 
+void HandleNmeUpdateNvByIndex(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
 {
-    IzotUbits16          index = -1;
-    IzotUbits16          dataLength, matchingDataLength;
-    IzotUbits16          matchingPrimaryIndex;
+    IzotUbits16 index = -1;
+    IzotUbits16 dataLength, matchingDataLength;
+    IzotUbits16 matchingPrimaryIndex;
     IzotDatapointConfig *matchingNVStrPtr;
-    IzotByte             authOK;
-    IzotByte             err = NM_resp_success;
+    IzotByte authOK;
+    IzotByte err = NM_resp_success;
     struct {
         unsigned char code;     // 0x20 pass // 0x00 fail
         unsigned char subcode;  // 0x02
     } update_nv_response;
 
-    update_nv_response.subcode =  NME_UPDATE_NV_BY_INDEX;
-    
+    update_nv_response.subcode = NME_UPDATE_NV_BY_INDEX;
+
     if (appReceiveParamPtr->pduSize < 5) {
         // The message does not have any correct size or data field.
-        OsalPrintLog(ERROR_LOG, LonStatusDatapointMsgTooShort, "HandleNmeUpdateNvByIndex: Message too short");
-        NMNDRespond(NM_MESSAGE, LonStatusDatapointMsgTooShort, appReceiveParamPtr, apduPtr);
+        OsalPrintLog(ERROR_LOG, LonStatusDatapointMsgTooShort,
+                "HandleNmeUpdateNvByIndex: Message too short");
+        NMNDRespond(NM_MESSAGE, LonStatusDatapointMsgTooShort, appReceiveParamPtr,
+                apduPtr);
         return;
     }
 
-    if (IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NODE_STATE) == IzotNoApplicationUnconfig) {
+    if (IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NODE_STATE) ==
+            IzotNoApplicationUnconfig) {
         err = NM_resp_failure;
     }
 
-    dataLength = appReceiveParamPtr->pduSize - 4;       // data length in message
-    index = (apduPtr->data[1] << 8) | apduPtr->data[2]; //Decode index
+    dataLength = appReceiveParamPtr->pduSize - 4;        // data length in message
+    index = (apduPtr->data[1] << 8) | apduPtr->data[2];  //Decode index
 
     matchingPrimaryIndex = GetPrimaryIndex(index);
-    matchingDataLength   = NV_LENGTH(matchingPrimaryIndex);
+    matchingDataLength = NV_LENGTH(matchingPrimaryIndex);
     // If the data size does not match, don't update. ignore.
     if (dataLength != matchingDataLength) {
-        OsalPrintLog(ERROR_LOG, LonStatusDatapointLengthMismatch, "HandleNmeUpdateNvByIndex: Data length mismatch");
-        err = NM_resp_failure;
-    }
-    
-    matchingNVStrPtr = GetNVStructPtr(matchingPrimaryIndex);
-    if (err == NM_resp_success && IZOT_GET_ATTRIBUTE_P(matchingNVStrPtr, IZOT_DATAPOINT_DIRECTION) == 
-    IzotDatapointDirectionIsOutput) {
-        OsalPrintLog(ERROR_LOG, LonStatusDatapointUpdateOnOutput, "HandleNmeUpdateNvByIndex: Attempt to update output NV");
+        OsalPrintLog(ERROR_LOG, LonStatusDatapointLengthMismatch,
+                "HandleNmeUpdateNvByIndex: Data length mismatch");
         err = NM_resp_failure;
     }
 
-    if (appReceiveParamPtr->auth || !IZOT_GET_ATTRIBUTE_P(matchingNVStrPtr, IZOT_DATAPOINT_AUTHENTICATION)) {
+    matchingNVStrPtr = GetNVStructPtr(matchingPrimaryIndex);
+    if (err == NM_resp_success &&
+            IZOT_GET_ATTRIBUTE_P(matchingNVStrPtr, IZOT_DATAPOINT_DIRECTION) ==
+                    IzotDatapointDirectionIsOutput) {
+        OsalPrintLog(ERROR_LOG, LonStatusDatapointUpdateOnOutput,
+                "HandleNmeUpdateNvByIndex: Attempt to update output NV");
+        err = NM_resp_failure;
+    }
+
+    if (appReceiveParamPtr->auth ||
+            !IZOT_GET_ATTRIBUTE_P(matchingNVStrPtr, IZOT_DATAPOINT_AUTHENTICATION)) {
         authOK = TRUE;
     } else {
         authOK = FALSE;
     }
 
     if (!authOK) {
-        OsalPrintLog(ERROR_LOG, LonStatusAuthenticationMismatch, "HandleNmeUpdateNvByIndex: Authentication failure");
+        OsalPrintLog(ERROR_LOG, LonStatusAuthenticationMismatch,
+                "HandleNmeUpdateNvByIndex: Authentication failure");
         err = NM_resp_failure;
     }
-    
-    if(err == NM_resp_success) {
+
+    if (err == NM_resp_success) {
         IzotUbits16 dplength = dataLength;
         IzotByte hdi[MAX_NV_LENGTH];
         IzotByte arg1 = 0;
@@ -1239,9 +1322,9 @@ void HandleNmeUpdateNvByIndex(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr
             const IzotByte *ibol_seq = izot_dp_prop[matchingPrimaryIndex].ibolSeq;
 
             IzotNdiToHdi(&apduPtr->data[3], hdi, ibol_seq);
-            dplength = 0; //Back to zero , updating as per original structured size
-            while(ibol_seq[byte_index] != IBOL_FINISH) {
-                if(ibol_seq[byte_index] & 0x80) {
+            dplength = 0;  //Back to zero , updating as per original structured size
+            while (ibol_seq[byte_index] != IBOL_FINISH) {
+                if (ibol_seq[byte_index] & 0x80) {
                     byte_index++;
                 }
                 byte_index++;
@@ -1255,51 +1338,59 @@ void HandleNmeUpdateNvByIndex(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr
         memcpy(NV_ADDRESS(matchingPrimaryIndex), &apduPtr->data[3], dplength);
 
         if (AppPgmRuns()) {
-            OsalPrintLog(INFO_LOG, LonStatusNoError, "HandleNmeUpdateNvByIndex: Notify application");
+            OsalPrintLog(INFO_LOG, LonStatusNoError,
+                    "HandleNmeUpdateNvByIndex: Notify application");
             // Notify application program only if it is running.
-            IZOT_SET_ATTRIBUTE(gp->nvInAddr, IZOT_RECEIVEADDRESS_DOMAIN, appReceiveParamPtr->srcAddr.dmn.domainIndex);
-            IZOT_SET_ATTRIBUTE(gp->nvInAddr, IZOT_RECEIVEADDRESS_FLEX, (appReceiveParamPtr->srcAddr.dmn.domainIndex == 
-            FLEX_DOMAIN));
-            
-            memcpy(&gp->nvInAddr.Source, &appReceiveParamPtr->srcAddr.subnetAddr, sizeof(gp->nvInAddr.Source));
+            IZOT_SET_ATTRIBUTE(gp->nvInAddr, IZOT_RECEIVEADDRESS_DOMAIN,
+                    appReceiveParamPtr->srcAddr.dmn.domainIndex);
+            IZOT_SET_ATTRIBUTE(gp->nvInAddr, IZOT_RECEIVEADDRESS_FLEX,
+                    (appReceiveParamPtr->srcAddr.dmn.domainIndex == FLEX_DOMAIN));
+
+            memcpy(&gp->nvInAddr.Source, &appReceiveParamPtr->srcAddr.subnetAddr,
+                    sizeof(gp->nvInAddr.Source));
 
             switch (appReceiveParamPtr->srcAddr.addressMode) {
             case AM_BROADCAST:
                 IZOT_SET_ATTRIBUTE(gp->nvInAddr, IZOT_RECEIVEADDRESS_FORMAT, 0);
-            break;
+                break;
             case AM_MULTICAST:
                 IZOT_SET_ATTRIBUTE(gp->nvInAddr, IZOT_RECEIVEADDRESS_FORMAT, 1);
-                gp->nvInAddr.Destination.Group.GroupId = appReceiveParamPtr->srcAddr.group.GroupId;
-            break;
+                gp->nvInAddr.Destination.Group.GroupId =
+                        appReceiveParamPtr->srcAddr.group.GroupId;
+                break;
             case AM_SUBNET_NODE:
                 IZOT_SET_ATTRIBUTE(gp->nvInAddr, IZOT_RECEIVEADDRESS_FORMAT, 2);
-            break;
+                break;
             case AM_UNIQUE_NODE_ID:
                 IZOT_SET_ATTRIBUTE(gp->nvInAddr, IZOT_RECEIVEADDRESS_FORMAT, 3);
-            break;
+                break;
             default:
                 // should not come here
-                IZOT_SET_ATTRIBUTE(gp->nvInAddr, IZOT_RECEIVEADDRESS_FORMAT, 5); // unknown
+                IZOT_SET_ATTRIBUTE(gp->nvInAddr, IZOT_RECEIVEADDRESS_FORMAT,
+                        5);  // unknown
             }
 
             IzotDatapointUpdateOccurred(matchingPrimaryIndex, &(gp->nvInAddr));
-            if (IZOT_GET_ATTRIBUTE(izot_dp_prop[matchingPrimaryIndex], IZOT_DATAPOINT_PERSIST)) {
+            if (IZOT_GET_ATTRIBUTE(izot_dp_prop[matchingPrimaryIndex],
+                        IZOT_DATAPOINT_PERSIST)) {
                 LCS_WritePersistentAppData();
             }
         }
     }
-    SendResponse(appReceiveParamPtr->reqId, err | NM_EXPANDED, sizeof(update_nv_response), 
-    (IzotByte*) &update_nv_response);
+    SendResponse(appReceiveParamPtr->reqId, err | NM_EXPANDED, sizeof(update_nv_response),
+            (IzotByte *)&update_nv_response);
 }
 
 /*******************************************************************************
  Function:  HandleNMExpanded
  Purpose:   Handle incoming NM Expanded
  *******************************************************************************/
-void HandleNMExpanded(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
+void HandleNMExpanded(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
+{
     if (appReceiveParamPtr->pduSize < 2) {
         // All expanded commands must at least include a sub-command
-        NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr, apduPtr);
+        NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr,
+                apduPtr);
     } else {
         switch (apduPtr->data[0]) {
         case NME_QUERY_VERSION:
@@ -1335,12 +1426,15 @@ void HandleNMExpanded(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
         case NME_QUERY_NV_ALIAS_CONFIG:
             HandleNmeQueryNvAliasCnfg(appReceiveParamPtr, apduPtr);
             break;
+#if LINK_IS(UDP)
         case NME_QUERY_LS_ADDR_MAPPING_ANNOUNCEMENT:
-            HandleNmeQueryLsAddrMapping(appReceiveParamPtr, apduPtr);
+            HandleNmeQueryLonUdpAddrMapping(appReceiveParamPtr, apduPtr);
+#endif  // LINK_IS(UDP)
             break;
         case NME_QUERY_IP_ADDRESS:
             HandleNmeQueryIpAddress(appReceiveParamPtr, apduPtr);
             break;
+#if IUP_IS(V1)
         case NME_IUP_INIT:
             HandleNmeIupInit(appReceiveParamPtr, apduPtr);
             break;
@@ -1363,55 +1457,57 @@ void HandleNMExpanded(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
             HandleNmeIupCommit(appReceiveParamPtr, apduPtr);
             break;
         case NME_IUP_ACK_TRANSFER:
-			HandleNmeIupTransferAck(appReceiveParamPtr, apduPtr);
-			break;
-#ifdef SECURITY_II
-		case NMEXP_SEC_ENROLL:
-		case NMEXP_SEC_REENROLL:
-			HandleNmeSecEnroll(appReceiveParamPtr, apduPtr);
-			break;
-		case NMEXP_SEC_SET_BAKP:
-			HandleNmeSecSetBAKP(appReceiveParamPtr, apduPtr);
-			break;
-		case NMEXP_SEC_QUERY_BAKP:
-			HandleNmeSecQueryBAKP(appReceiveParamPtr, apduPtr);
-			break;
-		case NMEXP_SEC_RELEASE_DEVICE:
-			HandleNmeSecReleaseDevice(appReceiveParamPtr, apduPtr);
-			break;
-		case NMEXP_SEC_START_REKEY:
-			HandleNmeSecStartReKey(appReceiveParamPtr, apduPtr);
-			break;
-		case NMEXP_SEC_REKEY_COMPLETE:
-			HandleNmeSecRekeyComplete(appReceiveParamPtr, apduPtr);
-			break;
-		case NMEXP_SEC_REVOKE_KEY:
-			HandleNmeSecRevokeKey(appReceiveParamPtr, apduPtr);
-			break;
-		case NMEXP_SEC_DEACTIVATE:
-			HandleNmeSecDeactivate(appReceiveParamPtr, apduPtr);
-			break;
-		case NMEXP_SEC_QUERY_DEVICE_CERT:
-			HandleNmeSecQueryDeviceCert(appReceiveParamPtr, apduPtr);
-			break;
-		case NMEXP_SEC_QUERY_SECURITY_STATE:
-			HandleNmeSecQuerySecurityState(appReceiveParamPtr, apduPtr);
-			break;
-		case NMEXP_SEC_QUERY_SECURITY_STATS:
-			HandleNmeSecQuerySecurityStats(appReceiveParamPtr, apduPtr);
-			break;
-		case NMEXP_SEC_CLEAR_SECURITY_STATS:
-			HandleNmeSecClearSecurityStats(appReceiveParamPtr, apduPtr);
-			break;
-		case NMEXP_SEC_QUERY_IV_STATE:
-			HandleNmeSecQueryIVState(appReceiveParamPtr, apduPtr);
-			break;
-		case NMEXP_SEC_QUERY_REPLAY:
-			HandleNmeSecQueryReply(appReceiveParamPtr, apduPtr);
-			break;
-#endif
+            HandleNmeIupTransferAck(appReceiveParamPtr, apduPtr);
+#endif  // IUP_IS(V1)
+            break;
+#if SECURITY_IS(V2)
+        case NMEXP_SEC_ENROLL:
+        case NMEXP_SEC_REENROLL:
+            HandleNmeSecEnroll(appReceiveParamPtr, apduPtr);
+            break;
+        case NMEXP_SEC_SET_BAKP:
+            HandleNmeSecSetBAKP(appReceiveParamPtr, apduPtr);
+            break;
+        case NMEXP_SEC_QUERY_BAKP:
+            HandleNmeSecQueryBAKP(appReceiveParamPtr, apduPtr);
+            break;
+        case NMEXP_SEC_RELEASE_DEVICE:
+            HandleNmeSecReleaseDevice(appReceiveParamPtr, apduPtr);
+            break;
+        case NMEXP_SEC_START_REKEY:
+            HandleNmeSecStartReKey(appReceiveParamPtr, apduPtr);
+            break;
+        case NMEXP_SEC_REKEY_COMPLETE:
+            HandleNmeSecRekeyComplete(appReceiveParamPtr, apduPtr);
+            break;
+        case NMEXP_SEC_REVOKE_KEY:
+            HandleNmeSecRevokeKey(appReceiveParamPtr, apduPtr);
+            break;
+        case NMEXP_SEC_DEACTIVATE:
+            HandleNmeSecDeactivate(appReceiveParamPtr, apduPtr);
+            break;
+        case NMEXP_SEC_QUERY_DEVICE_CERT:
+            HandleNmeSecQueryDeviceCert(appReceiveParamPtr, apduPtr);
+            break;
+        case NMEXP_SEC_QUERY_SECURITY_STATE:
+            HandleNmeSecQuerySecurityState(appReceiveParamPtr, apduPtr);
+            break;
+        case NMEXP_SEC_QUERY_SECURITY_STATS:
+            HandleNmeSecQuerySecurityStats(appReceiveParamPtr, apduPtr);
+            break;
+        case NMEXP_SEC_CLEAR_SECURITY_STATS:
+            HandleNmeSecClearSecurityStats(appReceiveParamPtr, apduPtr);
+            break;
+        case NMEXP_SEC_QUERY_IV_STATE:
+            HandleNmeSecQueryIVState(appReceiveParamPtr, apduPtr);
+            break;
+        case NMEXP_SEC_QUERY_REPLAY:
+            HandleNmeSecQueryReply(appReceiveParamPtr, apduPtr);
+            break;
+#endif  // SECURITY_IS(V2)
         default:
-            NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageCommand, appReceiveParamPtr, apduPtr);
+            NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageCommand, appReceiveParamPtr,
+                    apduPtr);
             break;
         }
     }
@@ -1425,7 +1521,8 @@ void HandleNMExpanded(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
  Comments:  The message must be a request. There must be space in
  response queue. See HandleNM (We do these checks first).
  *******************************************************************************/
-void HandleNMQueryId(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
+void HandleNMQueryId(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
+{
     NMQueryIdRequest *pid;
     char *memp;
     Queue *tsaOutQPtr;
@@ -1436,7 +1533,8 @@ void HandleNMQueryId(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
 
     /* Fail if message does not have the correct size. Should be 2 or 6+n */
     if (appReceiveParamPtr->pduSize != 2 && appReceiveParamPtr->pduSize < 6) {
-        NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr, apduPtr);
+        NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr,
+                apduPtr);
         return;
     }
 
@@ -1445,7 +1543,7 @@ void HandleNMQueryId(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
     /* Init some fields here. Assume we may fail. */
     tsaSendParamPtr = QueueTail(tsaOutQPtr);
     tsaSendParamPtr->altPathOverride = FALSE;
-    apduRespPtr = (APDU *) (tsaSendParamPtr + 1);
+    apduRespPtr = (APDU *)(tsaSendParamPtr + 1);
     tsaSendParamPtr->service = IzotServiceResponse;
     tsaSendParamPtr->nullResponse = FALSE;
     tsaSendParamPtr->flexResponse = FALSE;
@@ -1455,15 +1553,16 @@ void HandleNMQueryId(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
      response. */
     apduRespPtr->code.allBits = NM_resp_failure | NM_QUERY_ID;
 
-    pid = (NMQueryIdRequest *) &apduPtr->data;
+    pid = (NMQueryIdRequest *)&apduPtr->data;
     offset = hton16(pid->offset);
 
     /* if optional fields are present, check that the data field has
      sufficient bytes. */
-    if (appReceiveParamPtr->pduSize > 2 && appReceiveParamPtr->pduSize != (6
-            + pid->count)) {
+    if (appReceiveParamPtr->pduSize > 2 &&
+            appReceiveParamPtr->pduSize != (6 + pid->count)) {
         /* The message does not have sufficient data or it has too much data. */
-        NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr, apduPtr);
+        NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr,
+                apduPtr);
         return;
     }
 
@@ -1507,16 +1606,16 @@ void HandleNMQueryId(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
     if (appReceiveParamPtr->pduSize > 2) {
         switch (pid->mode) {
         case ABSOLUTE_MEM_ADDR:
-            memp = (char *) nmp;
+            memp = (char *)nmp;
             if (offset >= 0xF000) {
-                memp = (char *) eep - 0xF000;
+                memp = (char *)eep - 0xF000;
             }
             break;
         case CONFIG_RELATIVE:
-            memp = (char *) &(eep->configData);
+            memp = (char *)&(eep->configData);
             break;
         case READ_ONLY_RELATIVE:
-            memp = (char *) &(eep->readOnlyData);
+            memp = (char *)&(eep->readOnlyData);
             break;
         default:
             QueueWrite(tsaOutQPtr);
@@ -1526,8 +1625,8 @@ void HandleNMQueryId(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
         memp += offset;
 
         /* Absolute addressing to read snvt is not possible */
-        allowed = (memp >= (char *) &eep->readOnlyData && memp
-                + apduPtr->data[3] < (char *) &eep->domainTable[0]);
+        allowed = (memp >= (char *)&eep->readOnlyData &&
+                   memp + apduPtr->data[3] < (char *)&eep->domainTable[0]);
         if (!allowed) {
             QueueWrite(tsaOutQPtr);
             return; /* Failed response. */
@@ -1542,15 +1641,12 @@ void HandleNMQueryId(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
     }
 
     /* Send response */
-    if (1 + IZOT_UNIQUE_ID_LENGTH + IZOT_PROGRAM_ID_LENGTH <= 
-    gp->tsaRespBufSize) {
-        tsaSendParamPtr->apduSize = 
-                             1 + IZOT_UNIQUE_ID_LENGTH + IZOT_PROGRAM_ID_LENGTH;
+    if (1 + IZOT_UNIQUE_ID_LENGTH + IZOT_PROGRAM_ID_LENGTH <= gp->tsaRespBufSize) {
+        tsaSendParamPtr->apduSize = 1 + IZOT_UNIQUE_ID_LENGTH + IZOT_PROGRAM_ID_LENGTH;
         apduRespPtr->code.allBits = NM_resp_success | NM_QUERY_ID;
-        memcpy(apduRespPtr->data, eep->readOnlyData.UniqueNodeId,
-                IZOT_UNIQUE_ID_LENGTH);
-        memcpy(&(apduRespPtr->data[IZOT_UNIQUE_ID_LENGTH]),
-                eep->readOnlyData.ProgramId, IZOT_PROGRAM_ID_LENGTH);
+        memcpy(apduRespPtr->data, eep->readOnlyData.UniqueNodeId, IZOT_UNIQUE_ID_LENGTH);
+        memcpy(&(apduRespPtr->data[IZOT_UNIQUE_ID_LENGTH]), eep->readOnlyData.ProgramId,
+                IZOT_PROGRAM_ID_LENGTH);
     }
 
     QueueWrite(tsaOutQPtr);
@@ -1559,8 +1655,8 @@ void HandleNMQueryId(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
 /*******************************************************************************
  Purpose:   Handle incoming NM Update Group Addr message.
  *******************************************************************************/
-void HandleNMUpdateGroupAddr(APPReceiveParam *appReceiveParamPtr, 
-APDU *apduPtr) {
+void HandleNMUpdateGroupAddr(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
+{
     IzotByte addrIndex = 0;
     IzotAddressTableGroup *groupStrPtr;
     IzotAddress *ap;
@@ -1568,15 +1664,17 @@ APDU *apduPtr) {
     /* This message must be delivered with group addressing and is
      updated based on the domain in which it was received. Hence,
      flex domain is not allowed. */
-    if (appReceiveParamPtr->srcAddr.addressMode != AM_MULTICAST
-            || appReceiveParamPtr->srcAddr.dmn.domainIndex == FLEX_DOMAIN) {
+    if (appReceiveParamPtr->srcAddr.addressMode != AM_MULTICAST ||
+            appReceiveParamPtr->srcAddr.dmn.domainIndex == FLEX_DOMAIN) {
         /* This message should be sent in AM_MULTICAST. Fail */
-        NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageService, appReceiveParamPtr, apduPtr);
+        NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageService, appReceiveParamPtr,
+                apduPtr);
         return;
     }
     if (appReceiveParamPtr->pduSize != 1 + sizeof(IzotAddress)) {
         /* Incorrect size */
-        NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr, apduPtr);
+        NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr,
+                apduPtr);
         return;
     }
     /* For accessing the corresponding address table entry,
@@ -1585,30 +1683,31 @@ APDU *apduPtr) {
      the domainIndex in which the message was received rather than
      the domain index in the packet(which will be same for all
      recipients) as it may be different for different nodes. */
-    groupStrPtr = (IzotAddressTableGroup *) &apduPtr->data[0];
+    groupStrPtr = (IzotAddressTableGroup *)&apduPtr->data[0];
     if (IZOT_GET_ATTRIBUTE_P(groupStrPtr, IZOT_ADDRESS_GROUP_TYPE) == 1) {
         addrIndex = AddrTableIndex(appReceiveParamPtr->srcAddr.dmn.domainIndex,
                 appReceiveParamPtr->srcAddr.group.GroupId);
     }
 
     /* Make sure we got a good index. */
-    if (IZOT_GET_ATTRIBUTE_P(groupStrPtr, IZOT_ADDRESS_GROUP_TYPE) != 
-    1 || addrIndex == 0xFF) {
-        NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageAddress, appReceiveParamPtr, apduPtr);
+    if (IZOT_GET_ATTRIBUTE_P(groupStrPtr, IZOT_ADDRESS_GROUP_TYPE) != 1 ||
+            addrIndex == 0xFF) {
+        NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageAddress, appReceiveParamPtr,
+                apduPtr);
         return;
     }
     ap = AccessAddress(addrIndex); /* ap cannot be NULL */
     /* Only group size and timer values should be changed */
-    IZOT_SET_ATTRIBUTE(ap->Group, IZOT_ADDRESS_GROUP_SIZE, 
-    IZOT_GET_ATTRIBUTE_P(groupStrPtr, IZOT_ADDRESS_GROUP_SIZE));
-    IZOT_SET_ATTRIBUTE(ap->Group, IZOT_ADDRESS_GROUP_REPEAT_TIMER, 
-    IZOT_GET_ATTRIBUTE_P(groupStrPtr, IZOT_ADDRESS_GROUP_REPEAT_TIMER));
-    IZOT_SET_ATTRIBUTE(ap->Group, IZOT_ADDRESS_GROUP_RETRY, 
-    IZOT_GET_ATTRIBUTE_P(groupStrPtr, IZOT_ADDRESS_GROUP_RETRY));
-    IZOT_SET_ATTRIBUTE(ap->Group, IZOT_ADDRESS_GROUP_RECEIVE_TIMER, 
-    IZOT_GET_ATTRIBUTE_P(groupStrPtr, IZOT_ADDRESS_GROUP_RECEIVE_TIMER));
-    IZOT_SET_ATTRIBUTE(ap->Group, IZOT_ADDRESS_GROUP_TRANSMIT_TIMER, 
-    IZOT_GET_ATTRIBUTE_P(groupStrPtr, IZOT_ADDRESS_GROUP_TRANSMIT_TIMER));
+    IZOT_SET_ATTRIBUTE(ap->Group, IZOT_ADDRESS_GROUP_SIZE,
+            IZOT_GET_ATTRIBUTE_P(groupStrPtr, IZOT_ADDRESS_GROUP_SIZE));
+    IZOT_SET_ATTRIBUTE(ap->Group, IZOT_ADDRESS_GROUP_REPEAT_TIMER,
+            IZOT_GET_ATTRIBUTE_P(groupStrPtr, IZOT_ADDRESS_GROUP_REPEAT_TIMER));
+    IZOT_SET_ATTRIBUTE(ap->Group, IZOT_ADDRESS_GROUP_RETRY,
+            IZOT_GET_ATTRIBUTE_P(groupStrPtr, IZOT_ADDRESS_GROUP_RETRY));
+    IZOT_SET_ATTRIBUTE(ap->Group, IZOT_ADDRESS_GROUP_RECEIVE_TIMER,
+            IZOT_GET_ATTRIBUTE_P(groupStrPtr, IZOT_ADDRESS_GROUP_RECEIVE_TIMER));
+    IZOT_SET_ATTRIBUTE(ap->Group, IZOT_ADDRESS_GROUP_TRANSMIT_TIMER,
+            IZOT_GET_ATTRIBUTE_P(groupStrPtr, IZOT_ADDRESS_GROUP_TRANSMIT_TIMER));
     RecomputeChecksum();
     NMNDRespond(NM_MESSAGE, LonStatusNoError, appReceiveParamPtr, apduPtr);
 }
@@ -1620,12 +1719,14 @@ APDU *apduPtr) {
  Purpose:   Handle incoming NM QueryDomain message.
  Comments:  Must be a Request.
  *******************************************************************************/
-void HandleNMQueryDomain(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
+void HandleNMQueryDomain(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
+{
     IzotDomain *p = AccessDomain(apduPtr->data[0]);
 
     /* Fail if message does not have the correct size. */
     if (appReceiveParamPtr->pduSize != 2) {
-        NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr, apduPtr);
+        NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr,
+                apduPtr);
         return;
     }
 
@@ -1633,26 +1734,29 @@ void HandleNMQueryDomain(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
      domain and the index is 1, then fail. */
     if (p == NULL) {
         /* Domain index is bad. */
-        OsalPrintLog(ERROR_LOG, LonStatusInvalidDomain, "HandleNMQueryDomain: Invalid domain index");
+        OsalPrintLog(ERROR_LOG, LonStatusInvalidDomain,
+                "HandleNMQueryDomain: Invalid domain index");
         NMNDRespond(NM_MESSAGE, LonStatusInvalidDomain, appReceiveParamPtr, apduPtr);
         return;
     }
     /* Send response */
     SendResponse(appReceiveParamPtr->reqId, NM_resp_success | NM_QUERY_DOMAIN,
-            sizeof(IzotDomain), (IzotByte*) p);
+            sizeof(IzotDomain), (IzotByte *)p);
 }
 
 /*******************************************************************************
  Function:  HandleNMUpdateNvConfig
  Purpose:   Handle incoming NM Update NV Config message.
  *******************************************************************************/
-void HandleNMUpdateNvConfig(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
+void HandleNMUpdateNvConfig(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
+{
     IzotUbits16 n; /* for nv index */
     IzotByte pduSize;
     NVStruct *np;
 
     if (appReceiveParamPtr->pduSize < 5) {
-        NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr, apduPtr);
+        NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr,
+                apduPtr);
         return;
     }
 
@@ -1660,7 +1764,7 @@ void HandleNMUpdateNvConfig(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) 
 
     n = apduPtr->data[0];
     if (n == 255) {
-        n = (IzotUbits16) apduPtr->data[1];
+        n = (IzotUbits16)apduPtr->data[1];
         n = (n << 8) | apduPtr->data[2];
         if (n < nmp->nvTableSize) {
             pduSize = sizeof(NVStruct) + 4; /* escaped regular update */
@@ -1669,7 +1773,7 @@ void HandleNMUpdateNvConfig(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) 
              absent for now. */
             pduSize = (sizeof(AliasStruct) - 2) + 4;
         }
-        np = (NVStruct *) (&apduPtr->data[3]);
+        np = (NVStruct *)(&apduPtr->data[3]);
     } else {
         if (n < nmp->nvTableSize) {
             pduSize = sizeof(NVStruct) + 2; /* regular update */
@@ -1678,7 +1782,7 @@ void HandleNMUpdateNvConfig(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) 
             /* last 2 is for index + code */
             pduSize = (sizeof(AliasStruct) - 2) + 2;
         }
-        np = (NVStruct *) (&apduPtr->data[1]);
+        np = (NVStruct *)(&apduPtr->data[1]);
     }
 
     /* Update nv config or alias table */
@@ -1689,35 +1793,41 @@ void HandleNMUpdateNvConfig(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) 
             IZOT_SET_ATTRIBUTE(eep->nvConfigTable[n], IZOT_DATAPOINT_AES, 0x0);
         } else {
             /* Incorrect size */
-            NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr, apduPtr);
+            NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr,
+                    apduPtr);
             return;
         }
     } else if (n < nmp->nvTableSize + NV_ALIAS_TABLE_SIZE) {
         n = n - nmp->nvTableSize; /* Alias table index */
         /* Check for various forms of alias update */
-        if (((AliasStruct *) np)->primary == 0xFF
-                && appReceiveParamPtr->pduSize == pduSize) {
+        if (((AliasStruct *)np)->primary == 0xFF &&
+                appReceiveParamPtr->pduSize == pduSize) {
             /* host_primary missing. default to 0xffff. Null alias update. */
-            ((AliasStruct *) np)->hostPrimary = 0xffff;
-        } else if (((AliasStruct *) np)->primary == 0xFF) {
+            ((AliasStruct *)np)->hostPrimary = 0xffff;
+        } else if (((AliasStruct *)np)->primary == 0xFF) {
             /* escaped alias. hostPrimary is present */
             pduSize += 2;
         }
         /* Update the nv alias table */
         if (appReceiveParamPtr->pduSize >= pduSize) {
-            memcpy(&eep->nvAliasTable[n].Alias, &((AliasStruct *)np)->nvConfig, sizeof(NVStruct));
-            IZOT_SET_ATTRIBUTE(eep->nvAliasTable[n].Alias, IZOT_DATAPOINT_ADDRESS_HIGH, 0x00);
+            memcpy(&eep->nvAliasTable[n].Alias, &((AliasStruct *)np)->nvConfig,
+                    sizeof(NVStruct));
+            IZOT_SET_ATTRIBUTE(eep->nvAliasTable[n].Alias, IZOT_DATAPOINT_ADDRESS_HIGH,
+                    0x00);
             IZOT_SET_ATTRIBUTE(eep->nvAliasTable[n].Alias, IZOT_DATAPOINT_AES, 0x00);
             eep->nvAliasTable[n].Primary = (IzotUbits16)(((AliasStruct *)np)->primary);
         } else {
             /* Incorrect size */
-            NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr, apduPtr);
+            NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr,
+                    apduPtr);
             return;
         }
     } else {
         /* Invalid nv table index */
-        OsalPrintLog(ERROR_LOG, LonStatusInvalidDatapointIndex, "HandleNmeUpdateNvByIndex: Invalid NV index");
-        NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageAddress, appReceiveParamPtr, apduPtr);
+        OsalPrintLog(ERROR_LOG, LonStatusInvalidDatapointIndex,
+                "HandleNmeUpdateNvByIndex: Invalid NV index");
+        NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageAddress, appReceiveParamPtr,
+                apduPtr);
         return;
     }
 
@@ -1760,10 +1870,12 @@ void HandleNMUpdateNvConfig(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) 
  *    the approprite task (if any) is executed
  * 9) Changing the node state recomputes the configuration checksum
  *******************************************************************************/
-void HandleNMSetNodeMode(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
-    if (appReceiveParamPtr->pduSize < 2 || (apduPtr->data[0] == 3
-            && appReceiveParamPtr->pduSize < 3)) {
-        NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr, apduPtr);
+void HandleNMSetNodeMode(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
+{
+    if (appReceiveParamPtr->pduSize < 2 ||
+            (apduPtr->data[0] == 3 && appReceiveParamPtr->pduSize < 3)) {
+        NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr,
+                apduPtr);
         return;
     }
 
@@ -1775,7 +1887,7 @@ void HandleNMSetNodeMode(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
         gp->appPgmMode = OFF_LINE;
         /* No response given as the message is not a request. */
         break;
-    case 1: /* Go on-line */
+    case 1:           /* Go on-line */
         IzotOnline(); /* Indicate to application program. */
         gp->appPgmMode = ON_LINE;
         /* No response given as the message is not a request. */
@@ -1788,38 +1900,39 @@ void HandleNMSetNodeMode(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
     case 3: /* Change State */
         /* Fail if message is not 3 bytes long. */
         if (appReceiveParamPtr->pduSize != 3) {
-            NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr, apduPtr);
+            NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr,
+                    apduPtr);
             break;
         }
-        if ((IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NODE_STATE) & 
-        IS_APPLESS) && !(apduPtr->data[1] & IS_APPLESS)) 
-        {
-            // We're attempting to leave the appless state.  
+        if ((IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NODE_STATE) &
+                    IS_APPLESS) &&
+                !(apduPtr->data[1] & IS_APPLESS)) {
+            // We're attempting to leave the appless state.
             // Did we have a switchover failure?
             if (gp->nvm.downloadState.switchoverFailure) {
                 // Yes, fail the download.
-                NMNDRespond(NM_MESSAGE, LonStatusModeChangeFailure, appReceiveParamPtr, apduPtr);
+                NMNDRespond(NM_MESSAGE, LonStatusModeChangeFailure, appReceiveParamPtr,
+                        apduPtr);
                 break;
             }
         }
 
-        IZOT_SET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NODE_STATE, 
-        apduPtr->data[1]);
+        IZOT_SET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NODE_STATE, apduPtr->data[1]);
         /* Preserve the state of appPgmMode except for
          IzotNoApplicationUnconfig. */
-        if (IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NODE_STATE) == 
-        IzotNoApplicationUnconfig || IZOT_GET_ATTRIBUTE(eep->readOnlyData, 
-        IZOT_READONLY_NODE_STATE) == IzotStateInvalid_7) 
-        {
+        if (IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NODE_STATE) ==
+                        IzotNoApplicationUnconfig ||
+                IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NODE_STATE) ==
+                        IzotStateInvalid_7) {
             gp->appPgmMode = NOT_RUNNING;
         }
         RecomputeChecksum();
         /* Respond with success if the message was a request. */
         NMNDRespond(NM_MESSAGE, LonStatusNoError, appReceiveParamPtr, apduPtr);
         break;
-	case 6: /* New Physical Reset Sub Command */
-		PhysicalResetRequested();
-		break;
+    case 6: /* New Physical Reset Sub Command */
+        PhysicalResetRequested();
+        break;
     default:
         /* Let us reset the node for this case */
         gp->resetNode = TRUE;
@@ -1835,25 +1948,25 @@ void HandleNMSetNodeMode(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
  Purpose:   Handle incoming NM ReadMemory message
  Comments:  None.
  *******************************************************************************/
-void HandleNMReadMemory(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
-    Queue        *tsaOutQPtr;
+void HandleNMReadMemory(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
+{
+    Queue *tsaOutQPtr;
     TSASendParam *tsaSendParamPtr;
-    APDU         *apduRespPtr;
-    char         *memp = NULL;
-    IzotUbits16   offset;
-    IzotByte      allowed;
-    IzotByte      clockSave = 
-                   IZOT_GET_ATTRIBUTE(eep->configData, IZOT_CONFIG_INPUT_CLOCK);
+    APDU *apduRespPtr;
+    char *memp = NULL;
+    IzotUbits16 offset;
+    IzotByte allowed;
+    IzotByte clockSave = IZOT_GET_ATTRIBUTE(eep->configData, IZOT_CONFIG_INPUT_CLOCK);
 
     tsaOutQPtr = &gp->tsaRespQ;
 
-    if (appReceiveParamPtr->pduSize < 5 || apduPtr->data[3]
-            > gp->tsaRespBufSize) {
-        NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr, apduPtr);
+    if (appReceiveParamPtr->pduSize < 5 || apduPtr->data[3] > gp->tsaRespBufSize) {
+        NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr,
+                apduPtr);
         return;
     }
 
-    offset = ((IzotUbits16) apduPtr->data[1] << 8) | apduPtr->data[2];
+    offset = ((IzotUbits16)apduPtr->data[1] << 8) | apduPtr->data[2];
 
     /* Assemble response */
     tsaSendParamPtr = QueueTail(tsaOutQPtr);
@@ -1864,7 +1977,7 @@ void HandleNMReadMemory(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
     tsaSendParamPtr->reqId = appReceiveParamPtr->reqId;
     tsaSendParamPtr->apduSize = 1 + apduPtr->data[3];
 
-    apduRespPtr = (APDU *) (tsaSendParamPtr + 1);
+    apduRespPtr = (APDU *)(tsaSendParamPtr + 1);
 
     apduRespPtr->code.allBits = NM_resp_success | NM_READ_MEMORY;
 
@@ -1880,9 +1993,9 @@ void HandleNMReadMemory(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
             return;
         } else {
 #endif
-            memp = (char *) nmp;
+            memp = (char *)nmp;
             if (offset >= 0xF000) {
-                memp = (char *) eep - 0xF000;
+                memp = (char *)eep - 0xF000;
             }
 #if LON_DMF_ENABLED
         }
@@ -1890,17 +2003,17 @@ void HandleNMReadMemory(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
         break;
     case READ_ONLY_RELATIVE:
     default:
-        memp = (char *) &(eep->readOnlyData);
+        memp = (char *)&(eep->readOnlyData);
         break;
     case CONFIG_RELATIVE:
-        memp = (char *) &(eep->configData);
+        memp = (char *)&(eep->configData);
         break;
     case STAT_RELATIVE:
-        memp = (char *) &(nmp->stats);
+        memp = (char *)&(nmp->stats);
         break;
 
 #if ENABLE_STACKTRACE
-        case DBG_RELATIVE:
+    case DBG_RELATIVE:
         memp = (char *)STK_GetSnapshot();
         break;
 #endif  // ENABLE_STACKTRACE
@@ -1918,11 +2031,10 @@ void HandleNMReadMemory(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
      Reference implementation does not support snvt reading through
      absolute addressing. readOnlyData.snvtStruct is 0xFFFF */
 
-    if (IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_RW_PROTECT) == 
-    TRUE) {
-        allowed = (memp >= (char *) &eep->readOnlyData && memp
-                + apduPtr->data[3] < (char *) &eep->domainTable[0]) || (memp
-                == (char *) &nmp && apduPtr->data[3] == 1);
+    if (IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_RW_PROTECT) == TRUE) {
+        allowed = (memp >= (char *)&eep->readOnlyData &&
+                          memp + apduPtr->data[3] < (char *)&eep->domainTable[0]) ||
+                  (memp == (char *)&nmp && apduPtr->data[3] == 1);
 
         if (!allowed) {
             tsaSendParamPtr->apduSize = 1;
@@ -1932,9 +2044,9 @@ void HandleNMReadMemory(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
         }
     }
 
-    // The switchover occurs during the checksum recalc which loaders base 
+    // The switchover occurs during the checksum recalc which loaders base
     // their timeout on the input clock so we fake this out as being slow.
-    // We don't just permanently tweak the comm params for fear of messing 
+    // We don't just permanently tweak the comm params for fear of messing
     // up the MIP.
     IZOT_SET_ATTRIBUTE(eep->configData, IZOT_CONFIG_INPUT_CLOCK, 0);
 
@@ -1943,7 +2055,7 @@ void HandleNMReadMemory(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
     // Undo above fake-out
     IZOT_SET_ATTRIBUTE(eep->configData, IZOT_CONFIG_INPUT_CLOCK, clockSave);
 
-    if (memp == (char *) nmp && apduPtr->data[3] == 1) {
+    if (memp == (char *)nmp && apduPtr->data[3] == 1) {
         /* Trap for absolute read of location 0 and write base firmware version number */
         apduRespPtr->data[0] = BASE_FIRMWARE_VERSION;
     }
@@ -1958,7 +2070,8 @@ void HandleNMReadMemory(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
  Purpose:   Handle incoming NM RecalcChecksum message.
  Comments:  None.
  *******************************************************************************/
-void HandleNMChecksumRecalc(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
+void HandleNMChecksumRecalc(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
+{
     LonStatusCode sts = LonStatusNoError;
     // Re-config checksum
     RecomputeChecksum();
@@ -1973,7 +2086,8 @@ void HandleNMChecksumRecalc(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) 
  Purpose:   Handle incoming NM WriteMemory message.
  Comments:  None.
  *******************************************************************************/
-void HandleNMWriteMemory(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
+void HandleNMWriteMemory(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
+{
     NMWriteMemoryRequest *pr;
     char *memp;
     IzotUbits16 offset;
@@ -1981,20 +2095,22 @@ void HandleNMWriteMemory(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
 
     /* Fail if message is not at least 6 bytes long */
     if (appReceiveParamPtr->pduSize < 6) {
-        NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr, apduPtr);
+        NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr,
+                apduPtr);
         return;
     }
 
     /* Pointer to struct describing memory request */
-    pr = (NMWriteMemoryRequest *) &apduPtr->data[0];
+    pr = (NMWriteMemoryRequest *)&apduPtr->data[0];
 
     offset = hton16(pr->offset);
 
     /* Fail if message length doesn't match count. Poke can use 16 data bytes.
      Allow that. Note that the code takes one byte. */
-    if (appReceiveParamPtr->pduSize != 6 + pr->count
-            && appReceiveParamPtr->pduSize != 17) {
-        NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr, apduPtr);
+    if (appReceiveParamPtr->pduSize != 6 + pr->count &&
+            appReceiveParamPtr->pduSize != 17) {
+        NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr,
+                apduPtr);
         return;
     }
 
@@ -2014,14 +2130,15 @@ void HandleNMWriteMemory(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
                 }
                 NMNDRespond(NM_MESSAGE, LonStatusNoError, appReceiveParamPtr, apduPtr);
             } else {
-                NMNDRespond(NM_MESSAGE, LonStatusWriteFailed, appReceiveParamPtr, apduPtr);
+                NMNDRespond(NM_MESSAGE, LonStatusWriteFailed, appReceiveParamPtr,
+                        apduPtr);
             }
             return;
         } else {
 #endif
-            memp = (char *) nmp;
+            memp = (char *)nmp;
             if (offset >= 0xF000) {
-                memp = (char *) eep;
+                memp = (char *)eep;
                 offset -= 0xF000;
             }
 #if LON_DMF_ENABLED
@@ -2029,13 +2146,13 @@ void HandleNMWriteMemory(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
 #endif
         break;
     case CONFIG_RELATIVE:
-        memp = (char *) &(eep->configData);
+        memp = (char *)&(eep->configData);
         break;
     case STAT_RELATIVE:
-        memp = (char *) &(nmp->stats);
+        memp = (char *)&(nmp->stats);
         break;
     case READ_ONLY_RELATIVE:
-        memp = (char *) &(eep->readOnlyData);
+        memp = (char *)&(eep->readOnlyData);
         break;
     default:
         // Invalid mode
@@ -2046,19 +2163,18 @@ void HandleNMWriteMemory(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
     memp += offset;
 
     /* Check if the range of memory cells written is good */
-    allowed
-            = (memp >= (char *) nmp && (memp + pr->count) <= (char *) (nmp + 1))
-                    || (memp >= (char *) eep && (memp + pr->count)
-                            <= (char *) (eep + 1));
+    allowed = (memp >= (char *)nmp && (memp + pr->count) <= (char *)(nmp + 1)) ||
+              (memp >= (char *)eep && (memp + pr->count) <= (char *)(eep + 1));
     if (!allowed) {
 
         /* Send failure response if the message was a request */
-        NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageCommand, appReceiveParamPtr, apduPtr);
+        NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageCommand, appReceiveParamPtr,
+                apduPtr);
         return;
     }
 
-    if (&memp[pr->count] >= (char*) &eep->configData.Clock && memp
-            < (char*) (&eep->configData.Config_1)) {
+    if (&memp[pr->count] >= (char *)&eep->configData.Clock &&
+            memp < (char *)(&eep->configData.Config_1)) {
         // This is a comm parameter write.  Update the actual device
         CpWrite cw = CP_WRITE;
         if (pr->form & ACTION_RESET) {
@@ -2067,15 +2183,14 @@ void HandleNMWriteMemory(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
     }
 
     /* If readwrite flag is on, then only config structure can be written. */
-    if (IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_RW_PROTECT) == 
-    TRUE) 
-    {
-        allowed = (memp >= (char *) &eep->configData && memp + pr->count
-                < (char *) &eep->domainTable[0]);
+    if (IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_RW_PROTECT) == TRUE) {
+        allowed = (memp >= (char *)&eep->configData &&
+                   memp + pr->count < (char *)&eep->domainTable[0]);
 
         if (!allowed) {
             /* Send failure response if the message was a request */
-            NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageCommand, appReceiveParamPtr, apduPtr);
+            NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageCommand, appReceiveParamPtr,
+                    apduPtr);
             return;
         }
     }
@@ -2105,10 +2220,11 @@ void HandleNMWriteMemory(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
  Purpose:   Handle Proxy Response Message.
  Comments:  None.
  *******************************************************************************/
-void HandleProxyResponse(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
-    if (appReceiveParamPtr->proxyDone || SendResponse(appReceiveParamPtr->tag,
-            apduPtr->code.allBits, appReceiveParamPtr->pduSize - 1,
-            apduPtr->data) == LonStatusNoError) {
+void HandleProxyResponse(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
+{
+    if (appReceiveParamPtr->proxyDone ||
+            SendResponse(appReceiveParamPtr->tag, apduPtr->code.allBits,
+                    appReceiveParamPtr->pduSize - 1, apduPtr->data) == LonStatusNoError) {
         QueueDropHead(&gp->appCeRspInQ);
     }
 }
@@ -2121,35 +2237,38 @@ void HandleProxyResponse(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
  Comments:  None.
  *******************************************************************************/
 void HandleNDQueryStatus(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr,
-        bool useFlexDomain) {
+        bool useFlexDomain)
+{
     NDQueryStat ndq;
     Queue *tsaOutQPtr;
     TSASendParam *tsaSendParamPtr;
     APDU *apduRespPtr;
 
     tsaOutQPtr = &gp->tsaRespQ;
-    if (((apduPtr->code.allBits & 0x0F) == ND_QUERY_STATUS)
-            && appReceiveParamPtr->pduSize != 1) {
+    if (((apduPtr->code.allBits & 0x0F) == ND_QUERY_STATUS) &&
+            appReceiveParamPtr->pduSize != 1) {
         /* Incorrect size. Fail. */
-        NMNDRespond(ND_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr, apduPtr);
+        NMNDRespond(ND_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr,
+                apduPtr);
         return;
     }
 
-    if (((apduPtr->code.allBits & 0x0F) == ND_PROXY_COMMAND)
-            && appReceiveParamPtr->pduSize != 2) {
+    if (((apduPtr->code.allBits & 0x0F) == ND_PROXY_COMMAND) &&
+            appReceiveParamPtr->pduSize != 2) {
         /* Incorrect size. Fail. */
-        NMNDRespond(ND_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr, apduPtr);
+        NMNDRespond(ND_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr,
+                apduPtr);
         return;
     }
 
     memcpy(ndq.stats, nmp->stats.stats, sizeof(ndq.stats));
     ndq.resetCause = nmp->resetCause;
-    if (IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NODE_STATE) == 
-    IzotConfigOnLine && gp->appPgmMode  == OFF_LINE) {
+    if (IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NODE_STATE) ==
+                    IzotConfigOnLine &&
+            gp->appPgmMode == OFF_LINE) {
         ndq.nodeState = IzotSoftOffLine;
     } else {
-        ndq.nodeState = 
-               IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NODE_STATE);
+        ndq.nodeState = IZOT_GET_ATTRIBUTE(eep->readOnlyData, IZOT_READONLY_NODE_STATE);
     }
     ndq.versionNumber = FIRMWARE_VERSION;
     ndq.errorLog = eep->errorLog;
@@ -2162,18 +2281,16 @@ void HandleNDQueryStatus(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr,
     tsaSendParamPtr->flexResponse = useFlexDomain;
     tsaSendParamPtr->reqId = appReceiveParamPtr->reqId;
     tsaSendParamPtr->apduSize = 1 + sizeof(NDQueryStat);
-    apduRespPtr = (APDU *) (tsaSendParamPtr + 1);
+    apduRespPtr = (APDU *)(tsaSendParamPtr + 1);
     /* The response code is formed using apduPtr->code.allBits as the
      actual could be a proxy command and the response code will be
      different. Thus, using apduPtr->code.allBits works for both
      native query status command as well as proxy based query status */
     if (tsaSendParamPtr->apduSize <= gp->tsaRespBufSize) {
-        apduRespPtr->code.allBits = ND_resp_success | (apduPtr->code.allBits
-                & 0x0F);
+        apduRespPtr->code.allBits = ND_resp_success | (apduPtr->code.allBits & 0x0F);
         memcpy(apduRespPtr->data, &ndq, sizeof(NDQueryStat));
     } else {
-        apduRespPtr->code.allBits = ND_resp_failure | (apduPtr->code.allBits
-                & 0x0F);
+        apduRespPtr->code.allBits = ND_resp_failure | (apduPtr->code.allBits & 0x0F);
         tsaSendParamPtr->apduSize = 1;
     }
     QueueWrite(tsaOutQPtr);
@@ -2186,8 +2303,8 @@ void HandleNDQueryStatus(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr,
  Purpose:   Handle network diagnostics proxy request message.
  Comments:  None.
  *******************************************************************************/
-LonStatusCode HandleNDProxyCommand(APPReceiveParam *appReceiveParamPtr, 
-APDU *apduPtr) {
+LonStatusCode HandleNDProxyCommand(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
+{
     LonStatusCode sts = LonStatusNoError;
     Queue *tsaOutQPtr;
     TSASendParam *tsaSendParamPtr;
@@ -2212,21 +2329,22 @@ APDU *apduPtr) {
             break;
         default:
             /* Invalid sub_command. Send failure response */
-            NMNDRespond(ND_MESSAGE, LonStatusInvalidMessageCommand, appReceiveParamPtr, apduPtr);
+            NMNDRespond(ND_MESSAGE, LonStatusInvalidMessageCommand, appReceiveParamPtr,
+                    apduPtr);
         }
         return sts;
     }
 
     /* Send failure response if we are proxy agent and the message received is 
     on flex domain or it does not have correct size */
-    if (appReceiveParamPtr->srcAddr.dmn.domainIndex == FLEX_DOMAIN
-            || (apduPtr->data[1] == AM_UNIQUE_NODE_ID
-                    && appReceiveParamPtr->pduSize != (2
-                            + sizeof(IzotAddress) + IZOT_UNIQUE_ID_LENGTH))
-            || (apduPtr->data[1] != AM_UNIQUE_NODE_ID
-                    && appReceiveParamPtr->pduSize != (2
-                            + sizeof(IzotAddress)))) {
-        NMNDRespond(ND_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr, apduPtr);
+    if (appReceiveParamPtr->srcAddr.dmn.domainIndex == FLEX_DOMAIN ||
+            (apduPtr->data[1] == AM_UNIQUE_NODE_ID &&
+                    appReceiveParamPtr->pduSize !=
+                            (2 + sizeof(IzotAddress) + IZOT_UNIQUE_ID_LENGTH)) ||
+            (apduPtr->data[1] != AM_UNIQUE_NODE_ID &&
+                    appReceiveParamPtr->pduSize != (2 + sizeof(IzotAddress)))) {
+        NMNDRespond(ND_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr,
+                apduPtr);
         return sts;
     }
 
@@ -2247,18 +2365,17 @@ APDU *apduPtr) {
     tsaSendParamPtr = QueueTail(tsaOutQPtr);
 
     /* First copy the msg_out_addr info in the proxy command */
-    memcpy(&tsaSendParamPtr->destAddr, &apduPtr->data[1], 
-                              sizeof(IzotSendAddress) + IZOT_UNIQUE_ID_LENGTH);
+    memcpy(&tsaSendParamPtr->destAddr, &apduPtr->data[1],
+            sizeof(IzotSendAddress) + IZOT_UNIQUE_ID_LENGTH);
 
     /* Set the domain index to be the one in which it was received.
      Note that this cannot be flex domain. Transport or session
      will use this instead of the one in the destAddr (i.e msg_out_addr) */
-    tsaSendParamPtr->dmn.domainIndex
-            = appReceiveParamPtr->srcAddr.dmn.domainIndex;
+    tsaSendParamPtr->dmn.domainIndex = appReceiveParamPtr->srcAddr.dmn.domainIndex;
     tsaSendParamPtr->service = IzotServiceRequest;
     tsaSendParamPtr->auth = FALSE;
-    // The tag for a proxy request is the original request's reqId.  When the 
-    // response comes back, the response is delivered using that tag in order 
+    // The tag for a proxy request is the original request's reqId.  When the
+    // response comes back, the response is delivered using that tag in order
     // to vector it back to the original receive transaction.
     // See HandleProxyResponse().
     tsaSendParamPtr->tag = appReceiveParamPtr->reqId;
@@ -2268,10 +2385,10 @@ APDU *apduPtr) {
     tsaSendParamPtr->altPath = appReceiveParamPtr->altPath;
     tsaSendParamPtr->apduSize = 2; /* Always two bytes: code + sub_command */
 
-    // Replace: Added check for setting �tsaSendParamPtr->priority� since 
-    //          priority messages get stuck in the tsaPriOutQ and endlessly 
+    // Replace: Added check for setting �tsaSendParamPtr->priority� since
+    //          priority messages get stuck in the tsaPriOutQ and endlessly
     //          sends. This is because when DeQueuing the NV, it will QueueDropHead
-    //          from the tsaOutQ and not the tsaPriOutQ since there is nothing 
+    //          from the tsaOutQ and not the tsaPriOutQ since there is nothing
     //          sets the priority.
     tsaSendParamPtr->priority = appReceiveParamPtr->priority;
     tsaSendParamPtr->proxy = TRUE;
@@ -2280,7 +2397,7 @@ APDU *apduPtr) {
     tsaSendParamPtr->txInherit = FALSE;
     tsaSendParamPtr->txTimerDeltaLast = 0;
 
-    apduSendPtr = (APDU *) (tsaSendParamPtr + 1);
+    apduSendPtr = (APDU *)(tsaSendParamPtr + 1);
     /* Copy the code as it is */
     apduSendPtr->code.allBits = apduPtr->code.allBits;
     apduSendPtr->data[0] = apduPtr->data[0];
@@ -2295,14 +2412,15 @@ APDU *apduPtr) {
  Purpose:   Handle network diagnostics clear status message.
  Comments:  None.
  *******************************************************************************/
-void HandleNDClearStatus(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
+void HandleNDClearStatus(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
+{
     /* Clear status */
     memset(&nmp->stats, 0, sizeof(nmp->stats));
     nmp->resetCause = IzotResetCleared;
     eep->errorLog = LonStatusNoError; /* Cleared */
 
     gp->clearStatsCallback();
-    
+
     /* NMNDRespond will send response only if the msg is IzotServiceRequest */
     NMNDRespond(ND_MESSAGE, LonStatusNoError, appReceiveParamPtr, apduPtr);
 }
@@ -2314,16 +2432,15 @@ void HandleNDClearStatus(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
  Purpose:   Handle network diagnostics bidirectional signal strength measurement
  Comments:  None.
  *******************************************************************************/
-void HandleNDQueryXcvrBidir(APPReceiveParam *appReceiveParamPtr, 
-APDU *apduPtr) {
+void HandleNDQueryXcvrBidir(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
+{
     if (appReceiveParamPtr->pduSize == 1) {
         // Default data parameter to none
         apduPtr->data[0] = 0;
     }
 
-    SendResponse(appReceiveParamPtr->reqId, ND_resp_success
-            | ND_QUERY_XCVR_BIDIR, IZOT_COMMUNICATIONS_PARAMETER_LENGTH,
-            appReceiveParamPtr->xcvrParams.data);
+    SendResponse(appReceiveParamPtr->reqId, ND_resp_success | ND_QUERY_XCVR_BIDIR,
+            IZOT_COMMUNICATIONS_PARAMETER_LENGTH, appReceiveParamPtr->xcvrParams.data);
 }
 
 /*******************************************************************************
@@ -2333,17 +2450,17 @@ APDU *apduPtr) {
  Purpose:   Handle network diagnostics get full version command
  Comments:  None.
  *******************************************************************************/
-void HandleNDGetFullVersion(APPReceiveParam *appReceiveParamPtr, 
-APDU *apduPtr) {
-    ND_get_full_version_response fullVersion = { 0 };
-	fullVersion.version = FIRMWARE_VERSION;
+void HandleNDGetFullVersion(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
+{
+    ND_get_full_version_response fullVersion = {0};
+    fullVersion.version = FIRMWARE_VERSION;
     fullVersion.variant = 0;
     fullVersion.rom_version = 0;
     fullVersion.minor_version = FIRMWARE_MINOR_VERSION;
     fullVersion.build_number = FIRMWARE_BUILD;
     fullVersion.code = 0;
-    SendResponse(appReceiveParamPtr->reqId, ND_resp_success
-            | ND_GET_FULL_VERSION, sizeof(fullVersion), (IzotByte*) &fullVersion);
+    SendResponse(appReceiveParamPtr->reqId, ND_resp_success | ND_GET_FULL_VERSION,
+            sizeof(fullVersion), (IzotByte *)&fullVersion);
 }
 
 /*******************************************************************************
@@ -2353,7 +2470,8 @@ APDU *apduPtr) {
  Purpose:   Handle incoming network diagnostic message.
  Comments:  None.
  *******************************************************************************/
-void HandleND(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
+void HandleND(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
+{
     memcpy(&save, eep, sizeof(save));
     LonStatusCode sts = LonStatusNoError;
     /* It is not legal for a response to be an ND command */
@@ -2362,15 +2480,17 @@ void HandleND(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
          and the message did not pass authentication and
          the node is not unconfigured
          then discard those messages that should be discarded and return. */
-        if (NodeConfigured() && IZOT_GET_ATTRIBUTE(eep->configData, IZOT_CONFIG_NMAUTH)
-                && !appReceiveParamPtr->auth && (apduPtr->code.nd.ndCode
-                != ND_QUERY_STATUS && apduPtr->code.nd.ndCode
-                != ND_PROXY_COMMAND && apduPtr->code.nd.ndCode
-                != ND_QUERY_STATUS_FLEX && apduPtr->code.nd.ndCode
-                != ND_QUERY_XCVR_BIDIR && apduPtr->code.nd.ndCode
-                != ND_GET_FULL_VERSION)) {
-            OsalPrintLog(ERROR_LOG, LonStatusAuthenticationMismatch, "HandleND: Authentication mismatch");
-            NMNDRespond(ND_MESSAGE, LonStatusAuthenticationMismatch, appReceiveParamPtr, apduPtr);
+        if (NodeConfigured() && IZOT_GET_ATTRIBUTE(eep->configData, IZOT_CONFIG_NMAUTH) &&
+                !appReceiveParamPtr->auth &&
+                (apduPtr->code.nd.ndCode != ND_QUERY_STATUS &&
+                        apduPtr->code.nd.ndCode != ND_PROXY_COMMAND &&
+                        apduPtr->code.nd.ndCode != ND_QUERY_STATUS_FLEX &&
+                        apduPtr->code.nd.ndCode != ND_QUERY_XCVR_BIDIR &&
+                        apduPtr->code.nd.ndCode != ND_GET_FULL_VERSION)) {
+            OsalPrintLog(ERROR_LOG, LonStatusAuthenticationMismatch,
+                    "HandleND: Authentication mismatch");
+            NMNDRespond(ND_MESSAGE, LonStatusAuthenticationMismatch, appReceiveParamPtr,
+                    apduPtr);
         } else {
             /* Handle various network diagnostic message codes */
             switch (apduPtr->code.nd.ndCode) {
@@ -2397,7 +2517,8 @@ void HandleND(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
                 break;
             default:
                 /* Discard unrecognized diagnostic command */
-                NMNDRespond(ND_MESSAGE, LonStatusInvalidMessageCommand, appReceiveParamPtr, apduPtr);
+                NMNDRespond(ND_MESSAGE, LonStatusInvalidMessageCommand,
+                        appReceiveParamPtr, apduPtr);
                 break;
             }
         }
@@ -2409,7 +2530,7 @@ void HandleND(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
     }
 
     if (sts == LonStatusNoError) {
-        // Proxy may not actually process the message 
+        // Proxy may not actually process the message
         // so we don't dequeue in that case
         QueueDropHead(&gp->appInQ);
     }
@@ -2422,38 +2543,47 @@ void HandleND(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
  Purpose:   Handle incoming network management messages.
  Comments:  None.
  *******************************************************************************/
-void HandleNM(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
+void HandleNM(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
+{
     memcpy(&save, eep, sizeof(save));
     /* If network management messages need authentication
      and the message did not pass authentication and
      the node is not unconfigured
      then discard those messages that should be discarded and return. */
 
-    if (NodeConfigured() && IZOT_GET_ATTRIBUTE(eep->configData, 
-    IZOT_CONFIG_NMAUTH) && !appReceiveParamPtr->auth
-#ifdef SECURITY_II
-&& securityIIAuthenticationRequired()
-#endif
+    if (NodeConfigured() && IZOT_GET_ATTRIBUTE(eep->configData, IZOT_CONFIG_NMAUTH) &&
+            !appReceiveParamPtr->auth
+#if SECURITY_IS(V2)
+            && securityIIAuthenticationRequired()
+#endif  // SECURITY_IS(V2)
     ) {
         /* Only a few messages are allowed. Others should be discarded */
         IzotByte subCommand = apduPtr->data[0];
-        if (apduPtr->code.nm.nmCode != NM_QUERY_ID && apduPtr->code.nm.nmCode != NM_RESPOND_TO_QUERY && 
-			(apduPtr->code.nm.nmCode != NM_EXPANDED || (subCommand != NME_QUERY_VERSION && 
-			subCommand != NME_QUERY_IP_ADDRESS
-#ifdef SECURITY_II
-           && subCommand != NMEXP_SEC_REENROLL && subCommand != NMEXP_SEC_QUERY_BAKP && 
-           subCommand != NMEXP_SEC_RELEASE_DEVICE && subCommand != NMEXP_SEC_START_REKEY && 
-           subCommand != NMEXP_SEC_REKEY_COMPLETE && subCommand != NMEXP_SEC_DEACTIVATE && 
-           subCommand != NMEXP_SEC_QUERY_DEVICE_CERT && subCommand != NMEXP_SEC_QUERY_SECURITY_STATE && 
-           subCommand != NMEXP_SEC_QUERY_SECURITY_STATS && subCommand != NMEXP_SEC_QUERY_IV_STATE && 
-           subCommand != NMEXP_SEC_QUERY_REPLAY
-#endif
-    ))) 
-		{
+        if (apduPtr->code.nm.nmCode != NM_QUERY_ID &&
+                apduPtr->code.nm.nmCode != NM_RESPOND_TO_QUERY &&
+                (apduPtr->code.nm.nmCode != NM_EXPANDED ||
+                        (subCommand != NME_QUERY_VERSION &&
+                                subCommand != NME_QUERY_IP_ADDRESS
+#if SECURITY_IS(V2)
+                                && subCommand != NMEXP_SEC_REENROLL &&
+                                subCommand != NMEXP_SEC_QUERY_BAKP &&
+                                subCommand != NMEXP_SEC_RELEASE_DEVICE &&
+                                subCommand != NMEXP_SEC_START_REKEY &&
+                                subCommand != NMEXP_SEC_REKEY_COMPLETE &&
+                                subCommand != NMEXP_SEC_DEACTIVATE &&
+                                subCommand != NMEXP_SEC_QUERY_DEVICE_CERT &&
+                                subCommand != NMEXP_SEC_QUERY_SECURITY_STATE &&
+                                subCommand != NMEXP_SEC_QUERY_SECURITY_STATS &&
+                                subCommand != NMEXP_SEC_QUERY_IV_STATE &&
+                                subCommand != NMEXP_SEC_QUERY_REPLAY
+#endif  // SECURITY_IS(V2)
+                                ))) {
             OsalPrintLog(ERROR_LOG, LonStatusInvalidOperation,
-                    "HandleND: Unsupported network management operation (message code 0x%02X, subcommand 0x%02X)", 
+                    "HandleND: Unsupported network management operation (message code "
+                    "0x%02X, subcommand 0x%02X)",
                     apduPtr->code.nm.nmCode, subCommand);
-            NMNDRespond(NM_MESSAGE, LonStatusInvalidOperation, appReceiveParamPtr, apduPtr);
+            NMNDRespond(NM_MESSAGE, LonStatusInvalidOperation, appReceiveParamPtr,
+                    apduPtr);
             QueueDropHead(&gp->appInQ);
             return;
         }
@@ -2469,9 +2599,10 @@ void HandleNM(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
         break;
     case NM_RESPOND_TO_QUERY:
         /* Fail if message is not 2 bytes long or the byte is bad. */
-        if (appReceiveParamPtr->pduSize != 2 || (apduPtr->data[0] != 0
-                && apduPtr->data[0] != 1)) {
-            NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr, apduPtr);
+        if (appReceiveParamPtr->pduSize != 2 ||
+                (apduPtr->data[0] != 0 && apduPtr->data[0] != 1)) {
+            NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageLength, appReceiveParamPtr,
+                    apduPtr);
         } else {
             gp->selectQueryFlag = apduPtr->data[0];
             NMNDRespond(NM_MESSAGE, LonStatusNoError, appReceiveParamPtr, apduPtr);
@@ -2536,7 +2667,8 @@ void HandleNM(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
         /* This is where any message that is not taken care of should be
          handled. An example is product query command. For now, we treat
          everything else as unrecognized network management message. */
-        NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageCommand, appReceiveParamPtr, apduPtr);
+        NMNDRespond(NM_MESSAGE, LonStatusInvalidMessageCommand, appReceiveParamPtr,
+                apduPtr);
         break;
     }
 
@@ -2549,8 +2681,7 @@ void HandleNM(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr) {
 }
 
 // dummy callback for when app doesn't register one
-void dummy(void) {
-}
+void dummy(void) {}
 
 /*******************************************************************************
  Function:  NM_Init
@@ -2559,7 +2690,8 @@ void dummy(void) {
  Purpose:   Handle network management initialization
  Comments:  None.
  *******************************************************************************/
-void NM_Init(void) {
+void NM_Init(void)
+{
     // Set up a dummy callback
     gp->clearStatsCallback = dummy;
 }
@@ -2571,8 +2703,4 @@ void NM_Init(void) {
  Purpose:   Register a callback for clear stats
  Comments:  None.
  *******************************************************************************/
-void LCS_RegisterClearStatsCallback(void(*cb)(void)) {
-    gp->clearStatsCallback = cb;
-}
-
-/******************************************************************************/
+void LCS_RegisterClearStatsCallback(void (*cb)(void)) { gp->clearStatsCallback = cb; }

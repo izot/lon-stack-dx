@@ -24,11 +24,7 @@
 #include <stdio.h>
 #include <stddef.h>
 
-#include "izot/IzotPlatform.h"
-#include "izot/IzotApi.h"
 #include "izot/lon_types.h"
-#include "lcs/lcs_eia709_1.h"   /* To get Byte, Boolean & Status         */
-#include "lcs/lcs_timer.h"      /* For LonTimer required by lcs_node.h   */
 
 // Maximum static capacity for any RingBuffer instance. Can be overridden
 // before including this header (e.g., via compiler flag) if larger bursts are needed.

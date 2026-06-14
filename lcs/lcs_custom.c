@@ -16,7 +16,7 @@
  *          used to hold any implementation-specific values.
  * 
  *          Some or all of these values will be overwritten by
- *          network management tools when this device is loaded.
+ *          LON tools when this device is loaded.
  * 
  *          See ISO/IEC 14908-1 for details on the LON protocol parameters.
  */

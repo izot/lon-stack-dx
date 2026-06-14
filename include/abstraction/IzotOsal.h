@@ -4,53 +4,57 @@
  * Copyright (c) 2021-2026 EnOcean
  * SPDX-License-Identifier: MIT
  * See LICENSE file for details.
- * 
+ *
  * Title:   Operating System Abstraction Layer
  * Purpose: Defines portable functions and types of operating
  *          system interfaces.
- * Notes:   You can customize this file to add support for 
+ * Notes:   You can customize this file to add support for
  *          additional operating systems.
  */
 
 #ifndef _OSAL_H
 #define _OSAL_H
 
-#ifdef  __cplusplus
-extern "C"
-{
+#ifdef __cplusplus
+extern "C" {
 #endif  // __cplusplus
 
 #include <stddef.h>
-#include "izot/IzotPlatform.h"
+#include <stdint.h>
+#define _IZOT_PLATFORM_NO_UMBRELLA
+#include "izot/IzotPlatform.h"  // IWYU pragma: keep
+#undef _IZOT_PLATFORM_NO_UMBRELLA
 
 #if OS_IS(LINUX)
-#include <stdlib.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <string.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <poll.h>
+#include <pthread.h>
+#include <stdlib.h>
+#include <string.h>
 #include <sys/ioctl.h>
 #include <termios.h>
-#include <pthread.h>
-#include <poll.h>
-#include <signal.h>
+#include <unistd.h>
+
 #include <stdio.h>
-#include <time.h>
 #include <sys/time.h>
+#include <time.h>
+
 #elif OS_IS(FREERTOS)
 #include "FreeRTOS.h"
-#include "task.h"
 #include "semphr.h"
+#include "task.h"
 #include "timers.h"
-#include <string.h>
-#include <stdio.h>  
-#include <stdlib.h>
-#include <stdint.h> 
-#include <unistd.h>
-#include <time.h>
-#include <sys/time.h>
-#include <fcntl.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/time.h>
+#include <time.h>
+#include <unistd.h>
+
 #if !PROCESSOR_IS(STM32)
 #include <sys/ioctl.h>
 #include <termios.h>
@@ -87,7 +91,7 @@ typedef enum {
 
 // Log level enumeration for message reporting
 typedef enum {
-    LOG_NONE  = 0,
+    LOG_NONE = 0,
     LOG_ERROR = ERROR_LOG,
     LOG_DEBUG = ERROR_LOG | INFO_LOG,
     LOG_PACKET_TRACE = ERROR_LOG | INFO_LOG | PACKET_TRACE_LOG,
@@ -104,35 +108,39 @@ typedef uint32_t OsalTickCount;
 
 // OS-dependent lock, event, thread ID, and entry point typedefs
 #if OS_IS(LINUX)
-    typedef pthread_mutex_t OsalLockType;
-    typedef struct {
-        pthread_cond_t cond;
-        pthread_mutex_t mutex;
-        uint8_t flag;
-    } OsalEvent;
-    typedef pthread_t OsalThreadId;
-    typedef void *(*OsalEntryPoint)(void *);
+typedef pthread_mutex_t OsalLockType;
+typedef struct {
+    pthread_cond_t cond;
+    pthread_mutex_t mutex;
+    uint8_t flag;
+} OsalEvent;
+typedef pthread_t OsalThreadId;
+typedef void *(*OsalEntryPoint)(void *);
 #elif OS_IS(FREERTOS)
-    typedef SemaphoreHandle_t OsalLockType;
-    typedef struct {
-        SemaphoreHandle_t semaphore;
-        uint8_t flag;
-    } OsalEvent;
-    typedef TaskHandle_t OsalThreadId;
-    typedef void (*OsalEntryPoint)(void *);
+typedef SemaphoreHandle_t OsalLockType;
+typedef struct {
+    SemaphoreHandle_t semaphore;
+    uint8_t flag;
+} OsalEvent;
+typedef TaskHandle_t OsalThreadId;
+typedef void (*OsalEntryPoint)(void *);
 #else
-    // Future or unknown OS
-    #pragma message("Implement OS-dependent OsalLockType, OsalEvent, OsalThreadId, and OsalEntryPoint types")
-    typedef void* OsalLockType;
-    typedef struct {
-        void *event_impl;
-        uint8_t flag;
-    } OsalEvent;
-    typedef void* OsalThreadId;
-    typedef void* (*OsalEntryPoint)(void *);
+// Future or unknown OS
+#pragma message(                                                                         \
+        "Implement OS-dependent OsalLockType, OsalEvent, OsalThreadId, and OsalEntryPoint types")
+typedef void *OsalLockType;
+typedef struct {
+    void *event_impl;
+    uint8_t flag;
+} OsalEvent;
+typedef void *OsalThreadId;
+typedef void *(*OsalEntryPoint)(void *);
 #endif
 
-typedef OsalEvent* OsalHandle;
+typedef OsalEvent *OsalHandle;
+
+#include "abstraction/IzotConfig.h"
+#include "izot/lon_types.h"
 
 #if OS_IS(LINUX_KERNEL)
 #include <linux/delay.h>
@@ -175,6 +183,31 @@ void OsalLockMutex(OsalLockType *lock);
 void OsalUnlockMutex(OsalLockType *lock);
 
 /*****************************************************************
+ * Section: ISR-Safe Queue Lock Macros
+ *****************************************************************/
+#if OS_IS(FREERTOS)
+// FreeRTOS requires storing the interrupt state
+typedef UBaseType_t OsalInterruptStatus;
+
+// Task-level critical sections (ignores the mutex parameter)
+#define OsalLockQueue(mutex) taskENTER_CRITICAL()
+#define OsalUnlockQueue(mutex) taskEXIT_CRITICAL()
+
+// ISR-level critical sections (stores the status, ignores the mutex)
+#define OsalLockQueueFromIsr(mutex, status) ((status) = taskENTER_CRITICAL_FROM_ISR())
+#define OsalUnlockQueueFromIsr(mutex, status) taskEXIT_CRITICAL_FROM_ISR(status)
+#else
+// Linux/POSIX fallback: Uses standard mutexes and a dummy status variable
+typedef int OsalInterruptStatus;
+
+#define OsalLockQueue(mutex) OsalLockMutex(mutex)
+#define OsalUnlockQueue(mutex) OsalUnlockMutex(mutex)
+
+#define OsalLockQueueFromIsr(mutex, status) OsalLockMutex(mutex)
+#define OsalUnlockQueueFromIsr(mutex, status) OsalUnlockMutex(mutex)
+#endif
+
+/*****************************************************************
  * Section: Event Management Function Definitions
  *****************************************************************/
 /*
@@ -183,7 +216,7 @@ void OsalUnlockMutex(OsalLockType *lock);
  *   eventHandle: Pointer to the event handle to be created.
  * Returns:
  *   LonStatusNoError if successful; LonStatusCode error code if unsuccessful.
- */ 
+ */
 LonStatusCode OsalCreateEvent(OsalHandle *eventHandle);
 
 /*
@@ -226,7 +259,7 @@ LonStatusCode OsalSetEvent(OsalHandle eventHandle);
  *   Pointer to a static string containing the current date and time
  *   in "YYYY-MM-DD HH:MM:SS" format.
  */
-char* OsalGetDateTimeString(void);
+char *OsalGetDateTimeString(void);
 
 /*
  * Returns the current system tick count.
@@ -261,17 +294,17 @@ OsalTickCount OsalGetTicksPerSecond(void);
  * Returns:
  *   Thread ID if successful; 0 or NULL if unsuccessful.
  */
-OsalThreadId OsalCreateThread(OsalEntryPoint threadEntry, void* threadData);
+OsalThreadId OsalCreateThread(OsalEntryPoint threadEntry, void *threadData);
 
 /*
  * Sleeps for a specified number of milliseconds.
  * Parameters:
- *   msecs - The number of milliseconds to sleep 
+ *   msecs - The number of milliseconds to sleep
  * Returns:
  *   LonStatusNoError on success; LonStatusCode error code if unsuccessful.
  *  Notes:
  *   If the specified number of milliseconds exceeds the maximum timeout
- *   value of 0xFFFFFFFE, the sleep duration is capped at that value. 
+ *   value of 0xFFFFFFFE, the sleep duration is capped at that value.
  *   See also: OsalGetTickCount().
  */
 LonStatusCode OsalSleep(unsigned int msecs);
@@ -283,7 +316,7 @@ LonStatusCode OsalSleep(unsigned int msecs);
  * Returns:
  *   Pointer to allocated memory, or NULL if allocation failed
  */
-void* OsalAllocateMemory(size_t size);
+void *OsalAllocateMemory(size_t size);
 
 /*
  * Frees memory block previously allocated with OsalAllocateMemory.
@@ -329,7 +362,8 @@ unsigned int OsalGetLogCategories(void);
  *  This function only prints messages if the current log level is LOG_ERROR
  *  or LOG_DEBUG.
  */
-void OsalPrintLog(LogCategory category, LonStatusCode errorCode, const char *errorString, ...);
+void OsalPrintLog(LogCategory category, LonStatusCode errorCode, const char *errorString,
+        ...);
 
 /*
  * Prints a LON message buffer in a formatted hex dump
@@ -341,7 +375,8 @@ void OsalPrintLog(LogCategory category, LonStatusCode errorCode, const char *err
  * Notes:
  *   Only prints if log level is LOG_TRACE or higher.
  */
-void OsalPrintMessage(LogCategory category, const char *prefix, const uint8_t *msg, size_t length);
+void OsalPrintMessage(LogCategory category, const char *prefix, const uint8_t *msg,
+        size_t length);
 
 #ifdef __cplusplus
 }

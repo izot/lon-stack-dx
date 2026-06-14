@@ -24,6 +24,7 @@ extern "C" {
 #include "izot/IzotPlatform.h"
 #include "izot/lon_types.h"
 #include "abstraction/IzotCal.h"
+#include "abstraction/IzotHal.h"
 #include "isi/isi_int.h"
 #include "lcs/lcs.h"
 #include "lcs/lcs_api.h"

@@ -46,9 +46,10 @@
 #ifndef _LCS_API_H
 #define _LCS_API_H
 
-#include "lcs/lcs_custom.h"
 #include "lcs/lcs_eia709_1.h"
+#ifndef _TIMER_H
 #include "lcs/lcs_timer.h"
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -56,33 +57,21 @@ extern "C" {
 
 #pragma pack(push, 1)
 
-typedef union __attribute__ ((packed))
-{
-    struct __attribute__ ((packed))
-    {
-        BITS2(apFlag,       2,
-              apCode,     6)
+typedef union __attribute__((packed)) {
+    struct __attribute__((packed)) {
+        BITS2(apFlag, 2, apCode, 6)
     } ap;
-    struct __attribute__ ((packed))
-    {
-        BITS3(nvFlag,       1,
-              nvDir,      1,
-              nvCode,     6)
+    struct __attribute__((packed)) {
+        BITS3(nvFlag, 1, nvDir, 1, nvCode, 6)
     } nv;
-    struct __attribute__ ((packed))
-    {
-        BITS2(nmFlag,       3,
-              nmCode,     5)
+    struct __attribute__((packed)) {
+        BITS2(nmFlag, 3, nmCode, 5)
     } nm;
-    struct __attribute__ ((packed))
-    {
-        BITS2(ndFlag,       4,
-              ndCode,     4)
+    struct __attribute__((packed)) {
+        BITS2(ndFlag, 4, ndCode, 4)
     } nd;
-    struct __attribute__ ((packed))
-    {
-        BITS2(ffFlag,       4,
-              ffCode,     4)
+    struct __attribute__((packed)) {
+        BITS2(ffFlag, 4, ffCode, 4)
     } ff;
     IzotByte allBits;
 } DestinType;
@@ -95,84 +84,79 @@ typedef union __attribute__ ((packed))
 
 /* Message Declarations ****************************************** */
 
-typedef struct
-{
-    IzotByte			code; /* message code                      */
-    IzotUbits16			len;  /* length of message data            */
-    IzotByte			data[MAX_DATA_SIZE];  /* message data      */
-    IzotByte			authenticated; /* TRUE if msg was authenticated */
-    IzotServiceType		service;       /* Service used to send the msg  */
-    RequestId			reqId;         /* Request ID to match responses   */
-    IzotReceiveAddress	addr;
+typedef struct {
+    IzotByte code;                /* message code                      */
+    IzotUbits16 len;              /* length of message data            */
+    IzotByte data[MAX_DATA_SIZE]; /* message data      */
+    IzotByte authenticated;       /* TRUE if msg was authenticated */
+    IzotServiceType service;      /* Service used to send the msg  */
+    RequestId reqId;              /* Request ID to match responses   */
+    IzotReceiveAddress addr;
 } MsgIn;
 
-typedef struct
-{
-    IzotByte			priorityOn;    /* TRUE if a priority message     */
-    MsgTag				tag;           /* to correlate completion codes  */
-    IzotUbits16			len;           /* message length in data array below */
-    IzotByte			code;          /* message code                   */
-    IzotByte			data[MAX_DATA_SIZE];  /* message data            */
-    IzotByte			authenticated; /* TRUE if to be authenticated    */
-    IzotServiceType		service;       /* service type used to send msg  */
-    IzotSendAddress		addr;          /* destination address (see above)*/
+typedef struct {
+    IzotByte priorityOn;          /* TRUE if a priority message     */
+    MsgTag tag;                   /* to correlate completion codes  */
+    IzotUbits16 len;              /* message length in data array below */
+    IzotByte code;                /* message code                   */
+    IzotByte data[MAX_DATA_SIZE]; /* message data            */
+    IzotByte authenticated;       /* TRUE if to be authenticated    */
+    IzotServiceType service;      /* service type used to send msg  */
+    IzotSendAddress addr;         /* destination address (see above)*/
 } MsgOut;
 
-typedef struct
-{
-    MsgTag               tag;                   /* To match req    */
-    IzotByte             code;                  /* message code    */
-    IzotUbits16          len;                   /* message length  */
-    IzotByte             data[MAX_DATA_SIZE];   /* message data    */
-    IzotResponseAddress  addr;  /* destination address (see above) */
-} RespIn;             /* struct for receiving responses  */
+typedef struct {
+    MsgTag tag;                   /* To match req    */
+    IzotByte code;                /* message code    */
+    IzotUbits16 len;              /* message length  */
+    IzotByte data[MAX_DATA_SIZE]; /* message data    */
+    IzotResponseAddress addr;     /* destination address (see above) */
+} RespIn;                         /* struct for receiving responses  */
 
-typedef struct
-{
-    RequestId	reqId;         /* Request ID to match responses */
-    IzotByte	nullResponse;  /* TRUE => no resp goes out */
-    IzotByte	code;          /* message code */
-    IzotUbits16	len;           /* message length  */
-    IzotByte	data[MAX_DATA_SIZE];   /* message data */
-} RespOut;                   /* structure for sending responses */
-
+typedef struct {
+    RequestId reqId;              /* Request ID to match responses */
+    IzotByte nullResponse;        /* TRUE => no resp goes out */
+    IzotByte code;                /* message code */
+    IzotUbits16 len;              /* message length  */
+    IzotByte data[MAX_DATA_SIZE]; /* message data */
+} RespOut;                        /* structure for sending responses */
 
 /*******************************************************************
 NVDefinition is used to describe network variable properties.
 These are used to create a new network variable with proper
 attributes in network variable tables and SNVT structures.
 *******************************************************************/
-typedef struct
-{
-	IzotByte  priority;		// 1 => priority
-	IzotByte  direction;		// IzotDatapointDirectionIsOutput or IzotDatapointDirectionIsInput
-	IzotUbits16    selector;		// Present only for non-bindable
-	IzotByte  bind;
-	IzotByte  turnaround;		// 1 => turnaround
-	IzotByte  service;			// IzotServiceAcknowledged, IzotServiceRepeated, IzotServiceUnacknowledged
-	IzotByte  auth;			// 1 => authenticated
-    IzotByte  persist;      // 1 => persist datapoints
-	IzotByte  explodeArray;	// 1 => explode arrays in SNVT structure
-	IzotByte  nvLength;		// length of NV in bytes.  For arrays, give the size of each item
-    IzotByte  snvtDesc;         /* snvtDesc_struct in byte form. Big-endian */
-    IzotByte  snvtExt;          /* Extension record. Big-endian. */
-    IzotByte  snvtType;         /* 0 => non-SNVT variable. */
-    IzotByte  rateEst;
-    IzotByte  maxrEst;
-    IzotUbits16    arrayCnt;         /* 0 for simple variables. dim for arrays. */
-    const char  *nvName;           /* Name of the network variable */
-    const char  *nvSdoc;           /* Sel-doc string for the variable */
-    void const volatile *varAddr;          /* Address of the variable. */
+typedef struct {
+    IzotByte priority;  // 1 => priority
+    IzotByte
+            direction;  // IzotDatapointDirectionIsOutput or IzotDatapointDirectionIsInput
+    IzotUbits16 selector;  // Present only for non-bindable
+    IzotByte bind;
+    IzotByte turnaround;  // 1 => turnaround
+    IzotByte
+            service;  // IzotServiceAcknowledged, IzotServiceRepeated, IzotServiceUnacknowledged
+    IzotByte auth;          // 1 => authenticated
+    IzotByte persist;       // 1 => persist datapoints
+    IzotByte explodeArray;  // 1 => explode arrays in SNVT structure
+    IzotByte nvLength;  // length of NV in bytes.  For arrays, give the size of each item
+    IzotByte snvtDesc;  /* snvtDesc_struct in byte form. Big-endian */
+    IzotByte snvtExt;   /* Extension record. Big-endian. */
+    IzotByte snvtType;  /* 0 => non-SNVT variable. */
+    IzotByte rateEst;
+    IzotByte maxrEst;
+    IzotUbits16 arrayCnt;         /* 0 for simple variables. dim for arrays. */
+    const char *nvName;           /* Name of the network variable */
+    const char *nvSdoc;           /* Sel-doc string for the variable */
+    void const volatile *varAddr; /* Address of the variable. */
     const IzotByte *ibol;
     IzotByte changeable;
 } NVDefinition;
 
-typedef enum
-{
-	RX_SOLICITED,					// Messages expected by node such as ack, response, challenge
-	RX_UNSOLICITED,					// Basically anything else including request, ackd, reminder, reply, unackd
+typedef enum {
+    RX_SOLICITED,  // Messages expected by node such as ack, response, challenge
+    RX_UNSOLICITED,  // Basically anything else including request, ackd, reminder, reply, unackd
 
-	NUM_RX_TYPES
+    NUM_RX_TYPES
 } RxStatType;
 
 //
@@ -180,34 +164,38 @@ typedef enum
 //
 // Blocking modes are intended to prevent transmission on certain channels for multi-channel devices.
 //
-typedef enum
-{
-	BM_NONE,
-	BM_RF,
-	BM_PL,
+typedef enum {
+    BM_NONE,
+    BM_RF,
+    BM_PL,
 
-	BM_COUNT
+    BM_COUNT
 } LcsBlockingMode;
 
 // DirectionFlags used for error rate simulation or other directional things
-#define DIRECTION_RX	0x01		// Apply to RX path
-#define DIRECTION_TX	0x02		// Apply to TX path
+#define DIRECTION_RX 0x01  // Apply to RX path
+#define DIRECTION_TX 0x02  // Apply to TX path
 typedef IzotByte DirectionFlags;
 
 /* API Functions ***************************************************/
-IzotByte MsgAlloc(MsgOut **p);    /* Returns TRUE if msg allocated and returns pointer to MsgOut */
-IzotByte MsgAllocPriority(MsgOut **p);  /* Returns TRUE if msg allocated and returns pointer to MsgOut */
-void     MsgSend(void);           /* Reads msgOut, sends message   */
-void     MsgCancel(void);         /* Cancels MsgAlloc() or         */
-								  /*   msgAllocPriority()          */
-void     MsgFree(void);           /* Releases data in msgIn        */
-IzotByte MsgReceive(MsgIn **p);   /* TRUE if there is msg is available and returns pointer to MsgIn */
+IzotByte MsgAlloc(
+        MsgOut **p); /* Returns TRUE if msg allocated and returns pointer to MsgOut */
+IzotByte MsgAllocPriority(
+        MsgOut **p);  /* Returns TRUE if msg allocated and returns pointer to MsgOut */
+void MsgSend(void);   /* Reads msgOut, sends message   */
+void MsgCancel(void); /* Cancels MsgAlloc() or         */
+                      /*   msgAllocPriority()          */
+void MsgFree(void);   /* Releases data in msgIn        */
+IzotByte MsgReceive(
+        MsgIn **p); /* TRUE if there is msg is available and returns pointer to MsgIn */
 
-IzotByte RespAlloc(RespOut **p);  /* Returns TRUE if resp allocated and returns pointer to RespOut */
-void     RespSend(void);          /* Reads respOut, sends response */
-void     RespCancel(void);        /* Cancels RespAlloc()           */
-void     RespFree(void);          /* Releases data in respIn       */
-IzotByte RespReceive(RespIn **p); /* Returns TRUE if resp is available and returns pointer to RespIn */
+IzotByte RespAlloc(
+        RespOut **p);  /* Returns TRUE if resp allocated and returns pointer to RespOut */
+void RespSend(void);   /* Reads respOut, sends response */
+void RespCancel(void); /* Cancels RespAlloc()           */
+void RespFree(void);   /* Releases data in respIn       */
+IzotByte RespReceive(
+        RespIn **p); /* Returns TRUE if resp is available and returns pointer to RespIn */
 
 /********************************************************************
    Add a network variable with the given info.  Returns the index of
@@ -216,7 +204,7 @@ IzotByte RespReceive(RespIn **p); /* Returns TRUE if resp is available and retur
    returned, however each element is considered like a separate
    network variable
 *********************************************************************/
-IzotBits16    AddNV(NVDefinition *);
+IzotBits16 AddNV(NVDefinition *);
 
 /* To send all network output variables in the node.
    Polled or not, Use Propagate function. */
@@ -229,10 +217,10 @@ void PropagateNV(IzotBits16 nvIndex);
 void PropagateArrayNV(IzotBits16 arrayNVIndex, IzotBits16 index);
 
 /* To poll all input network variables */
-void  Poll(void);
+void Poll(void);
 
 /* To poll a specific simple input network variable or an array */
-void  PollNV(IzotBits16 nvIndex);
+void PollNV(IzotBits16 nvIndex);
 
 /* Poll a specific array element or any other simple variable. */
 void PollArrayNV(IzotBits16 arrayNVIndex, IzotBits16 index);
@@ -250,7 +238,7 @@ MsgTag NewMsgTag(BindNoBind bindStatusIn);
 LonStatusCode ManualServiceRequestMessage(void);
 
 /* Functions that must be defined in applications using this API */
-extern LonStatusCode AppInit(void);             /* Application initialization      */
+extern LonStatusCode AppInit(void); /* Application initialization      */
 void DoApp(IzotBool isOnline);      /* Application processing          */
 void LCS_RegisterClearStatsCallback(void (*cb)(void));
 extern void ConfigureDmfWindow(const unsigned addr, const unsigned size);
@@ -263,4 +251,4 @@ extern void RecomputeChecksum(void);
 extern void SetAppSignature(unsigned appSignature);
 extern void readIupPersistData(void);
 
-#endif   /* #ifndef _LCS_API_H */
+#endif /* #ifndef _LCS_API_H */

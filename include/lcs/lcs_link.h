@@ -9,16 +9,18 @@
  * Purpose: Implements the LON data link layer (Layer 2) of the 
  *          ISO/IEC 14908-1 LON protocol stack.
  * Notes:   The functions in this file support LON data links using a
- *          LON USB network interface such as the U10 or U60.
+ *          LON USB interface such as the U10 or U60.
  */
 
 #ifndef _LINK_H
 #define _LINK_H
 
-#include "izot/IzotPlatform.h"
-#include "izot/IzotApi.h"
-#include "lcs/lcs_timer.h"
-#include "lcs/lcs_node.h"
+#include "izot/IzotPlatform.h"  // IWYU pragma: keep
+#include "lcs/lcs_custom.h"     // IWYU pragma: keep
+#include <inttypes.h>
+
+// #include "lcs/lcs_node.h"
+// #include "lcs/lcs_timer.h"
 
 typedef short LonLinkHandle;
 
@@ -26,25 +28,26 @@ typedef short LonLinkHandle;
 // stored in the link layer queues; use the LonNiExtendedFrame structure
 // to access the extended length field
 
-typedef struct LonDataFrame{
-	uint8_t ni_command;			// Network interface command; use LonNiCommand values
-	uint8_t short_pdu_length; 	// PDU length if < EXT_LENGTH; else EXT_LENGTH
-	uint8_t pdu[MAX_LON_MSG_EX_LEN];
+typedef struct LonDataFrame {
+    uint8_t ni_command;        // Network interface command; use LonNiCommand values
+    uint8_t short_pdu_length;  // PDU length if < EXT_LENGTH; else EXT_LENGTH
+    uint8_t pdu[MAX_LON_MSG_EX_LEN];
 } LonDataFrame;
 
 // LON NI frame structure used for extended frames as stored in the
 // link layer queues; the first two bytes match the LonNiFrame structure; the
 // ext_length_be field is in network byte order (big-endian) format
 typedef struct LonExtDataFrame {
-	uint8_t ni_command;			// Network interface command; use LonNiCommand values
-	uint8_t short_pdu_length; 	// PDU length if < EXT_LENGTH; else EXT_LENGTH
-	uint16_t ext_length_be; 	// Big-endian PDU length in bytes
-	uint8_t ext_pdu[MAX_LON_MSG_EX_LEN - 2];
+    uint8_t ni_command;        // Network interface command; use LonNiCommand values
+    uint8_t short_pdu_length;  // PDU length if < EXT_LENGTH; else EXT_LENGTH
+    uint16_t ext_length_be;    // Big-endian PDU length in bytes
+    uint8_t ext_pdu[MAX_LON_MSG_EX_LEN - 2];
 } LonExtDataFrame;
 
 /*****************************************************************
  * Section: Function Declarations
  *****************************************************************/
+
 /*
  * Initializes the LON Stack link layer including queues used by the link layer.
  * Parameters:
@@ -68,26 +71,30 @@ typedef struct LonExtDataFrame {
 LonStatusCode LinkLayerReset(void);
 
 /*
- * Sends an LPDU from the link layer output queue to the LON network interface.
+ * Receives an NPDU from the network layer and sends it to all LON USB interfaces.
  * Parameters:
  *   None
  * Returns:
  *   None
  * Notes:
+ *   The function adds link layer contents to the NPDU to create an LPDU,
+ *   and sends the LPDU to the LON interface driver downlink queue.
  *   The LON interface is typically a U10 or U60 LON USB interface.
+ *   Extra bytes are allocated in the buffers to accomodate layer-specific
+ *   additions to the buffer contents.
  */
 void LinkLayerUsbSend(void);
 
 /*
- * Receives an LPDU from a LON interface, extracts the NPDU, and transfers
- * the NPDU to the network layer.
+ * Receives an LPDU from a LON USB interface and sends it to the network layer.
  * Parameters:
  *   None
  * Returns:
  *   None
  * Notes:
- *   The LON interface is typically a U10 or U60 LON USB interface.
- *   Each item of the queue gp->lkInQ has the following form:
+ *   The function extracts the NPDU from the LPDU and transfers it to the
+ *   network layer. The LON interface is typically a U10 or U60 LON USB
+ *   interface. Each item of the queue gp->lkInQ has the following form:
  *     flag pduSize LPDU
  *       flag is 1 byte long
  *       pduSize is 2 bytes long
@@ -99,15 +106,23 @@ void LinkLayerUsbSend(void);
 void LinkLayerUsbReceive(void);
 
 /*
- * Reads the Unique ID (Neuron ID or MAC ID) from a LON USB network interface.
+ * Reads the Unique ID (Neuron ID or MAC ID) from a LON USB interface.
  * Parameters:
- *   niIndex: The index of the LON network interface to read the Unique ID from
+ *   niIndex: The index of the LON interface to read the Unique ID from
  *   uidBuf: Buffer to receive the Unique ID
  * Returns:
  *   LonStatusNoError if successful, LonStatusCode error code otherwise
  * Notes:
  *   This function is called by IzotGetUniqueId() to get the Unique ID from a LON
- *   USB network interface.
+ *   USB interface.  The iface_index paramater is not used with a single
+ *   USB interface configuration.
  */
-LonStatusCode LinkLayerReadUsbUid(int niIndex, IzotUniqueId *uidBuf);
-#endif
+#if LINK_IS(USB_MIP) || LINK_IS(MULTIPLE_USB_MIPS)
+LonStatusCode LinkLayerReadUsbUid(
+#if LINK_IS(MULTIPLE_USB_MIPS)
+        int niIndex,
+#endif  // LINK_IS(MULTIPLE_USB_MIPS)
+        IzotUniqueId *uidBuf);
+#endif  // LINK_IS(USB_MIP) || LINK_IS(MULTIPLE_USB_MIPS)
+
+#endif  // _LINK_H

@@ -10,10 +10,10 @@
  */
 
 #include "izot/IzotApi.h"
-#if LINK_IS(ETHERNET) || LINK_IS(WIFI)
+#if LINK_IS(UDP)
 #include "lon_udp/ipv4_to_lon_udp.h"
 #endif
-#if LINK_IS(USB)
+#if LINK_IS(USB_MIP) || LINK_IS(MULTIPLE_USB_MIPS)
 #include "lon_usb/lon_usb_link.h"
 #endif
 
@@ -95,7 +95,7 @@ IZOT_EXTERNAL_FN LonStatusCode IzotEventPump(void)
 {
     LonStatusCode status = LonStatusNoError;
 
-#if LINK_IS(WIFI) || LINK_IS(ETHERNET)
+#if LINK_IS(UDP)
     CheckNetworkStatus();
 
 	if(is_connected) {    
@@ -189,15 +189,20 @@ IZOT_EXTERNAL_FN LonStatusCode IzotGetUniqueId(int stackNum, IzotUniqueId* const
     LonStatusCode status = LonStatusDeviceUniqueIdNotAvailable;
     IzotUniqueId uid = {0};
 
-#if LINK_IS(ETHERNET) || LINK_IS(WIFI)
+#if LINK_IS(UDP)
     if (LON_SUCCESS(status = HalGetMacAddress(uid))) {
         memcpy(uId, &uid, IZOT_UNIQUE_ID_LENGTH);
     }
-#elif LINK_IS(USB)
-    if (LON_SUCCESS(status = LinkLayerReadUsbUid(stackNum, uid))) {
+#elif LINK_IS(USB_MIP)
+    if (LON_SUCCESS(status = LinkLayerReadUsbUid(&uid))) {
         memcpy(uId, &uid, IZOT_UNIQUE_ID_LENGTH);
     }
-#endif // LINK_IS(ETHERNET) || LINK_IS(WIFI) || LINK_IS(USB)
+#elif LINK_IS(MULTIPLE_USB_MIPS)
+    (void)stackNum;     // stackNum parameter is not used for single USB link
+    if (LON_SUCCESS(status = LinkLayerReadUsbUid(stackNum, &uid))) {
+        memcpy(uId, &uid, IZOT_UNIQUE_ID_LENGTH);
+    }
+#endif // LINK_IS(UDP) || LINK_IS(USB_MIP) || LINK_IS(MULTIPLE_USB_MIPS)
     return status;
 }
 
@@ -627,8 +632,10 @@ IZOT_EXTERNAL_FN LonStatusCode IzotUpdateDomainConfig(unsigned index, const Izot
         if (pDomain->Subnet != 0 && p->Subnet != pDomain->Subnet) {
             uint32_t oldaddr = BROADCAST_PREFIX | p->Subnet;
             uint32_t newaddr = BROADCAST_PREFIX | pDomain->Subnet;
+#if LINK_IS(UDP)
             RemoveIPMembership(oldaddr);
             AddIpMembership(newaddr);
+#endif // LINK_IS(UDP)
         }
     }
     
@@ -718,7 +725,8 @@ IZOT_EXTERNAL_FN LonStatusCode IzotUpdateAddressConfig(unsigned index, const Izo
     uint32_t oldaddr, newaddr;
     oldaddr = BROADCAST_PREFIX | 0x100 | eep->addrTable[index].Group.Group;
     UpdateAddress((const IzotAddress*)pAddress, index);
-        
+
+#if LINK_IS(UDP)
     // If the new update request for this entry is a group entry 
     // then add the new group address
     newaddr = BROADCAST_PREFIX | 0x100 | eep->addrTable[index].Group.Group;
@@ -726,6 +734,8 @@ IZOT_EXTERNAL_FN LonStatusCode IzotUpdateAddressConfig(unsigned index, const Izo
         RemoveIPMembership(oldaddr);
         AddIpMembership(newaddr);
     }
+#endif // LINK_IS(UDP)
+
     RecomputeChecksum();
     LCS_WritePersistentNetworkImage();
     return LonStatusNoError;
@@ -1065,11 +1075,11 @@ IZOT_EXTERNAL_FN int IzotPersistentSegGetMaxSize(IzotPersistentSegType persisten
     case IzotPersistentSegApplicationData:
         length = IzotGetAppSegmentSize();
         break;
-#ifdef SECURITY_II
+#if SECURITY_IS(V2)
     case IzotPersistentSegSecurityII:
         length = IzotGetSecIIPersistentDataSize();
         break;
-#endif
+#endif  // SECURITY_IS(V2)
     default:
         length = 0;
     }
@@ -1085,7 +1095,7 @@ IZOT_EXTERNAL_FN int IzotPersistentSegGetMaxSize(IzotPersistentSegType persisten
  * Notes:
  *   Uses a digest to secure the device.
  */
-#if LINK_IS(WIFI)
+#if PHYSICAL_IS(WIFI)
 #define FLICKER_INTERVAL 200    // LED flicker interval in milliseconds
 
 static void UnlockWiFiDevice(void)
@@ -1117,7 +1127,7 @@ static void UnlockWiFiDevice(void)
         IzotSleep(100);
     }
 }
-#endif  // LINK_IS(WIFI)
+#endif  // PHYSICAL_IS(WIFI)
 
 /*****************************************************************
  * Section: LON Stack Lifetime Management Function Definitions
@@ -1152,7 +1162,7 @@ IZOT_EXTERNAL_FN LonStatusCode IzotCreateStack(const IzotStackInterfaceData* con
         const IzotControlData * const pControlData)
 {
     LonStatusCode status = LonStatusNoError;
-#if LINK_IS(WIFI)
+#if PHYSICAL_IS(WIFI)
     char oldProgId[8];
 #endif 
     OsalPrintLog(INFO_LOG, LonStatusNoError, "\n*****************************************************************************************");
@@ -1189,14 +1199,14 @@ IZOT_EXTERNAL_FN LonStatusCode IzotCreateStack(const IzotStackInterfaceData* con
     BindableMTagCount = pInterface->BindableMsgTags;
     OsalPrintLog(INFO_LOG, LonStatusNoError, "IzotCreateStack: Initialized with %d static datapoints, %d aliases, and %d message tags",
             DataPointCount, AliasTableCount, BindableMTagCount);
-#if LINK_IS(WIFI)
+#if PHYSICAL_IS(WIFI)
     // Initialize Wi-Fi interface
     status = WiFiInit();
     if (status != LonStatusNoError) {
         OsalPrintLog(ERROR_LOG, status, "IzotCreateStack: Wi-Fi initialization failed");
         return status;
     }
-#endif  // LINK_IS(WIFI)
+#endif  // PHYSICAL_IS(WIFI)
 
     // Initialize LON Stack
     status = LCS_Init(IzotPowerUpReset);
@@ -1205,22 +1215,22 @@ IZOT_EXTERNAL_FN LonStatusCode IzotCreateStack(const IzotStackInterfaceData* con
         return status;
     }
 
-#if LINK_IS(ETHERNET) || LINK_IS(WIFI)
+#if LINK_IS(UDP)
     // Start the UDP interface
-    status = UdpStart();
+    status = StartLonUdpLink();
     if (status != LonStatusNoError) {
         return status;
     }
-#endif  // LINK_IS(ETHERNET) || LINK_IS(WIFI)
+#endif  // LINK_IS(UDP)
 
-#if LINK_IS(WIFI)
+#if PHYSICAL_IS(WIFI)
     // Start the Wi-Fi interface
-    status = WiFiStart();
+    status = StartWiFiInterface();
     if (status != LonStatusNoError) {
         OsalPrintLog(ERROR_LOG, status, "IzotCreateStack: Wi-Fi start failed");
         return status;
     }
-#endif  // LINK_IS(WIFI)
+#endif  // PHYSICAL_IS(WIFI)
 
     return status;
 }
@@ -1463,7 +1473,7 @@ IZOT_EXTERNAL_FN unsigned IzotGetStaticDatapointCount(void)
 IZOT_EXTERNAL_FN LonStatusCode IzotGetDidFromLocalAddress(IzotByte* pDid,
         IzotByte* pDidLen, IzotByte* pSub, IzotByte* pNode)
 {
-#if LINK_IS(ETHERNET) || LINK_IS(WIFI)
+#if LINK_IS(UDP)
     const IzotByte* pDomainId = (IzotByte *)ownIpAddress;
     if (ownIpAddress[0] == 192 && ownIpAddress[1] == 168) {
         *pDidLen = 0;
@@ -1480,7 +1490,7 @@ IZOT_EXTERNAL_FN LonStatusCode IzotGetDidFromLocalAddress(IzotByte* pDid,
     return LonStatusNoError;
 #else
     return LonStatusInvalidParameter;
-#endif  // LINK_IS(ETHERNET) || LINK_IS(WIFI)
+#endif  // LINK_IS(UDP)
 }
 
 /*

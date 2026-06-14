@@ -121,8 +121,9 @@ typedef struct __attribute__ ((packed)) {
 } Domain;
 
 // LON LPDU offsets assuming explicit addressing (EXP ADDR) is on
-#define UNICAST_MSG_CODE_OFFSET		14		// Offset for unicast addressing mode
 #define BROADCAST_MSG_CODE_OFFSET	 5		// Offset for broadcast addressing mode
+#define UNICAST_MSG_CODE_OFFSET		14		// Offset for unicast addressing mode
+#define UNIQUE_ID_MSG_CODE_OFFSET	12		// Offset for unique ID addressing mode
 
 /*******************************************************************************
    DestinationAddress is used to indicate network layer which address

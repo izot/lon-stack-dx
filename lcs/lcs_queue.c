@@ -38,7 +38,8 @@
  *  initialized to point to the start of the data storage, the
  *  queue size is initialized to zero, and the entry size is stored.
  */
-LonStatusCode QueueInit(Queue *queue_out, char *queue_name, size_t entry_size, size_t queue_capacity)
+LonStatusCode QueueInit(Queue *queue_out, char *queue_name, size_t entry_size,
+        size_t queue_capacity)
 {
     // Allocate memory for the queue name and data
     if (queue_name != NULL) {
@@ -49,8 +50,9 @@ LonStatusCode QueueInit(Queue *queue_out, char *queue_name, size_t entry_size, s
     }
     queue_out->data = OsalAllocateMemory((size_t)(entry_size * queue_capacity));
     if (queue_out->data == NULL) {
-        OsalPrintLog(ERROR_LOG, LonStatusNoMemoryAvailable, "QueueInit: Memory allocation failed");
-        return(LonStatusNoMemoryAvailable);
+        OsalPrintLog(ERROR_LOG, LonStatusNoMemoryAvailable,
+                "QueueInit: Memory allocation failed");
+        return (LonStatusNoMemoryAvailable);
     }
 
     // Initialize other fields
@@ -62,7 +64,7 @@ LonStatusCode QueueInit(Queue *queue_out, char *queue_name, size_t entry_size, s
     queue_out->headIndex = 0;
     queue_out->tailIndex = 0;
     queue_out->emptyCountReports = 0;
-    return(LonStatusNoError);
+    return (LonStatusNoError);
 }
 
 /*
@@ -74,14 +76,15 @@ LonStatusCode QueueInit(Queue *queue_out, char *queue_name, size_t entry_size, s
  */
 size_t QueueCapacity(Queue *queue_in)
 {
-    if ((queue_in == NULL) || (queue_in->data == NULL)
-            || (queue_in->head == NULL) || (queue_in->tail == NULL)
-            || (queue_in->queueCapacity == 0) || (queue_in->entrySize == 0)
-            || (queue_in->queueEntries > queue_in->queueCapacity)) {
-        OsalPrintLog(ERROR_LOG, LonStatusInvalidParameter, "QueueCapacity: Invalid queue");
+    if ((queue_in == NULL) || (queue_in->data == NULL) || (queue_in->head == NULL) ||
+            (queue_in->tail == NULL) || (queue_in->queueCapacity == 0) ||
+            (queue_in->entrySize == 0) ||
+            (queue_in->queueEntries > queue_in->queueCapacity)) {
+        OsalPrintLog(ERROR_LOG, LonStatusInvalidParameter,
+                "QueueCapacity: Invalid queue");
         return 0;
     }
-    return(queue_in->queueCapacity);
+    return (queue_in->queueCapacity);
 }
 
 /*
@@ -93,14 +96,14 @@ size_t QueueCapacity(Queue *queue_in)
  */
 size_t QueueAvail(Queue *queue_in)
 {
-    if ((queue_in == NULL) || (queue_in->data == NULL)
-            || (queue_in->head == NULL) || (queue_in->tail == NULL)
-            || (queue_in->queueCapacity == 0) || (queue_in->entrySize == 0)
-            || (queue_in->queueEntries > queue_in->queueCapacity)) {
+    if ((queue_in == NULL) || (queue_in->data == NULL) || (queue_in->head == NULL) ||
+            (queue_in->tail == NULL) || (queue_in->queueCapacity == 0) ||
+            (queue_in->entrySize == 0) ||
+            (queue_in->queueEntries > queue_in->queueCapacity)) {
         OsalPrintLog(ERROR_LOG, LonStatusInvalidParameter, "QueueAvail: Invalid queue");
         return 0;
     }
-    return(queue_in->queueCapacity - queue_in->queueEntries);
+    return (queue_in->queueCapacity - queue_in->queueEntries);
 }
 
 /* 
@@ -112,14 +115,14 @@ size_t QueueAvail(Queue *queue_in)
  */
 size_t QueueEntries(Queue *queue_in)
 {
-    if ((queue_in == NULL) || (queue_in->data == NULL)
-            || (queue_in->head == NULL) || (queue_in->tail == NULL)
-            || (queue_in->queueCapacity == 0) || (queue_in->entrySize == 0)
-            || (queue_in->queueEntries > queue_in->queueCapacity)) {
+    if ((queue_in == NULL) || (queue_in->data == NULL) || (queue_in->head == NULL) ||
+            (queue_in->tail == NULL) || (queue_in->queueCapacity == 0) ||
+            (queue_in->entrySize == 0) ||
+            (queue_in->queueEntries > queue_in->queueCapacity)) {
         OsalPrintLog(ERROR_LOG, LonStatusInvalidParameter, "QueueEntries: Invalid queue");
         return 0;
     }
-    return(queue_in->queueEntries);
+    return (queue_in->queueEntries);
 }
 
 /*
@@ -131,14 +134,14 @@ size_t QueueEntries(Queue *queue_in)
  */
 IzotBool QueueFull(Queue *queue_in)
 {
-    if ((queue_in == NULL) || (queue_in->data == NULL)
-            || (queue_in->head == NULL) || (queue_in->tail == NULL)
-            || (queue_in->queueCapacity == 0) || (queue_in->entrySize == 0)
-            || (queue_in->queueEntries > queue_in->queueCapacity)) {
+    if ((queue_in == NULL) || (queue_in->data == NULL) || (queue_in->head == NULL) ||
+            (queue_in->tail == NULL) || (queue_in->queueCapacity == 0) ||
+            (queue_in->entrySize == 0) ||
+            (queue_in->queueEntries > queue_in->queueCapacity)) {
         OsalPrintLog(ERROR_LOG, LonStatusInvalidParameter, "QueueFull: Invalid queue");
         return TRUE;
     }
-    return(queue_in->queueEntries >= queue_in->queueCapacity);
+    return (queue_in->queueEntries >= queue_in->queueCapacity);
 }
 
 /*
@@ -150,14 +153,14 @@ IzotBool QueueFull(Queue *queue_in)
  */
 IzotBool QueueEmpty(Queue *queue_in)
 {
-    if ((queue_in == NULL) || (queue_in->data == NULL)
-            || (queue_in->head == NULL) || (queue_in->tail == NULL)
-            || (queue_in->queueCapacity == 0) || (queue_in->entrySize == 0)
-            || (queue_in->queueEntries > queue_in->queueCapacity)) {
+    if ((queue_in == NULL) || (queue_in->data == NULL) || (queue_in->head == NULL) ||
+            (queue_in->tail == NULL) || (queue_in->queueCapacity == 0) ||
+            (queue_in->entrySize == 0) ||
+            (queue_in->queueEntries > queue_in->queueCapacity)) {
         OsalPrintLog(ERROR_LOG, LonStatusInvalidParameter, "QueueEmpty: Invalid queue");
         return FALSE;
     }
-    return(queue_in->queueEntries == 0);
+    return (queue_in->queueEntries == 0);
 }
 
 /*
@@ -169,14 +172,15 @@ IzotBool QueueEmpty(Queue *queue_in)
  */
 size_t QueueEntrySize(Queue *queue_in)
 {
-    if ((queue_in == NULL) || (queue_in->data == NULL)
-            || (queue_in->head == NULL) || (queue_in->tail == NULL)
-            || (queue_in->queueCapacity == 0) || (queue_in->entrySize == 0)
-            || (queue_in->queueEntries > queue_in->queueCapacity)) {
-        OsalPrintLog(ERROR_LOG, LonStatusInvalidParameter, "QueueEntrySize: Invalid queue");
+    if ((queue_in == NULL) || (queue_in->data == NULL) || (queue_in->head == NULL) ||
+            (queue_in->tail == NULL) || (queue_in->queueCapacity == 0) ||
+            (queue_in->entrySize == 0) ||
+            (queue_in->queueEntries > queue_in->queueCapacity)) {
+        OsalPrintLog(ERROR_LOG, LonStatusInvalidParameter,
+                "QueueEntrySize: Invalid queue");
         return 0;
     }
-    return(queue_in->entrySize);
+    return (queue_in->entrySize);
 }
 
 /*
@@ -190,16 +194,18 @@ size_t QueueEntrySize(Queue *queue_in)
  */
 void QueueDropHead(Queue *queue_in_out)
 {
-    if ((queue_in_out == NULL) || (queue_in_out->data == NULL)
-            || (queue_in_out->head == NULL) || (queue_in_out->tail == NULL)
-            || (queue_in_out->queueCapacity == 0) || (queue_in_out->entrySize == 0)
-            || (queue_in_out->queueEntries > queue_in_out->queueCapacity)) {
-        OsalPrintLog(ERROR_LOG, LonStatusInvalidParameter, "QueueDropHead: Invalid queue");
+    if ((queue_in_out == NULL) || (queue_in_out->data == NULL) ||
+            (queue_in_out->head == NULL) || (queue_in_out->tail == NULL) ||
+            (queue_in_out->queueCapacity == 0) || (queue_in_out->entrySize == 0) ||
+            (queue_in_out->queueEntries > queue_in_out->queueCapacity)) {
+        OsalPrintLog(ERROR_LOG, LonStatusInvalidParameter,
+                "QueueDropHead: Invalid queue");
         return;
     }
     if (queue_in_out->queueEntries == 0) {
         if (queue_in_out->emptyCountReports < 20) {
-            OsalPrintLog(PACKET_TRACE_LOG, LonStatusNoError, "QueueDropHead: %s queue is empty", queue_in_out->queueName);
+            OsalPrintLog(PACKET_TRACE_LOG, LonStatusNoError,
+                    "QueueDropHead: %s queue is empty", queue_in_out->queueName);
             queue_in_out->emptyCountReports++;
         }
         return;
@@ -209,15 +215,16 @@ void QueueDropHead(Queue *queue_in_out)
     queue_in_out->headIndex++;
     // Wrap around if the head pointer goes past the end of the array
     if (queue_in_out->head ==
-            (queue_in_out->data + queue_in_out->entrySize * queue_in_out->queueCapacity)) {
+            (queue_in_out->data +
+                    queue_in_out->entrySize * queue_in_out->queueCapacity)) {
         queue_in_out->head = queue_in_out->data;
         queue_in_out->headIndex = 0;
     }
-    OsalPrintLog(PACKET_TRACE_LOG, LonStatusNoError, 
-            "QueueDropHead: Dropped entry from %s queue, new size %d, head index %d (%p), tail index %d (%p)",
-            queue_in_out->queueName, queue_in_out->queueEntries,
-            queue_in_out->headIndex, queue_in_out->head,
-            queue_in_out->tailIndex, queue_in_out->tail);
+    OsalPrintLog(PACKET_TRACE_LOG, LonStatusNoError,
+            "QueueDropHead: Dropped entry from %s queue, new size %d, head index %d "
+            "(%p), tail index %d (%p)",
+            queue_in_out->queueName, queue_in_out->queueEntries, queue_in_out->headIndex,
+            queue_in_out->head, queue_in_out->tailIndex, queue_in_out->tail);
 }
 
 /*
@@ -232,10 +239,10 @@ void QueueDropHead(Queue *queue_in_out)
  */
 void QueueFlush(Queue *queue_in_out)
 {
-    if ((queue_in_out == NULL) || (queue_in_out->data == NULL)
-            || (queue_in_out->head == NULL) || (queue_in_out->tail == NULL)
-            || (queue_in_out->queueCapacity == 0) || (queue_in_out->entrySize == 0)
-            || (queue_in_out->queueEntries > queue_in_out->queueCapacity)) {
+    if ((queue_in_out == NULL) || (queue_in_out->data == NULL) ||
+            (queue_in_out->head == NULL) || (queue_in_out->tail == NULL) ||
+            (queue_in_out->queueCapacity == 0) || (queue_in_out->entrySize == 0) ||
+            (queue_in_out->queueEntries > queue_in_out->queueCapacity)) {
         OsalPrintLog(ERROR_LOG, LonStatusInvalidParameter, "QueueFlush: Invalid queue");
         return;
     }
@@ -261,15 +268,15 @@ void QueueFlush(Queue *queue_in_out)
  */
 void QueueWrite(Queue *queue_in_out)
 {
-    if ((queue_in_out == NULL) || (queue_in_out->data == NULL)
-            || (queue_in_out->head == NULL) || (queue_in_out->tail == NULL)
-            || (queue_in_out->queueCapacity == 0) || (queue_in_out->entrySize == 0)
-            || (queue_in_out->queueEntries > queue_in_out->queueCapacity)) {
+    if ((queue_in_out == NULL) || (queue_in_out->data == NULL) ||
+            (queue_in_out->head == NULL) || (queue_in_out->tail == NULL) ||
+            (queue_in_out->queueCapacity == 0) || (queue_in_out->entrySize == 0) ||
+            (queue_in_out->queueEntries > queue_in_out->queueCapacity)) {
         OsalPrintLog(ERROR_LOG, LonStatusInvalidParameter, "QueueWrite: Invalid queue");
         return;
     }
     if (queue_in_out->queueEntries >= (queue_in_out->queueCapacity - 1)) {
-    	OsalPrintLog(ERROR_LOG, LonStatusNoBufferAvailable, "QueueWrite: Queue is full");
+        OsalPrintLog(ERROR_LOG, LonStatusNoBufferAvailable, "QueueWrite: Queue is full");
         return;
     }
     uint8_t *new_entry = queue_in_out->tail;
@@ -279,14 +286,16 @@ void QueueWrite(Queue *queue_in_out)
     queue_in_out->tailIndex++;
     // Wrap around if the tail pointer goes past the end of the array
     if (queue_in_out->tail ==
-            (queue_in_out->data + queue_in_out->entrySize * queue_in_out->queueCapacity)) {
+            (queue_in_out->data +
+                    queue_in_out->entrySize * queue_in_out->queueCapacity)) {
         queue_in_out->tail = queue_in_out->data;
         queue_in_out->tailIndex = 0;
     }
-    OsalPrintLog(PACKET_TRACE_LOG, LonStatusNoError, 
-            "QueueWrite: Wrote entry to %s queue, new entry count %d, head index %d (%p), tail index %d (%p)",
-            queue_in_out->queueName, queue_in_out->queueEntries, queue_in_out->headIndex, queue_in_out->head,
-            queue_in_out->tailIndex, queue_in_out->tail);
+    OsalPrintLog(PACKET_TRACE_LOG, LonStatusNoError,
+            "QueueWrite: Wrote entry to %s queue, new entry count %d, head index %d "
+            "(%p), tail index %d (%p)",
+            queue_in_out->queueName, queue_in_out->queueEntries, queue_in_out->headIndex,
+            queue_in_out->head, queue_in_out->tailIndex, queue_in_out->tail);
 }
 
 /*
@@ -299,22 +308,23 @@ void QueueWrite(Queue *queue_in_out)
  */
 void *QueuePeek(Queue *queue_in)
 {
-    if ((queue_in == NULL) || (queue_in->data == NULL)
-            || (queue_in->head == NULL) || (queue_in->tail == NULL)
-            || (queue_in->queueCapacity == 0) || (queue_in->entrySize == 0)
-            || (queue_in->queueEntries > queue_in->queueCapacity)) {
+    if ((queue_in == NULL) || (queue_in->data == NULL) || (queue_in->head == NULL) ||
+            (queue_in->tail == NULL) || (queue_in->queueCapacity == 0) ||
+            (queue_in->entrySize == 0) ||
+            (queue_in->queueEntries > queue_in->queueCapacity)) {
         OsalPrintLog(ERROR_LOG, LonStatusInvalidParameter, "QueuePeek: Invalid queue");
         return NULL;
     }
     void *head;
     head = queue_in->queueEntries ? queue_in->head : NULL;
     if (head) {
-        OsalPrintLog(PACKET_TRACE_LOG, LonStatusNoError, 
-            "QueuePeek: Peeked entry from %s queue, size %d, head index %d (%p), tail index %d (%p)",
-            queue_in->queueName, queue_in->queueEntries, queue_in->headIndex,
-            queue_in->head, queue_in->tailIndex, queue_in->tail);
+        OsalPrintLog(PACKET_TRACE_LOG, LonStatusNoError,
+                "QueuePeek: Peeked entry from %s queue, size %d, head index %d (%p), "
+                "tail index %d (%p)",
+                queue_in->queueName, queue_in->queueEntries, queue_in->headIndex,
+                queue_in->head, queue_in->tailIndex, queue_in->tail);
     }
-    return(head);
+    return (head);
 }
 
 /*
@@ -327,14 +337,14 @@ void *QueuePeek(Queue *queue_in)
  */
 void *QueueTail(Queue *queue_in)
 {
-    if ((queue_in == NULL) || (queue_in->data == NULL)
-            || (queue_in->head == NULL) || (queue_in->tail == NULL)
-            || (queue_in->queueCapacity == 0) || (queue_in->entrySize == 0)
-            || (queue_in->queueEntries > queue_in->queueCapacity)) {
+    if ((queue_in == NULL) || (queue_in->data == NULL) || (queue_in->head == NULL) ||
+            (queue_in->tail == NULL) || (queue_in->queueCapacity == 0) ||
+            (queue_in->entrySize == 0) ||
+            (queue_in->queueEntries > queue_in->queueCapacity)) {
         OsalPrintLog(ERROR_LOG, LonStatusInvalidParameter, "QueueTail: Invalid queue");
         return NULL;
     }
-    return((queue_in->queueEntries < queue_in->queueCapacity) ? queue_in->tail : NULL);
+    return ((queue_in->queueEntries < queue_in->queueCapacity) ? queue_in->tail : NULL);
 }
 
 /*****************************************************************
@@ -350,8 +360,12 @@ void *QueueTail(Queue *queue_in)
  */
 LonStatusCode RingBufferInit(RingBuffer *rb, size_t capacity)
 {
-    if (!rb || capacity == 0) return LonStatusInvalidParameter;
-    if (capacity > RING_BUFFER_MAX_CAPACITY) return LonStatusInvalidParameter;
+    if (!rb || capacity == 0) {
+        return LonStatusInvalidParameter;
+    }
+    if (capacity > RING_BUFFER_MAX_CAPACITY) {
+        return LonStatusInvalidParameter;
+    }
     rb->size = capacity;
     rb->head = rb->tail = rb->count = 0;
     return LonStatusNoError;
@@ -364,10 +378,7 @@ LonStatusCode RingBufferInit(RingBuffer *rb, size_t capacity)
  * Returns:
  *   Number of free bytes available for writing.
  */
-size_t RingBufferAvail(const RingBuffer *rb)
-{
-    return rb ? (rb->size - rb->count) : 0;
-}
+size_t RingBufferAvail(const RingBuffer *rb) { return rb ? (rb->size - rb->count) : 0; }
 
 /*
  * Returns the number of bytes currently stored in a ring buffer.
@@ -376,10 +387,7 @@ size_t RingBufferAvail(const RingBuffer *rb)
  * Returns:
  *   Number of bytes currently stored.
  */
-size_t RingBufferSize(const RingBuffer *rb)
-{
-    return rb ? rb->count : 0;
-}
+size_t RingBufferSize(const RingBuffer *rb) { return rb ? rb->count : 0; }
 
 /*
  * Clears a ring buffer, resetting head, tail, and count.
@@ -406,14 +414,18 @@ void RingBufferClear(RingBuffer *rb)
  */
 size_t RingBufferWrite(RingBuffer *rb, const uint8_t *src, size_t len)
 {
-    if (!rb || !src || len == 0) return 0;
+    if (!rb || !src || len == 0) {
+        return 0;
+    }
     size_t space = RingBufferAvail(rb);
     size_t to_write = (len > space) ? space : len;
     size_t written = 0;
     while (written < to_write) {
         size_t space_end = rb->size - rb->head;
         size_t chunk = to_write - written;
-        if (chunk > space_end) chunk = space_end;
+        if (chunk > space_end) {
+            chunk = space_end;
+        }
         memcpy(&rb->data[rb->head], src + written, chunk);
         rb->head = (rb->head + chunk) % rb->size;
         rb->count += chunk;
@@ -433,14 +445,18 @@ size_t RingBufferWrite(RingBuffer *rb, const uint8_t *src, size_t len)
  */
 size_t RingBufferPeek(const RingBuffer *rb, uint8_t *dst, size_t len)
 {
-    if (!rb || !dst || len == 0) return 0;
+    if (!rb || !dst || len == 0) {
+        return 0;
+    }
     size_t to_read = (len > rb->count) ? rb->count : len;
     size_t read = 0;
     size_t tail = rb->tail;
     while (read < to_read) {
         size_t avail_end = rb->size - tail;
         size_t chunk = to_read - read;
-        if (chunk > avail_end) chunk = avail_end;
+        if (chunk > avail_end) {
+            chunk = avail_end;
+        }
         memcpy(dst + read, &rb->data[tail], chunk);
         tail = (tail + chunk) % rb->size;
         read += chunk;
@@ -459,7 +475,9 @@ size_t RingBufferPeek(const RingBuffer *rb, uint8_t *dst, size_t len)
  */
 size_t RingBufferRead(RingBuffer *rb, uint8_t *dst, size_t len)
 {
-    if (!rb || !dst || len == 0) return 0;
+    if (!rb || !dst || len == 0) {
+        return 0;
+    }
     size_t got = RingBufferPeek(rb, dst, len);
     rb->tail = (rb->tail + got) % rb->size;
     rb->count -= got;

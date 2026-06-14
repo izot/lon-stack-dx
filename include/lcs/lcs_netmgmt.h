@@ -33,11 +33,11 @@
 
 #if PROCESSOR_IS(MC200)
 #include <wmstdio.h>
-#endif
+#endif  // PROCESSOR_IS(MC200)
 
-#ifdef SECURITY_II
+#if SECURITY_IS(V2)
 #include "SecNmMsgs.h"
-#endif
+#endif  // SECURITY_IS(V2)
 
 #pragma pack(push, 1)
 
@@ -183,7 +183,7 @@ typedef struct {
 #define NMV_LS_MODE_COMPATIBILITY_OR_ENHANCED    0x02
 #define NMV_LS_MODE_RSVD                         0x03
 
-#define NMV_LSIP_ADDR_MAPPING_ANNOUNCEMENTS      0x04
+#define NMV_LON_UDP_ADDR_MAPPING_ANNOUNCEMENTS      0x04
 
 typedef enum {
 	NDQB_ATTENUATE = 	0x01,

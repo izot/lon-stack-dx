@@ -150,10 +150,13 @@ static LonStatusCode IzotPersistentSegStore(IzotPersistentSegType persistent_seg
         status = IzotPersistentSegSerializeNetworkImage(&segment_image, &image_length);
     } else if (persistent_seg_type == IzotPersistentSegApplicationData) {
         status = IzotPersistentSegSerializeAppDataImage(&segment_image, &image_length);
-#ifdef SECURITY_II
+#if SECURITY_IS(V2)
     } else if (persistent_seg_type == IzotPersistentSegSecurityII) {
         status = serializeSecurityIIData(&segment_image, &image_length);
-#endif
+#endif  // SECURITY_IS(V2)
+    } else {
+        status = LonStatusInvalidParameter;
+        OsalPrintLog(ERROR_LOG, status, "IzotPersistentSegStore: Invalid persistent segment type %d", persistent_seg_type);
     } 
     if (status == LonStatusNoError) {
         hdr.checksum = ComputePersistenceChecksum(segment_image, image_length);
@@ -420,11 +423,11 @@ LonStatusCode IzotPersistentSegRestore(IzotPersistentSegType persistent_seg_type
                 IzotPersistentSegDeserializeAppDataImage(segment_image, image_length);
             break;
 
-#ifdef SECURITY_II
+#if SECURITY_IS(V2)
         case IzotPersistentSegSecurityII:
             status = deserializeSecurityIIData(segment_image, image_length);
             break;
-#endif
+#endif  // SECURITY_IS(V2)
 
         default:
             status = LonStatusPersistentDataFailure;
@@ -441,12 +444,12 @@ LonStatusCode IzotPersistentSegRestore(IzotPersistentSegType persistent_seg_type
     return status;
 }
 
-#ifdef SECURITY_II
+#if SECURITY_IS(V2)
 LonStatusCode restoreSecurityIIData(void)
 {
     return IzotPersistentSegRestore(IzotPersistentSegSecurityII);
 }
-#endif
+#endif  // SECURITY_IS(V2)
 
 /*
  * Function: IzotPersistentSegCommitScheduled

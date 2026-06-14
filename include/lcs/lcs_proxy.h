@@ -17,12 +17,13 @@
 #ifndef __PROXY_H
 #define __PROXY_H
 
-#ifdef ENABLE_PROXY_REPEATING
+#include "izot/IzotPlatform.h"
+
+#if PHYSICAL_IS(LON_PL_PROXY)
 
 #include <stddef.h>
 #include <string.h>
 #include <stdio.h>
-#include "izot/IzotPlatform.h"
 #include "izot/IzotApi.h"
 #include "izot/lon_types.h"
 #include "lcs/lcs_api.h"
@@ -169,6 +170,6 @@ typedef enum {
 LonStatusCode ProcessLTEP(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr);
 LonStatusCode ProcessLtepCompletion(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr, LonStatusCode status);
 
-#endif // ENABLE_PROXY_REPEATING
+#endif //  PHYSICAL_IS(LON_PL_PROXY)
 
-#endif // __PROXY_H
+#endif  // __PROXY_H

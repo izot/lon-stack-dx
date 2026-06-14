@@ -24,6 +24,7 @@ extern "C"
 #include <stdbool.h>
 
 #include "izot/IzotPlatform.h"
+#include "izot/lon_types.h"
 #include "abstraction/IzotOsal.h"
 
 #define LINUX_FLASH_OFFSET      0
@@ -47,7 +48,7 @@ extern "C"
  *   LonStatusNoError (0) on success, or an <LonStatusCode> error code
  *   on failure.
  */
-extern LonStatusCode HalInitStorage(void);
+LonStatusCode HalInitStorage(void);
 
 /*
  * Returns information about the flash region used for persistent data.
@@ -68,7 +69,7 @@ extern LonStatusCode HalInitStorage(void);
  *   memory flash memory region.  The flash region is used
  *   for persistent data storage.
  */
-extern LonStatusCode HalStorageInfo(size_t *offset, size_t *region_size,
+LonStatusCode HalStorageInfo(size_t *offset, size_t *region_size,
         int *number_of_blocks, size_t *block_size, int *number_of_regions,
         bool *erase_required, uint8_t *erase_value
 );
@@ -83,7 +84,7 @@ extern LonStatusCode HalStorageInfo(size_t *offset, size_t *region_size,
  * Returns:
  *   LonStatusNoError on success, or a LonStatusCode error code on failure.
  */
-extern LonStatusCode HalOpenStorageSegment(const IzotPersistentSegType persistent_seg_type,
+LonStatusCode HalOpenStorageSegment(const IzotPersistentSegType persistent_seg_type,
     char *persistent_seg_name, size_t max_data_size);
 
 /*
@@ -94,7 +95,7 @@ extern LonStatusCode HalOpenStorageSegment(const IzotPersistentSegType persisten
  * Returns:
  *   None
  */
-extern LonStatusCode HalCloseStorageSegment(const IzotPersistentSegType persistent_seg_type);
+LonStatusCode HalCloseStorageSegment(const IzotPersistentSegType persistent_seg_type);
 
 /*
  * Erases the persistent data from the specified starting offset
@@ -108,7 +109,7 @@ extern LonStatusCode HalCloseStorageSegment(const IzotPersistentSegType persiste
  * Returns:
  *   LonStatusNoError on success, or a LonStatusCode error code on failure.
  */
-extern LonStatusCode HalPrepareStorageSegment(
+LonStatusCode HalPrepareStorageSegment(
         const IzotPersistentSegType persistent_seg_type,
         size_t seg_start, size_t start, size_t size, uint8_t erase_value);
 
@@ -125,7 +126,7 @@ extern LonStatusCode HalPrepareStorageSegment(
  *   The file is extended if the file size is less than the starting
  *   offset.
  */
-extern LonStatusCode HalWriteStorageSegment(
+LonStatusCode HalWriteStorageSegment(
         const IzotPersistentSegType persistent_seg_type, IzotByte *buf, size_t seg_start, size_t start, size_t size);
 
 /*
@@ -140,12 +141,13 @@ extern LonStatusCode HalWriteStorageSegment(
  * Notes:
  *    An error is returned if the file size is less than `start + size` bytes.
  */
-extern LonStatusCode HalReadStorageSegment(
+LonStatusCode HalReadStorageSegment(
         const IzotPersistentSegType persistent_seg_type, IzotByte *buf, size_t seg_start, size_t start, size_t size);
 
 /*****************************************************************
  * Section: LON USB Interface Abstraction Function Declarations
  *****************************************************************/
+
 // Callback for async read: receives buffer, byte count, user data
 typedef void (*usbtty_read_callback_t)(const char *buf, ssize_t len, void *user);
 
@@ -158,29 +160,112 @@ typedef struct usbtty_ctx {
     volatile int stop;          // Flag to signal the thread to stop reading and exit
 } usbtty_ctx;
 
-// Open USB tty device with custom line discipline; returns file descriptor or <0 on error
-LonStatusCode HalOpenUsb(const char *usb_dev_name, int ldisc, int *usb_fd_out);
+/*
+ * Opens the hardware-specific driver for interfacing with the LON USB interface.
+ * Parameters:
+ *   ldisc: line discipline to set on the USB interface, or -1 to leave unchanged
+ *   usb_dev_name: (Linux only) name of the USB device to open (e.g. "/dev/ttyUSB0")
+ *   usb_fd_out: (Linux only) pointer to variable to receive the opened file descriptor
+ * Returns:
+ *   LonStatusNoError (0) on success, or an <LonStatusCode> error code on failure.
+ * Notes:
+ *   On Linux, the specified line discipline is set on the opened USB device.
+ *   If ldisc is -1, the line discipline is left unchanged (the caller is
+ *   expected to have configured it separately, e.g. via a udev rule).  The
+ *   USB device is put into raw mode with 8N1, no flow control, and DTR/RTS
+ *   asserted.  On FreeRTOS, the line discipline parameter is ignored and the
+ *   USB interface is initialized with the necessary settings for LON communication.
+ */
+LonStatusCode HalOpenUsb(int ldisc
+#if OS_IS(LINUX)    
+        , const char *usb_dev_name, int *usb_fd_out
+#endif
+        );
 
-// Close device (just closes fd)
-void HalCloseUsb(int fd);
+#if OS_IS(FREERTOS)
+/*
+ * Performs the CDC class-specific initialization handshake with the connected USB device.
+ * Parameters: None
+ * Returns:    None
+ * Notes:
+ *   This function is called periodically from the main loop after the USB device is connected
+ *   and the class is active. It implements a simple state machine to perform the necessary
+ *   CDC control requests to set up the device for communication. Once the handshake is complete,
+ *   it sets a flag to indicate that the USB CDC interface is ready for use.
+ */
+void HalHandleUsbCdcInitialization(void);
+#endif  // OS_IS(FREERTOS)
+
+#if LINK_IS(MULTIPLE_USB_MIPS)
+/*
+ * Closes the hardware-specific driver for interfacing with the LON USB interface.
+ * Parameters:
+ *   fd: (Linux only) File descriptor of the opened LON USB network interface
+ * Returns:
+ *   None
+ */
+void HalCloseUsb(
+#ifdef OS_IS(LINUX)
+    int fd);
+#else
+    void);
+#endif
+#endif // LINK_IS(MULTIPLE_USB_MIPS)
 
 /*
- * Writes buffer to LON USB network interface.
- * Reliable write helper for user-space file descriptors (TTY/USB).
- * Attempts to write the entire buffer unless a non-recoverable error occurs.
- * Retries on EINTR and EAGAIN. For partial progress followed by error, the
- * already-written byte count is returned via bytes_written.
+ * Writes data to the LON USB network interface.
+ * Parameters:
+ *   fd: File descriptor of the opened LON USB network interface
+ *   buf: Pointer to the data buffer to write
+ *   len: Number of bytes to write
+ *   bytes_written: Pointer to size_t to receive the number of bytes written
+ * Returns:
+ *   LonStatusNoError on success; LonStatusCode error code if unsuccessful.
+ * Notes:
+ *   The entire buffer is written unless a non-recoverable error occurs.
+ *   For Linux, it retries on EINTR and EAGAIN. For partial progress followed
+ *   by error, the already-written byte count is returned via bytes_written.
  */
 LonStatusCode HalWriteUsb(int fd, const void *buf, size_t len, size_t *bytes_written);
 
-// Polling USB read abstraction. Returns LonStatusNoError with *bytes_read set
-// to the number of bytes read, LonStatusNoMessageAvailable if no data is available,
-// or another LonStatusCode on error.
+#if USB_UPLINK_IS(POLLING)
+/*
+ * Polls and reads data from the LON USB network interface.
+ * Parameters:
+ *   fd: File descriptor of the opened LON USB network interface
+ *   buf: Pointer to the data buffer to receive read data
+ *   len: Number of bytes to read
+ *   bytes_read: Pointer to ssize_t to receive the number of bytes read
+ * Returns:
+ *   LonStatusNoError on success; LonStatusCode error code if unsuccessful
+ * Notes:
+ *   This function performs a non-blocking read. If no data is available,
+ *   it returns LonStatusNoMessageAvailable. If data is available, it reads
+ *   up to 'len' bytes and returns the number of bytes read via 'bytes_read'.
+ *   Drivers can call this function periodically to retrieve incoming data.
+ */
 LonStatusCode HalReadUsb(int fd, void *buf, size_t len, ssize_t *bytes_read);
+#endif  // USB_UPLINK_IS(POLLING)
+
+#if USB_SERVICE_IS(PUMP)
+/*
+ * Service function to pump the USB network interface.
+ * Parameters:
+ *   None
+ * Returns:
+ *   LonStatusNoError on success; LonStatusCode error code if unsuccessful
+ * Notes:
+ *   When enabled, this is called periodically from the LCS_Service() event
+ *   pump.
+ */
+LonStatusCode HalUsbService(void);
+#endif  // USB_SERVICE_IS(PUMP)
 
 /*****************************************************************
  * Section: MAC Address Function Definition
  *****************************************************************/
+
+#if LINK_IS(UDP)
 /*
  * Gets the MAC address of the host IP interface.
  * Parameters:
@@ -193,11 +278,13 @@ LonStatusCode HalReadUsb(int fd, void *buf, size_t len, ssize_t *bytes_read);
  *   global.  The name is host-dependent and must match the name for
  *   the host.
  */ 
-extern LonStatusCode HalGetMacAddress(unsigned char *mac);
+LonStatusCode HalGetMacAddress(unsigned char *mac);
+#endif // LINK_IS(UDP)
 
 /*****************************************************************
  * Section: Reboot Function Declaration
  *****************************************************************/
+
 /*
  * Reboots the host device.
  * Parameters:
@@ -207,7 +294,7 @@ extern LonStatusCode HalGetMacAddress(unsigned char *mac);
  *   If not successful, <LonStatusCode> LonStatusHostRebootFailure
  *   is returned.
  */ 
-extern LonStatusCode HalReboot(void);
+LonStatusCode HalReboot(void);
 
 #ifdef __cplusplus
 }

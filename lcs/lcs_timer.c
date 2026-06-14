@@ -13,6 +13,10 @@
 #include "lcs/lcs_timer.h"
 #include "izot/iap_types.h"
 
+/*****************************************************************
+ * Section: Function Definitions
+ *****************************************************************/
+
 /*
  * Starts a one-shot timer.
  * Parameters:
@@ -28,21 +32,21 @@
  */
 void SetLonTimer(LonTimer *timer, uint32_t duration)
 {
-	if (timer) {
-		if (duration) {
-			// Limit duration
-			duration = min(duration, LON_TIMER_MAX_DURATION);
-			timer->repeatTimeout = 0;
-			timer->expiration = OsalGetTickCount() + duration;
+    if (timer) {
+        if (duration) {
+            // Limit duration
+            duration = min(duration, LON_TIMER_MAX_DURATION);
+            timer->repeatTimeout = 0;
+            timer->expiration = OsalGetTickCount() + duration;
 
-			if (timer->expiration == 0) {
-				// Zero signals that a timer is not running so disallow it
-				timer->expiration = 1;
-			}
-		} else {
-			timer->expiration = 0;
-		}
-	}
+            if (timer->expiration == 0) {
+                // Zero signals that a timer is not running so disallow it
+                timer->expiration = 1;
+            }
+        } else {
+            timer->expiration = 0;
+        }
+    }
 }
 
 /*
@@ -60,14 +64,14 @@ void SetLonTimer(LonTimer *timer, uint32_t duration)
  */
 void SetLonRepeatTimer(LonTimer *timer, uint32_t first_duration, uint32_t repeat_duration)
 {
-	if (timer) {
-		// Limit durations
-		first_duration = min(first_duration, LON_TIMER_MAX_DURATION);
-		repeat_duration = min(repeat_duration, LON_TIMER_MAX_DURATION);
+    if (timer) {
+        // Limit durations
+        first_duration = min(first_duration, LON_TIMER_MAX_DURATION);
+        repeat_duration = min(repeat_duration, LON_TIMER_MAX_DURATION);
 
-		SetLonTimer(timer, first_duration);
-		timer->repeatTimeout = repeat_duration;
-	}
+        SetLonTimer(timer, first_duration);
+        timer->repeatTimeout = repeat_duration;
+    }
 }
 
 /*
@@ -83,23 +87,23 @@ void SetLonRepeatTimer(LonTimer *timer, uint32_t first_duration, uint32_t repeat
  */
 bool LonTimerExpired(LonTimer *timer)
 {
-	if (!timer || !timer->expiration) {
-		return false;
-	}
-	int32_t delta = (int32_t) (timer->expiration - OsalGetTickCount());
-	bool isExpired = timer->expiration && delta <= 0;
-	if (isExpired) {
-		timer->expiration = 0;
-		if (timer->repeatTimeout) {
-			uint32_t t = timer->repeatTimeout;
-			if ((int32_t) (t + delta) < 0) {
-				// Cap the adjustment at 0
-				delta = 0;
-			}
-			SetLonTimer(timer, t + delta);
-			timer->repeatTimeout = t;
-		}
-	}
+    if (!timer || !timer->expiration) {
+        return false;
+    }
+    int32_t delta = (int32_t)(timer->expiration - OsalGetTickCount());
+    bool isExpired = timer->expiration && delta <= 0;
+    if (isExpired) {
+        timer->expiration = 0;
+        if (timer->repeatTimeout) {
+            uint32_t t = timer->repeatTimeout;
+            if ((int32_t)(t + delta) < 0) {
+                // Cap the adjustment at 0
+                delta = 0;
+            }
+            SetLonTimer(timer, t + delta);
+            timer->repeatTimeout = t;
+        }
+    }
     return isExpired;
 }
 
@@ -118,7 +122,8 @@ bool LonTimerExpired(LonTimer *timer)
  */
 bool LonTimerRunning(LonTimer *timer)
 {
-	return timer && timer->expiration && ((int32_t) (timer->expiration - OsalGetTickCount()) > 0);
+    return timer && timer->expiration &&
+           ((int32_t)(timer->expiration - OsalGetTickCount()) > 0);
 }
 
 /*
@@ -131,12 +136,12 @@ bool LonTimerRunning(LonTimer *timer)
  */
 uint32_t LonTimerRemaining(LonTimer *timer)
 {
-	uint32_t remaining = 0;
+    uint32_t remaining = 0;
 
-	if (timer && LonTimerRunning(timer)) {
-		remaining = timer->expiration - OsalGetTickCount();
-	}
-	return remaining;
+    if (timer && LonTimerRunning(timer)) {
+        remaining = timer->expiration - OsalGetTickCount();
+    }
+    return remaining;
 }
 
 /*
@@ -148,9 +153,9 @@ uint32_t LonTimerRemaining(LonTimer *timer)
  */
 void StartLonWatch(LonWatch *watch)
 {
-	if (watch) {
-		watch->start = OsalGetTickCount();
-	}
+    if (watch) {
+        watch->start = OsalGetTickCount();
+    }
 }
 
 /*
@@ -162,9 +167,9 @@ void StartLonWatch(LonWatch *watch)
  */
 void StopLonWatch(LonWatch *watch)
 {
-	if (watch) {
-		watch->start = 0;
-	}
+    if (watch) {
+        watch->start = 0;
+    }
 }
 
 /*
@@ -177,11 +182,11 @@ void StopLonWatch(LonWatch *watch)
  */
 uint32_t LonWatchElapsed(LonWatch *watch)
 {
-	uint32_t duration = 0;
-	if (watch && watch->start) {
-		duration = OsalGetTickCount() - watch->start;
-	}
-	return duration;
+    uint32_t duration = 0;
+    if (watch && watch->start) {
+        duration = OsalGetTickCount() - watch->start;
+    }
+    return duration;
 }
 
 /*
@@ -202,42 +207,47 @@ uint32_t LonWatchElapsed(LonWatch *watch)
  */
 uint32_t ElapsedTimeToMs(const SNVT_elapsed_tm *elapsed_time)
 {
-	if (elapsed_time == NULL) {
-		return 0;
-	}
-	uint16_t days = IZOT_GET_UNSIGNED_WORD(elapsed_time->day);
-	if (days == 0xFFFF) {
-		// Invalid value, return maximum duration
-		return LON_TIMER_MAX_DURATION;
-	}
-	if (days >= 50) {
-		// Cap at maximum duration
-		return LON_TIMER_MAX_DURATION;
-	}
-	uint32_t total_ms = days * 864000000UL; // 24 hours/day * 60 minutes/hour * 60 seconds/minute * 1000 ms/second
-	uint32_t hours_ms = (uint32_t)elapsed_time->hour * 3600000UL; // 60 minutes/hour * 60 seconds/minute * 1000 ms/second
-	if (total_ms > LON_TIMER_MAX_DURATION - hours_ms) {
-		// Cap at maximum duration
-		return LON_TIMER_MAX_DURATION;
-	}
-	total_ms += hours_ms;
-	uint32_t minutes_ms = (uint32_t)elapsed_time->minute * 60000UL; // 60 seconds/minute * 1000 ms/second
-	if (total_ms > LON_TIMER_MAX_DURATION - minutes_ms) {
-		// Cap at maximum duration
-		return LON_TIMER_MAX_DURATION;
-	}
-	total_ms += minutes_ms;
-	uint32_t seconds_ms = (uint32_t)elapsed_time->second * 1000UL; // 1000 ms/second
-	if (total_ms > LON_TIMER_MAX_DURATION - seconds_ms) {
-		// Cap at maximum duration
-		return LON_TIMER_MAX_DURATION;
-	}
-	total_ms += seconds_ms;
-	uint32_t milliseconds = IZOT_GET_UNSIGNED_WORD(elapsed_time->millisecond);
-	if (total_ms > LON_TIMER_MAX_DURATION - milliseconds) {
-		// Cap at maximum duration
-		return LON_TIMER_MAX_DURATION;
-	}
-	total_ms += milliseconds;
-	return total_ms;
+    if (elapsed_time == NULL) {
+        return 0;
+    }
+    uint16_t days = IZOT_GET_UNSIGNED_WORD(elapsed_time->day);
+    if (days == 0xFFFF) {
+        // Invalid value, return maximum duration
+        return LON_TIMER_MAX_DURATION;
+    }
+    if (days >= 50) {
+        // Cap at maximum duration
+        return LON_TIMER_MAX_DURATION;
+    }
+    uint32_t total_ms =
+            days *
+            864000000UL;  // 24 hours/day * 60 minutes/hour * 60 seconds/minute * 1000 ms/second
+    uint32_t hours_ms =
+            (uint32_t)elapsed_time->hour *
+            3600000UL;  // 60 minutes/hour * 60 seconds/minute * 1000 ms/second
+    if (total_ms > LON_TIMER_MAX_DURATION - hours_ms) {
+        // Cap at maximum duration
+        return LON_TIMER_MAX_DURATION;
+    }
+    total_ms += hours_ms;
+    uint32_t minutes_ms = (uint32_t)elapsed_time->minute *
+                          60000UL;  // 60 seconds/minute * 1000 ms/second
+    if (total_ms > LON_TIMER_MAX_DURATION - minutes_ms) {
+        // Cap at maximum duration
+        return LON_TIMER_MAX_DURATION;
+    }
+    total_ms += minutes_ms;
+    uint32_t seconds_ms = (uint32_t)elapsed_time->second * 1000UL;  // 1000 ms/second
+    if (total_ms > LON_TIMER_MAX_DURATION - seconds_ms) {
+        // Cap at maximum duration
+        return LON_TIMER_MAX_DURATION;
+    }
+    total_ms += seconds_ms;
+    uint32_t milliseconds = IZOT_GET_UNSIGNED_WORD(elapsed_time->millisecond);
+    if (total_ms > LON_TIMER_MAX_DURATION - milliseconds) {
+        // Cap at maximum duration
+        return LON_TIMER_MAX_DURATION;
+    }
+    total_ms += milliseconds;
+    return total_ms;
 }

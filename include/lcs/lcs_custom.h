@@ -16,7 +16,7 @@
  *          used to hold any implementation-specific values.
  * 
  *          Some or all of these values will be overwritten by
- *          network management tools when this device is loaded.
+ *          LON tools when this device is loaded.
  * 
  *          See ISO/IEC 14908-1 for details on the LON protocol parameters.
  */
@@ -24,58 +24,59 @@
 #ifndef _LCS_CUSTOM_H
 #define _LCS_CUSTOM_H
 
-#include <stddef.h>
 #include "izot/IzotPlatform.h"
 #include "izot/lon_types.h"
+#include <stddef.h>
 
 /* Read only data */
-#define ARCHITECTURE_NUM      ARCHITECTURE_NUMBER
-#define MINOR_ARCH_NUM        0
-#define READ_WRITE_PROTECT    0
-#define RUN_WHEN_UNCONF       0 /* Set to 1 to run the application when the device is unconfigured */
+#define ARCHITECTURE_NUM ARCHITECTURE_NUMBER
+#define MINOR_ARCH_NUM 0
+#define READ_WRITE_PROTECT 0
+#define RUN_WHEN_UNCONF                                                                  \
+    0 /* Set to 1 to run the application when the device is unconfigured */
 
 /*********************************************************************
-    Warning!!! The following constants are encoded. So, don't use the
+    Warning!!! The following constants are encoded. Don't use the
     actual values
 *********************************************************************/
-#define LCS_BUF_SIZE		 12		// Encoded byte count
-#define APP_OUT_BUF_SIZE     0
-#define APP_IN_BUF_SIZE      0
-#define RECV_REC_APDU_SIZE   LCS_BUF_SIZE
-#define NW_OUT_BUF_SIZE      0
-#define NW_IN_BUF_SIZE       0
-#define LK_OUT_BUF_SIZE      LCS_BUF_SIZE
-#define LK_IN_BUF_SIZE       0
-#define LK_SEND_BUF_SIZE     0
-#define LK_RECEIVE_BUF_SIZE  0
+#define LCS_BUF_SIZE 12  // Encoded byte count
+#define APP_OUT_BUF_SIZE 0
+#define APP_IN_BUF_SIZE 0
+#define RECV_REC_APDU_SIZE LCS_BUF_SIZE
+#define NW_OUT_BUF_SIZE 0
+#define NW_IN_BUF_SIZE 0
+#define LK_OUT_BUF_SIZE LCS_BUF_SIZE
+#define LK_IN_BUF_SIZE 0
+#define LK_SEND_BUF_SIZE 0
+#define LK_RECEIVE_BUF_SIZE 0
 #define CAL_RECEIVE_BUF_SIZE 0
-#define TSA_IN_BUF_SIZE      0
-#define TSA_OUT_BUF_SIZE     0
-#define RECV_REC_RESP_SIZE   LCS_BUF_SIZE
-#define TSA_RESP_BUF_SIZE    0
-#define LCS_MAX_BUF_SIZE     0
+#define TSA_IN_BUF_SIZE 0
+#define TSA_OUT_BUF_SIZE 0
+#define RECV_REC_RESP_SIZE LCS_BUF_SIZE
+#define TSA_RESP_BUF_SIZE 0
+#define LCS_MAX_BUF_SIZE 0
 
-#define APP_OUT_Q_CNT         3
-#define APP_OUT_PRI_Q_CNT     2    /* 3 ==> 2  8 ==> 15             */
-#define APP_IN_Q_CNT          3
+#define APP_OUT_Q_CNT 3
+#define APP_OUT_PRI_Q_CNT 2 /* 3 ==> 2  8 ==> 15             */
+#define APP_IN_Q_CNT 3
 
-#define NW_OUT_Q_CNT          3
-#define NW_OUT_PRI_Q_CNT      2
-#define NW_IN_Q_CNT           3
+#define NW_OUT_Q_CNT 3
+#define NW_OUT_PRI_Q_CNT 2
+#define NW_IN_Q_CNT 3
 
-#define LK_IN_Q_CNT           3
-#define LK_OUT_PRI_Q_CNT      2
-#define LK_OUT_Q_CNT          3
+#define LK_IN_Q_CNT 3
+#define LK_OUT_PRI_Q_CNT 2
+#define LK_OUT_Q_CNT 3
 
-#define NGTIMER_SPCL_VAL   8192
+#define NGTIMER_SPCL_VAL 8192
 
 #define NON_GROUP_TIMER 8
 
-/* If the node is a member of group A(say), then typical LON applications
+/* If the device is a member of group A, then typical LON applications
     set group size to 1 more than actual group size if node is not
     a member of group A. This is done so that the number of
     acknowledgements to be expected is always (groupsize - 1).
-    In reference implementation, there is an option
+    In this implementation, there is an option
     to set this to the true group size and let the transport
     and session layers take care of this. Comment the following
     line to do this. For backward compatibility, uncomment it. */
@@ -99,13 +100,13 @@ typedef IzotByte AuthKey[IZOT_AUTHENTICATION_KEY_LENGTH];
    The actual values are given in custom.c file. */
 typedef struct {
     /* ReadOnlyData Members */
-    IzotUniqueId  UniqueNodeId;
+    IzotUniqueId UniqueNodeId;
     IzotByte twoDomains;
-	IzotByte addressCnt;
+    IzotByte addressCnt;
     char progId[IZOT_PROGRAM_ID_LENGTH];
 
-	char* szSelfDoc;
-	
+    char *szSelfDoc;
+
     /* ConfigData Members */
     char location[IZOT_LOCATION_LENGTH];
 
@@ -114,15 +115,15 @@ typedef struct {
     IzotByte len[MAX_DOMAINS];
     IzotByte subnet[MAX_DOMAINS]; /* One for each domain */
     IzotByte node[MAX_DOMAINS];
-	IzotBool8 clone[MAX_DOMAINS];	/* This is really NOT clone */
-    AuthKey key[MAX_DOMAINS];  /* 6 byte authentication key */
+    IzotBool8 clone[MAX_DOMAINS]; /* This is really NOT clone */
+    AuthKey key[MAX_DOMAINS];     /* 6 byte authentication key */
 
     /* Address Table Info. Enter all 5 byte values */
     /* Alias tables are not handled by some management tools
        and hence this initialization might be useful. */
 } CustomData;
 
-extern CustomData  customDataGbl[NUM_STACKS];
+extern CustomData customDataGbl[NUM_STACKS];
 extern CustomData *cp;
 
-#endif   /* #ifndef _LCS_CUSTOM_H */
+#endif /* #ifndef _LCS_CUSTOM_H */

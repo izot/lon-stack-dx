@@ -1,5 +1,5 @@
 /*
- * LonStackExample1.c
+ * LonStackExample1.h
  *
  * Copyright (c) 2023-2026 EnOcean
  * SPDX-License-Identifier: MIT
@@ -9,17 +9,12 @@
  * Purpose: Provides a simple example application for the LON Stack.
  */
 
-#include <stdlib.h>
-#include <string.h>
-
-#include "izot/IzotPlatform.h"       // Project-specific configuration
-#include "izot/IzotApi.h"            // LON Stack API definition
-
-#ifdef  __cplusplus
+#include "izot/IzotApi.h"  // IWYU pragma: keep
+#ifdef __cplusplus
 extern "C" {
 #endif
 
-// Domain definition.  
+// Domain definition.
 #define EXAMPLE_DOMAIN_LENGTH 1
 #define EXAMPLE_DOMAIN_ID 0x51
 #define EXAMPLE_SUBNET 0x23
@@ -39,9 +34,10 @@ extern "C" {
 /*****************************************************************
  * Section: Function Declarations
  *****************************************************************/
+
 extern LonStatusCode SetUpExample1(void);
 extern LonStatusCode LoopExample1(void);
 
-#ifdef  __cplusplus
+#ifdef __cplusplus
 }
 #endif

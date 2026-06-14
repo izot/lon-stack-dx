@@ -41,16 +41,9 @@
    at least MIN_TABLE_TIME seconds. */
 #define MIN_TABLE_TIME 24
 
-/*-------------------------------------------------------------------
-  Section: Function Prototypes
-  -------------------------------------------------------------------*/
 /*****************************************************************
-Function:  TransactionControlSublayerReset
-Returns:   None
-Reference: Section 7, Protocol Specification.
-Purpose:   To initialize all globals to proper values.
-Comments:  None.
-******************************************************************/
+ * Section: Function Definitions
+ *****************************************************************/
 
 /*
  * Initializes the LON Stack transaction control sub-layer.
@@ -61,13 +54,14 @@ Comments:  None.
  * Notes:
  *   The transaction control sub-layer is used by both the transport and session layers.
  *   The function sets gp->resetOk to FALSE if unable to reset properly.
+ *   See Section 7 of the LON Protocol Specification for details.
  */
 LonStatusCode TransactionControlSublayerReset(void)
 {
     LonStatusCode status = LonStatusNoError;
-    gp->priTransID    = 0; /* On node reset, transaction id 0 is used. */
+    gp->priTransID = 0; /* On node reset, transaction id 0 is used. */
     gp->nonpriTransID = 0;
-    gp->priTransCtrlRec.inProgress    = FALSE;
+    gp->priTransCtrlRec.inProgress = FALSE;
     gp->nonpriTransCtrlRec.inProgress = FALSE;
     /* Reset the tables that keep track of (destination address
        transaction id) pairs only duing powerup or external reset.
@@ -79,13 +73,12 @@ LonStatusCode TransactionControlSublayerReset(void)
        layer sends by a small amount so that no messages are pending in
        target nodes. If we don't follow these guidelines, the target
        node may throw away messages sent after a reset as duplicates. */
-    if (nmp->resetCause == IzotPowerUpReset 
-    || nmp->resetCause == IzotExternalReset)
-    {
-        gp->priTblSize       = 0;
-        gp->nonpriTblSize    = 0;
+    if (nmp->resetCause == IzotPowerUpReset || nmp->resetCause == IzotExternalReset) {
+        gp->priTblSize = 0;
+        gp->nonpriTblSize = 0;
     }
-    OsalPrintLog(INFO_LOG, status, "TransactionControlSublayerReset: Transaction control sublayer initialized");
+    OsalPrintLog(INFO_LOG, status,
+            "TransactionControlSublayerReset: Transaction control sublayer initialized");
     return status;
 }
 
@@ -114,32 +107,32 @@ Alg Idea:  For each of the following categories, we have an
            If no such entry, then we fail to assign a tid.
 ******************************************************************/
 LonStatusCode NewTrans(IzotByte priorityIn, DestinationAddress addrIn,
-                TransNum *transNumOut)
+        TransNum *transNumOut)
 {
-    IzotUbits16     i;
+    IzotUbits16 i;
     TransCtrlRecord *transRecPtr;
-    TransNum        *transNumPtr;
-    TIDTableEntry   *tbl;
-    IzotUbits16		*tblSize;
-    IzotByte        found;
+    TransNum *transNumPtr;
+    TIDTableEntry *tbl;
+    IzotUbits16 *tblSize;
+    IzotByte found;
 
     /* Point to the appropriate control record & table. */
     if (priorityIn) {
         transRecPtr = &gp->priTransCtrlRec;
         transNumPtr = &gp->priTransID;
-        tbl         = gp->priTbl;
-        tblSize     = &gp->priTblSize;
+        tbl = gp->priTbl;
+        tblSize = &gp->priTblSize;
     } else {
         transRecPtr = &gp->nonpriTransCtrlRec;
         transNumPtr = &gp->nonpriTransID;
-        tbl         = gp->nonpriTbl;
-        tblSize     = &gp->nonpriTblSize;
+        tbl = gp->nonpriTbl;
+        tblSize = &gp->nonpriTblSize;
     }
 
     /* Check if transaction already in progress. */
     if (transRecPtr->inProgress) {
         /* We can't allow a new transaction. Return failure. */
-        return(LonStatusTransactionInProgress);
+        return (LonStatusTransactionInProgress);
     }
 
     /* We can allow the transaction. Allocate a new TID. */
@@ -153,22 +146,23 @@ LonStatusCode NewTrans(IzotByte priorityIn, DestinationAddress addrIn,
     for (i = 0; i < *tblSize; i++) {
         /* If domainId does not match, skip entry. */
         if (addrIn.dmn.domainIndex != FLEX_DOMAIN &&
-            (IZOT_GET_ATTRIBUTE(eep->domainTable[addrIn.dmn.domainIndex], 
-            IZOT_DOMAIN_INVALID) || tbl[i].len != 
-            IZOT_GET_ATTRIBUTE(eep->domainTable[addrIn.dmn.domainIndex], 
-            IZOT_DOMAIN_ID_LENGTH) ||
-            memcmp(eep->domainTable[addrIn.dmn.domainIndex].Id, tbl[i].domainId,
-            IZOT_GET_ATTRIBUTE(eep->domainTable[addrIn.dmn.domainIndex], 
-            IZOT_DOMAIN_ID_LENGTH)) != 0)) {
+                (IZOT_GET_ATTRIBUTE(eep->domainTable[addrIn.dmn.domainIndex],
+                         IZOT_DOMAIN_INVALID) ||
+                        tbl[i].len != IZOT_GET_ATTRIBUTE(
+                                              eep->domainTable[addrIn.dmn.domainIndex],
+                                              IZOT_DOMAIN_ID_LENGTH) ||
+                        memcmp(eep->domainTable[addrIn.dmn.domainIndex].Id,
+                                tbl[i].domainId,
+                                IZOT_GET_ATTRIBUTE(
+                                        eep->domainTable[addrIn.dmn.domainIndex],
+                                        IZOT_DOMAIN_ID_LENGTH)) != 0)) {
             continue; /* Not flex domain but domain mismatch. */
         }
 
         if (addrIn.dmn.domainIndex == FLEX_DOMAIN &&
                 (tbl[i].len != addrIn.dmn.domainLen ||
-                 memcmp(addrIn.dmn.domainId,
-                        tbl[i].domainId,
-                        addrIn.dmn.domainLen) != 0)
-           ) {
+                        memcmp(addrIn.dmn.domainId, tbl[i].domainId,
+                                addrIn.dmn.domainLen) != 0)) {
             continue; /* Flex domain but domain mismatch. */
         }
 
@@ -176,21 +170,20 @@ LonStatusCode NewTrans(IzotByte priorityIn, DestinationAddress addrIn,
         case AM_SUBNET_NODE:
             if (tbl[i].addressMode == AM_SUBNET_NODE &&
                     memcmp(&tbl[i].addr.subnetNode, &addrIn.addr.addr2a,
-                           sizeof(IzotReceiveSubnetNode)) == 0) {
+                            sizeof(IzotReceiveSubnetNode)) == 0) {
                 found = TRUE;
             }
             break;
         case AM_UNIQUE_NODE_ID:
             if (tbl[i].addressMode == AM_UNIQUE_NODE_ID &&
-                    memcmp(tbl[i].addr.uniqueNodeId,
-                           addrIn.addr.addr3.UniqueId,
-                           IZOT_UNIQUE_ID_LENGTH) == 0) {
+                    memcmp(tbl[i].addr.uniqueNodeId, addrIn.addr.addr3.UniqueId,
+                            IZOT_UNIQUE_ID_LENGTH) == 0) {
                 found = TRUE;
             }
             break;
         case AM_MULTICAST:
             if (tbl[i].addressMode == AM_MULTICAST &&
-                    tbl[i].addr.group.GroupId  == addrIn.addr.addr1.GroupId) {
+                    tbl[i].addr.group.GroupId == addrIn.addr.addr1.GroupId) {
                 found = TRUE;
             }
             break;
@@ -201,7 +194,8 @@ LonStatusCode NewTrans(IzotByte priorityIn, DestinationAddress addrIn,
             }
             break;
         default:
-            OsalPrintLog(ERROR_LOG, LonStatusInvalidMessageAddress, "NewTrans: Unexpected address mode");
+            OsalPrintLog(ERROR_LOG, LonStatusInvalidMessageAddress,
+                    "NewTrans: Unexpected address mode");
             /* Should not come here. */
         }
         if (found) {
@@ -212,8 +206,7 @@ LonStatusCode NewTrans(IzotByte priorityIn, DestinationAddress addrIn,
     if (found) {
         /* Found a match. Check if last TID is same or not. */
         /* We can reuse this entry and reinitialize timer.  */
-        if (tbl[i].tid == *transNumPtr)
-        {
+        if (tbl[i].tid == *transNumPtr) {
             /* Increment TID. */
             (*transNumPtr)++;
             if (*transNumPtr == 16) {
@@ -221,12 +214,11 @@ LonStatusCode NewTrans(IzotByte priorityIn, DestinationAddress addrIn,
             }
             transRecPtr->transNum = *transNumPtr;
         }
-        tbl[i].tid   = *transNumPtr;
-        SetLonTimer(&tbl[i].timer,
-                   (IzotUbits16)(MIN_TABLE_TIME * 1000));
+        tbl[i].tid = *transNumPtr;
+        SetLonTimer(&tbl[i].timer, (IzotUbits16)(MIN_TABLE_TIME * 1000));
         *transNumOut = *transNumPtr;
         transRecPtr->inProgress = TRUE;
-        return(LonStatusNoError);
+        return (LonStatusNoError);
     }
 
     /* No match. Make a new entry. If no space. get a space. */
@@ -247,25 +239,22 @@ LonStatusCode NewTrans(IzotByte priorityIn, DestinationAddress addrIn,
             /* Fall through to code below. */
         } else {
             /* Unable to find an entry. */
-            return(LonStatusTransactionNotAvailable);
+            return (LonStatusTransactionNotAvailable);
         }
     }
 
     /* Now we have space for an entry. Add new entry. */
     /* Store the domain len and domain id in table */
     if (addrIn.dmn.domainIndex == FLEX_DOMAIN) {
-        memcpy(tbl[*tblSize].domainId,
-               addrIn.dmn.domainId,
-               addrIn.dmn.domainLen);
+        memcpy(tbl[*tblSize].domainId, addrIn.dmn.domainId, addrIn.dmn.domainLen);
         tbl[i].len = addrIn.dmn.domainLen;
     } else {
-        memcpy(tbl[*tblSize].domainId, 
-            eep->domainTable[addrIn.dmn.domainIndex].Id,
-            IZOT_GET_ATTRIBUTE(eep->domainTable[addrIn.dmn.domainIndex], 
-            IZOT_DOMAIN_ID_LENGTH));
-            
-        tbl[i].len = IZOT_GET_ATTRIBUTE(
-        eep->domainTable[addrIn.dmn.domainIndex], IZOT_DOMAIN_ID_LENGTH);
+        memcpy(tbl[*tblSize].domainId, eep->domainTable[addrIn.dmn.domainIndex].Id,
+                IZOT_GET_ATTRIBUTE(eep->domainTable[addrIn.dmn.domainIndex],
+                        IZOT_DOMAIN_ID_LENGTH));
+
+        tbl[i].len = IZOT_GET_ATTRIBUTE(eep->domainTable[addrIn.dmn.domainIndex],
+                IZOT_DOMAIN_ID_LENGTH);
     }
 
     tbl[*tblSize].addressMode = addrIn.addressMode;
@@ -274,21 +263,21 @@ LonStatusCode NewTrans(IzotByte priorityIn, DestinationAddress addrIn,
     } else if (addrIn.addressMode == AM_SUBNET_NODE) {
         tbl[*tblSize].addr.subnetNode = addrIn.addr.addr2a;
     } else if (addrIn.addressMode == AM_UNIQUE_NODE_ID) {
-        memcpy(tbl[*tblSize].addr.uniqueNodeId,
-               addrIn.addr.addr3.UniqueId,
-               IZOT_UNIQUE_ID_LENGTH);
+        memcpy(tbl[*tblSize].addr.uniqueNodeId, addrIn.addr.addr3.UniqueId,
+                IZOT_UNIQUE_ID_LENGTH);
     } else if (addrIn.addressMode == AM_BROADCAST) {
         tbl[*tblSize].addr.subnet.SubnetId = addrIn.addr.addr0.SubnetId;
     } else {
         /* Should not come here as addressMode was checked before too. */
-        OsalPrintLog(ERROR_LOG, LonStatusInvalidMessageAddress, "NewTrans: Invalid address mode at unexpected place");
+        OsalPrintLog(ERROR_LOG, LonStatusInvalidMessageAddress,
+                "NewTrans: Invalid address mode at unexpected place");
     }
     SetLonTimer(&tbl[*tblSize].timer, (IzotUbits16)(MIN_TABLE_TIME * 1000));
     tbl[*tblSize].tid = *transNumPtr;
-    *transNumOut      = *transNumPtr;
+    *transNumOut = *transNumPtr;
     (*tblSize)++;
     transRecPtr->inProgress = TRUE;
-    return(LonStatusNoError);
+    return (LonStatusNoError);
 }
 
 /*****************************************************************
@@ -298,17 +287,14 @@ Reference:
 Purpose:   Override the TX# chosen by NewTrans.
 Comments:  None
 ******************************************************************/
-void OverrideTrans(IzotByte   priorityIn, TransNum num)
+void OverrideTrans(IzotByte priorityIn, TransNum num)
 {
-    if (priorityIn)
-    {
-	    gp->priTransID = num;
-		gp->priTransCtrlRec.transNum = num;
-    }
-    else
-    {
-	    gp->nonpriTransID = num;
-		gp->nonpriTransCtrlRec.transNum = num;
+    if (priorityIn) {
+        gp->priTransID = num;
+        gp->priTransCtrlRec.transNum = num;
+    } else {
+        gp->nonpriTransID = num;
+        gp->nonpriTransCtrlRec.transNum = num;
     }
 }
 
@@ -319,19 +305,16 @@ Reference: Section 7 Protocol Spec.
 Purpose:   To release the transaction record for future assignments.
 Comments:  None
 ******************************************************************/
-void TransDone(IzotByte  priorityIn)
+void TransDone(IzotByte priorityIn)
 {
     TransCtrlRecord *transRecPtr;
-    TransNum        *transNumPtr;
+    TransNum *transNumPtr;
 
     /* Point to the appropriate control record & table. */
-    if (priorityIn)
-    {
+    if (priorityIn) {
         transRecPtr = &gp->priTransCtrlRec;
         transNumPtr = &gp->priTransID;
-    }
-    else
-    {
+    } else {
         transRecPtr = &gp->nonpriTransCtrlRec;
         transNumPtr = &gp->nonpriTransID;
     }
@@ -341,8 +324,7 @@ void TransDone(IzotByte  priorityIn)
 
     /* Increment the corresponding transaction id. */
     (*transNumPtr)++;
-    if (*transNumPtr == 16)
-    {
+    if (*transNumPtr == 16) {
         *transNumPtr = 1; /* Wrap Around to 1. */
     }
 }
@@ -356,29 +338,21 @@ Reference: Section 7, Protocol Specification.
 Purpose:   To check if a given transNumIn is current or not.
 Comments:  None
 ******************************************************************/
-TransStatus ValidateTrans(IzotByte  priorityIn,
-                          TransNum transNumIn)
+TransStatus ValidateTrans(IzotByte priorityIn, TransNum transNumIn)
 {
     TransCtrlRecord *transRecPtr;
 
     /* Point to the appropriate control record & table. */
-    if (priorityIn)
-    {
+    if (priorityIn) {
         transRecPtr = &gp->priTransCtrlRec;
-    }
-    else
-    {
+    } else {
         transRecPtr = &gp->nonpriTransCtrlRec;
     }
 
-    if (transRecPtr->inProgress &&
-            transRecPtr->transNum == transNumIn)
-    {
-        return(TRANS_CURRENT);
-    }
-    else
-    {
-        return(TRANS_NOT_CURRENT);
+    if (transRecPtr->inProgress && transRecPtr->transNum == transNumIn) {
+        return (TRANS_CURRENT);
+    } else {
+        return (TRANS_NOT_CURRENT);
     }
 }
 
