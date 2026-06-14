@@ -15,6 +15,39 @@ endif()
 # enable_language(C)
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
+include(FetchContent)
+
+# Define the source of the STM32CubeG4 MCU Package
+FetchContent_Declare(
+  stm32cubeg4
+  GIT_REPOSITORY https://github.com/STMicroelectronics/STM32CubeG4.git
+  GIT_TAG        v1.5.0 
+)
+
+# Only download and configure the SDK when compiling for the STM32
+if(PROCESSOR_ID STREQUAL "PROCESSOR_ID_STM32")
+    FetchContent_MakeAvailable(stm32cubeg4)
+
+    # Create a variable to hold all the necessary STM32 include paths
+    set(STM32_SDK_INCLUDES
+        "${stm32cubeg4_SOURCE_DIR}/Drivers/STM32G4xx_HAL_Driver/Inc"
+        "${stm32cubeg4_SOURCE_DIR}/Drivers/CMSIS/Device/ST/STM32G4xx/Include"
+        "${stm32cubeg4_SOURCE_DIR}/Drivers/CMSIS/Include"
+        "${stm32cubeg4_SOURCE_DIR}/Middlewares/ST/STM32_USB_Host_Library/Core/Inc"
+        "${stm32cubeg4_SOURCE_DIR}/Middlewares/ST/STM32_USB_Host_Library/Class/CDC/Inc"
+        "${stm32cubeg4_SOURCE_DIR}/Middlewares/Third_Party/FreeRTOS/Source/include"
+    )
+
+    # Append the required SDK source files to your existing sources list
+    list(APPEND LON_STACK_DX_SOURCES
+        "${stm32cubeg4_SOURCE_DIR}/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal.c"
+        "${stm32cubeg4_SOURCE_DIR}/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_cortex.c"
+        "${stm32cubeg4_SOURCE_DIR}/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_rcc.c"
+        "${stm32cubeg4_SOURCE_DIR}/Middlewares/ST/STM32_USB_Host_Library/Core/Src/usbh_core.c"
+        "${stm32cubeg4_SOURCE_DIR}/Middlewares/ST/STM32_USB_Host_Library/Class/CDC/Src/usbh_cdc.c"
+        # Add the specific FreeRTOS .c files (tasks.c, queue.c, port.c) here as well
+    )
+endif()
 
 # Generate version header from the CMake project() VERSION
 set(LON_STACK_DX_GENERATED_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated/include")
@@ -145,11 +178,11 @@ add_library(lon_stack_dx STATIC
     ${LON_STACK_DX_HEADERS}
 )
 
-target_include_directories(lon_stack_dx
-    PUBLIC
-    $<BUILD_INTERFACE:${LON_STACK_DX_GENERATED_INCLUDE_DIR}>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+target_include_directories(lon_stack_dx PUBLIC
+    $<BUILD_INTERFACE:${LON_STACK_DX_GENERATED_INCLUDE_DIR}> 
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> 
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+    ${STM32_SDK_INCLUDES}
 )
 
 target_link_libraries(lon_stack_dx PUBLIC Threads::Threads)
