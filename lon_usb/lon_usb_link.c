@@ -396,6 +396,8 @@ LonStatusCode OpenLonUsbLink(
     state->usb_fd = usb_fd;
 #endif  // OS_IS(LINUX)
 
+    state->shutdown = false; // State initialization complete, allow resets
+
     // Start LON USB link
 #if LINK_IS(USB_MIP)
     if (!LON_SUCCESS(status = StartLonUsbLink(LON_IFACE_MODE_LAYER2))) {

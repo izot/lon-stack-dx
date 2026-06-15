@@ -36,7 +36,7 @@
 
 static uint8_t siDataBuffer[300];
 
-static const IzotStackInterfaceData LonStackInterface = {
+static IzotStackInterfaceData LonStackInterface = {
         STACK_INTERFACEDATA_VERSION,  // Format version number
         0xABCD2552,                   // 32-bit unique application identifier
         {0x9F, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x01},  // Program ID
@@ -49,7 +49,7 @@ static const IzotStackInterfaceData LonStackInterface = {
         "LON Stack Example 1",  // Device self-documentation (SD) string
         10,                     // Average number of bytes to reserve for
                                 // dynamic NV SD data
-        siDataBuffer,           // Pointer to self-identification (SI) data
+        NULL,                   // Pointer to self-identification (SI) data (set at runtime to avoid macOS linker error)
         sizeof(siDataBuffer)    // Size of SI data in bytes
 };
 
@@ -252,6 +252,9 @@ LonStatusCode SetUpExample1(void)
     LonStatusCode status = LonStatusNoError;
     IzotBool success = TRUE;
     IzotBool domainId = EXAMPLE_DOMAIN_ID;  // Use a 1-byte domain
+
+    // Set the unaligned pointer at runtime to avoid macOS relocation errors
+    LonStackInterface.SiData = siDataBuffer;
 
     // Create, configure, and start the LON Stack
     success = LON_SUCCESS(status = IzotCreateStack(&LonStackInterface,

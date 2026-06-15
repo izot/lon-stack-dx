@@ -336,7 +336,7 @@ void LinkLayerUsbReceive(void)
 
 #if LINK_IS(USB_MIP)
     if (!LON_SUCCESS(status = ReadLonUsbMsg(&sicb))) {
-        if (status != LonStatusNoMessageAvailable) {
+        if (status != LonStatusNoMessageAvailable && status != LonStatusNoBufferAvailable) {
             OsalPrintLog(ERROR_LOG, status,
                     "LinkLayerUsbReceive: Failed to read from LON USB interface");
         }
