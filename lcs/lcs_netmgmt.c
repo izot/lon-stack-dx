@@ -70,6 +70,10 @@
 #include "lon_udp/ipv4_to_lon_udp.h"
 #endif  // PROTOCOL_IS(LON_IPV4) || PROTOCOL_IS(LON_IPV6)
 
+/*****************************************************************
+ * Section: Globals
+ *****************************************************************/
+
 extern IzotUbits32 AnnounceTimer;
 extern IzotUbits32 AddrMappingAgingTimer;
 
@@ -186,7 +190,7 @@ LonStatusCode ManualServiceRequestMessage(void)
 void NMNDRespond(NtwkMgmtMsgType msgType, LonStatusCode success,
         APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
 {
-    IzotByte code;
+    IzotByte code = 0;
     IzotByte subCode;
     int len = 0;
     IzotByte data[1];
@@ -303,25 +307,28 @@ void HandleNMUpdateDomain(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
 {
     IzotDomain *p = NULL, *pDomain = NULL;
     LonStatusCode sts = LonStatusInvalidOperation;
+    IzotByte oldSubnet = 0;
 
     if (appReceiveParamPtr->pduSize >= 2 + sizeof(IzotDomain)) {
         p = AccessDomain(apduPtr->data[0]);
+        if (p != NULL) {
+            oldSubnet = p->Subnet;
+        }
         pDomain = (IzotDomain *)&apduPtr->data[1];
         sts = UpdateDomain(pDomain, apduPtr->data[0], true);
         RecomputeChecksum();
     }
     NMNDRespond(NM_MESSAGE, sts, appReceiveParamPtr, apduPtr);
-
-    if (sts == LonStatusNoError && apduPtr->data[0] == 0) {
-        if (pDomain->Subnet != 0 && p->Subnet != pDomain->Subnet) {
-            uint32_t oldaddr = BROADCAST_PREFIX | p->Subnet;
-            uint32_t newaddr = BROADCAST_PREFIX | pDomain->Subnet;
 #if LINK_IS(UDP)
+    if (sts == LonStatusNoError && apduPtr->data[0] == 0) {
+        if (pDomain->Subnet != 0 && oldSubnet != pDomain->Subnet) {
+            uint32_t oldaddr = BROADCAST_PREFIX | oldSubnet;
+            uint32_t newaddr = BROADCAST_PREFIX | pDomain->Subnet;
             RemoveIPMembership(oldaddr);
             AddIpMembership(newaddr);
-#endif  // LINK_IS(UDP)
         }
     }
+#endif  // LINK_IS(UDP)
 }
 
 /*
@@ -863,12 +870,30 @@ void HandleNmeQueryVersion(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
 void HandleNmeUpdateDomain(APPReceiveParam *appReceiveParamPtr, APDU *apduPtr)
 {
     LonStatusCode sts = LonStatusInvalidOperation;
+    IzotDomain *p = NULL, *pDomain = NULL;
+    IzotByte oldSubnet = 0;
+
     if (appReceiveParamPtr->pduSize >=
             3 + sizeof(IzotDomain) - IZOT_AUTHENTICATION_KEY_LENGTH) {
-        sts = UpdateDomain((IzotDomain *)&apduPtr->data[2], apduPtr->data[1], false);
+        p = AccessDomain(apduPtr->data[1]);
+        if (p != NULL) {
+            oldSubnet = p->Subnet;
+        }
+        pDomain = (IzotDomain *)&apduPtr->data[2];
+        sts = UpdateDomain(pDomain, apduPtr->data[1], false);
         RecomputeChecksum();
     }
     NMNDRespond(NM_MESSAGE, sts, appReceiveParamPtr, apduPtr);
+#if LINK_IS(UDP)
+    if (sts == LonStatusNoError && apduPtr->data[1] == 0) {
+        if (pDomain->Subnet != 0 && oldSubnet != pDomain->Subnet) {
+            uint32_t oldaddr = BROADCAST_PREFIX | oldSubnet;
+            uint32_t newaddr = BROADCAST_PREFIX | pDomain->Subnet;
+            RemoveIPMembership(oldaddr);
+            AddIpMembership(newaddr);
+        }
+    }
+#endif  // LINK_IS(UDP)
 }
 
 /*******************************************************************************
