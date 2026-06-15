@@ -747,6 +747,13 @@ LonStatusCode HalOpenUsb(int ldisc
         return status;
     }
 #if OS_IS(LINUX)
+#if defined(__APPLE__)
+    // Simulating successful open on macOS (no physical hardware)
+    *usb_fd_out = -1;
+    OsalPrintLog(INFO_LOG, status,
+            "HalOpenUsb: Simulating successful open on macOS (no physical hardware)");
+    return LonStatusNoError;
+#endif
     if (!usb_dev_name || !*usb_dev_name || strlen(usb_dev_name) >= 256) {
         *usb_fd_out = -1;
         status = LonStatusInvalidParameter;
@@ -1125,6 +1132,15 @@ LonStatusCode HalWriteUsb(int usb_fd, const void *buf, size_t len, size_t *bytes
         *bytes_written = 0;
     }
 #if OS_IS(LINUX)
+#if defined(__APPLE__)
+    // Simulating successful write on macOS (no physical hardware)
+    if (usb_fd == -1) {
+        if (bytes_written) *bytes_written = len;
+        OsalPrintLog(PACKET_TRACE_LOG, status,
+                "HalWriteUsb: Simulating write of %zu bytes on macOS", len);
+        return LonStatusNoError;
+    }
+#endif
     const uint8_t *p = (const uint8_t *)buf;
     size_t total = 0;
     const int MAX_POLL_MS = 5000;  // Overall soft budget
@@ -1263,6 +1279,13 @@ LonStatusCode HalReadUsb(int usb_fd, void *buf, size_t len, ssize_t *bytes_read)
 {
     LonStatusCode status = LonStatusNoError;
 #if OS_IS(LINUX)
+#if defined(__APPLE__)
+    // Simulating no data available on macOS (no physical hardware)
+    if (usb_fd == -1) {
+        *bytes_read = 0;
+        return LonStatusNoMessageAvailable;
+    }
+#endif
     if (usb_fd < 0 || !buf || len == 0 || !bytes_read) {
         status = LonStatusInvalidParameter;
         OsalPrintLog(ERROR_LOG, status,
