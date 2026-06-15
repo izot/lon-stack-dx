@@ -13,9 +13,8 @@
 #if LINK_IS(UDP)
 #include "lon_udp/ipv4_to_lon_udp.h"
 #endif
-#if LINK_IS(USB_MIP) || LINK_IS(MULTIPLE_USB_MIPS)
-#include "lon_usb/lon_usb_link.h"
-#endif
+
+#include "lcs/lcs_link.h"
 
 #ifdef __cplusplus
 extern "C" {
