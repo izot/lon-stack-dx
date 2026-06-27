@@ -858,20 +858,19 @@ IZOT_EXTERNAL_FN LonStatusCode IzotDatapointFlags(
 {
     LonStatusCode status = LonStatusNoError;
     uint16_t flags = pDatapointDef->Flags;
-    pDatapointDef->Flags =
-            (flags & ~IZOT_DATAPOINT_PRIORITY) | (priority ? IZOT_DATAPOINT_PRIORITY : 0);
-    pDatapointDef->Flags =
-            (flags & ~IZOT_DATAPOINT_IS_OUTPUT) |
-            ((direction == IzotDatapointDirectionIsOutput) ? IZOT_DATAPOINT_IS_OUTPUT
-                                                           : 0);
-    pDatapointDef->Flags = (flags & ~IZOT_DATAPOINT_CONFIG_CLASS) |
-                           (isProperty ? IZOT_DATAPOINT_CONFIG_CLASS : 0);
-    pDatapointDef->Flags = (flags & ~IZOT_DATAPOINT_PERSISTENT) |
-                           (persistent ? IZOT_DATAPOINT_PERSISTENT : 0);
-    pDatapointDef->Flags = (flags & ~IZOT_DATAPOINT_CHANGEABLE) |
-                           (changeable ? IZOT_DATAPOINT_CHANGEABLE : 0);
-    pDatapointDef->Flags = (flags & ~IZOT_DATAPOINT_AUTHENTICATED) |
-                           (authenticated ? IZOT_DATAPOINT_AUTHENTICATED : 0);
+    flags &= (uint16_t)~(IZOT_DATAPOINT_PRIORITY | IZOT_DATAPOINT_IS_OUTPUT |
+                         IZOT_DATAPOINT_CONFIG_CLASS | IZOT_DATAPOINT_PERSISTENT |
+                         IZOT_DATAPOINT_CHANGEABLE | IZOT_DATAPOINT_AUTHENTICATED);
+
+    flags |= (priority ? IZOT_DATAPOINT_PRIORITY : 0) |
+             ((direction == IzotDatapointDirectionIsOutput) ? IZOT_DATAPOINT_IS_OUTPUT
+                                                            : 0) |
+             (isProperty ? IZOT_DATAPOINT_CONFIG_CLASS : 0) |
+             (persistent ? IZOT_DATAPOINT_PERSISTENT : 0) |
+             (changeable ? IZOT_DATAPOINT_CHANGEABLE : 0) |
+             (authenticated ? IZOT_DATAPOINT_AUTHENTICATED : 0);
+
+    pDatapointDef->Flags = flags;
     return (status);
 }
 
